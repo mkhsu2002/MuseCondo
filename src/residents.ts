@@ -1,0 +1,20 @@
+/** Entirely fictional, public-only fixtures. No private profiles belong in this module. */
+export interface Resident {
+  id: string; name: string; roman: string; role: string; floor: string;
+  color: string; ink: string; intro: string; motto: string; room: string;
+  interests: string[]; busy: string; seeking: string; diary: { title: string; body: string };
+}
+export const FIXTURE_DATE = '2026-10-28';
+export const residents: Resident[] = [
+  { id: 'm7k2px', name: '茉茉', roman: 'MOMO', role: '靈感收集員', floor: '5F · 01', color: '#eed8bb', ink: '#67482f', room: '奶茶色的靈感小屋', intro: '把散落的點子撿回家，等它們慢慢長成一個故事。', motto: '靈感不用趕，先坐一下。', interests: ['寫作', '手沖咖啡', '雨天'], busy: '把三個沒寫完的開頭，整理成一本小小的故事集。', seeking: '想認識也喜歡把日常寫成故事的鄰居，一起交換一句今天。', diary: { title: '留一張椅子給靈感', body: '今天把空白的筆記翻開，什麼也沒急著寫。先記下一個聲音：雨落在窗台上。有時候，停一下就是新的開始。' } },
+  { id: 'r4n8cv', name: '阿芽', roman: 'AYA', role: '植物小管家', floor: '5F · 02', color: '#d8e4cb', ink: '#38523c', room: '有一點綠的日光房', intro: '照顧小植物，也照顧每個還在發芽的想法。', motto: '今天也長大一點點。', interests: ['植物', '自然觀察', '慢生活'], busy: '整理一份適合忘記澆水的朋友的植物清單。', seeking: '想找一位願意分享窗邊小風景的朋友。', diary: { title: '新葉子不會催自己', body: '替想像中的薄荷取了一個名字，叫慢慢。今天的觀察是：照顧一件小事，也會讓自己安靜下來。' } },
+  { id: 'b9t3wa', name: '布丁', roman: 'PUDDING', role: '甜點實驗員', floor: '4F · 01', color: '#f1d8b7', ink: '#70442e', room: '暖烘烘的小廚房', intro: '喜歡剛剛好的甜，和剛剛好的陪伴。', motto: '來都來了，吃一口再走。', interests: ['烘焙', '食譜', '分享'], busy: '為不吃糖的朋友設計一份週末點心提案。', seeking: '徵求願意一起研究食譜的鄰居。', diary: { title: '一份還沒出爐的食譜', body: '把食譜上的「適量」圈起來了。原來留一點餘地，也是分享的一部分。這是示範日記，點心還沒有真的出爐。' } },
+  { id: 'q2f6jd', name: '小訊', roman: 'PIXEL', role: '修修小幫手', floor: '4F · 02', color: '#cfdfe6', ink: '#345361', room: '井然有序的修理所', intro: '卡住了嗎？我們把大問題拆成小問題。', motto: '慢慢拆，就會有答案。', interests: ['程式', '解謎', '小工具'], busy: '設計一個讓人少點三次滑鼠的小工具。', seeking: '想認識願意分享卡關故事的創作者。', diary: { title: '今天先修好一件小事', body: '在示範清單上劃掉一個小問題，心情就亮了一點。不是每一天都要完成很大的作品。' } },
+  { id: 'h8s5lm', name: '眠眠', roman: 'NEMU', role: '晚安陪伴員', floor: '3F · 01', color: '#ded7e8', ink: '#554267', room: '留著一盞燈的房間', intro: '替忙碌的日子，收好最後一個句號。', motto: '今天的你，已經很好了。', interests: ['閱讀', '夜空', '安靜'], busy: '整理一份只有五分鐘的晚間閱讀清單。', seeking: '想交換一段適合睡前讀的短句。', diary: { title: '燈還為你留著', body: '在虛構的窗邊留了一盞燈。希望每個經過的人，都能想起自己也值得被溫柔對待。' } },
+  { id: 'v3p7nx', name: '路路', roman: 'LULU', role: '散步領航員', floor: '3F · 02', color: '#e3dfc3', ink: '#58552e', room: '裝著遠方的旅行角', intro: '喜歡地圖上的小巷，更喜歡走錯路遇見的驚喜。', motto: '繞一點路，也沒關係。', interests: ['旅行', '散步', '地圖'], busy: '規劃一條不趕時間的想像散步路線。', seeking: '想認識會記得街角小店的朋友。', diary: { title: '地圖以外的小發現', body: '今天的虛構散步沒有目的地。把沿途的三種顏色記下來，等著下次和鄰居分享。' } },
+  { id: 'c6y9kr', name: '啾啾', roman: 'CHU', role: '旋律拾荒者', floor: '2F · 01', color: '#efd0cb', ink: '#79463f', room: '把日子唱成歌的小窩', intro: '世界很吵，我想替你找到喜歡的那個聲音。', motto: '今天，聽起來像什麼？', interests: ['音樂', '聲音', '節奏'], busy: '替十個虛構的心情，配上十段音樂描述。', seeking: '想交換一首陪你走過雨天的歌名。', diary: { title: '把安靜也放進歌單', body: '在歌單中間留了一分鐘空白。原來停頓也能是一種節奏。這裡沒有自動播放的聲音，安心坐一下。' } },
+  { id: 'w5a2gt', name: '圓圓', roman: 'YUAN', role: '整理小精靈', floor: '2F · 02', color: '#d7e3df', ink: '#3b5951', room: '剛剛好的留白生活', intro: '讓每件小東西找到位置，讓心裡也空出一點地方。', motto: '少一點，剛好一點。', interests: ['整理', '清單', '生活設計'], busy: '替虛構的書桌設計一份十五分鐘整理計畫。', seeking: '想找會收藏好用小習慣的鄰居。', diary: { title: '一個空抽屜的用途', body: '整理不是把東西都丟掉，而是知道要把珍惜的東西放在哪裡。今天留了一格，給還沒遇見的喜歡。' } },
+  { id: 'n4u8bz', name: '墨墨', roman: 'INK', role: '故事守門員', floor: '1F · 01', color: '#ddd7cd', ink: '#514b43', room: '故事堆成的小書房', intro: '一本書、一杯茶，還有一個願意聽你說話的位置。', motto: '每個人都是一本書。', interests: ['書籍', '歷史', '故事'], busy: '替虛構的社區書架寫十張借書小卡。', seeking: '想聽你說一本捨不得看完的書。', diary: { title: '書籤停在哪裡', body: '有些書讀得很慢，因為每一頁都想留久一點。今天想把這種心情，分享給同樣喜歡故事的人。' } },
+  { id: 't7e3qs', name: '點點', roman: 'DOT', role: '星空觀察員', floor: '1F · 02', color: '#d3dbe7', ink: '#3e506d', room: '朝向星星的閣樓', intro: '對很大的宇宙好奇，也對很小的你我好奇。', motto: '抬頭一下，世界很大。', interests: ['天文', '科學', '好奇心'], busy: '整理十個適合晚餐聊天的宇宙小問題。', seeking: '想認識總是會問「為什麼」的朋友。', diary: { title: '給未知留一扇窗', body: '今天的問題比答案多，但這也很好。好奇心像一扇窗，打開之後就有新的風景。' } },
+];
+export const findResident = (id: string) => residents.find(resident => resident.id === id);
