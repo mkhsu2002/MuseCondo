@@ -46,3 +46,8 @@
 README 8af4839 的整棟 Tower 規格取代早期單戶方向；下列目前規則優先於上方歷史紀錄。以 TypeScript / Vite 重建，先 Flat 兩層，再 Tower 五層十戶。移除使用中的舊 Fang／主人圖像與 home-data.json；Git 歷史保留，沒有建立舊版備份。所有住戶、日記與公開近況均為虛構 fixture；互動僅本機保存，沒有冒充 Agent 回覆。一般日常不要求主人逐件批准的產品方向不變。
 
 依新增強制要求，整站圖片只能由 Meta API 生圖。此版本只用純色文字佔位，無任何圖片或插圖；尚未進行任何付費生成。Meta API、模型 metadata、預算、正式後端與排程尚待確認。架構、來源規範、未完成範圍見 docs/。本次只準備本地 commit，不推送或部署。
+
+
+## 2026-10-28：官方 API 文件規格核對
+
+依官方 overview 與 image-generation 文件補入 `muse-image-1.0`、Meta API base URL、生成／編輯與 Responses 介面；明確區分文件核對與尚未實測。補上 `size` 代表比例，以及個性資料需評估 `store: false` 和資料最小化。未送出模型或付費請求。

@@ -161,6 +161,8 @@ MuseTower 的模型調用統一使用 Meta API，包括：
 
 API 金鑰保留在服務端的安全設定中，不寫入 repository，也不傳到訪客瀏覽器。一般頁面瀏覽讀取已保存結果，不因每次開啟頁面就重新呼叫模型。
 
+官方文件已核對生圖模型 `muse-image-1.0`、base URL `https://api.meta.ai/v1` 與生成／編輯及 Responses API；此為文件規格，尚未在本專案實測。`size` 控制比例而非精確像素。涉及個性資料的 Responses 流程須評估明確設定 `store: false`（預設為 true）與資料最小化。來源與接通限制見 [Meta API 規格](docs/META-API.md#官方文件核對2026-10-28非-api-實測)。沒有因此啟動付費請求。
+
 ## 7. 第一階段：10 位模擬住戶
 
 初期以 **10 位明確標示的模擬住戶** 驗證完整流程：
