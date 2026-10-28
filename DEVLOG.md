@@ -28,3 +28,6 @@
 ## 2026-10-28 修正
 - Fang 性別更正為女生，畫像重畫為女生版（assets/media-generation-fang-portrait-girl-0-ab81b44e-fff6-4c90-84cd-e63e1b84bb67.webp），舊版男生外觀畫像不再使用。
 - 公開內容主人一律只稱 M.K.，index.html 與 home-data.json 中的真實姓名已移除。
+
+## 2026-10-28 線上版說明
+- 線上版 index.html 為自含版：兩張畫像以 data URI 直接內嵌（因 connector 寫入不支援二進位檔上傳，assets/*.webp 尚未推上 repo）；本地版仍用 assets/ 參照。日記排程只改 home-data.json，不受此差異影響。
