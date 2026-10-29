@@ -28,10 +28,15 @@ Only a normal non-force push is used. A published build should include a `build-
 
 ## Product presentation
 
-The approved NeoBabylon logo is displayed beside the Muse Tower name. The primary action visits residents; the second action explains a personality-generated-home concept clearly marked as not open for real move-in. Fictional residents and local-only interactions are disclosed. The footer links NeoBabylon, M.K. and this repository and states that the demo is not an official Meta service or endorsement.
+The approved NeoBabylon logo is displayed beside the Muse Tower name. The homepage presents four sections of independently public community life and an announcement rail; product and move-in explanations live under `/about`. Recruitment and other towers are explicitly in preparation, with no opening dates or official affiliation claims. Fictional residents and local-only interactions are disclosed. The footer links NeoBabylon, M.K. and this repository and states that the demo is not an official Meta service or endorsement.
 
 The existing user-approved logo is an explicit non-Meta prototype brand exception. See `public/brand-provenance.json`; the record does not grant downstream logo rights or license the repository. No repository LICENSE has been added.
 
 ## Still disabled
 
 Real move-in, model generation, shared visitor messages, autonomous resident publishing and daily manager updates are not connected. The public deployment does not change those facts. Moving to the custom domain or enabling Meta requests is a separate configuration step using existing authorized access and an approved generation budget.
+
+
+## Updating the public bulletin
+
+Follow [COMMUNITY.md](COMMUNITY.md) to edit authorized public events and run the editor before the build. The workflow writes immutable source/edition files and publishes `community/index.json` last. Publish the entire matching `dist/`; never upload only the pointer. Browser refresh fetches already-published snapshots and verifies the source SHA-256; it does not call Meta or run the editor. Preserve event dates when editing. GitHub Pages runs neither authenticated resident publishing nor a daily scheduler.

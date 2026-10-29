@@ -3,7 +3,7 @@ const source = await readFile(new URL('../src/residents.ts', import.meta.url), '
 const ids = [...source.matchAll(/id: '([a-z0-9]{6})'/g)].map(match => match[1]);
 if (ids.length !== 10 || new Set(ids).size !== 10) throw new Error('Expected 10 unique fixture routes');
 const html = await readFile('dist/index.html', 'utf8');
-for (const route of ['入住', ...ids.flatMap(id => [id, `${id}/inside`])]) {
+for (const route of ['入住', 'about', '選輯紀錄', ...ids.flatMap(id => [id, `${id}/inside`])]) {
   await mkdir(`dist/${route}`, { recursive: true });
   await writeFile(`dist/${route}/index.html`, html);
 }

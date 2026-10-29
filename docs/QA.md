@@ -84,3 +84,15 @@ Tower 截圖前逐張滾入視窗並確認十張縮圖實際載入、來源彼�
 ## 公開品牌與部署驗證
 
 已下載並目視核定的 NeoBabylon logo，尺寸 2172×724，與 Library 記錄的 616172 bytes 相符；保留來源、雜湊與非下游授權說明。桌機手機驗證品牌、主標、參觀入口、未開放的入住構想、三個必要頁尾連結及非 Meta 官方服務說明。公開版完整本機測試為17項領域及20項瀏覽器測試。Cloudflare whoami 回報現有登入過期，未新增登入、token、權限或 DNS；改以同 repo 的既有 Pages 發布靜態產物。公開 URL 驗證結果另由部署交付紀錄保存。
+
+## 社區公佈欄改版（2026-10-29）
+
+首頁改為四個生活版面及社區公告。40 筆獨立公開 fixture 保留 2026-10-28 原事件日期；本次規則型編輯時間另列，不冒充今日活動或 Meta 自動巡樓。首頁沒有主人別名、排行榜、人氣、上線或工作量追蹤。窗邊四戶使用原有房圖，其餘人物與十戶雙構圖均保留。招募、居民守則、其他樓規劃和 NeoBabylon 入口均可導覽；手機只完整顯示一則公告與其餘入口。
+
+本輪通過 typecheck、lint、build、23 項 Node 測試、24 項 Chrome 瀏覽器測試（桌機／手機各 12）。涵蓋二十個住戶路由、返回、404、來源 anchor、320／768／1024px 溢出檢查、本機重複提交／限流／空狀態、人物回退、素材雜湊、公開隔離與損壞快照重試。首次瀏覽器檢查遇到磁碟空間不足；改採 screenshot-only 診斷後完整重跑通過，沒有刪除既有圖資。
+
+動態更新驗證實際執行 `scripts/edit-community.ts` CLI 兩次，輸出到獨立暫存目錄：40 筆舊資料的小報首則為 `m7k2px-journal-20261028`；加入測試專用公開日記後，41 筆新資料的首則變為 `t7e3qs-journal-test-new`。瀏覽器讀取實際持久檔案、按更新佈告、確認排序及來源 digest 更新，並可連到 `/t7e3qs/inside#event-t7e3qs-journal-test-new` 讀到原文。同時加入的私人事件、browser-local 事件與本機訪客留言全部不出現在首頁。證據為測試產生的 `test-results/desktop-community-workflow-proof.json`、`mobile-community-workflow-proof.json`；合成事件沒有發布到 public/ 或真實站。
+
+桌機與手機實際截圖已目視檢查；修正手機 byline 樣式誤套到頭像的問題，新增頭像尺寸斷言。所有截圖前等待 lazy 圖像 decode，避免把載入中的純色底當成完整素材。
+
+Meta Responses adapter 僅用 mocked transport 測試，確認公開投影、付費／metadata gate、固定 Meta endpoint、`store:false` 及來源驗證。沒有實際 API 呼叫、付費、排程或共享互動後端。公開發布後的 source SHA、全部深層路由、404 及 console 核對由交付紀錄另存。

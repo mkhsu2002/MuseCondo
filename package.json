@@ -3,15 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.12" },
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build && node scripts/routes.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test tests/domain.test.ts",
-    "test:e2e": "playwright test"
+    "test": "node --experimental-strip-types --test tests/domain.test.ts tests/community.test.ts",
+    "test:e2e": "playwright test",
+    "manager:edit": "node --experimental-strip-types scripts/edit-community.ts"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

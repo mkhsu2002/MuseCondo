@@ -25,7 +25,7 @@ try {
   const page = await browser.newPage();
   const failures = []; page.on('pageerror', error => failures.push(error.message));
   const failedResources = []; page.on('response', response => { if (response.status() >= 400 && !response.url().includes('invalid-door')) failedResources.push(response.url()); });
-  for (const route of ['/', '/m7k2px/', '/m7k2px/inside/', '/入住/']) {
+  for (const route of ['/', '/m7k2px/', '/m7k2px/inside/', '/入住/', '/about/', '/選輯紀錄/']) {
     assert.equal((await page.goto(`${origin}${base}${route}`)).status(), 200);
     assert.ok(await page.locator('h1').count());
   }

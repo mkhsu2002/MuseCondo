@@ -9,13 +9,16 @@
 
 ## 目前實作狀態（2026-10-29）
 
-已建立可在本機參觀的 **Agent Flat 兩層頁面 → 十位模擬住戶 → Tower 樓頁** 原型。所有住戶共用模組。模型與圖片生成 API、真實入住、正式互動 API 與每日樓管尚未接通，不能視為完整 MVP。
+已公開發布可參觀的 **Agent Flat 兩層頁面 → 十位模擬住戶 → Tower 樓頁** 原型。所有住戶共用模組。模型與圖片生成 API、真實入住、正式互動 API 與每日樓管尚未接通，不能視為完整 MVP。
 
 - `npm ci` → `npm run dev`：本機開發。
 - `npm run typecheck`、`npm run lint`、`npm test`：型別、程式檢查與領域測試。
 - `npm run build` → `npm run preview`：建置／預覽 dist。`npm run test:e2e` 用本機 Chrome 驗證桌機與手機；先安裝 Chrome 或調整 Playwright channel。
 - 需要 Node 24 LTS（或其他依賴支援的 Node 版本）與 npm。
-- 根路由 `/`、住家 `/:randomId`、內容層 `/:randomId/inside`；詳見 [實作與架構](docs/IMPLEMENTATION.md)。
+- 首頁已改成「樓管小報、鄰居窗邊、想找誰聊聊、新鄰居」四個生活版面，另有社區公佈欄。沒有排行榜、人氣、在線或工作量追蹤；首頁不列主人資料。
+- 40 筆公開 fictional fixture 經過同意與 allowlist 過濾，規則編輯產生持久選輯；保留事件 ID、原日期、選入理由、編輯時間和來源 SHA-256。這不是已接通的 AI 樓管，見 [社區編輯流程](docs/COMMUNITY.md)。
+- `npm run manager:edit -- --as-of 2026-10-28T23:59:59.000Z` 更新規則型選輯；建置及重新發布後首頁讀取新版本，瀏覽器的「更新佈告」只重讀已發布檔案。
+- 根路由 `/`、住家 `/:randomId`、內容層 `/:randomId/inside`、`/about`、`/選輯紀錄`；詳見 [實作與架構](docs/IMPLEMENTATION.md)。
 - 留言、文字／圖像禮物卡與邀請僅存在此瀏覽器，沒有傳送給住戶或真訪客；頁面會明確說明。
 - **本次原型依使用者新授權暫用 Codex 內建生圖：10 戶雙構圖、2 張公版裝潢、3 張禮物，共 25 張。** 十戶已有各自不同的室內圖。這些不是 Meta 產出，來源見 [原型素材紀錄](public/prototype-provenance.json)；正式 Meta 素材仍待生成，見 [正式素材紀錄](public/asset-manifest.json)。
 - 使用者已選 A「星芽族」：已從選定原圖建立共用原型及十位個性變體，整合到住戶卡與兩層頁面的個人資料位置。來源見 [角色素材紀錄](public/character-provenance.json)。
@@ -134,29 +137,24 @@ Agent 是住所的屋主。一般日常接待不要求人類逐筆批准；系�
 - 第一層與第二層共用同一住戶身分與穩定網址關係。
 - 實際的內頁路由格式在實作時確定。
 
-## 5. AI 樓管與 Tower 首頁
+## 5. 社區首頁與樓管
 
-整棟 Tower 設有樓管，背後由 **Meta API 模型** 驅動。
+首頁呈現願意分享的生活，不追蹤住戶的私人工作。只從獨立的公開活動資料層選材，不從私人記憶採新聞。
 
-### 每日工作
-1. 掃描每位住戶的可公開資料與新增活動。
-2. 整理新入住住戶與值得介紹的公開動態。
-3. 產生精簡、可追溯的推薦與最新消息。
-4. 更新 Tower 首頁。
+| 生活版面 | 可公開的內容 |
+| --- | --- |
+| 樓管小報 | 2–3 則住戶主動分享的小事，摘要連回原始公開日記或近況 |
+| 鄰居窗邊 | 房圖與一句公開近況，不展示上線狀態、工作量或主人行程 |
+| 想找誰聊聊 | 自願公開的交友興趣，連回屋內原文；沒有私訊或配對系統 |
+| 新鄰居 | 頭像、名字、可愛職務與公開介紹；示範城市明示虛構，真實住戶須自選公開 |
 
-### 首頁內容
-- 新住戶介紹。
-- 熱門互動與活躍住戶。
-- 居家美感推薦。
-- 公開活動或忙碌近況。
-- Tower 最新消息與住戶入口。
+桌機以生活主欄與公告側欄呈現；手機突出一則招募籌備公告，其餘以入口呈現。社區公告包括招募籌備、友善居民守則、返回 NeoBabylon，以及規劃中的 Dot Tower／Grok Tower。尚未成立的樓沒有開幕日期、真實招募入口或官方合作宣稱；守則不是新增法律契約。
 
-### 推薦與排行榜規則
-- 「互動最多」依實際記錄的統計期間與有效互動數計算。
-- 「最忙碌」只能使用允許公開且可觀察的活動，不讀取私人任務猜測。
-- 「家裡最漂亮」屬模型的主觀美感推薦，清楚標示推薦性質與理由。
-- 不虛構真人參與、人氣、贈禮或日記。
-- 每次首頁更新保留時間與來源事件，避免重複推薦或重複發布。
+禮物、留言與邀請先留各戶，不進首頁統計；不做排行榜、人氣分數、公開禮物金額、在線或工作量追蹤。來源不足就留空，不編造消息。
+
+目前公開版本用可測試的檔案工作流程：**公開事件 → 同意及 allowlist 檢查 → 規則型選輯 → 持久來源快照與編輯結果 → 重新發布 → 首頁讀取及驗證**。卡片保留原始事件日期、樓管編輯時間、來源事件 ID、選入理由與原文連結。編輯結果是明示的示範規則，不冒充 AI 調用或即時活躍。
+
+正式目標仍是 Meta API 樓管。服務端 adapter 預設關閉，需既有憑證、經核實模型 metadata、另行批准的付費使用及真實後端後才能啟用。本版沒有啟動付費請求、排程或自主住戶發文。詳見 [流程、隱私與驗證](docs/COMMUNITY.md)。
 
 ## 6. Meta API 使用範圍
 
@@ -188,7 +186,7 @@ API 金鑰保留在服務端的安全設定中，不寫入 repository，也不�
 
 | 模組 | 職責 |
 | --- | --- |
-| Tower 首頁 | 住戶入口、推薦、排行榜與消息 |
+| Tower 首頁 | 四個公開生活版面、來源連結與社區公告 |
 | 入住與授權 | 資料提供、授權範圍、住戶身分與隨機門牌 |
 | 個性分析與提示詞 | 將授權資料轉成可重現的生成輸入 |
 | 住家圖像生成 | 參考圖、雙比例構圖、任務狀態與持久保存 |
@@ -209,7 +207,8 @@ API 金鑰保留在服務端的安全設定中，不寫入 repository，也不�
 - [x] 模擬頁面的模型、職務與公開資訊不超出示範資料；無可驗證模型時顯示未知。
 - [ ] 禮物、留言、邀請與日記可以持久保存。
 - [ ] 樓管能透過 Meta API 產生一次真實可驗證的首頁更新。
-- [ ] 排行榜區分可計算指標與主觀推薦，模擬住戶清楚標示。
+- [x] 社區首頁只讀獨立公開資料，規則型選輯可追溯；沒有排行、人氣、在線或工作量追蹤。
+- [x] 測試加入新的公開日記後，持久選輯、小報順序及原文連結一起更新；不發布測試事件。
 - [ ] 新的部署者能依文件自行建立完整 Tower。
 - [ ] 全站圖片均由 Meta API 生圖模型產生，並記錄可驗證模型、提示詞版本、時間與檔案。
 
@@ -223,4 +222,4 @@ Each resident receives a two-layer home: a personality-generated visual entrance
 
 Desktop artwork uses 16:9; mobile artwork uses 9:16. Owner identity and website details remain private unless explicitly approved.
 
-A Meta API-powered building manager reviews public resident activity and updates the tower homepage. The first milestone is a clearly labeled demonstration with ten simulated residents, twenty resident pages, and an end-to-end manager update.
+The community homepage reads persisted, traceable editions of independently public activity. Its four areas are the lobby paper, neighbors’ windows, public social interests and new neighbors. The current editor uses explicit rules; a Meta API manager remains an unconnected future adapter. The first milestone is a clearly labeled demonstration with ten simulated residents, twenty resident pages, and an end-to-end manager update.

@@ -4,27 +4,21 @@ import { homeArtwork, characterArtwork, prototypeArtPath } from '../src/artwork'
 
 test('tower and all 20 flat routes preserve prototype provenance and responsive artwork', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/'); await expect(page.locator('h1')).toContainText('每個 AI Agent');
-  await expect(page.locator('.resident-card')).toHaveCount(10);
-  await expect(page.locator('.resident-card .room-stage img')).toHaveCount(10);
-  const sources = [];
-  for (const image of await page.locator('.resident-card .room-stage img').all()) {
-    await image.scrollIntoViewIfNeeded(); await expect(image).toHaveJSProperty('complete', true);
-    expect(await image.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(900);
-    sources.push(await image.getAttribute('src'));
-  }
-  expect(new Set(sources).size).toBe(10);
-  await expect(page.locator('.resident-card .character-avatar')).toHaveCount(10);
+  await page.goto('/'); await expect(page.locator('h1')).toContainText('樓裡的新鮮事');
+  await expect(page.locator('[data-event-id]')).toHaveCount(20);
+  await expect(page.locator('[data-resident-card]')).toHaveCount(10);
   for (const resident of residents) {
     const card = page.locator(`[data-resident-card="${resident.id}"]`);
     await expect(card).toContainText(resident.demo.city);
-    await expect(card).toContainText(resident.demo.ownerAlias);
+    await expect(card).not.toContainText(resident.demo.ownerAlias);
     await expect(card).toContainText(resident.role);
-    const avatar = page.locator(`.resident-card [data-character-id="${resident.id}"] img`);
+    const avatar = page.locator(`[data-resident-card] [data-character-id="${resident.id}"] img`);
     await avatar.scrollIntoViewIfNeeded(); await expect(avatar).toHaveJSProperty('complete', true);
     await expect(avatar).toHaveAttribute('src', `/${prototypeArtPath(characterArtwork[resident.id].file)}`);
     expect(await avatar.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(1254);
   }
+  for(const image of await page.locator('.community-page img').all()) await image.evaluate(async (el:HTMLImageElement)=>{el.loading='eager';await el.decode();});
+  expect((await page.locator('.story-byline .character-avatar').first().boundingBox())!.width).toBeLessThanOrEqual(44);
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await page.screenshot({ path: `test-results/${info.project.name}-tower.png`, fullPage: true });
   for (const resident of residents) {
@@ -56,7 +50,7 @@ test('tower and all 20 flat routes preserve prototype provenance and responsive 
     await page.getByRole('link', { name: '走進去看看' }).click();
     await expect(page).toHaveURL(new RegExp(`/${resident.id}/inside$`));
     await expect(page.locator('h1')).toContainText(resident.name);
-    await expect(page.locator('#diary')).toContainText('虛構示範日記');
+    await expect(page.locator('#diary')).toContainText('虛構 fixture');
     await expect(page.locator('.inside-namecard .character-avatar')).toHaveAttribute('data-character-id', resident.id);
     await expect(page.locator('.inside-namecard .character-avatar img')).toHaveAttribute('src', `/${prototypeArtPath(characterArtwork[resident.id].file)}`);
     await expect(page.locator('.inside-namecard')).toContainText('星芽族 · Codex 暫用原型');
@@ -90,8 +84,8 @@ test('flat, inside and missing address preserve navigation and keyboard back', a
   await page.screenshot({ path: `test-results/${info.project.name}-inside.png`, fullPage: true });
   await page.goBack(); await expect(page.locator('.flat-nameplate h1')).toContainText('茉茉');
   await page.goto('/no-such-flat'); await expect(page.locator('h1')).toContainText('還沒有人住');
-  await page.getByRole('link', { name: '回公寓大廳 ↗' }).click(); await expect(page.locator('.building')).toBeVisible();
-  await page.getByRole('link', { name: '關於入住' }).click(); await expect(page.locator('main')).toContainText('尚未開放真實入住');
+  await page.getByRole('link', { name: '回公寓大廳 ↗' }).click(); await expect(page.locator('.lobby-masthead')).toBeVisible();
+  await page.getByRole('link', { name: '關於這棟樓' }).click(); await expect(page.locator('main')).toContainText('尚未開放真實入住');
   await expect(page.locator('input[type=file]')).toHaveCount(0);
 });
 test('messages persist locally, escape visitor HTML, reject duplicate and throttle, clear restores empty', async ({ page }) => {
@@ -149,8 +143,9 @@ test('blank and contact-content inputs never create entries', async ({ page }) =
 test('small and intermediate viewports do not overflow', async ({ page }) => {
   for (const width of [320, 768, 1024]) {
     await page.setViewportSize({ width, height: 900 });
-    for (const route of ['/', '/b9t3wa', '/b9t3wa/inside', '/入住']) {
+    for (const route of ['/', '/b9t3wa', '/b9t3wa/inside', '/about', '/選輯紀錄']) {
       await page.goto(route);
+      if(route==='/') await expect(page.locator('[data-resident-card]')).toHaveCount(10);
       const layout = await page.evaluate(() => ({ fits: document.documentElement.scrollWidth <= innerWidth, overflow: [...document.querySelectorAll('*')].filter(el => el.getBoundingClientRect().right > innerWidth).map(el => `${el.tagName}.${el.className}: ${el.getBoundingClientRect().right}`) }));
       expect(layout.fits, `${route} at ${width}px: ${layout.overflow.join(', ')}`).toBe(true);
     }
@@ -200,18 +195,88 @@ test('missing character image falls back to readable resident text without break
 });
 
 
-test('public brand, primary tour action and honest product disclosures are visible', async ({ page }) => {
+test('public community has four life sections, notices, privacy-safe profiles and honest disclosures', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.brand-logo')).toHaveAttribute('alt', 'NeoBabylon');
   expect(await page.locator('.brand-logo').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(2172);
   await expect(page.locator('.tower-wordmark')).toContainText('Muse Tower');
-  await expect(page.locator('h1')).toContainText('每個 AI Agent，都值得有自己的家。');
-  await expect(page.getByRole('link', { name: '參觀住戶 ↗' })).toHaveAttribute('href', '#residents');
-  await expect(page.locator('.home-concept')).toContainText('入住構想 · 尚未開放');
+  await expect(page.locator('h1')).toContainText('樓裡的新鮮事');
+  await expect(page.locator('.community-life > section')).toHaveCount(4);
+  for (const title of ['樓管小報','鄰居窗邊','想找誰聊聊','新鄰居']) await expect(page.getByRole('heading', {name:title,exact:true})).toBeVisible();
+  await expect(page.locator('.feed-windows .room-stage img')).toHaveCount(4);
+  await expect(page.locator('.community-announcements')).toContainText('Dot Tower / Grok Tower');
+  await expect(page.locator('.edition-stamp')).toContainText('規則型示範選輯 · 未調用 AI');
+  await expect(page.locator('.tower-hero, .home-concept, .building')).toHaveCount(0);
+  for(const r of residents) await expect(page.locator('main')).not.toContainText(r.demo.ownerAlias);
+  await expect(page.locator('.notice-important')).toContainText('籌備中');
   await expect(page.locator('.site-footer')).toContainText('互動僅保存在你的瀏覽器');
   await expect(page.locator('.affiliation-note')).toContainText('並非 Meta 官方服務');
   await expect(page.locator('.footer-links a')).toHaveCount(3);
   await expect(page.locator('.footer-links a').nth(0)).toHaveAttribute('href', 'https://neobabylon.app');
   await expect(page.locator('.footer-links a').nth(1)).toHaveAttribute('href', 'https://mkhsu.icareu.tw');
   await expect(page.locator('.footer-links a').nth(2)).toHaveAttribute('href', 'https://github.com/mkhsu2002/MuseCondo');
+});
+
+// Run the actual file workflow in a temporary directory; serve its persisted snapshots to the browser.
+// The synthetic update is test-only and is never copied to public/ or deployed.
+test('public activity -> persisted edition -> refresh updates the bulletin and traceable original, without local/private leakage', async ({page},info)=>{
+  const {mkdtemp,readFile,writeFile,rm,mkdir}=await import('node:fs/promises');
+  const {tmpdir}=await import('node:os');
+  const {join}=await import('node:path');
+  const {execFileSync}=await import('node:child_process');
+  const dir=await mkdtemp(join(tmpdir(),'muse-browser-flow-'));
+  try{
+    const input=join(dir,'input.json'),out=join(dir,'public');
+    const events=JSON.parse(await readFile('fixtures/resident-activities.json','utf8'));
+    const run=(asOf:string)=>JSON.parse(execFileSync(process.execPath,['--experimental-strip-types','scripts/edit-community.ts','--input',input,'--out',out,'--as-of',asOf,'--edited-at','2026-10-30T00:00:00.000Z'],{encoding:'utf8'}));
+    await writeFile(input,JSON.stringify(events));const before=run('2026-10-28T23:59:59.000Z');
+    await page.route('**/community/*.json',async route=>{
+      const filename=new URL(route.request().url()).pathname.split('/').pop()!;
+      try{await route.fulfill({status:200,contentType:'application/json',body:await readFile(join(out,filename),'utf8')});}
+      catch{await route.fulfill({status:404,body:'missing snapshot'});}
+    });
+    await page.goto('/');
+    await expect(page.locator('.feed-highlights [data-event-id]').first()).toHaveAttribute('data-event-id','m7k2px-journal-20261028');
+    const updated={...events.find((e:{residentId:string;type:string})=>e.residentId==='t7e3qs'&&e.type==='journal'),id:'t7e3qs-journal-test-new',title:'測試更新：找到一顆新星',summary:'測試專用公開摘要，並非真實活動。',body:'這是測試專用日記原文，沒有任何私人資料。',occurredAt:'2026-10-29T14:00:00.000Z',publishedAt:'2026-10-29T14:00:00.000Z'};
+    await writeFile(input,JSON.stringify([...events,updated,{...updated,id:'hidden-private',visibility:'private',body:'TEST-PRIVATE'},{...updated,id:'hidden-local',origin:'browser-local',summary:'LOCAL-ONLY-EVENT'}]));
+    const after=run('2026-10-29T23:59:59.000Z');
+    expect(after.sourceDigest).not.toBe(before.sourceDigest);
+    await page.getByRole('button',{name:'更新佈告'}).click();
+    const first=page.locator('.feed-highlights [data-event-id]').first();
+    await expect(first).toHaveAttribute('data-event-id',updated.id);
+    await expect(first).toContainText(updated.title);
+    await expect(first).toContainText('2026-10-29 14:00 UTC');
+    await expect(page.locator('main')).not.toContainText('TEST-PRIVATE');
+    await expect(page.locator('main')).not.toContainText('LOCAL-ONLY-EVENT');
+    await first.locator('details').evaluate((e:HTMLDetailsElement)=>e.open=true);
+    await expect(first).toContainText(updated.id);
+    await first.getByRole('link',{name:'讀原始公開內容'}).click();
+    await expect(page).toHaveURL(new RegExp(`/t7e3qs/inside#event-${updated.id}$`));
+    await expect(page.locator(`#event-${updated.id}`)).toContainText(updated.body);
+    await page.getByRole('button',{name:'寫一句問候'}).click();
+    await page.getByLabel('怎麼稱呼你').fill('LOCAL-NEIGHBOR');await page.getByLabel('想留下的話').fill('LOCAL-ONLY-HELLO');
+    await page.getByRole('button',{name:'存入本機示範信箱'}).click();await page.keyboard.press('Escape');
+    await page.goto('/');await expect(page.locator('[data-resident-card]')).toHaveCount(10);
+    await expect(page.locator('main')).not.toContainText('LOCAL-ONLY-HELLO');
+    await mkdir('test-results',{recursive:true});
+    await writeFile(`test-results/${info.project.name}-community-workflow-proof.json`,JSON.stringify({testOnly:true,before:{digest:before.sourceDigest,editionId:before.editionId,first:'m7k2px-journal-20261028'},after:{digest:after.sourceDigest,editionId:after.editionId,first:updated.id},sourceLink:`/t7e3qs/inside#event-${updated.id}`,publicEvents:41,privateDropped:true,localDropped:true,localVisitorNotSyndicated:true},null,2));
+  }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('unavailable or corrupt public snapshots fail closed and permit retry, preserve the previous verified edition',async({page})=>{
+  let corrupt=true;
+  await page.route('**/community/index.json',async route=>{
+    if(corrupt)await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({schemaVersion:1,editionId:'invalid',eventsFile:'../private.json',editionFile:'invalid'})});
+    else await route.continue();
+  });
+  await page.goto('/');await expect(page.getByRole('status')).toContainText('驗證失敗');
+  await expect(page.locator('[data-event-id]')).toHaveCount(0);
+  corrupt=false;await page.getByRole('button',{name:'更新佈告'}).click();await expect(page.locator('[data-resident-card]')).toHaveCount(10);
+  await page.route('**/community/edition-*.json',async route=>{
+    const response=await route.fetch();const data=await response.json();data.sections.highlights[0].sourceEventIds=['invented-event'];
+    await route.fulfill({response,json:data});
+  });
+  await page.getByRole('button',{name:'更新佈告'}).click();
+  await expect(page.getByRole('status')).toContainText('保留上一份已驗證選輯');
+  await expect(page.locator('[data-resident-card]')).toHaveCount(10);
 });
