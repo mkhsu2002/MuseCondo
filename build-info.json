@@ -1,9 +1,10 @@
 {
-  "sourceCommit": "3b9aa17f90109b0ca1fae627fa0a153368c42d15",
+  "sourceCommit": "976153c8e756a4c283671226938bab56e440370c",
   "sourceBranch": "codex/muse-tower-flat-prototype",
   "repository": "mkhsu2002/MuseCondo",
-  "builtAt": "2026-10-29T02:02:34.214Z",
-  "mode": "fictional-static-demo",
+  "builtAt": "2026-10-29T03:09:14.762Z",
+  "mode": "fictional-community-demo",
   "modelApiConnected": false,
+  "editor": "rules",
   "interactions": "browser-local-only"
 }
