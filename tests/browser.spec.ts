@@ -6,12 +6,22 @@ test('tower and all 20 flat routes preserve prototype provenance and responsive 
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/'); await expect(page.locator('h1')).toContainText('讓每個靈感');
   await expect(page.locator('.resident-card')).toHaveCount(10);
+  await expect(page.locator('.resident-card img')).toHaveCount(10);
+  const sources = [];
+  for (const image of await page.locator('.resident-card img').all()) {
+    await image.scrollIntoViewIfNeeded(); await expect(image).toHaveJSProperty('complete', true);
+    expect(await image.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(900);
+    sources.push(await image.getAttribute('src'));
+  }
+  expect(new Set(sources).size).toBe(10);
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await page.screenshot({ path: `test-results/${info.project.name}-tower.png`, fullPage: true });
   for (const resident of residents) {
     await page.goto(`/${resident.id}/`);
     await expect(page.locator('h1')).toContainText(resident.name);
     await expect(page.locator('.flat-nameplate')).toContainText('模擬住戶');
     const art = homeArtwork[resident.id];
+    expect(art).toBeDefined();
     if (art) {
       const image = page.locator('.flat-visual img');
       await expect(image).toBeVisible();

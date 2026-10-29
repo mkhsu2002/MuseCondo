@@ -9,6 +9,7 @@ import { publicProjection, publicManagerInput, type PrivateResident } from '../s
 import { FileJobStore, OnboardingService, type OnboardingInput } from '../server/onboarding.ts';
 import { disconnectedMeta, type MetaGateway, type MetaGenerationResult } from '../server/meta.ts';
 import { residents } from '../src/residents.ts';
+import { homeArtwork } from '../src/artwork.ts';
 function memoryStore(): StorageLike {
   const store = new Map<string, string>();
   return { getItem: key => store.get(key) ?? null, setItem: (key, value) => { store.set(key, value); }, removeItem: key => { store.delete(key); } };
@@ -109,7 +110,14 @@ test('prototype gift selection is allowlisted and persisted without modifying ru
 
 test('every prototype asset has truthful Codex provenance and matches the delivered file', async () => {
   const manifest = JSON.parse(await readFile(new URL('../public/prototype-provenance.json', import.meta.url), 'utf8'));
-  assert.equal(manifest.assets.length, 11);
+  assert.equal(manifest.assets.length, 25);
+  assert.equal(Object.keys(homeArtwork).length, 10);
+  assert.equal(new Set(Object.values(homeArtwork).flatMap(art => [art.desktop, art.mobile])).size, 20);
+  for (const resident of residents) {
+    const art = homeArtwork[resident.id]; assert.ok(art);
+    assert.ok(manifest.assets.find((asset: { id: string; residentId: string; purpose: string }) => asset.id === art.desktop && asset.residentId === resident.id && asset.purpose === 'home-desktop'));
+    assert.ok(manifest.assets.find((asset: { id: string; residentId: string; referenceAssetId: string }) => asset.id === art.mobile && asset.residentId === resident.id && asset.referenceAssetId === art.desktop));
+  }
   for (const asset of manifest.assets) {
     assert.equal(asset.provider, 'codex-built-in-imagegen'); assert.equal(asset.status, 'prototype-generated');
     assert.equal(asset.productionReplacement, 'meta-api'); assert.equal(asset.model, null); assert.equal(asset.generatedAt, null);
