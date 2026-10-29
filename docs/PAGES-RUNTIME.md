@@ -1,6 +1,6 @@
 # Cloudflare Pages 同源 Tower runtime
 
-狀態更新：2026-10-29。本文描述 framework `0.01` 的部署契約；不是本輪已發布或已完成遠端驗收的證明。正式與 dev／Preview 必須分別記錄實際 deployed code、schema 及 live behavior。
+狀態更新：2026-10-29。本文描述 framework `0.01` 的部署契約。正式與 dev 已完成 code／schema／live behavior 交叉回讀，證據與未完成項目見 [發布紀錄](RELEASE-2026-10-29.md)。後續部署仍須分別驗證兩環境。
 
 ## 入口與組建
 
