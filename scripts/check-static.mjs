@@ -30,6 +30,8 @@ try {
     assert.ok(await page.locator('h1').count());
   }
   await page.goto(`${origin}${base}/m7k2px/`);
+  assert.ok((await page.locator('.flat-visual img').getAttribute('src')).startsWith(`${base}/prototype-assets/`));
+  assert.ok(await page.locator('.flat-visual img').evaluate(image => image.naturalWidth > 900));
   await page.getByRole('link', { name: '走進去看看' }).click();
   assert.equal(new URL(page.url()).pathname, `${base}/m7k2px/inside`);
   assert.equal((await page.reload()).status(), 200);

@@ -1,6 +1,7 @@
+import { giftCatalog } from './artwork.ts';
 export type InteractionKind = 'message' | 'gift' | 'invitation';
 export interface Interaction {
-  id: string; residentId: string; kind: InteractionKind; name: string; text: string; createdAt: number;
+  id: string; giftId?: string; residentId: string; kind: InteractionKind; name: string; text: string; createdAt: number;
 }
 export interface StorageLike { getItem(key: string): string | null; setItem(key: string, value: string): void; removeItem(key: string): void }
 export const STORAGE_KEY = 'musecondo.demo.interactions.v1';
@@ -17,6 +18,7 @@ export function readInteractions(storage: StorageLike): Interaction[] {
 }
 export function addInteraction(storage: StorageLike, input: Omit<Interaction, 'id' | 'createdAt'>, now = Date.now()): Interaction {
   const name = input.name.trim(); const text = input.text.trim();
+  if (input.giftId && (input.kind !== 'gift' || !giftCatalog.some(gift => gift.id === input.giftId))) throw new Error('這份原型禮物無效。');
   if (!kinds.includes(input.kind) || !/^[a-z0-9]{6,32}$/.test(input.residentId)) throw new Error('這個投遞地址無效。');
   if (!name || name.length > 24 || !text || text.length > 280) throw new Error('請填寫稱呼（1–24 字）與內容（1–280 字）。');
   if (/(https?:\/\/|www\.|[\w.+-]+@[\w.-]+\.[a-z]{2,})/i.test(text)) throw new Error('示範留言請勿包含連結或電子郵件，保護彼此的隱私。');

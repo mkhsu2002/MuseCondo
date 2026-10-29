@@ -51,3 +51,8 @@ README 8af4839 的整棟 Tower 規格取代早期單戶方向；下列目前規�
 ## 2026-10-28：官方 API 文件規格核對
 
 依官方 overview 與 image-generation 文件補入 `muse-image-1.0`、Meta API base URL、生成／編輯與 Responses 介面；明確區分文件核對與尚未實測。補上 `size` 代表比例，以及個性資料需評估 `store: false` 和資料最小化。未送出模型或付費請求。
+
+
+## 2026-10-28：使用者授權 Codex 暫用圖像
+
+最新指示「你先用 codex 生圖能力來生成，我們之後再做更換」為本次開發原型增設明確例外，優先於前文當時的純 Meta 圖像限制。使用內建 image_gen 生成 3 戶雙構圖、2 張公版及 3 張禮物，共 11 張；已實際看圖並整合。前端清楚標示 Codex 原型，正式版仍換 Meta，應用執行期沒有加入其他模型調用。另建 provenance，未假稱底層模型 metadata 或 Meta 生成成功。未推送、未新增憑證、未呼叫 Meta 或啟動付費第三方服務。

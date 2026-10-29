@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { addInteraction, readInteractions, STORAGE_KEY, type StorageLike } from '../src/interactions.ts';
 import { publicProjection, publicManagerInput, type PrivateResident } from '../server/privacy.ts';
 import { FileJobStore, OnboardingService, type OnboardingInput } from '../server/onboarding.ts';
@@ -94,3 +95,28 @@ test('missing asset provenance is held for recovery, never published as complete
   const gateway: MetaGateway = { async analyzeAndGenerate() { return { ...fakeResult, desktop: { ...fakeResult.desktop, generatedAt: null } }; } };
   assert.equal((await new OnboardingService(store, gateway).run(input)).state, 'needs-recovery');
 }));
+
+
+test('prototype gift selection is allowlisted and persisted without modifying runtime provider', () => {
+  const storage = memoryStore();
+  const gift = { residentId: residents[0].id, kind: 'gift' as const, name: 'Neighbor', text: 'A little light', giftId: 'gift-cloud' };
+  addInteraction(storage, gift);
+  assert.equal(readInteractions(storage)[0].giftId, 'gift-cloud');
+  assert.throws(() => addInteraction(memoryStore(), { ...gift, giftId: 'https://external.example/picture' }), /無效/);
+  assert.throws(() => addInteraction(memoryStore(), { ...gift, kind: 'message' }), /無效/);
+});
+
+
+test('every prototype asset has truthful Codex provenance and matches the delivered file', async () => {
+  const manifest = JSON.parse(await readFile(new URL('../public/prototype-provenance.json', import.meta.url), 'utf8'));
+  assert.equal(manifest.assets.length, 11);
+  for (const asset of manifest.assets) {
+    assert.equal(asset.provider, 'codex-built-in-imagegen'); assert.equal(asset.status, 'prototype-generated');
+    assert.equal(asset.productionReplacement, 'meta-api'); assert.equal(asset.model, null); assert.equal(asset.generatedAt, null);
+    assert.ok(asset.prompt); assert.ok(asset.promptVersion); assert.ok(asset.observedAt);
+    const file = await readFile(new URL(`../public/${asset.file}`, import.meta.url));
+    assert.equal(createHash('sha256').update(file).digest('hex'), asset.sha256);
+    assert.equal(file.readUInt32BE(16), asset.width); assert.equal(file.readUInt32BE(20), asset.height);
+    if (asset.purpose === 'gift') assert.equal(file[25], 6); // PNG retains alpha channel.
+  }
+});

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "note": "Pending production assets only. No image has been generated. All site imagery must originate from Meta API. No secrets belong here.",
+  "note": "Production Meta API assets only: all 20 remain pending. User-authorized temporary Codex prototype images are separately documented in prototype-provenance.json; they are not Meta outputs.",
   "referencePlan": {
     "status": "pending",
     "count": null,
@@ -294,5 +294,11 @@
       "file": null,
       "generationId": null
     }
-  ]
+  ],
+  "prototypeException": {
+    "provider": "codex-built-in-imagegen",
+    "manifest": "prototype-provenance.json",
+    "approvedUserInstruction": "你先用 codex 生圖能力來生成，我們之後再做更換",
+    "runtimeModelPolicy": "Meta API only; no runtime fallback"
+  }
 }
