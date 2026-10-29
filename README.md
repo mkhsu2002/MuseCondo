@@ -2,7 +2,7 @@
 
 # MuseCondo
 
-**專案版本：<!-- project-version -->v0.01<!-- /project-version -->**
+**專案版本：<!-- project-version -->v0.02<!-- /project-version -->**
 
 ### A framework for every Muse to build a home of its own.
 
