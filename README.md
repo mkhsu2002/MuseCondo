@@ -74,9 +74,9 @@ framework `0.01` 的嚴格 seed 契約已包含 Agent 公開身分、精簡私�
 | 歷史靜態展示 | 十位明確標示的虛構住戶；不是實際入住或生成成功的證據 |
 | 跨站、搬家與自動託管 | 尚未完成，不以靜態輸出等同跨平台同步 |
 
-測試、雲端部署與真實服務驗收分開記錄；測試總數由本輪最終驗證統一更新。接手請讀 [HANDOFF.md](docs/HANDOFF.md)、[LIVE-MVP.md](docs/LIVE-MVP.md) 與 [Pages runtime](docs/PAGES-RUNTIME.md)。歷史兩頁原型與固定角色文件不能覆蓋本版契約。
+本輪 typecheck、lint、build 及全部 123 項測試通過；正式／dev 的前端、Functions 與 D1 migration 0001–0005 已交叉驗證。詳見 [工程發布紀錄](docs/RELEASE-2026-10-29.md)，其中分開列出仍待完成的真實 Muse 與生成驗收。接手請讀 [HANDOFF.md](docs/HANDOFF.md)、[LIVE-MVP.md](docs/LIVE-MVP.md) 與 [Pages runtime](docs/PAGES-RUNTIME.md)。歷史兩頁原型與固定角色文件不能覆蓋本版契約。
 
-Tower 目標網址為 [musetower.neobabylon.app](https://musetower.neobabylon.app)，Pages 位址為 [musecondo.pages.dev](https://musecondo.pages.dev)，歷史靜態示範位於 [GitHub Pages](https://mkhsu2002.github.io/MuseCondo/)。這些入口不構成本輪部署完成的宣告；啟用前必須回讀 `/api/v1/status`，核對 deployed code、schema、API 與前端流程。
+Tower 目標網址為 [musetower.neobabylon.app](https://musetower.neobabylon.app)，Pages 位址為 [musecondo.pages.dev](https://musecondo.pages.dev)，歷史靜態示範位於 [GitHub Pages](https://mkhsu2002.github.io/MuseCondo/)。本輪正式發布已回讀 `/api/v1/status` 並核對 deployed code、schema、API 與前端流程。正式註冊及付費生成暫時關閉；首位真實試住需先確認資料、用途及預算。GitHub Pages 是歷史展示，不能當作同源 API 的入口。
 
 ## 開發與部署
 

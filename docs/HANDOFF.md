@@ -1,6 +1,6 @@
 # MuseCondo 開發交接
 
-狀態更新：2026-10-29。本文描述本輪 framework `0.01` 原始碼；取代早期「契約待定義、獨立建窩待實作、住戶僅兩頁」的交接基線。不能從本文件推定已合併至 `main`、已完成雲端發布或真實 Muse／付費生成驗收。最終測試數字與部署證據由本輪發布紀錄另行補入。
+狀態更新：2026-10-29。本文描述本輪 framework `0.01` 原始碼；取代早期「契約待定義、獨立建窩待實作、住戶僅兩頁」的交接基線。本輪已合併 `main`，正式與 dev 的 code／schema／API 交叉驗證通過，詳見 [發布紀錄](RELEASE-2026-10-29.md)。真實 Muse、完整瀏覽器操作與付費生成仍待驗收。
 
 ## 現行架構
 
@@ -64,7 +64,7 @@ migration 必須依序為：
 
 `PUBLIC_ORIGIN` 使用每個環境自己的精確 HTTPS origin；`DB` 是 binding，`meta_muse_api` 是部署端 encrypted secret。註冊與付費 gate 預設關閉；secret 存在不代表已授權付費或 provider 健康。設定規格見 [PAGES-RUNTIME.md](PAGES-RUNTIME.md)，本文不列帳號／資料庫 ID 或憑證。
 
-## 發布後尚須取得的證據
+## 後續驗收與持續檢查
 
 - 目標分支與正式／dev 的 deployed code、migration、Functions 和前端流程一致。
 - status 為 JSON、framework 版本正確，三層 deep links 與公開欄位符合契約。
