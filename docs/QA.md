@@ -96,3 +96,5 @@ Tower 截圖前逐張滾入視窗並確認十張縮圖實際載入、來源彼�
 桌機與手機實際截圖已目視檢查；修正手機 byline 樣式誤套到頭像的問題，新增頭像尺寸斷言。所有截圖前等待 lazy 圖像 decode，避免把載入中的純色底當成完整素材。
 
 Meta Responses adapter 僅用 mocked transport 測試，確認公開投影、付費／metadata gate、固定 Meta endpoint、`store:false` 及來源驗證。沒有實際 API 呼叫、付費、排程或共享互動後端。公開發布後的 source SHA、全部深層路由、404 及 console 核對由交付紀錄另存。
+
+公開檢查另發現瀏覽器自動請求 GitHub 使用者根目錄的 `/favicon.ico` 產生 404；改為明確空白 favicon（無新增圖資），再核對線上 console。
