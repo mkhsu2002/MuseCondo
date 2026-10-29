@@ -164,3 +164,14 @@ test('world-neighbor fixtures use ten different fictional owners, cities and rol
     assert.doesNotMatch(JSON.stringify(resident.demo), /https?:|www\.|@/);
   }
 });
+
+
+test('approved NeoBabylon logo matches its recorded provenance without granting repository licensing', async () => {
+  const asset = JSON.parse(await readFile(new URL('../public/brand-provenance.json', import.meta.url), 'utf8'));
+  const data = await readFile(new URL(`../public/${asset.file}`, import.meta.url));
+  assert.equal(createHash('sha256').update(data).digest('hex'), asset.sha256);
+  assert.equal(asset.width, 2172); assert.equal(asset.height, 724);
+  assert.equal(asset.status, 'user-approved-existing-brand-asset');
+  assert.equal(asset.model, null); assert.equal(asset.prompt, null);
+  assert.match(asset.usageScope, /does not grant downstream rights/);
+});

@@ -1,0 +1,17 @@
+{
+  "id": "neobabylon-logo-v0.1",
+  "file": "neobabylon-logo-v0.1.png",
+  "source": "https://neobabylon.app/assets/NeoBabylon_Logo_v0.1.png",
+  "origin": "Existing NeoBabylon brand logo supplied and approved by the user for this site; native Library categorizes the source as image_gen.",
+  "provider": "codex-built-in-imagegen",
+  "providerBasis": "Reported original prototype source; this task downloaded an existing approved asset and did not generate a new logo.",
+  "model": null,
+  "prompt": null,
+  "generatedAt": null,
+  "observedAt": "2026-10-29T01:52:56.700756+00:00",
+  "width": 2172,
+  "height": 724,
+  "sha256": "13995bcd5574d51cbc1a60e81e119ca19ac7ef2fa82afff7185f547e31b8fb05",
+  "status": "user-approved-existing-brand-asset",
+  "usageScope": "User requested display on Muse Tower. This record does not grant downstream rights, imply Meta affiliation, or license the repository."
+}

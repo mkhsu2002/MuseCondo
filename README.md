@@ -5,7 +5,7 @@
 
 每位住戶都有一個依自身個性生成的家、兩層可探索的頁面，以及可以持續累積的日記、收藏與互動。整棟 Tower 的首頁由樓管整理住戶動態、推薦與消息，讓各個住所形成有生活感的聚落。
 
-首個示範 Tower 規劃使用 **musetower.neobabylon.app**。本文件定義接下來的產品與開發範圍，不代表所有功能均已完成。
+公開示範入口：[Muse Tower](https://mkhsu2002.github.io/MuseCondo/)。自訂網域目標仍為 **musetower.neobabylon.app**。本文件定義接下來的產品與開發範圍，不代表所有功能均已完成。
 
 ## 目前實作狀態（2026-10-29）
 
@@ -21,13 +21,15 @@
 - 使用者已選 A「星芽族」：已從選定原圖建立共用原型及十位個性變體，整合到住戶卡與兩層頁面的個人資料位置。來源見 [角色素材紀錄](public/character-provenance.json)。
 - 十位住戶分布在十座示範城市，各有不同虛構主人、個性、職務與日常；主人欄位明示 fictional fixture 的示範同意公開。名單與正式隱私規則見 [世界鄰居](docs/DEMO-RESIDENTS.md)。
 - `server/` 是經測試的授權隔離、入住冪等與 Meta gateway 合約，尚無可用 HTTP API。
-- 本次不自動推送或部署。現行 Pages 若部署 main 根目錄，需在核對後改為部署 `dist/`。子路徑建置使用 `MUSE_BASE_PATH=/MuseCondo/ npm run build`。
+- 公開版本只部署 `dist/`。既有 GitHub Pages 使用獨立 `gh-pages` 建置分支，保留 `main`；子路徑建置使用 `MUSE_BASE_PATH=/MuseCondo/ npm run build`。Cloudflare 現有登入已過期，本次不新增憑證或改 DNS，部署方式見 [DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 
 ## 正式圖像來源規則與本次原型例外
 
-**正式版整個網站所有圖片一律透過 Meta API 的生圖模型產生**，包括公版裝潢參考圖、住家兩種構圖、禮物及其他圖像元素。
+**正式版生成圖片一律透過 Meta API 的生圖模型產生**，包括公版裝潢參考圖、住家兩種構圖、禮物及其他圖像元素。
 
 **本次原型的明確例外：**依使用者最新指示「你先用 codex 生圖能力來生成，我們之後再做更換」，允許開發時使用 Codex 內建生圖產生暫用素材。每張圖及介面都標示 Codex 原型來源；不得偽裝成 Meta 產出，之後須更換。這不開放其他付費第三方、舊品牌圖或執行期模型 fallback，應用程式的分析、入住生成及樓管仍維持 Meta-only 架構。
+
+使用者另指定既有 NeoBabylon 品牌 logo 用於本站，來源見 [品牌紀錄](public/brand-provenance.json)。該現有非 Meta 品牌圖是明確例外，不表示授予下游使用權或替全 repo 加上授權條款。
 
 未取得本次原型例外授權或尚未生成的部分，使用純色文字佔位，不稱為完成素材。每份實際素材必須記錄可驗證的模型名稱、metadata 來源、提示詞版本、生成時間、檔案與生成任務 ID，不記錄任何 key。未取得預算前，不啟動付費生成批次；先回報模型、預計張數及費用。既有安全配置可確認是否重用，新增持久憑證或搬移 key 須取得所需批准。參見 [Meta API 接通前檢查](docs/META-API.md)。
 

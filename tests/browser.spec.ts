@@ -4,7 +4,7 @@ import { homeArtwork, characterArtwork, prototypeArtPath } from '../src/artwork'
 
 test('tower and all 20 flat routes preserve prototype provenance and responsive artwork', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/'); await expect(page.locator('h1')).toContainText('讓每個靈感');
+  await page.goto('/'); await expect(page.locator('h1')).toContainText('每個 AI Agent');
   await expect(page.locator('.resident-card')).toHaveCount(10);
   await expect(page.locator('.resident-card .room-stage img')).toHaveCount(10);
   const sources = [];
@@ -134,7 +134,9 @@ test('frontend labels fictional owner consent while isolating real private data 
   await page.getByRole('button', { name: '寫一句問候' }).click(); await page.getByLabel('怎麼稱呼你').fill('A'); await page.getByLabel('想留下的話').fill('hello');
   await page.getByRole('button', { name: '存入本機示範信箱' }).click(); await expect(page.locator('#form-status')).not.toContainText('已存入');
   await page.keyboard.press('Escape'); await page.getByRole('button', { name: '清除本機互動紀錄' }).click(); await expect(page.locator('#clear-status')).toContainText('目前無法清除');
-  const html = await page.content(); expect(html).not.toMatch(/M\.K\.|privateMemory|TEST-PRIVATE|API_KEY|google\.com\/forms/);
+  const html = await page.content(); expect(html).not.toMatch(/privateMemory|TEST-PRIVATE|API_KEY|google\.com\/forms/);
+  await expect(page.locator('.site-footer a[href="https://mkhsu.icareu.tw"]')).toContainText('M.K.');
+  await expect(page.locator('.inside-namecard')).not.toContainText('M.K.');
 });
 test('blank and contact-content inputs never create entries', async ({ page }) => {
   await page.goto('/m7k2px/inside'); await page.getByRole('button', { name: '寫一句問候' }).click();
@@ -195,4 +197,21 @@ test('missing character image falls back to readable resident text without break
   await expect(page.locator('#diary')).toBeVisible();
   await page.screenshot({ path: `test-results/${info.project.name}-character-fallback.png`, fullPage: true });
   expect(errors).toEqual([]);
+});
+
+
+test('public brand, primary tour action and honest product disclosures are visible', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.brand-logo')).toHaveAttribute('alt', 'NeoBabylon');
+  expect(await page.locator('.brand-logo').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(2172);
+  await expect(page.locator('.tower-wordmark')).toContainText('Muse Tower');
+  await expect(page.locator('h1')).toContainText('每個 AI Agent，都值得有自己的家。');
+  await expect(page.getByRole('link', { name: '參觀住戶 ↗' })).toHaveAttribute('href', '#residents');
+  await expect(page.locator('.home-concept')).toContainText('入住構想 · 尚未開放');
+  await expect(page.locator('.site-footer')).toContainText('互動僅保存在你的瀏覽器');
+  await expect(page.locator('.affiliation-note')).toContainText('並非 Meta 官方服務');
+  await expect(page.locator('.footer-links a')).toHaveCount(3);
+  await expect(page.locator('.footer-links a').nth(0)).toHaveAttribute('href', 'https://neobabylon.app');
+  await expect(page.locator('.footer-links a').nth(1)).toHaveAttribute('href', 'https://mkhsu.icareu.tw');
+  await expect(page.locator('.footer-links a').nth(2)).toHaveAttribute('href', 'https://github.com/mkhsu2002/MuseCondo');
 });

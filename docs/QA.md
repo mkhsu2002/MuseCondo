@@ -13,9 +13,9 @@
 
 - `npm run typecheck`：通過。
 - `npm run lint`：通過，零 lint 錯誤。
-- `npm test`：16 項領域測試通過。
+- `npm test`：17 項領域測試通過。
 - `npm run build`：通過；產生 20 個住戶路由、入住說明與 404 入口。
-- `npm run test:e2e`：18 項 Chrome 瀏覽器測試通過（桌機 1440×900／手機 390×844）；每組完整巡訪十位住戶的兩層頁面與重新整理。
+- `npm run test:e2e`：20 項 Chrome 瀏覽器測試通過（桌機 1440×900／手機 390×844）；每組完整巡訪十位住戶的兩層頁面與重新整理。
 - 額外檢查 320px、768px、1024px 視窗的大廳、長英文名住戶首頁、內容層與入住說明：無水平溢出。
 - 使用 `MUSE_BASE_PATH=/MuseCondo/ npm run build` 後，`node scripts/check-static.mjs`：普通靜態主機上的子路徑、CSS／JS 資源、直接開住戶／內容頁、重新整理、入住頁及真正的 HTTP 404 通過。該腳本專門測此子路徑，執行前須用上述 base 建置。完成後再建置回根路徑。
 - 安裝時 npm audit：0 vulnerabilities。
@@ -79,3 +79,8 @@ Tower 截圖前逐張滾入視窗並確認十張縮圖實際載入、來源彼�
 
 
 最新世界鄰居版本的十張角色原圖及桌機／手機 Tower、家門、內容頁共六張截圖已上傳原生 Library，16 筆均 succeeded。交付對照在工作區外層 `MuseCondo-starsprout-world-library.json`，不包含在公開 repo。
+
+
+## 公開品牌與部署驗證
+
+已下載並目視核定的 NeoBabylon logo，尺寸 2172×724，與 Library 記錄的 616172 bytes 相符；保留來源、雜湊與非下游授權說明。桌機手機驗證品牌、主標、參觀入口、未開放的入住構想、三個必要頁尾連結及非 Meta 官方服務說明。公開版完整本機測試為17項領域及20項瀏覽器測試。Cloudflare whoami 回報現有登入過期，未新增登入、token、權限或 DNS；改以同 repo 的既有 Pages 發布靜態產物。公開 URL 驗證結果另由部署交付紀錄保存。

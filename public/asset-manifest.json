@@ -300,7 +300,9 @@
     "manifest": "prototype-provenance.json",
     "approvedUserInstruction": "你先用 codex 生圖能力來生成，我們之後再做更換",
     "runtimeModelPolicy": "Meta API only; no runtime fallback",
-    "characterManifest": "character-provenance.json"
+    "characterManifest": "character-provenance.json",
+    "brandManifest": "brand-provenance.json",
+    "brandException": "Existing user-approved NeoBabylon logo displayed as requested; no downstream rights or repository license inferred."
   },
   "characterPlan": {
     "status": "pending",

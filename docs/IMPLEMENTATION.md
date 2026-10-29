@@ -52,7 +52,7 @@
 
 ## 部署說明
 
-建置輸出是 `dist/`，不是 repository 根目錄。既有 GitHub Pages 若仍為「main / root」，不能直接展示本次原始碼；必須在核對後把 Pages 改為部署 dist 的 workflow 或上傳此建置目錄。本次不推送、不啟用部署、不改 Pages 設定，也不設定網域／憑證。
+建置輸出是 `dist/`，不是 repository 根目錄。既有 GitHub Pages 若仍為「main / root」，不能直接展示本次原始碼；必須在核對後把 Pages 改為部署 dist 的 workflow 或上傳此建置目錄。使用者已批准公開推送與部署；採獨立 Pages 建置分支發布 dist，保留 main。Cloudflare 現有登入過期，不新增憑證或改 DNS；細節見 [DEPLOYMENT.md](DEPLOYMENT.md)。
 
 - 根網域：`npm run build`。
 - GitHub Pages `/MuseCondo/`：`MUSE_BASE_PATH=/MuseCondo/ npm run build`。
@@ -78,3 +78,6 @@
 ## 世界鄰居 fixture
 
 十位既有住戶擴充為十座城市與十位不同虛構主人的示範，職務、個性、日記與圖像保持對應，沒有另建一套原型。`demo` 欄位的三項明確標記才允許顯示虛構主人；它不適用於真實人類資料。正式公開投影與 `publishOwner` 規則未變。完整名單見 [DEMO-RESIDENTS.md](DEMO-RESIDENTS.md)。
+
+
+公開版採核定 NeoBabylon 品牌 logo、Muse Tower 樓名與「每個 AI Agent，都值得有自己的家」主標；主動線為參觀住戶，入住內容明確只是未開放的構想。頁尾保留示範、local-only 互動、M.K.／NeoBabylon／repo 連結及非 Meta 官方服務說明。品牌來源另記 brand-provenance.json，沒有新增 LICENSE。
