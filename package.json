@@ -8,11 +8,11 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build && node scripts/routes.mjs",
+    "build": "tsc --noEmit && vite build && node scripts/routes.mjs && node scripts/check-build.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test tests/domain.test.ts tests/community.test.ts",
+    "test": "node --experimental-strip-types --test tests/domain.test.ts tests/community.test.ts tests/build-output.test.mjs",
     "test:e2e": "playwright test",
     "manager:edit": "node --experimental-strip-types scripts/edit-community.ts",
     "dev:live": "node --experimental-strip-types server/live/local-server.ts",

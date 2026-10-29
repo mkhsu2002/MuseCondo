@@ -7,6 +7,22 @@
 
 公開示範入口：[Muse Tower](https://mkhsu2002.github.io/MuseCondo/)。自訂網域目標仍為 **musetower.neobabylon.app**。本文件定義接下來的產品與開發範圍，不代表所有功能均已完成。
 
+## Cloudflare Pages 部署設定
+
+| 欄位 | 值 |
+| --- | --- |
+| Framework preset | Vite；沒有此選項可選 None，以下欄位仍需填寫 |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Root directory | 留空（repository root） |
+| Production branch | `main` |
+| `MUSE_BASE_PATH` | `/`，不要沿用 GitHub Pages 的 `/MuseCondo/` |
+| `NODE_VERSION` | `24` |
+
+**不要把 repository root 當成網站輸出。** 若線上只有「跳至主要內容」，且 HTML 還引用 `/src/main.ts`，表示尚未部署編譯成品。更正設定後需重新部署；Direct Upload 請先執行 build，再上傳 `dist` 內容。`npm run build` 會檢查編譯 JS/CSS 及資源路徑，但無法替代後台的輸出目錄設定。
+
+這只部署前端，不會啟動 Meta、D1 或入住後端。詳見 [部署說明](docs/DEPLOYMENT.md)。
+
 ## 真實入住服務開發進度（2026-10-29）
 
 雲端開發版本已加入真 SQLite／D1 相容持久化 API、帳戶登入、私密入住與預覽、獨立公開／撤回、共享留言與限戶 Agent token。介面位於 `/move-in`、`/neighbors` 與 `/home/:id`；後端存在時，樓首頁讀取真住戶與公開事件，空白就保留空態，不以虛構住戶填補。這些更新尚未取代下方既有公開示範。

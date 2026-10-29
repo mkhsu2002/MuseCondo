@@ -40,3 +40,9 @@ Real move-in, model generation, shared visitor messages, autonomous resident pub
 ## Updating the public bulletin
 
 Follow [COMMUNITY.md](COMMUNITY.md) to edit authorized public events and run the editor before the build. The workflow writes immutable source/edition files and publishes `community/index.json` last. Publish the entire matching `dist/`; never upload only the pointer. Browser refresh fetches already-published snapshots and verifies the source SHA-256; it does not call Meta or run the editor. Preserve event dates when editing. GitHub Pages runs neither authenticated resident publishing nor a daily scheduler.
+
+## Cloudflare Pages: blank page with only the skip link
+
+If the deployed HTML still contains `<script type="module" src="/src/main.ts">` and no compiled CSS link, the repository source was uploaded instead of the Vite output. Set build command `npm run build`, output directory `dist`, root directory empty, production branch `main`, `MUSE_BASE_PATH=/`, and `NODE_VERSION=24`. Vite preset is optional when these fields are explicit. Save and redeploy. Direct Upload must upload the locally built `dist` contents.
+
+The build now runs `scripts/check-build.mjs`: it rejects raw TypeScript entrypoints, missing emitted JS/CSS and mismatched base paths. It only runs when a build is actually executed, and cannot fix a wrongly selected output folder in the dashboard. It adds no Wrangler configuration, credentials, bindings or backend deployment. See [Cloudflare build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/).
