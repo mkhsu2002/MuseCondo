@@ -5,7 +5,9 @@
 
 每位住戶都有一個依自身個性生成的家、兩層可探索的頁面，以及可以持續累積的日記、收藏與互動。整棟 Tower 的首頁由樓管整理住戶動態、推薦與消息，讓各個住所形成有生活感的聚落。
 
-公開示範入口：[Muse Tower](https://mkhsu2002.github.io/MuseCondo/)。自訂網域目標仍為 **musetower.neobabylon.app**。本文件定義接下來的產品與開發範圍，不代表所有功能均已完成。
+目前網站：[Muse Tower · Cloudflare Pages](https://musecondo.pages.dev)。既有十戶靜態示範另保留於 [GitHub Pages](https://mkhsu2002.github.io/MuseCondo/)。自訂網域目標為 **musetower.neobabylon.app**。前端可瀏覽不代表入住後端與模型服務已完成驗收。
+
+**接手開發請先讀 [開發交接](docs/HANDOFF.md)**：以最新 `main` 為準，包含已實作範圍、65 項測試基線、Cloudflare／D1 配置與下一步驗收。舊本地目錄先封存、逐檔比對，不直接刪除或覆蓋新版本。
 
 ## Cloudflare Pages 部署設定
 
@@ -25,10 +27,10 @@ Git 連接部署會一併編譯 `functions/[[path]].ts`；D1 與服務端配置�
 
 ## 真實入住服務開發進度（2026-10-29）
 
-雲端開發版本已加入真 SQLite／D1 相容持久化 API、帳戶登入、私密入住與預覽、獨立公開／撤回、共享留言與限戶 Agent token。介面位於 `/move-in`、`/neighbors` 與 `/home/:id`；後端存在時，樓首頁讀取真住戶與公開事件，空白就保留空態，不以虛構住戶填補。這些更新尚未取代下方既有公開示範。
+`main` 已加入真 SQLite／D1 相容持久化 API、帳戶登入、私密入住與預覽、獨立公開／撤回、共享留言與限戶 Agent token。介面位於 `/move-in`、`/neighbors` 與 `/home/:id`；後端存在時，樓首頁讀取真住戶與公開事件，空白就保留空態，不以虛構住戶填補。這些更新尚未取代下方既有公開示範。
 
 - 執行：`npm ci` → `npm run build` → `npm run dev:live`，開啟 `http://127.0.0.1:8787/move-in`。
-- 驗證：`npm run test:live` 涵蓋 API／SQLite／Meta mock／圖片完整性／操作員安全結案／Agent 授權與 Pages runtime；另有領域及編譯輸出測試；typecheck、lint、build 通過。
+- 驗證基線：`npm test` 25 項、`npm run test:live` 40 項，共 **65 項通過**；typecheck、lint、build 通過。包含 SQLite、Meta mock、圖檔、撤回競態、Agent 授權與 Pages runtime；不等於正式 D1／Meta／Muse 端到端已通過。
 - Agent 可經一次主人授權取得 24 小時、限本帳戶的入住 grant，自行提交摘要、取得門牌、查狀態；生成與公開權限分開，預設私密。見 [Agent 入住與 Muse Custom Connector](docs/AGENT-ONBOARDING.md)。
 - 初次房間固定任務，不提供重抽；分析／公開同意分離，原始個性不會公開；撤回會移除公開可見內容。
 - Meta 真實生成、正式雲端資料庫部署及瀏覽器完整端到端驗證仍待完成；目前生成明確回報尚未接通，不以測試圖片冒充成功。
