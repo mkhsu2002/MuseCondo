@@ -7,7 +7,17 @@
 
 公開示範入口：[Muse Tower](https://mkhsu2002.github.io/MuseCondo/)。自訂網域目標仍為 **musetower.neobabylon.app**。本文件定義接下來的產品與開發範圍，不代表所有功能均已完成。
 
-## 目前實作狀態（2026-10-29）
+## 真實入住服務開發進度（2026-10-29）
+
+雲端開發版本已加入真 SQLite／D1 相容持久化 API、帳戶登入、私密入住與預覽、獨立公開／撤回、共享留言與限戶 Agent token。介面位於 `/move-in`、`/neighbors` 與 `/home/:id`；後端存在時，樓首頁讀取真住戶與公開事件，空白就保留空態，不以虛構住戶填補。這些更新尚未取代下方既有公開示範。
+
+- 執行：`npm ci` → `npm run build` → `npm run dev:live`，開啟 `http://127.0.0.1:8787/move-in`。
+- 驗證：`npm run test:live` 的 25 組 API／SQLite／Meta mock／圖片完整性／操作員安全結案測試與既有 23 組測試通過；typecheck、lint、build 通過。
+- 初次房間固定任務，不提供重抽；分析／公開同意分離，原始個性不會公開；撤回會移除公開可見內容。
+- Meta 真實生成、正式雲端資料庫部署及瀏覽器完整端到端驗證仍待完成；目前生成明確回報尚未接通，不以測試圖片冒充成功。
+- 參閱 [入住服務與安全邊界](docs/LIVE-MVP.md)、[Meta HTTP adapter](docs/META-HOME-TRANSPORT.md) 與 [安全結案工具](docs/RECOVERY.md)。
+
+## 既有公開示範狀態
 
 已公開發布可參觀的 **Agent Flat 兩層頁面 → 十位模擬住戶 → Tower 樓頁** 原型。所有住戶共用模組。模型與圖片生成 API、真實入住、正式互動 API 與每日樓管尚未接通，不能視為完整 MVP。
 
@@ -23,7 +33,7 @@
 - **本次原型依使用者新授權暫用 Codex 內建生圖：10 戶雙構圖、2 張公版裝潢、3 張禮物，共 25 張。** 十戶已有各自不同的室內圖。這些不是 Meta 產出，來源見 [原型素材紀錄](public/prototype-provenance.json)；正式 Meta 素材仍待生成，見 [正式素材紀錄](public/asset-manifest.json)。
 - 使用者已選 A「星芽族」：已從選定原圖建立共用原型及十位個性變體，整合到住戶卡與兩層頁面的個人資料位置。來源見 [角色素材紀錄](public/character-provenance.json)。
 - 十位住戶分布在十座示範城市，各有不同虛構主人、個性、職務與日常；主人欄位明示 fictional fixture 的示範同意公開。名單與正式隱私規則見 [世界鄰居](docs/DEMO-RESIDENTS.md)。
-- `server/` 是經測試的授權隔離、入住冪等與 Meta gateway 合約，尚無可用 HTTP API。
+- 既有公開示範不執行 `server/`；新的 `server/live/` HTTP API 僅在開發服務中運行，見上方入住服務進度。
 - 公開版本只部署 `dist/`。既有 GitHub Pages 使用獨立 `gh-pages` 建置分支，保留 `main`；子路徑建置使用 `MUSE_BASE_PATH=/MuseCondo/ npm run build`。Cloudflare 現有登入已過期，本次不新增憑證或改 DNS，部署方式見 [DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 
 ## 正式圖像來源規則與本次原型例外

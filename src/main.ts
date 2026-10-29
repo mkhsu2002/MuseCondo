@@ -1,3 +1,4 @@
+import { isLiveRoute, renderLive, cancelLiveRender, renderLiveTower } from './live';
 import './style.css';
 import { homeArtwork, decorReferences, giftCatalog, characterArtwork, prototypeArtPath } from './artwork';
 import { residents, findResident, type Resident } from './residents';
@@ -21,7 +22,7 @@ let activeResident: Resident | undefined;
 let interactionKind: InteractionKind = 'message';
 
 function header(current: string) {
-  return `<header class="site-header"><div class="header-inner">${link('', `<img class="brand-logo" src="${href('neobabylon-logo-v0.1.png')}" alt="NeoBabylon" width="2172" height="724"><span class="tower-wordmark">Muse Tower<small>星芽族的世界公寓</small></span>`, 'brand')}<nav aria-label="主要導覽">${link('', '公寓大廳', current === 'tower' ? 'active' : '')}${link('#residents', '認識鄰居')}${link('about', '關於這棟樓', 'nav-entry')}</nav></div></header>`;
+  return `<header class="site-header"><div class="header-inner">${link('', `<img class="brand-logo" src="${href('neobabylon-logo-v0.1.png')}" alt="NeoBabylon" width="2172" height="724"><span class="tower-wordmark">Muse Tower<small>星芽族的世界公寓</small></span>`, 'brand')}<nav aria-label="主要導覽">${link('', '公寓大廳', current === 'tower' ? 'active' : '')}${link('#residents', '認識鄰居')}${link('about', '關於這棟樓', 'nav-entry')}${link('move-in', '我的住家', 'nav-entry')}</nav></div></header>`;
 }
 function footer() {
   return `<footer class="site-footer"><span class="footer-word">A little room. A whole world.</span><p>10 位住戶、主人、城市設定與日常皆為虛構示範；互動僅保存在你的瀏覽器。</p><nav class="footer-links" aria-label="品牌與專案連結"><a href="https://neobabylon.app" target="_blank" rel="noopener noreferrer">NeoBabylon ↗</a><a href="https://mkhsu.icareu.tw" target="_blank" rel="noopener noreferrer">© 2026 M.K. ↗</a><a href="https://github.com/mkhsu2002/MuseCondo" target="_blank" rel="noopener noreferrer">MuseCondo 原始碼 ↗</a></nav><p>住家與星芽族形象為 Codex 暫用原型。真實入住、模型生成與每日樓管尚未啟用。</p><p class="affiliation-note">本專案並非 Meta 官方服務，亦不表示 Meta 的合作或背書。</p></footer>`;
@@ -99,10 +100,19 @@ function render(focus = false) {
   let pathname: string;
   try { pathname = decodeURI(location.pathname).slice(base.length).replace(/^\/|\/$/g, ''); }
   catch { root.innerHTML = notFound(); document.title = '找不到這扇門 — Muse Tower'; return; }
+  if (!pathname && root.dataset.liveTower && !focus) return;
+  delete root.dataset.liveTower;
+  if (isLiveRoute(pathname)) {
+    activeResident = undefined;
+    if (root.dataset.liveRoute !== pathname || focus) { root.dataset.liveRoute = pathname; void renderLive(root, pathname); }
+    return;
+  }
+  cancelLiveRender();
+  delete root.dataset.liveRoute;
   const segments = pathname.split('/');
   const resident = findResident(segments[0]);
   activeResident = resident;
-  if (!pathname) { root.innerHTML = tower(); document.title = '樓裡的新鮮事 — Muse Tower'; }
+  if (!pathname) { root.innerHTML = '<main id="main" class="live-main"><p role="status">正在走進公寓大廳…</p></main>'; document.title = '樓裡的新鮮事 — Muse Tower'; void renderLiveTower(root, () => { root.innerHTML = tower(); }); }
   else if (pathname === '選輯紀錄') { root.innerHTML = audit(); document.title = '選輯來源紀錄 — Muse Tower'; }
   else if (pathname === '入住' || pathname === 'about') { root.innerHTML = moveIn(); document.title = '關於入住 — Muse Tower'; }
   else if (resident && (segments.length === 1 || (segments.length === 2 && segments[1] === 'inside'))) {
