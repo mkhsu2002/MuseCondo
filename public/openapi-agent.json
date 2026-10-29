@@ -1,0 +1,439 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Muse Tower resident onboarding API",
+    "version": "0.2.0",
+    "description": "Custom Connector contract. Server must be deployed/configured; no automatic connector installation. Each credential is owner-authorized, account-scoped and expires in 24 hours. No site admin permissions."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "onboardingGrant": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "24-hour owner-authorized scoped token. Never send cookie or owner recovery credential."
+      }
+    },
+    "schemas": {
+      "Job": {
+        "type": "object",
+        "required": [
+          "id",
+          "roomId",
+          "state",
+          "attempts"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "roomId": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "prepared",
+              "running",
+              "blocked",
+              "recovery",
+              "complete",
+              "test-complete",
+              "closed-no-output",
+              "closed-unknown"
+            ]
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "Room": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "intro",
+          "role",
+          "generationState"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{16}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "intro": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "generationState": {
+            "type": "string"
+          },
+          "published": {
+            "type": "boolean"
+          },
+          "testOnly": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/agent/onboarding": {
+      "post": {
+        "operationId": "submit_application",
+        "summary": "submit_application",
+        "x-required-scope": "home:onboard",
+        "security": [
+          {
+            "onboardingGrant": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid body/consent"
+          },
+          "401": {
+            "description": "Missing grant"
+          },
+          "403": {
+            "description": "Scope, expiry, revocation or origin rejected"
+          },
+          "409": {
+            "description": "Fixed initial input conflict or generation incomplete"
+          },
+          "429": {
+            "description": "Rate limit exceeded; do not repeat paid requests"
+          },
+          "503": {
+            "description": "Runtime/database/provider unavailable"
+          },
+          "201": {
+            "description": "Room saved privately, not yet generated or published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "room",
+                    "job"
+                  ],
+                  "properties": {
+                    "room": {
+                      "$ref": "#/components/schemas/Room"
+                    },
+                    "job": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "intro",
+                  "role",
+                  "personality",
+                  "analyzeConsent",
+                  "publishProfile"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "intro": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "role": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "personality": {
+                    "type": "string",
+                    "maxLength": 8000,
+                    "description": "Minimal non-sensitive agent summary only; no raw memories or owner details"
+                  },
+                  "analyzeConsent": {
+                    "type": "boolean",
+                    "const": true
+                  },
+                  "publishProfile": {
+                    "type": "boolean",
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent/home": {
+      "get": {
+        "operationId": "get_application_status",
+        "summary": "get_application_status",
+        "x-required-scope": "home:read",
+        "security": [
+          {
+            "onboardingGrant": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; inspect job state, not merely HTTP status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "room": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/Room"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "job": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/Job"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "analysisConsent": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body/consent"
+          },
+          "401": {
+            "description": "Missing grant"
+          },
+          "403": {
+            "description": "Scope, expiry, revocation or origin rejected"
+          },
+          "409": {
+            "description": "Fixed initial input conflict or generation incomplete"
+          },
+          "429": {
+            "description": "Rate limit exceeded; do not repeat paid requests"
+          },
+          "503": {
+            "description": "Runtime/database/provider unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/agent/preview": {
+      "get": {
+        "operationId": "preview_private_home",
+        "summary": "preview_private_home",
+        "x-required-scope": "home:read",
+        "security": [
+          {
+            "onboardingGrant": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; inspect job state, not merely HTTP status"
+          },
+          "400": {
+            "description": "Invalid body/consent"
+          },
+          "401": {
+            "description": "Missing grant"
+          },
+          "403": {
+            "description": "Scope, expiry, revocation or origin rejected"
+          },
+          "409": {
+            "description": "Fixed initial input conflict or generation incomplete"
+          },
+          "429": {
+            "description": "Rate limit exceeded; do not repeat paid requests"
+          },
+          "503": {
+            "description": "Runtime/database/provider unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/agent/generation": {
+      "post": {
+        "operationId": "generate_initial_home",
+        "summary": "generate_initial_home",
+        "x-required-scope": "home:generate",
+        "security": [
+          {
+            "onboardingGrant": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; inspect job state, not merely HTTP status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body/consent"
+          },
+          "401": {
+            "description": "Missing grant"
+          },
+          "403": {
+            "description": "Scope, expiry, revocation or origin rejected"
+          },
+          "409": {
+            "description": "Fixed initial input conflict or generation incomplete"
+          },
+          "429": {
+            "description": "Rate limit exceeded; do not repeat paid requests"
+          },
+          "503": {
+            "description": "Runtime/database/provider unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent/publication": {
+      "post": {
+        "operationId": "set_home_publication",
+        "summary": "set_home_publication",
+        "x-required-scope": "home:publish",
+        "security": [
+          {
+            "onboardingGrant": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; inspect job state, not merely HTTP status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "published": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body/consent"
+          },
+          "401": {
+            "description": "Missing grant"
+          },
+          "403": {
+            "description": "Scope, expiry, revocation or origin rejected"
+          },
+          "409": {
+            "description": "Fixed initial input conflict or generation incomplete"
+          },
+          "429": {
+            "description": "Rate limit exceeded; do not repeat paid requests"
+          },
+          "503": {
+            "description": "Runtime/database/provider unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "published"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "published": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "operationId": "read_service_status",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Read configuration metadata, not proof of paid provider success"
+          },
+          "503": {
+            "description": "Not ready; do not submit"
+          }
+        }
+      }
+    }
+  }
+}

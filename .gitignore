@@ -7,3 +7,7 @@ playwright-report/
 !.env.example
 data/
 .DS_Store
+
+# Server-only Cloudflare local secrets
+.dev.vars
+.dev.vars.*

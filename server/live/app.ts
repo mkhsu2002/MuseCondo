@@ -3,6 +3,7 @@ import { disconnectedHome, GenerationBlocked, type HomeGenerator } from './gener
 import { publicEvents, validateCommunity, type Edition, type PublicEvent } from '../../src/community/schema.ts';
 import { ruleSections } from '../../src/community/rules.ts';
 export interface LiveEnvironment { db:Database; origin:string; localTest:boolean; registrationEnabled:boolean; generator?:HomeGenerator; now?:()=>Date }
+interface OnboardingGrant {id:string;account_id:string;scopes:string;expires_at:string;revoked:number}
 interface Account {id:string;test_only:number}
 interface Session {account_id:string;csrf:string;token_hash:string}
 interface Room {id:string;account_id:string;name:string;intro:string;role:string;city:string|null;published:number;generation_state:string;created_at:string;test_only:number}
@@ -43,7 +44,31 @@ export function createLiveApp(env:LiveEnvironment){
   const s=cookie&&/^[a-f0-9]{64}$/.test(cookie)?await one<Session>('SELECT account_id,csrf,token_hash FROM sessions WHERE token_hash=? AND expires_at>?',await digest(cookie),stamp()):null;
   if(!s&&required)fail(401,'sign_in_required');return s||null;
  }
- async function owner(req:Request,mutate=false){const s=(await session(req))!;if(mutate){sameOrigin(req);if(req.headers.get('X-CSRF-Token')!==s.csrf)fail(403,'csrf_rejected');}return s;}
+ const agentRoutes:Record<string,{target:string;scope:string;method:string}>={
+  '/api/v1/agent/onboarding':{target:'/api/v1/me/onboarding',scope:'home:onboard',method:'POST'},
+  '/api/v1/agent/home':{target:'/api/v1/me',scope:'home:read',method:'GET'},
+  '/api/v1/agent/preview':{target:'/api/v1/me/preview',scope:'home:read',method:'GET'},
+  '/api/v1/agent/generation':{target:'/api/v1/me/generation',scope:'home:generate',method:'POST'},
+  '/api/v1/agent/publication':{target:'/api/v1/me/publication',scope:'home:publish',method:'POST'},
+ };
+ async function onboardingAgent(req:Request,scope:string){
+  if(req.headers.has('Cookie'))fail(403,'use_separate_agent_authorization');
+  if(req.headers.has('Origin')&&req.headers.get('Origin')!==env.origin)fail(403,'origin_rejected');
+  if(req.headers.get('Sec-Fetch-Site')==='cross-site')fail(403,'origin_rejected');
+  const token=req.headers.get('Authorization')?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
+  if(!token)fail(401,'onboarding_grant_required');
+  const grant=await one<OnboardingGrant>('SELECT id,account_id,scopes,expires_at,revoked FROM onboarding_grants WHERE token_hash=? AND revoked=0 AND expires_at>?',await digest(token!),stamp());
+  if(!grant||!JSON.parse(grant.scopes).includes(scope))fail(403,'onboarding_scope_rejected');return grant!;
+ }
+ // SQLite/D1 batch is transactional: a revoked/expired grant aborts every write in this batch.
+ async function grantGuard(req:Request,scope:string){
+  const token=req.headers.get('Authorization')?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];if(!token)fail(401,'onboarding_grant_required');
+  return db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM onboarding_grants WHERE token_hash=? AND revoked=0 AND expires_at>? AND EXISTS(SELECT 1 FROM json_each(scopes) WHERE value=?)) THEN 1 ELSE json('revoked-or-expired-onboarding-grant') END AS authorized").bind(await digest(token!),stamp(),scope);
+ }
+ async function owner(req:Request,mutate=false){
+  const route=agentRoutes[new URL(req.url).pathname.replace(/\/$/,'')];
+  if(route){if(req.method!==route.method)fail(405,'method_not_allowed');const grant=await onboardingAgent(req,route.scope);return {account_id:grant.account_id,csrf:'',token_hash:''};}
+const s=(await session(req))!;if(mutate){sameOrigin(req);if(req.headers.get('X-CSRF-Token')!==s.csrf)fail(403,'csrf_rejected');}return s;}
  async function newSession(accountId:string){const token=random(),csrf=random();await run('INSERT INTO sessions(token_hash,account_id,csrf,expires_at) VALUES(?,?,?,?)',await digest(token),accountId,csrf,new Date(now().getTime()+86400000).toISOString());return {csrf,cookie:`muse_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400${env.localTest?'':'; Secure'}`};}
  async function ownRoom(accountId:string){const r=await one<Room>('SELECT * FROM rooms WHERE account_id=?',accountId);if(!r)fail(404,'no_home');return r!;}
  async function publishedRoom(id:string){if(!identifier(id))fail(404,'room_not_found');const r=await one<Room>('SELECT * FROM rooms WHERE id=? AND published=1',id);if(!r)fail(404,'room_not_found');return r!;}
@@ -79,12 +104,13 @@ export function createLiveApp(env:LiveEnvironment){
   const cutoff=new Date(now().getTime()-10*60*1000).toISOString();
   await db.batch([db.prepare("UPDATE generation_jobs SET state='recovery',error_code='stale_running_requires_operator_reconciliation',updated_at=? WHERE account_id=? AND state='running' AND updated_at<?").bind(stamp(),accountId,cutoff),db.prepare("UPDATE rooms SET generation_state='recovery' WHERE account_id=? AND EXISTS(SELECT 1 FROM generation_jobs j WHERE j.room_id=rooms.id AND j.state='recovery')").bind(accountId)]);
  }
- async function runGeneration(room:Room){
+ async function runGeneration(room:Room,delegatedRequest?:Request){
   await expireStaleJob(room.account_id);
   if(generator.kind==='local-test'&&!env.localTest)fail(503,'test_generator_forbidden');
   const job=(await one<Job>('SELECT * FROM generation_jobs WHERE room_id=?',room.id))!;
   if(['running','recovery','complete','test-complete'].includes(job.state))return jobPublic(job);
-  const claim=await run("UPDATE generation_jobs SET state='running',attempts=attempts+1,error_code=NULL,updated_at=? WHERE id=? AND state IN ('prepared','blocked')",stamp(),job.id);
+  const claimStatement=db.prepare("UPDATE generation_jobs SET state='running',attempts=attempts+1,error_code=NULL,updated_at=? WHERE id=? AND state IN ('prepared','blocked')").bind(stamp(),job.id);
+  const claim=delegatedRequest?(await db.batch([await grantGuard(delegatedRequest,'home:generate'),claimStatement]))[1]:await claimStatement.run();
   if(claim.meta.changes!==1)return jobPublic((await one<Job>('SELECT * FROM generation_jobs WHERE id=?',job.id))!);
   try{
    await run("UPDATE rooms SET generation_state='running' WHERE id=?",room.id);
@@ -109,7 +135,7 @@ export function createLiveApp(env:LiveEnvironment){
  }
  return {editBuilding,async fetch(req:Request,clientAddress='local'):Promise<Response>{
   try{
-   const url=new URL(req.url);if(url.origin!==env.origin)fail(403,'host_rejected');if(!env.localTest&&url.protocol!=='https:')fail(400,'https_required');const path=url.pathname.replace(/\/$/,'');
+   const url=new URL(req.url);if(url.origin!==env.origin)fail(403,'host_rejected');if(!env.localTest&&url.protocol!=='https:')fail(400,'https_required');const originalPath=url.pathname.replace(/\/$/,'');const agentRoute=agentRoutes[originalPath];if(agentRoute&&req.method!==agentRoute.method)fail(405,'method_not_allowed');const path=agentRoute?.target??originalPath;
    if(path==='/api/v1/status'&&req.method==='GET')return json({available:true,mode:env.localTest?'local-isolated-test':'live',registrationEnabled:env.registrationEnabled,auth:'account-key-session',generation:generator.kind==='meta-api'?'configured-not-health-verified':generator.kind,sharedDatabase:true,manager:'rules-on-public-update',scheduled:false});
    if(path==='/api/v1/accounts'&&req.method==='POST'){
     sameOrigin(req);if(!env.registrationEnabled)fail(403,'registration_closed');await body(req);await limited(`signup:${clientAddress}`,5,3600);const id=random(16),credential=random();await run('INSERT INTO accounts(id,login_hash,created_at,test_only) VALUES(?,?,?,?)',id,await digest(credential),stamp(),env.localTest?1:0);const session=await newSession(id);return json({credential,csrf:session.csrf,testOnly:env.localTest},201,{'Set-Cookie':session.cookie});
@@ -122,36 +148,54 @@ export function createLiveApp(env:LiveEnvironment){
    if(path==='/api/v1/me'&&req.method==='GET'){
     const s=await owner(req);await expireStaleJob(s.account_id);const room=await one<Room>('SELECT * FROM rooms WHERE account_id=?',s.account_id),job=await one<Job>('SELECT * FROM generation_jobs WHERE account_id=?',s.account_id);const profile=await one<{analysis_consent:number}>('SELECT analysis_consent FROM private_profiles WHERE account_id=?',s.account_id);return json({room:room?{...roomPublic(room),published:!!room.published}:null,job:job?jobPublic(job):null,analysisConsent:!!profile?.analysis_consent});
    }
+   if(path==='/api/v1/me/onboarding-grants'&&req.method==='POST'){
+    const s=await owner(req,true),input=(await body(req))!,scopes=input.scopes;
+    if(input.analyzeConsent!==true)fail(400,'analysis_consent_required');
+    if(!Array.isArray(scopes)||scopes.length<2||scopes.length>4||new Set(scopes).size!==scopes.length||!scopes.includes('home:onboard')||!scopes.includes('home:read')||!scopes.every(x=>['home:onboard','home:read','home:generate','home:publish'].includes(String(x))))fail(400,'invalid_scopes');
+    const withdrawn=await one<{analysis_consent:number}>('SELECT analysis_consent FROM private_profiles WHERE account_id=?',s.account_id);if(withdrawn?.analysis_consent===0)fail(409,'analysis_consent_withdrawn');
+    await limited(`onboarding-grants:${s.account_id}`,5,3600);const id=random(16),token=random(),expiresAt=new Date(now().getTime()+86400000).toISOString();
+    await db.batch([db.prepare('INSERT INTO onboarding_grants(id,account_id,token_hash,scopes,created_at,expires_at) VALUES(?,?,?,?,?,?)').bind(id,s.account_id,await digest(token),JSON.stringify(scopes),stamp(),expiresAt),db.prepare('INSERT INTO consent_events(id,account_id,kind,granted,version,created_at) VALUES(?,?,?,?,?,?)').bind(random(16),s.account_id,'delegate-personality-analysis',1,'agent-grant-v1',stamp())]);
+    return json({id,token,scopes,expiresAt},201);
+   }
+   if(path==='/api/v1/me/onboarding-grants'&&req.method==='GET'){
+    const s=await owner(req);const grants=await all<OnboardingGrant>('SELECT id,scopes,expires_at,revoked FROM onboarding_grants WHERE account_id=? ORDER BY created_at DESC',s.account_id);
+    return json({grants:grants.map(g=>({id:g.id,scopes:JSON.parse(g.scopes),expiresAt:g.expires_at,revoked:!!g.revoked}))});
+   }
+   const grantDelete=path.match(/^\/api\/v1\/me\/onboarding-grants\/([a-f0-9]{32})$/);
+   if(grantDelete&&req.method==='DELETE'){const s=await owner(req,true);await run('UPDATE onboarding_grants SET revoked=1 WHERE id=? AND account_id=?',grantDelete[1],s.account_id);return json({revoked:true});}
    if(path==='/api/v1/me/onboarding'&&req.method==='POST'){
     const s=await owner(req,true),input=(await body(req))!;if(input.analyzeConsent!==true)fail(400,'analysis_consent_required');if(input.publishProfile!==false)fail(400,'private_preview_required');
+    if(agentRoute&&(input.city||input.publishCity===true||input.owner||input.ownerWebsite))fail(400,'owner_details_not_delegated');
     const personality=text(input.personality,8000),name=text(input.name,40),intro=text(input.intro,300),role=text(input.role,60),city=text(input.city,100,true);if(city&&input.publishCity!==true)fail(400,'city_consent_required');
     const inputHash=await digest(JSON.stringify({personality,name,intro,role,city,publishProfile:input.publishProfile,promptVersion:'home-v1'}));
     let existing=await one<Job>('SELECT * FROM generation_jobs WHERE account_id=?',s.account_id);
     if(!existing){const roomId=random(8),jobId=random(16),created=stamp();try{await db.batch([
+     ...(agentRoute?[await grantGuard(req,'home:onboard')]:[]),
      db.prepare('INSERT INTO rooms(id,account_id,name,intro,role,city,published,generation_state,created_at,test_only) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(roomId,s.account_id,name,intro,role,city||null,0,'prepared',created,env.localTest?1:0),
      db.prepare('INSERT INTO private_profiles(account_id,personality,input_hash,analysis_consent,created_at) VALUES(?,?,?,?,?)').bind(s.account_id,personality,inputHash,1,created),
      db.prepare('INSERT INTO consent_events(id,account_id,kind,granted,version,created_at) VALUES(?,?,?,?,?,?)').bind(random(16),s.account_id,'personality-analysis',1,'analysis-v1',created),
      db.prepare('INSERT INTO generation_jobs(id,account_id,room_id,input_hash,provider_key,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').bind(jobId,s.account_id,roomId,inputHash,random(),'prepared',created,created),
-    ]);}catch{/* A competing request may have won the account unique constraint; verify its hash below. */}existing=await one<Job>('SELECT * FROM generation_jobs WHERE account_id=?',s.account_id);}
+    ]);}catch{/* A competing request may have won; recheck delegation before resolving the saved input. */if(agentRoute)await onboardingAgent(req,'home:onboard');}existing=await one<Job>('SELECT * FROM generation_jobs WHERE account_id=?',s.account_id);}
     if(!existing)fail(503,'onboarding_not_saved');if(existing!.input_hash!==inputHash)fail(409,'onboarding_fixed_no_reroll');const room=await ownRoom(s.account_id);if(room.published)await editBuilding();return json({room:roomPublic(room),job:jobPublic(existing!)},201);
    }
    if(path==='/api/v1/me/analysis-consent'&&req.method==='POST'){
     const s=await owner(req,true),input=(await body(req))!;
     if(input.granted!==false)fail(400,'revocation_only');
-    await db.batch([db.prepare("UPDATE assets SET provenance=json_remove(provenance,'$.prompt') WHERE room_id IN (SELECT id FROM rooms WHERE account_id=?)").bind(s.account_id),db.prepare("UPDATE private_profiles SET analysis_consent=0,personality='' WHERE account_id=?").bind(s.account_id),db.prepare('INSERT INTO consent_events(id,account_id,kind,granted,version,created_at) VALUES(?,?,?,?,?,?)').bind(random(16),s.account_id,'personality-analysis',0,'analysis-v1',stamp())]);
+    await db.batch([db.prepare("UPDATE onboarding_grants SET revoked=1 WHERE account_id=?").bind(s.account_id),db.prepare("UPDATE assets SET provenance=json_remove(provenance,'$.prompt') WHERE room_id IN (SELECT id FROM rooms WHERE account_id=?)").bind(s.account_id),db.prepare("UPDATE private_profiles SET analysis_consent=0,personality='' WHERE account_id=?").bind(s.account_id),db.prepare('INSERT INTO consent_events(id,account_id,kind,granted,version,created_at) VALUES(?,?,?,?,?,?)').bind(random(16),s.account_id,'personality-analysis',0,'analysis-v1',stamp())]);
     return json({granted:false,rawPersonalityRemoved:true});
    }
    if(path==='/api/v1/me/preview'&&req.method==='GET'){
     const s=await owner(req),r=await ownRoom(s.account_id);
     const assets=await all<{id:string;purpose:string;provenance:string}>('SELECT id,purpose,provenance FROM assets WHERE room_id=?',r.id);
-    const posts=await all<Post>('SELECT * FROM posts WHERE room_id=? ORDER BY created_at DESC',r.id);
+    const posts=agentRoute?[]:await all<Post>('SELECT * FROM posts WHERE room_id=? ORDER BY created_at DESC',r.id);
     return json({room:{...roomPublic(r),published:!!r.published},assets:assets.map(a=>{const p=JSON.parse(a.provenance);return {id:a.id,purpose:a.purpose,url:`/api/v1/assets/${a.id}`,provider:p.provider,model:p.model,generatedAt:p.generatedAt,promptVersion:p.promptVersion};}),posts:posts.map(p=>({id:p.id,kind:p.kind,title:p.title,body:p.body,isPublic:!!p.is_public,createdAt:p.created_at})),interactions:[]});
    }
    if(path==='/api/v1/me/publication'&&req.method==='POST'){
     const s=await owner(req,true),r=await ownRoom(s.account_id),input=(await body(req))!;
     if(typeof input.published!=='boolean')fail(400,'public_choice_required');
     if(input.published&&!['complete',...(env.localTest?['test-complete']:[])].includes(r.generation_state))fail(409,'generation_not_complete');
-    await db.batch([db.prepare('UPDATE rooms SET published=? WHERE id=?').bind(input.published?1:0,r.id),db.prepare('INSERT INTO consent_events(id,account_id,kind,granted,version,created_at) VALUES(?,?,?,?,?,?)').bind(random(16),s.account_id,'publish-profile',input.published?1:0,'public-v1',stamp()),db.prepare('DELETE FROM community_current')]);
+    if(!input.published&&!agentRoute)await run('UPDATE onboarding_grants SET revoked=1 WHERE account_id=?',s.account_id);
+    await db.batch([...(agentRoute?[await grantGuard(req,'home:publish')]:[]),db.prepare('UPDATE rooms SET published=? WHERE id=?').bind(input.published?1:0,r.id),db.prepare('INSERT INTO consent_events(id,account_id,kind,granted,version,created_at) VALUES(?,?,?,?,?,?)').bind(random(16),s.account_id,'publish-profile',input.published?1:0,'public-v1',stamp()),db.prepare('DELETE FROM community_current')]);
     return json({published:input.published});
    }
    const postVisibility=path.match(/^\/api\/v1\/me\/posts\/([a-f0-9]{32})$/);
@@ -161,7 +205,7 @@ export function createLiveApp(env:LiveEnvironment){
     const changed=await run('UPDATE posts SET is_public=? WHERE id=? AND room_id=?',input.isPublic?1:0,postVisibility[1],r.id);
     if(changed.meta.changes!==1)fail(404,'post_not_found');await run('DELETE FROM community_current');return json({isPublic:input.isPublic});
    }
-   if(path==='/api/v1/me/generation'&&req.method==='POST'){const s=await owner(req,true);await body(req);await limited(`generation:${s.account_id}`,6,3600);return json({job:await runGeneration(await ownRoom(s.account_id))});}
+   if(path==='/api/v1/me/generation'&&req.method==='POST'){const s=await owner(req,true);await body(req);await limited(`generation:${s.account_id}`,6,3600);return json({job:await runGeneration(await ownRoom(s.account_id),agentRoute?req:undefined)});}
    if(path==='/api/v1/me/posts'&&req.method==='POST'){const s=await owner(req,true);return json(await post(await ownRoom(s.account_id),(await body(req))!),201);}
    if(path==='/api/v1/me/posts'&&req.method==='GET'){const s=await owner(req),r=await ownRoom(s.account_id);const posts=await all<Post>('SELECT * FROM posts WHERE room_id=? ORDER BY created_at DESC',r.id);return json({posts:posts.map(p=>({id:p.id,kind:p.kind,title:p.title,body:p.body,isPublic:!!p.is_public,createdAt:p.created_at}))});}
    if(path==='/api/v1/me/tokens'&&req.method==='POST'){
@@ -179,7 +223,7 @@ export function createLiveApp(env:LiveEnvironment){
     return json({room:roomPublic(r),assets:assets.map(a=>{const p=JSON.parse(a.provenance);return {id:a.id,purpose:a.purpose,url:`/api/v1/assets/${a.id}`,provider:p.provider,model:p.model,generatedAt:p.generatedAt,promptVersion:p.promptVersion};}),posts:(await all<Post>('SELECT * FROM posts WHERE room_id=? AND is_public=1 ORDER BY created_at DESC',r.id)).map(p=>({id:p.id,kind:p.kind,title:p.title,body:p.body,createdAt:p.created_at})),interactions:(await all<Interaction>("SELECT * FROM interactions WHERE room_id=? AND state='published' ORDER BY created_at DESC",r.id)).map(i=>({id:i.id,kind:i.kind,nickname:i.nickname,body:i.body,giftId:i.gift_id,createdAt:i.created_at}))});
    }
    const assetRoute=path.match(/^\/api\/v1\/assets\/([a-f0-9]{32})$/);if(assetRoute&&req.method==='GET'){
-    const a=await one<{id:string;room_id:string;mime:string;digest:string}>('SELECT id,room_id,mime,digest FROM assets WHERE id=?',assetRoute[1]);if(!a)fail(404,'asset_not_found');const assetRoom=await one<Room>('SELECT * FROM rooms WHERE id=?',a!.room_id);const viewer=await session(req,false);if(!assetRoom||(!assetRoom.published&&viewer?.account_id!==assetRoom.account_id))fail(404,'asset_not_found');const chunks=await all<{data:ArrayBuffer|Uint8Array}>('SELECT data FROM asset_chunks WHERE asset_id=? ORDER BY sequence',a!.id);const bytes=chunks.map(c=>new Uint8Array(c.data));const joined=new Uint8Array(bytes.reduce((n,b)=>n+b.length,0));let offset=0;for(const b of bytes){joined.set(b,offset);offset+=b.length;}return new Response(joined,{headers:{'Content-Type':a!.mime,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'",ETag:a!.digest}});
+    const a=await one<{id:string;room_id:string;mime:string;digest:string}>('SELECT id,room_id,mime,digest FROM assets WHERE id=?',assetRoute[1]);if(!a)fail(404,'asset_not_found');const assetRoom=await one<Room>('SELECT * FROM rooms WHERE id=?',a!.room_id);const viewer=await session(req,false);const delegated=req.headers.has('Authorization')?await onboardingAgent(req,'home:read'):null;if(!assetRoom||(!assetRoom.published&&viewer?.account_id!==assetRoom.account_id&&delegated?.account_id!==assetRoom.account_id))fail(404,'asset_not_found');const chunks=await all<{data:ArrayBuffer|Uint8Array}>('SELECT data FROM asset_chunks WHERE asset_id=? ORDER BY sequence',a!.id);const bytes=chunks.map(c=>new Uint8Array(c.data));const joined=new Uint8Array(bytes.reduce((n,b)=>n+b.length,0));let offset=0;for(const b of bytes){joined.set(b,offset);offset+=b.length;}return new Response(joined,{headers:{'Content-Type':a!.mime,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'",ETag:a!.digest}});
    }
    const interactionRoute=path.match(/^\/api\/v1\/rooms\/([a-f0-9]{16})\/interactions$/);
    if(interactionRoute&&req.method==='POST'){
@@ -195,6 +239,9 @@ export function createLiveApp(env:LiveEnvironment){
     const roomId=moderate[1]==='me'?(await ownRoom((await owner(req,true)).account_id)).id:moderate[2];if(moderate[1]!=='me')await agent(req,roomId,'invitations:moderate');const input=(await body(req))!,state=input.action==='accept'?'published':input.action==='reject'?'rejected':fail(400,'explicit_action_required');const result=await run("UPDATE interactions SET state=? WHERE id=? AND room_id=? AND kind='invitation' AND state='pending'",state,moderate[3],roomId);if(result.meta.changes!==1)fail(404,'pending_invitation_not_found');return json({state});
    }
    return fail(404,'api_not_found');
-  }catch(error){if(error instanceof HttpError)return json({error:error.code},error.status);return json({error:'internal_error'},500);}
+  }catch(error){if(error instanceof HttpError)return json({error:error.code},error.status);
+   // A transaction guard may abort after authentication; return the current credential failure, never SQL details.
+   const route=agentRoutes[new URL(req.url).pathname.replace(/\/$/,'')];if(route){try{await onboardingAgent(req,route.scope);}catch(authError){if(authError instanceof HttpError)return json({error:authError.code},authError.status);}}
+   return json({error:'internal_error'},500);}
  }};
 }

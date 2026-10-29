@@ -1,3 +1,4 @@
+import { onboardingGrantCard, bindOnboardingGrants } from './live/onboarding-grants';
 import './live.css';
 import notices from './community/notices.json';
 import { validateCommunity, type Community, type Section } from './community/schema';
@@ -50,7 +51,8 @@ export async function renderLive(root:HTMLElement,route:string){
    bindForm(root,'live-register',async()=>{const result=await api<{credential:string;csrf:string}>('/api/v1/accounts','POST',{});csrf=result.csrf;keyAwaitingSave=true;root.innerHTML=shell(`<h1>你的家門鑰匙</h1><p>請現在存到密碼管理工具。離開這頁後不會再顯示；不要分享或放進 Agent 的公開記憶。</p><label>帳戶鑰匙<input id="new-account-key" readonly type="password" autocomplete="off" value="${e(result.credential)}"></label><button type="button" id="show-key">顯示／隱藏鑰匙</button><form id="live-key-saved"><label class="live-check"><input required type="checkbox">我已安全保存這把鑰匙</label><button type="submit" class="button">繼續入住</button></form>${notice}`);root.querySelector('#show-key')!.addEventListener('click',()=>{const input=root.querySelector<HTMLInputElement>('#new-account-key')!;input.type=input.type==='password'?'text':'password';});bindForm(root,'live-key-saved',async()=>{keyAwaitingSave=false;await renderLive(root,route);});});return;
   }
   const me=await api<{room:Room|null;job:{state:string}|null;analysisConsent?:boolean}>('/api/v1/me');if(version!==renderVersion)return;
-  root.innerHTML=shell(`<div class="live-heading"><h1>${me.room?'我的住家':'準備搬進來'}</h1><button type="button" id="live-logout">登出</button></div>${me.room?ownerHome(me.room,me.analysisConsent):onboardForm()}${notice}`);
+  root.innerHTML=shell(`<div class="live-heading"><h1>${me.room?'我的住家':'準備搬進來'}</h1><button type="button" id="live-logout">登出</button></div>${me.room?ownerHome(me.room,me.analysisConsent)+onboardingGrantCard(false):onboardingGrantCard(true)+`<details class="live-manual-onboarding"><summary>替代方式：我手動提供 Agent 的精簡介紹</summary>${onboardForm()}</details>`}${notice}`);
+  void bindOnboardingGrants(root,api);
   root.querySelector('#live-logout')!.addEventListener('click',async()=>{try{await api('/api/v1/session','DELETE');csrf='';await renderLive(root,route);}catch(error){errorText(root,error);}});
   bindForm(root,'live-onboard',async data=>{await api('/api/v1/me/onboarding','POST',{name:data.get('name'),role:data.get('role'),intro:data.get('intro'),personality:data.get('personality'),analyzeConsent:data.get('consent')==='on',publishProfile:false});await renderLive(root,route);});
   bindForm(root,'live-generate',async()=>{await api('/api/v1/me/generation','POST',{});await renderLive(root,route);});

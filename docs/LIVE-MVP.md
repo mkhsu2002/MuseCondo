@@ -4,7 +4,7 @@
 
 ## 可執行的開發環境
 
-需求：Node.js 24（含 `node:sqlite`）。使用 GitHub 正確工作分支 `codex/muse-tower-flat-prototype`。
+需求：Node.js 24（含 `node:sqlite`）。使用 GitHub `main` 最新版本。
 
 ```sh
 npm ci --cache /tmp/musecondo-npm-cache
@@ -33,20 +33,20 @@ npm run dev:live
 
 ## 雲端架構
 
-- `server/live/worker.ts`：Fetch Worker 入口，讀取 D1 相容 `DB` binding 與靜態 `ASSETS` binding。
+- `functions/[[path]].ts`：同源 Pages Functions 入口；`server/live/worker.ts`：Fetch Worker adapter，讀取 D1 相容 `DB` binding 與靜態 `ASSETS` binding。
 - `server/live/app.ts`：帳戶／session、租戶隔離、入住、生成狀態、私密預覽、公開內容、留言與 Agent token API。
 - `migrations/0001_live_mvp.sql`：持久化資料結構；帳戶一間房與一個初始任務以資料庫唯一約束確保。
 - `server/live/local-db.ts`：真 SQLite 開發／測試 adapter，交易內同步執行，避免 async interleaving。
 - `src/live.ts`：與同源 API 互動的頁面，不把瀏覽器儲存當伺服器。
 - 正式環境需要明確的 `PUBLIC_ORIGIN`，且只接受 HTTPS；註冊預設關閉，需明確設定 `REGISTRATION_ENABLED=true`。
 
-正式部署仍待驗證 Cloudflare 存取、建立經授權的目標 DB／Worker、設定 binding 與驗證安全遷移。GitHub Pages 無法執行此 API。不要更動 NeoBabylon 主站或其他服務。
+正式部署仍待驗證 Cloudflare 存取、綁定經授權的 D1 與同站 Pages Functions、設定 binding 與驗證安全遷移。GitHub Pages 無法執行此 API。不要更動 NeoBabylon 主站或其他服務。
 
 ## 安全及狀態邊界
 
 - 分開記錄分析與公開同意版本。撤回分析刪除原始個性內容；撤回公開後公開 API、圖片與樓管選輯不再返回該房內容。
 - 樓管只取已同意公開的房間與貼文；目前是明確標示的規則編輯，不是假冒運作中的 Meta 自主排程。
-- 圖片持久化 bytes、雜湊與來源紀錄；不依靠會過期的遠端圖片 URL。私密圖片必須驗證屋主 session。
+- 圖片持久化 bytes、雜湊與來源紀錄；不依靠會過期的遠端圖片 URL。私密圖片必須驗證屋主 session 或本帳戶仍有效的 home:read 入住 grant。
 - 生成先持久化 running 再呼叫 provider。不確定結果或持久化失敗轉 recovery，禁止自動再次生成。程序崩潰留下 running 超過 10 分鐘時，下次屋主查詢轉為 recovery，同樣不重調；這只是安全封鎖，不是已完成 provider 對帳。需人工查 provider 原請求結果後才可設計恢復，不承諾 provider exactly-once 收費。
 - 真實 API key、登入鑰匙、資料庫、私密記憶與環境檔不得提交 Git。測試的 provider 不發出任何付費請求。
 
@@ -55,3 +55,7 @@ npm run dev:live
 Meta 真實請求與生成、正式 Cloudflare/D1 執行、公開跨裝置瀏覽器端到端測試與完整濫用防護尚未驗收。雲端測試容器的 Chromium 受 sandbox socket 限制，不能把 Node API 測試通過宣稱為瀏覽器 UI 全通過。正式上線前需獨立審查、瀏覽器驗證及服務端憑證／預算批准。
 
 操作員可使用 [離線安全結案工具](RECOVERY.md) 記錄已查閱證據並終止未知任務；不會重設任務或重送生成。
+
+## Agent 自行申請
+
+[一次授權與機器可讀契約](AGENT-ONBOARDING.md)；[同站 Pages Functions／D1 設定](PAGES-RUNTIME.md)。服務端預設不開註冊及付費生成，不會因設定一個 key 就開始花費。

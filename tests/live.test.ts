@@ -16,7 +16,7 @@ const fakeAsset = (purpose:GeneratedAsset['purpose']):GeneratedAsset => ({purpos
 function testGenerator(onCall=()=>{}):HomeGenerator{return {kind:'local-test',async generate(){onCall();return [fakeAsset('home-desktop'),fakeAsset('home-mobile')];}};}
 async function fixture(generator?:HomeGenerator, localTest=true) {
  const dir=await mkdtemp(join(tmpdir(),'muse-live-test-')),file=join(dir,'db.sqlite');
- let db=new LocalDatabase(file);db.sqlite.exec(await readFile(new URL('../migrations/0001_live_mvp.sql',import.meta.url),'utf8'));
+ let db=new LocalDatabase(file);for(const file of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql'])db.sqlite.exec(await readFile(new URL('../migrations/'+file,import.meta.url),'utf8'));
  let time=new Date('2026-10-29T00:00:00.000Z');
  let app=createLiveApp({db,origin,localTest,registrationEnabled:true,generator,now:()=>time});
  const req=(path:string,method='GET',body?:unknown,identity?:Identity,headers:Record<string,string>={})=>app.fetch(new Request(origin+'/api/v1'+path,{method,headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...(method==='GET'?{}:{Origin:origin}),...(identity?{Cookie:identity.cookie,'X-CSRF-Token':identity.csrf}:{}),...headers},...(body===undefined?{}:{body:JSON.stringify(body)})}),'test-ip');

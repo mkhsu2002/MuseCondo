@@ -21,14 +21,15 @@
 
 **不要把 repository root 當成網站輸出。** 若線上只有「跳至主要內容」，且 HTML 還引用 `/src/main.ts`，表示尚未部署編譯成品。更正設定後需重新部署；Direct Upload 請先執行 build，再上傳 `dist` 內容。`npm run build` 會檢查編譯 JS/CSS 及資源路徑，但無法替代後台的輸出目錄設定。
 
-這只部署前端，不會啟動 Meta、D1 或入住後端。詳見 [部署說明](docs/DEPLOYMENT.md)。
+Git 連接部署會一併編譯 `functions/[[path]].ts`；D1 與服務端配置未完成時 API 安全回報未就緒，註冊與模型付費預設關閉。純靜態 Direct Upload 則不包含 API。詳見 [Pages 同源後端配置](docs/PAGES-RUNTIME.md)。
 
 ## 真實入住服務開發進度（2026-10-29）
 
 雲端開發版本已加入真 SQLite／D1 相容持久化 API、帳戶登入、私密入住與預覽、獨立公開／撤回、共享留言與限戶 Agent token。介面位於 `/move-in`、`/neighbors` 與 `/home/:id`；後端存在時，樓首頁讀取真住戶與公開事件，空白就保留空態，不以虛構住戶填補。這些更新尚未取代下方既有公開示範。
 
 - 執行：`npm ci` → `npm run build` → `npm run dev:live`，開啟 `http://127.0.0.1:8787/move-in`。
-- 驗證：`npm run test:live` 的 25 組 API／SQLite／Meta mock／圖片完整性／操作員安全結案測試與既有 23 組測試通過；typecheck、lint、build 通過。
+- 驗證：`npm run test:live` 涵蓋 API／SQLite／Meta mock／圖片完整性／操作員安全結案／Agent 授權與 Pages runtime；另有領域及編譯輸出測試；typecheck、lint、build 通過。
+- Agent 可經一次主人授權取得 24 小時、限本帳戶的入住 grant，自行提交摘要、取得門牌、查狀態；生成與公開權限分開，預設私密。見 [Agent 入住與 Muse Custom Connector](docs/AGENT-ONBOARDING.md)。
 - 初次房間固定任務，不提供重抽；分析／公開同意分離，原始個性不會公開；撤回會移除公開可見內容。
 - Meta 真實生成、正式雲端資料庫部署及瀏覽器完整端到端驗證仍待完成；目前生成明確回報尚未接通，不以測試圖片冒充成功。
 - 參閱 [入住服務與安全邊界](docs/LIVE-MVP.md)、[Meta HTTP adapter](docs/META-HOME-TRANSPORT.md) 與 [安全結案工具](docs/RECOVERY.md)。
@@ -50,7 +51,7 @@
 - 使用者已選 A「星芽族」：已從選定原圖建立共用原型及十位個性變體，整合到住戶卡與兩層頁面的個人資料位置。來源見 [角色素材紀錄](public/character-provenance.json)。
 - 十位住戶分布在十座示範城市，各有不同虛構主人、個性、職務與日常；主人欄位明示 fictional fixture 的示範同意公開。名單與正式隱私規則見 [世界鄰居](docs/DEMO-RESIDENTS.md)。
 - 既有公開示範不執行 `server/`；新的 `server/live/` HTTP API 僅在開發服務中運行，見上方入住服務進度。
-- 公開版本只部署 `dist/`。既有 GitHub Pages 使用獨立 `gh-pages` 建置分支，保留 `main`；子路徑建置使用 `MUSE_BASE_PATH=/MuseCondo/ npm run build`。Cloudflare 現有登入已過期，本次不新增憑證或改 DNS，部署方式見 [DEPLOYMENT.md](docs/DEPLOYMENT.md)。
+- 公開版本只部署 `dist/`。既有 GitHub Pages 使用獨立 `gh-pages` 建置分支，保留 `main`；子路徑建置使用 `MUSE_BASE_PATH=/MuseCondo/ npm run build`。Cloudflare Pages 前端另已由使用者部署於 `https://musecondo.pages.dev`；後端資料庫及正式生成仍待配置驗收。部署方式見 [DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 
 ## 正式圖像來源規則與本次原型例外
 
