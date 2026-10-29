@@ -1,25 +1,45 @@
 import { test, expect } from '@playwright/test';
 import { residents } from '../src/residents';
-import { homeArtwork, prototypeArtPath } from '../src/artwork';
+import { homeArtwork, characterArtwork, prototypeArtPath } from '../src/artwork';
 
 test('tower and all 20 flat routes preserve prototype provenance and responsive artwork', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/'); await expect(page.locator('h1')).toContainText('讓每個靈感');
   await expect(page.locator('.resident-card')).toHaveCount(10);
-  await expect(page.locator('.resident-card img')).toHaveCount(10);
+  await expect(page.locator('.resident-card .room-stage img')).toHaveCount(10);
   const sources = [];
-  for (const image of await page.locator('.resident-card img').all()) {
+  for (const image of await page.locator('.resident-card .room-stage img').all()) {
     await image.scrollIntoViewIfNeeded(); await expect(image).toHaveJSProperty('complete', true);
     expect(await image.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(900);
     sources.push(await image.getAttribute('src'));
   }
   expect(new Set(sources).size).toBe(10);
+  await expect(page.locator('.resident-card .character-avatar')).toHaveCount(10);
+  for (const resident of residents) {
+    const card = page.locator(`[data-resident-card="${resident.id}"]`);
+    await expect(card).toContainText(resident.demo.city);
+    await expect(card).toContainText(resident.demo.ownerAlias);
+    await expect(card).toContainText(resident.role);
+    const avatar = page.locator(`.resident-card [data-character-id="${resident.id}"] img`);
+    await avatar.scrollIntoViewIfNeeded(); await expect(avatar).toHaveJSProperty('complete', true);
+    await expect(avatar).toHaveAttribute('src', `/${prototypeArtPath(characterArtwork[resident.id].file)}`);
+    expect(await avatar.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(1254);
+  }
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await page.screenshot({ path: `test-results/${info.project.name}-tower.png`, fullPage: true });
   for (const resident of residents) {
     await page.goto(`/${resident.id}/`);
     await expect(page.locator('h1')).toContainText(resident.name);
     await expect(page.locator('.flat-nameplate')).toContainText('模擬住戶');
+    await expect(page.locator('.flat-details')).toContainText(resident.demo.city);
+    await expect(page.locator('.flat-details')).toContainText(resident.demo.ownerAlias);
+    await expect(page.locator('.flat-details')).toContainText('示範同意公開');
+    await expect(page.locator('.flat-bio')).toContainText(resident.demo.personality);
+    const profileImage = page.locator('.flat-nameplate .character-avatar img');
+    await expect(page.locator('.flat-nameplate .character-avatar')).toHaveAttribute('data-character-id', resident.id);
+    await expect(profileImage).toHaveAttribute('src', `/${prototypeArtPath(characterArtwork[resident.id].file)}`);
+    await expect(profileImage).toHaveJSProperty('complete', true);
+    expect(await profileImage.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(1254);
     const art = homeArtwork[resident.id];
     expect(art).toBeDefined();
     if (art) {
@@ -37,6 +57,23 @@ test('tower and all 20 flat routes preserve prototype provenance and responsive 
     await expect(page).toHaveURL(new RegExp(`/${resident.id}/inside$`));
     await expect(page.locator('h1')).toContainText(resident.name);
     await expect(page.locator('#diary')).toContainText('虛構示範日記');
+    await expect(page.locator('.inside-namecard .character-avatar')).toHaveAttribute('data-character-id', resident.id);
+    await expect(page.locator('.inside-namecard .character-avatar img')).toHaveAttribute('src', `/${prototypeArtPath(characterArtwork[resident.id].file)}`);
+    await expect(page.locator('.inside-namecard')).toContainText('星芽族 · Codex 暫用原型');
+    await expect(page.locator('.flat-details')).toHaveCount(0);
+    await expect(page.locator('.inside-namecard')).toContainText(resident.demo.city);
+    await expect(page.locator('.inside-namecard')).toContainText(resident.demo.ownerAlias);
+    await expect(page.locator('.inside-namecard')).toContainText('虛構 · 示範同意公開');
+    const contrast = await page.locator('.inside-namecard .character-source').evaluate(el => {
+      const luminance = (color: string) => {
+        const channels = color.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(value => value / 255).map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+        return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+      };
+      const foreground = luminance(getComputedStyle(el).color);
+      const background = luminance(getComputedStyle(el.closest('.inside-namecard')!).backgroundColor);
+      return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+    });
+    expect(contrast).toBeGreaterThanOrEqual(4.5);
     await page.reload(); await expect(page.locator('#gift')).toContainText('收藏架還空著');
     await page.getByRole('link', { name: '← 回到家門' }).click();
     await expect(page.locator('h1')).toContainText(resident.name);
@@ -88,9 +125,10 @@ test('gifts and invitations are separate text-only local records, isolated per r
   await page.keyboard.press('Escape'); await page.reload(); await expect(page.locator('#invitation')).toContainText('週六一起聊植物吧');
   await expect(page.locator('#message')).not.toContainText('週六一起聊植物吧');
 });
-test('frontend has no owner identity, raw memory, secret or fabricated model data; handles unavailable storage', async ({ page }) => {
+test('frontend labels fictional owner consent while isolating real private data and unavailable storage', async ({ page }) => {
   await page.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new Error('Storage denied'); } }); });
-  await page.goto('/m7k2px'); await expect(page.locator('.flat-details')).toContainText('主人資訊未公開');
+  await page.goto('/m7k2px'); await expect(page.locator('.flat-details')).toContainText('示範主人（虛構）朵晴');
+  await expect(page.locator('.flat-details')).toContainText('示範同意公開');
   await expect(page.locator('.flat-details')).toContainText('尚無可驗證資料');
   await page.getByRole('link', { name: '走進去看看' }).click(); await expect(page.locator('#message')).toContainText('無法讀取本機紀錄');
   await page.getByRole('button', { name: '寫一句問候' }).click(); await page.getByLabel('怎麼稱呼你').fill('A'); await page.getByLabel('想留下的話').fill('hello');
@@ -140,4 +178,21 @@ test('prototype gifts persist with their real source and references are display-
   await expect(page.locator('.decor-gallery button, .decor-gallery input')).toHaveCount(0);
   await expect(page.locator('.decor-gallery')).toContainText('不提供入住風格選擇');
   await page.screenshot({ path: `test-results/${info.project.name}-references.png`, fullPage: true });
+});
+
+
+test('missing character image falls back to readable resident text without breaking navigation', async ({ page }, info) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.route('**/prototype-assets/character-momo.png', route => route.fulfill({ status: 404, body: 'not found' }));
+  await page.goto('/m7k2px');
+  const avatar = page.locator('.flat-nameplate .character-avatar');
+  await expect(avatar).toHaveClass(/is-unavailable/);
+  await expect(avatar).toHaveAttribute('aria-label', '茉茉的角色圖暫無法載入，顯示姓名文字');
+  await expect(avatar.locator('img')).toBeHidden(); await expect(avatar.locator('.character-fallback')).toHaveText('茉');
+  await expect(page.locator('.flat-nameplate h1')).toContainText('茉茉');
+  await page.getByRole('link', { name: '走進去看看' }).click();
+  await expect(page.locator('.inside-namecard .character-avatar')).toHaveClass(/is-unavailable/);
+  await expect(page.locator('#diary')).toBeVisible();
+  await page.screenshot({ path: `test-results/${info.project.name}-character-fallback.png`, fullPage: true });
+  expect(errors).toEqual([]);
 });

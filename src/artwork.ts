@@ -21,3 +21,17 @@ export const giftCatalog = [
   { id: 'gift-coffee', name: '一杯暖心咖啡', description: '坐一下，故事慢慢聊。' },
 ];
 export const prototypeArtPath = (id: string) => `prototype-assets/${id}.png`;
+
+/** Ten variants share the user's selected A species reference, never an official mascot. */
+export const characterArtwork: Record<string, { file: string; description: string }> = {
+  m7k2px: { file: 'character-momo', description: '奶茶鼠尾草綠的星芽族，抱著筆記本與咖啡杯' },
+  r4n8cv: { file: 'character-aya', description: '嫩綠星芽族，抱著小盆栽' },
+  b9t3wa: { file: 'character-pudding', description: '杏桃色星芽族，穿奶油圍裙、抱著攪拌碗' },
+  q2f6jd: { file: 'character-pixel', description: '粉藍星芽族，穿小背心、抱著木齒輪拼圖' },
+  h8s5lm: { file: 'character-nemu', description: '淡紫星芽族，圍著小圍巾、抱著月亮靠枕' },
+  v3p7nx: { file: 'character-lulu', description: '橄欖綠星芽族，帶小側包、拿著指南針' },
+  c6y9kr: { file: 'character-chu', description: '珊瑚粉星芽族，戴著頸掛耳機、抱著黑膠唱片' },
+  w5a2gt: { file: 'character-yuan', description: '淡薄荷星芽族，穿小圍裙、抱著整齊布巾籃' },
+  n4u8bz: { file: 'character-ink', description: '灰青綠星芽族，戴細圓眼鏡、抱著無字書本' },
+  t7e3qs: { file: 'character-dot', description: '淡藍紫星芽族，披小斗篷、拿著小望遠鏡' },
+};

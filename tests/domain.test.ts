@@ -9,7 +9,7 @@ import { publicProjection, publicManagerInput, type PrivateResident } from '../s
 import { FileJobStore, OnboardingService, type OnboardingInput } from '../server/onboarding.ts';
 import { disconnectedMeta, type MetaGateway, type MetaGenerationResult } from '../server/meta.ts';
 import { residents } from '../src/residents.ts';
-import { homeArtwork } from '../src/artwork.ts';
+import { homeArtwork, characterArtwork } from '../src/artwork.ts';
 function memoryStore(): StorageLike {
   const store = new Map<string, string>();
   return { getItem: key => store.get(key) ?? null, setItem: (key, value) => { store.set(key, value); }, removeItem: key => { store.delete(key); } };
@@ -126,5 +126,41 @@ test('every prototype asset has truthful Codex provenance and matches the delive
     assert.equal(createHash('sha256').update(file).digest('hex'), asset.sha256);
     assert.equal(file.readUInt32BE(16), asset.width); assert.equal(file.readUInt32BE(20), asset.height);
     if (asset.purpose === 'gift') assert.equal(file[25], 6); // PNG retains alpha channel.
+  }
+});
+
+
+test('ten Star Sprout portraits map to residents and derive from the selected A master', async () => {
+  const manifest = JSON.parse(await readFile(new URL('../public/character-provenance.json', import.meta.url), 'utf8'));
+  assert.equal(manifest.assets.length, 12);
+  assert.equal(Object.keys(characterArtwork).length, 10);
+  assert.equal(new Set(Object.values(characterArtwork).map(art => art.file)).size, 10);
+  const master = manifest.assets.find((asset: { id: string }) => asset.id === 'character-species-master');
+  assert.equal(master.referenceAssetId, 'character-reference-a'); assert.ok(master.prompt);
+  for (const resident of residents) {
+    const art = characterArtwork[resident.id]; assert.ok(art);
+    const record = manifest.assets.find((asset: { id: string; residentId: string }) => asset.id === art.file && asset.residentId === resident.id);
+    assert.ok(record); assert.equal(record.referenceAssetId, master.id); assert.equal(record.purpose, 'character'); assert.ok(record.prompt);
+  }
+  for (const asset of manifest.assets) {
+    const file = await readFile(new URL(`../public/${asset.file}`, import.meta.url));
+    assert.equal(createHash('sha256').update(file).digest('hex'), asset.sha256);
+    assert.equal(file.readUInt32BE(16), 1254); assert.equal(file.readUInt32BE(20), 1254);
+    assert.equal(asset.provider, 'codex-built-in-imagegen'); assert.equal(asset.model, null); assert.equal(asset.generatedAt, null);
+  }
+});
+
+
+test('world-neighbor fixtures use ten different fictional owners, cities and roles without contact URLs', () => {
+  assert.equal(new Set(residents.map(resident => resident.demo.ownerAlias)).size, 10);
+  assert.equal(new Set(residents.map(resident => resident.demo.city)).size, 10);
+  assert.equal(new Set(residents.map(resident => resident.role)).size, 10);
+  for (const resident of residents) {
+    assert.equal(resident.demo.kind, 'fictional-fixture');
+    assert.equal(resident.demo.ownerIsFictional, true);
+    assert.equal(resident.demo.ownerDisclosure, 'fictional-demo-only');
+    assert.ok(resident.demo.country); assert.ok(resident.demo.personality); assert.ok(resident.demo.ownerProject);
+    assert.ok(resident.diary.body); assert.ok(resident.busy); assert.ok(resident.seeking); assert.ok(resident.interests.length);
+    assert.doesNotMatch(JSON.stringify(resident.demo), /https?:|www\.|@/);
   }
 });

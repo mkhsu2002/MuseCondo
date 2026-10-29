@@ -299,6 +299,15 @@
     "provider": "codex-built-in-imagegen",
     "manifest": "prototype-provenance.json",
     "approvedUserInstruction": "你先用 codex 生圖能力來生成，我們之後再做更換",
-    "runtimeModelPolicy": "Meta API only; no runtime fallback"
+    "runtimeModelPolicy": "Meta API only; no runtime fallback",
+    "characterManifest": "character-provenance.json"
+  },
+  "characterPlan": {
+    "status": "pending",
+    "provider": "meta-api",
+    "count": 10,
+    "model": null,
+    "budget": null,
+    "note": "User-selected original Star Sprout species; temporary Codex portraits exist separately, not Meta outputs."
   }
 }
