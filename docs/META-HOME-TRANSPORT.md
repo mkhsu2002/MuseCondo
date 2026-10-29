@@ -7,7 +7,9 @@
 - [Images schema](https://dev.meta.ai/docs/api-reference/images/schemas)：JSON edits 的 `images[].image_url`、`size` 指定比例而非保證像素尺寸、`output_format`、tool enablement。
 - [Responses API](https://dev.meta.ai/docs/protocols/responses)：文字推理回應與 `store:false`。
 
-`server/live/meta-home.ts` 是實際 HTTP adapter，不是成功回傳示範圖的 stub。但 Worker／本地 runner **尚未接入此 adapter**；正式服務仍採用明確阻擋生成的 gateway。
+`server/live/meta-home.ts` 是實際 HTTP adapter，不是成功回傳示範圖的 stub。現行 `server/live/worker.ts` 已在 encrypted secret 存在且 `META_PAID_CALLS_APPROVED` 為字串 `true` 時建立此 adapter；任一條件不成立就維持 disconnected。本地 runner 仍維持隔離開發模式。
+
+服務配置與健康檢查由各部署者分環境驗收。secret 存在、本機模型目錄可讀或 adapter 已接入，都不能替代正式端真實生成與持久化驗收；對外不得公開私密輸入或秘密。
 
 ## 三階段
 

@@ -1,5 +1,7 @@
 # Public demo deployment
 
+> Historical Tower prototype deployment guide. The current framework scope is defined in [README.md](../README.md), covering standalone homes and Towers. The official Tower uses `https://musetower.neobabylon.app`; current source is `main`. Old branch and expired-login notes below describe the original demo release, not current infrastructure. For the developing API deployment use [PAGES-RUNTIME.md](PAGES-RUNTIME.md).
+
 Muse Tower is a static demonstration of ten fictional residents. Deploy only the built `dist/` directory. It contains no model credentials, raw private memories, server job storage or enabled model endpoints.
 
 ## Targets and scope

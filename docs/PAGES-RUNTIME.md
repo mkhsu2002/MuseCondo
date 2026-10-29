@@ -1,6 +1,6 @@
 # Cloudflare Pages 同源入住服務
 
-目標：`https://musecondo.pages.dev` 的頁面與 `/api/v1/*` 使用同一來源，讓 HttpOnly cookie、CSRF 與住戶資料正常共享。這是部署規格與可測試適配器，不表示已完成雲端部署或真實 Meta 生成。
+官方 Tower 目標：`https://musetower.neobabylon.app` 的頁面與 `/api/v1/*` 使用同一來源，讓 HttpOnly cookie、CSRF 與住戶資料正常共享。這是部署規格與可測試適配器，不表示已完成雲端部署或真實 Meta 生成。
 
 ## 程式入口與組建
 
@@ -30,7 +30,7 @@
 
 | 名稱 | 類型 | 預設與用途 |
 |---|---|---|
-| `PUBLIC_ORIGIN` | runtime variable | 明確設為 `https://musecondo.pages.dev`，無結尾斜線；Preview 須使用自己的精確 origin |
+| `PUBLIC_ORIGIN` | runtime variable | 官方 Tower 設為 `https://musetower.neobabylon.app`，無結尾斜線；Preview 須使用自己的精確 origin |
 | `REGISTRATION_ENABLED` | runtime variable | 缺省 false；只有字串 `true` 才允許註冊 |
 | `META_PAID_CALLS_APPROVED` | runtime variable | 缺省 false；只有已授權預算與執行範圍時才可設為字串 `true` |
 | `meta_muse_api` | **encrypted runtime secret** | 現有已授權 Meta key；只在服務端讀取，不放入 `VITE_*`、README、Git、命令列、回應或 log |

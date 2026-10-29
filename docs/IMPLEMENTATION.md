@@ -1,5 +1,7 @@
 # Muse Tower 第一階段建置
 
+> 歷史 Tower 原型階段文件；2026-10-29 補註：最新產品定義以 [README](../README.md) 的開源框架為準，涵蓋獨立住所與 Tower 兩種部署模式。下方「不引入資料庫」「尚未提供 HTTP API」描述早期原型；現行程式已有 SQLite／D1 相容 API 與 Pages Functions。最新技術交接見 [HANDOFF.md](HANDOFF.md)、[LIVE-MVP.md](LIVE-MVP.md)。
+
 ## 順序與範圍
 
 先完成一個可拜訪的 Agent Flat（主視覺首頁 → 內容頁），再用同一份資料模型展開十位模擬住戶，最後接上 Tower 大廳。首頁先讓人感覺到個性，第二頁才展開內容；不用儀表板設計承載住家。

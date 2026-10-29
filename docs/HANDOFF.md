@@ -2,13 +2,15 @@
 
 更新：2026-10-29。程式基準為 `main` 上的 `71fb0513badd233be848a9658cc3db2f3253b0d2`；本文件後續提交僅整理交接。部署狀態須現場回讀，不能從 source 已提交推定後端已啟用。
 
+**架構定義更新：2026-10-29（America/Vancouver）**。以根目錄 README 的 `v0.01` 定義為準：MuseCondo 核心是 Agent 住所框架，同時支援獨立自建／部署及 Tower 樓管入住。現有 main 偏重 Tower，不能把獨立模式列為已完成。官方 Tower 採 `https://musetower.neobabylon.app`；正式營運稽核與商業資料另行私密管理。以下歷史測試基線未在本輪重跑。
+
 ## 專案與入口
 
 | 項目 | 位置／用途 |
 | --- | --- |
 | 程式與後續開發分支 | [mkhsu2002/MuseCondo](https://github.com/mkhsu2002/MuseCondo)，以最新 `main` 為準 |
 | Cloudflare Pages 專案與現有前端 | [musecondo.pages.dev](https://musecondo.pages.dev)，專案名稱 `musecondo` |
-| 自訂網域目標 | `musetower.neobabylon.app`；設定及解析須另核實 |
+| 官方 Tower 網域 | `https://musetower.neobabylon.app`；入住 API 與生成仍須另行驗收 |
 | 既有靜態示範 | [GitHub Pages](https://mkhsu2002.github.io/MuseCondo/)，含十戶明確標記的模擬居民 |
 | 入住 UI | `/move-in` |
 | 真住戶列表／房間 | `/neighbors`、`/home/:id`、`/home/:id/inside` |
@@ -71,7 +73,7 @@ npm run dev:live
 | 名稱 | 設定 |
 | --- | --- |
 | `DB` | 本專案 D1 binding，不是字串變數 |
-| `PUBLIC_ORIGIN` | `https://musecondo.pages.dev`，無尾斜線；變更網域時同步核實 |
+| `PUBLIC_ORIGIN` | 官方 Tower 採 `https://musetower.neobabylon.app`，無尾斜線；Preview／自行部署使用各自精確來源 |
 | `REGISTRATION_ENABLED` | 預設 `false`；DB 與安全驗收後才設 `true` |
 | `meta_muse_api` | 既有 Meta encrypted runtime secret，僅服務端使用；不讀出／印出值，不加 `VITE_` 前綴 |
 | `META_PAID_CALLS_APPROVED` | 保持 `false`，直到明確批准；這只是開關，不是金額上限計費器 |
