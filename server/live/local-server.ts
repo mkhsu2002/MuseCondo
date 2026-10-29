@@ -8,7 +8,7 @@ const port=Number(process.env.PORT??8787);
 if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid PORT');
 await mkdir('data',{recursive:true});
 const db=new LocalDatabase(resolve('data/local-mvp.sqlite'));
-for(const [file,table] of [['0001_live_mvp.sql','accounts'],['0002_recovery_audit.sql','recovery_audit'],['0003_provider_requests.sql','provider_requests'],['0004_agent_onboarding.sql','onboarding_grants']]){
+for(const [file,table] of [['0001_live_mvp.sql','accounts'],['0002_recovery_audit.sql','recovery_audit'],['0003_provider_requests.sql','provider_requests'],['0004_agent_onboarding.sql','onboarding_grants'],['0005_framework.sql','framework_profiles']]){
  if(!db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table))db.sqlite.exec(await readFile('migrations/'+file,'utf8'));
 }
 const origin=`http://127.0.0.1:${port}`;

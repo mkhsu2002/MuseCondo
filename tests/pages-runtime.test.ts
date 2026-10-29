@@ -6,7 +6,7 @@ import { onRequest } from '../functions/[[path]].ts';
 import { LocalDatabase } from '../server/live/local-db.ts';
 const origin='https://musecondo.pages.dev';
 const request=(path='/api/v1/status',method='GET')=>new Request(origin+path,{method,headers:{Origin:origin,'Content-Type':'application/json'},...(method==='POST'?{body:'{}'}:{})});
-function database(){const db=new LocalDatabase(':memory:');for(const file of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));return db;}
+function database(){const db=new LocalDatabase(':memory:');for(const file of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));return db;}
 test('Pages API fails closed on missing origin, DB binding, migration and database failure',async()=>{
  let response=await runtime.fetch(request(),{});assert.equal(response.status,503);assert.match(response.headers.get('content-type')!,/application\/json/);assert.equal((await response.json()).error,'public_origin_not_configured');
  response=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin});assert.equal(response.status,503);assert.equal((await response.json()).error,'database_not_bound');

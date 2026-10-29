@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build && node scripts/routes.mjs && node scripts/check-build.mjs",
+    "build": "tsc --noEmit && vite build && node scripts/routes.mjs && node scripts/sanitize-public.mjs && node scripts/check-build.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -16,7 +16,10 @@
     "test:e2e": "playwright test",
     "manager:edit": "node --experimental-strip-types scripts/edit-community.ts",
     "dev:live": "node --experimental-strip-types server/live/local-server.ts",
-    "test:live": "node --experimental-strip-types --test tests/live.test.ts tests/meta-home.test.ts tests/recovery.test.ts tests/png.test.ts tests/agent-onboarding.test.ts tests/pages-runtime.test.ts"
+    "test:live": "node --experimental-strip-types --test tests/live.test.ts tests/meta-home.test.ts tests/recovery.test.ts tests/png.test.ts tests/agent-onboarding.test.ts tests/pages-runtime.test.ts",
+    "test:framework": "node --experimental-strip-types --test tests/framework*.test.ts tests/muse-sources.test.mjs tests/public-output.test.mjs",
+    "home:build": "node --experimental-strip-types scripts/build-home.ts",
+    "home:sources": "node scripts/muse-sources.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
