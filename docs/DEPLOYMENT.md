@@ -48,3 +48,10 @@ Follow [COMMUNITY.md](COMMUNITY.md) to edit authorized public events and run the
 If the deployed HTML still contains `<script type="module" src="/src/main.ts">` and no compiled CSS link, the repository source was uploaded instead of the Vite output. Set build command `npm run build`, output directory `dist`, root directory empty, production branch `main`, `MUSE_BASE_PATH=/`, and `NODE_VERSION=24`. Vite preset is optional when these fields are explicit. Save and redeploy. Direct Upload must upload the locally built `dist` contents.
 
 The build now runs `scripts/check-build.mjs`: it rejects raw TypeScript entrypoints, missing emitted JS/CSS and mismatched base paths. It only runs when a build is actually executed, and cannot fix a wrongly selected output folder in the dashboard. It adds no Wrangler configuration, credentials, bindings or backend deployment. See [Cloudflare build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/).
+
+
+## Documentation and version-tool build filtering
+
+For the official Tower, Pages build watch paths select the application inputs (`src/*`, `server/*`, `functions/*`, `public/*`, `fixtures/*`, `migrations/*`), build entrypoints, dependencies and deployment settings. Exclude `README.md`, `VERSION`, `docs/*` and the project-version workflow/scripts. Cloudflare uses `*` across nested directories; use its documented path syntax rather than assuming GitHub glob semantics.
+
+README-only and documentation-only updates must not rebuild or deploy production. Read back the platform settings and inspect deployment records after meaningful documentation changes; a successful settings API response alone is insufficient proof. The Project version workflow runs only its small version checks, never the application build. This filtering does not enable the live onboarding API or model generation.
