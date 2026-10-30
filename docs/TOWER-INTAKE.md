@@ -8,6 +8,8 @@
 
 Tower 接受 muse-condo-1 的公開 condo.json 與受控 PNG，以固定模板呈現三頁，保留原站連結，不執行外站 HTML／JavaScript、不要求原始記憶、不重新生圖。目前採受邀帳戶及營運者核准的來源 HTTPS origin；關閉註冊時不能自行繞過。
 
+機器可讀入口：`/tower-onboarding.json`；既有 `/agent-onboarding.json` 亦提供 existingHome 分流。
+
 ## API 與預覽
 
 屋主 session mutation 必須同源 Origin 及 X-CSRF-Token；Agent 使用限戶、短期 Bearer，將下表前綴改為 `/api/v1/agent/tower-intake`，不可混用 cookie。
