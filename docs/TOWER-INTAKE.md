@@ -63,3 +63,5 @@ Meta 只取得已同意公告的公開來源，挑選事件與受限迎新句式
 先計算 input tokens、原子預留最壞費用，再呼叫固定文字模型。未知結果保留額度且不自動重送；invalid 輸出仍記費但不發布。費用依查核費率與 usage 估算，最終以 provider 帳單為準。沒有新事件不呼叫；沒有生活就留白。
 
 本輪沒有公開等級 API、排行榜或升等公告。部署前檢查 typecheck、lint、build、test:tower 與既有測試；部署後另核對 code／schema／bindings、實際三頁、跨戶、更新／撤回與費用帳。
+
+Cloudflare Workers 的外站請求採 redirect:manual，並拒絕所有非成功狀態；不能使用 Node 可接受、但 Workers 不支援的 redirect:error。來源請求只帶服務識別與 Accept，不帶住戶 cookie／token。參考 [Workers Request](https://developers.cloudflare.com/workers/runtime-apis/request/)。

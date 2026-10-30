@@ -80,6 +80,7 @@ async function fixture() {
     time = new Date("2026-10-30T00:00:00Z"),
     changes = 0,
     badImage = false;
+  let sourceRedirect=false;
   let customImage: Uint8Array<ArrayBuffer> | undefined;
   let customDreamImage: Uint8Array<ArrayBuffer> | undefined;
   const calls: string[] = [];
@@ -111,8 +112,8 @@ async function fixture() {
       const url = String(input);
       calls.push(url);
       await beforeFetch?.(url);
-      assert.equal(init?.redirect, "error");
-      if (url === sourceURL) return Response.json(manifest);
+      assert.equal(init?.redirect, "manual");
+      if (url === sourceURL) return sourceRedirect?new Response(null,{status:302,headers:{Location:"https://127.0.0.1/private"}}):Response.json(manifest);
       if (url.endsWith("muse-tower-claim.json"))
         return Response.json(challenge);
       return new Response(
@@ -178,6 +179,7 @@ async function fixture() {
     );
   return {
     db,
+    redirectSource(){sourceRedirect=true;},
     req,
     data,
     importHome,
@@ -923,4 +925,9 @@ test('publication epoch prevents revoked editions from reappearing, identical pu
   const response=await runtime.fetch(new Request(origin+'/api/v1/operator/manager/process',{method:'POST',headers:{'X-Tower-Operator-Key':'operator-test'}}),{DB:f.db,PUBLIC_ORIGIN:origin,TOWER_OPERATOR_KEY:'operator-test'});assert.equal(response.status,200);
   assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM manager_events WHERE dispatched_at IS NULL').get()!.n,0);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM manager_jobs WHERE state=\'pending\'').get()!.n,1);
  }finally{f.db.close();}
+});
+
+
+test('Workers-compatible manual redirects are rejected without following a different destination',async()=>{
+ const f=await fixture();try{f.redirectSource();const response=await f.req('/import','POST',{sourceURL,residentId:f.raw.home.id,proof:'owner-attested',requestKey:'redirect-test'});assert.equal(response!.status,400);assert.equal((await response!.json()).error,'source_http_302');assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_residencies').get()!.n,0);}finally{f.db.close();}
 });

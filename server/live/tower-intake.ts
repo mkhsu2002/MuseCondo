@@ -390,7 +390,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       timer = setTimeout(() => controller.abort(), 10000);
     try {
       const response = await (env.fetcher ?? fetch)(url.href, {
-        redirect: "error",
+        redirect: "manual",
         signal: controller.signal,
         headers: { Accept: mime, "User-Agent":"MuseCondo-Tower-Intake/1.0", "Cache-Control":"no-cache" },
       });
