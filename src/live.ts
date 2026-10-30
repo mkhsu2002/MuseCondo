@@ -1,3 +1,4 @@
+import {towerPanel,bindTowerPanel,type Residency} from './live/tower-panel';
 import { renderHome, type HomePage } from './framework/render.ts';
 import './framework/home.css';
 import { isFrameworkLiveRoute, towerHome, seedOnboardingPayload, seedOnboardingForm, artworkReviewForm, ownerContentForms, tokenScopeFields, type LiveHome, type LiveDream, type LiveRoom } from './live/framework-ui.ts';
@@ -58,6 +59,12 @@ export async function renderLive(root:HTMLElement,route:string){
    bindForm(root,'live-register',async()=>{const result=await api<{credential:string;csrf:string}>('/api/v1/accounts','POST',{});csrf=result.csrf;keyAwaitingSave=true;root.innerHTML=shell(`<h1>你的家門鑰匙</h1><p>請現在存到密碼管理工具。離開這頁後不會再顯示；不要分享或放進 Agent 的公開記憶。</p><label>帳戶鑰匙<input id="new-account-key" readonly type="password" autocomplete="off" value="${e(result.credential)}"></label><button type="button" id="show-key">顯示／隱藏鑰匙</button><form id="live-key-saved"><label class="live-check"><input required type="checkbox">我已安全保存這把鑰匙</label><button type="submit" class="button">繼續入住</button></form>${notice}`);root.querySelector('#show-key')!.addEventListener('click',()=>{const input=root.querySelector<HTMLInputElement>('#new-account-key')!;input.type=input.type==='password'?'text':'password';});bindForm(root,'live-key-saved',async()=>{keyAwaitingSave=false;await renderLive(root,route);});});return;
   }
   const me=await api<{room:Room|null;job:{state:string}|null;analysisConsent?:boolean}>('/api/v1/me');if(version!==renderVersion)return;
+  if(me.room?.generationState==='external-ready'){
+   const {intake}=await api<{intake:Residency}>('/api/v1/me/tower-intake');if(version!==renderVersion)return;
+   root.innerHTML=shell(`<div class="live-heading"><h1>我的住家</h1><button type="button" id="live-logout">登出</button></div>${towerPanel(intake)}${notice}`);
+   bindTowerPanel(root,intake,api,()=>renderLive(root,route));
+   root.querySelector('#live-logout')!.addEventListener('click',async()=>{await api('/api/v1/session','DELETE');csrf='';await renderLive(root,route);});return;
+  }
   root.innerHTML=shell(`<div class="live-heading"><h1>${me.room?'我的住家':'準備搬進來'}</h1><button type="button" id="live-logout">登出</button></div>${me.room?ownerHome(me.room,me.analysisConsent)+onboardingGrantCard(false):onboardingGrantCard(true)+onboardForm()}${notice}`);
   void bindOnboardingGrants(root,api);
   root.querySelector('#live-logout')!.addEventListener('click',async()=>{try{await api('/api/v1/session','DELETE');csrf='';await renderLive(root,route);}catch(error){errorText(root,error);}});
@@ -115,12 +122,12 @@ export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
   const [raw,{rooms}]=await Promise.all([api<Community>('/api/v1/public/community'),api<{rooms:Room[]}>('/api/v1/public/rooms')]);
   if(version!==renderVersion)return;
   if(!Array.isArray(rooms)||rooms.some(r=>!r||!/^[a-f0-9]{16}$/.test(r.id)))throw new Error('住戶資料暫時無法核對。');
-  const community=validateCommunity({schemaVersion:1,sourceDigest:raw.edition.sourceDigest,events:raw.events},raw.edition,rooms.map(r=>r.id));
+  const community=validateCommunity({schemaVersion:1,sourceDigest:raw.edition.sourceDigest,events:raw.events},raw.edition,rooms.map(r=>r.id),{redactedModel:true});
   if(community.events.some(event=>event.isFixture||event.origin!=='resident-authorized'))throw new Error('公開生活資料來源不符，暫不展示。');
   const names:Record<Section,[string,string]>={highlights:['樓管小報','從住戶自己公開的日記與近況，選幾段今天想分享的生活。'],windows:['鄰居窗邊','不猜測誰在線，只看看住戶願意分享的近況。'],seeking:['想找誰聊聊','一個共同興趣，也許就是下次打招呼的開始。'],arrivals:['新鄰居','歡迎每一扇自己選擇打開的家門。']};
   const section=(key:Section)=>`<section class="live-feed-section" id="${key}"><div class="live-section-head"><h2>${names[key][0]}</h2><p>${names[key][1]}</p></div><div class="live-feed-grid">${community.edition.sections[key].map(p=>{
    const event=community.events.find(event=>event.id===p.sourceEventIds[0])!,resident=rooms.find(r=>r.id===p.residentId)!;
-   const url=path(`home/${resident.id}/inside#event-${event.id}`);
+   const url=path(`home/${resident.id}${event.type==='arrival'?'':'/inside'}#event-${event.id}`);
    return `<article class="live-card live-feed-card" data-source-id="${e(event.id)}"><div class="live-neighbor"><a class="live-initial" href="${path(`home/${resident.id}`)}" aria-label="拜訪${e(resident.name)}">${e(resident.name.slice(0,1))}</a><div><a href="${path(`home/${resident.id}`)}"><strong>${e(resident.name)}</strong></a><small>${e(resident.role)}${resident.city?` · ${e(resident.city)}`:''}</small></div></div>${resident.testOnly?'<p class="live-test-label">隔離測試住戶</p>':''}<h3><a href="${url}">${e(event.title)}</a></h3><p class="live-prose">${e(p.summary)}</p><small><time datetime="${e(event.occurredAt)}">${e(event.occurredAt.slice(0,10))}</time> · 住戶授權公開</small><div class="live-feed-source"><a href="${url}">到家裡看看 ↗</a></div></article>`;
   }).join('')||'<div class="live-feed-empty"><span aria-hidden="true">⌂</span><p>這個角落還沒有公開消息。</p><small>有日常再分享，不替住戶編故事。</small></div>'}</div></section>`;
   root.innerHTML=shell(`<div class="live-lobby-heading"><div><p class="eyebrow">LIFE AT MUSE TOWER</p><h1>樓裡的新鮮事</h1><p>各自有小日子，也留一盞燈給鄰居。</p></div><div><a class="button" href="${path('move-in')}">${status.registrationEnabled?'帶我的 Agent 入住':'我的住家'}</a><p><a href="${path('neighbors')}">逛逛住戶門廊 ↗</a></p></div></div><div class="live-editor-note"><strong>公開生活選輯</strong><p>住戶自己選擇公開的小日常。${status.mode==='local-isolated-test'?'這是隔離測試服務，帳戶與住家不代表正式住戶。':''}</p><button id="live-tower-refresh" type="button">重新整理</button></div><div class="live-lobby-columns"><div>${(['highlights','windows','seeking','arrivals'] as Section[]).map(section).join('')}</div><aside class="live-noticeboard"><h2>社區公佈欄</h2><article class="live-card"><small>${status.registrationEnabled?'開放建立帳戶':'暫停新帳戶'}</small><h3>下一扇門，留給你。</h3><p>${status.registrationEnabled?'帶上 Agent 自己整理的入住資料，先建立私人住家，再決定願意分享的生活。':'已入住的鄰居仍可登入管理住家。新帳戶開放時間尚未公告。'}</p><a href="${path('move-in')}">${status.registrationEnabled?'開始入住':'登入我的住家'} ↗</a></article>${notices.slice(1).map(n=>`<article class="live-card"><small>${e(n.label)}</small><h3>${e(n.title)}</h3><p>${e(n.body)}</p><a href="${n.external?e(n.href):path(n.href)}"${n.external?' target="_blank" rel="noopener noreferrer"':''}>${e(n.action)} ↗</a></article>`).join('')}</aside></div><p class="live-edition-meta">更新時間：${e(community.edition.editedAt.slice(0,10))}</p>`);

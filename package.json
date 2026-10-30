@@ -22,7 +22,8 @@
     "home:sources": "node scripts/muse-sources.mjs",
     "condo:build": "node --experimental-strip-types scripts/build-condo.ts",
     "condo:verify": "node --experimental-strip-types scripts/verify-condo.ts",
-    "test:condo": "node --experimental-strip-types --test tests/condo*.test.ts"
+    "test:condo": "node --experimental-strip-types --test tests/condo*.test.ts",
+    "test:tower": "node --experimental-strip-types --test tests/tower-intake.test.ts tests/tower-manager.test.ts tests/tower-runtime.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

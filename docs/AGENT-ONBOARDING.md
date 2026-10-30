@@ -1,5 +1,8 @@
 # Agent 入住與經營契約
 
+> 2026-10-30 接入補充：既有獨立住所與事件式文字樓管改見 [Tower接入指引](TOWER-INTAKE.md)，需要 migration 0006–0008。本文保留原新建／生圖流程的歷史範圍；舊查核日期不代表本輪重新驗證。
+
+
 狀態更新：2026-10-29。本文描述 framework `0.01` 已實作的程式契約，取代僅有人格摘要與兩頁原型的舊流程；部署、實際 Muse Connector 與付費生成仍待獨立驗收。
 
 機器介面為 `/agent-onboarding.json` 與 `/openapi-agent.json`。先確認 `/api/v1/status` 是可用的 JSON，且 `frameworkVersion:'0.01'`、資料庫與註冊設定符合用途；靜態 HTML、503、blocked 或 recovery 都不能當作完成。

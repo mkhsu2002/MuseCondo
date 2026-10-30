@@ -1,42 +1,72 @@
-import { createLiveApp } from './app.ts';
-import { databaseJournal } from './meta-home.ts';
-import { createFrameworkHomeGenerator } from '../framework/generator.ts';
-import type { Database } from './db.ts';
+import {createLiveApp,digest} from './app.ts';
+import {databaseJournal} from './meta-home.ts';
+import {createFrameworkHomeGenerator} from '../framework/generator.ts';
+import {createTowerIntake} from './tower-intake.ts';
+import {createTowerManager,MANAGER_MODEL} from './tower-manager.ts';
+import type {Database} from './db.ts';
 export interface PagesBindings {
- DB?:Database;
- ASSETS?:{fetch(request:Request):Promise<Response>};
- PUBLIC_ORIGIN?:string;
- REGISTRATION_ENABLED?:string;
- META_PAID_CALLS_APPROVED?:string;
- /** Encrypted Pages secret. Never a VITE_* build variable, logged value or public response. */
- meta_muse_api?:string;
+ DB?:Database;ASSETS?:{fetch(request:Request):Promise<Response>};PUBLIC_ORIGIN?:string;
+ REGISTRATION_ENABLED?:string;META_PAID_CALLS_APPROVED?:string;meta_muse_api?:string;
+ TOWER_SOURCE_ORIGINS?:string;TOWER_OPERATOR_KEY?:string;
+ META_MANAGER_APPROVED?:string;META_MANAGER_BUDGET_MICRO?:string;META_MANAGER_DAILY_MICRO?:string;META_MANAGER_MONTHLY_MICRO?:string;
 }
-const requiredTables=['accounts','sessions','rooms','private_profiles','generation_jobs','assets','asset_chunks','posts','interactions','agent_tokens','rate_limits','community_editions','community_current','consent_events','recovery_audit','provider_requests','onboarding_grants','framework_profiles','dream_consent','dreams','asset_reviews'];
-const json=(data:unknown,status:number)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
-const secretPresent=(env:PagesBindings)=>typeof env.meta_muse_api==='string'&&env.meta_muse_api.trim().length>0;
+export interface RuntimeContext {waitUntil(promise:Promise<unknown>):void}
+const requiredTables=['accounts','sessions','rooms','private_profiles','generation_jobs','assets','asset_chunks','posts','interactions','agent_tokens','rate_limits','community_editions','community_current','consent_events','recovery_audit','provider_requests','onboarding_grants','framework_profiles','dream_consent','dreams','asset_reviews','tower_residencies','tower_snapshots','tower_asset_chunks','tower_claims','tower_tokens','tower_requests','tower_audit','manager_jobs','manager_events'];
+const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 function validOrigin(value:string|undefined){try{return !!value&&new URL(value).origin===value&&value.startsWith('https://');}catch{return false;}}
-/** Same-origin Pages runtime. Missing bindings/schema fail closed without leaking database errors. */
-export default {async fetch(request:Request,env:PagesBindings):Promise<Response>{
- const url=new URL(request.url);
- if(url.pathname==='/api'||url.pathname.startsWith('/api/')){
+const amount=(v:string|undefined)=>v&&/^\d{1,10}$/.test(v)?Number(v):0;
+function sourceOrigins(v:string|undefined):string[]{try{const a=JSON.parse(v??'[]');return Array.isArray(a)&&a.length<=20&&a.every(x=>typeof x==='string'&&validOrigin(x))?a:[];}catch{return [];}}
+/** Same-origin Pages runtime. Secrets remain in deployment storage; status only reports gates. */
+export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeContext):Promise<Response>{
+ const url=new URL(request.url),api=url.pathname==='/api'||url.pathname.startsWith('/api/'),home=/^\/home\/[a-f0-9]{16}(\/(inside|dreams))?\/?$/.test(url.pathname);
+ if(api||(home&&env.DB)){
   if(!validOrigin(env.PUBLIC_ORIGIN))return json({available:false,error:'public_origin_not_configured'},503);
   if(url.origin!==env.PUBLIC_ORIGIN)return json({available:false,error:'host_rejected'},403);
-  const metaSecretConfigured=secretPresent(env),paidCallsApproved=env.META_PAID_CALLS_APPROVED==='true';
+  const metaSecretConfigured=typeof env.meta_muse_api==='string'&&env.meta_muse_api.trim().length>0,paidCallsApproved=env.META_PAID_CALLS_APPROVED==='true';
   const safe={metaSecretConfigured,paidCallsApproved,registrationEnabled:env.REGISTRATION_ENABLED==='true'};
-  if(!env.DB||typeof env.DB.prepare!=='function'||typeof env.DB.batch!=='function')return json({available:false,error:'database_not_bound',runtime:safe},503);
+  const db=env.DB;if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')return json({available:false,error:'database_not_bound',runtime:safe},503);
   try{
-   const rows=(await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table'").all<{name:string}>()).results;
+   const rows=(await db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all<{name:string}>()).results;
    if(!requiredTables.every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
   }catch{return json({available:false,error:'database_unavailable',runtime:safe},503);}
-  // Presence alone grants no permission to spend. The separate exact-string gate defaults false.
-  const generator=metaSecretConfigured&&paidCallsApproved?createFrameworkHomeGenerator({apiKey:env.meta_muse_api,approvedPaidCalls:true,textModel:'muse-spark-1.3',journal:databaseJournal(env.DB)}):undefined;
-  const app=createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:safe.registrationEnabled,generator});
-  const response=await app.fetch(request,request.headers.get('CF-Connecting-IP')??'unknown');
-  if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET')return json({...await response.json(),runtime:{...safe,databaseReady:true,metaConfiguredNotHealthVerified:!!generator}},response.status);
-  return response;
+  const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
+  const generator=metaSecretConfigured&&paidCallsApproved?createFrameworkHomeGenerator({apiKey:env.meta_muse_api,approvedPaidCalls:true,textModel:MANAGER_MODEL,journal:databaseJournal(db)}):undefined;
+  const app=createLiveApp({db,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:safe.registrationEnabled,generator,towerEnabled:true,onCommunityChanged:async snapshot=>{
+   await manager.enqueue(snapshot);if(context)context.waitUntil(manager.processOne());else await manager.processOne();
+  }});
+  const manager=createTowerManager({db,apiKey:env.meta_muse_api,approved:env.META_MANAGER_APPROVED==='true',budgetMicro:amount(env.META_MANAGER_BUDGET_MICRO),dailyBudgetMicro:amount(env.META_MANAGER_DAILY_MICRO),monthlyBudgetMicro:amount(env.META_MANAGER_MONTHLY_MICRO),readPublic:async()=>{
+   const current=await app.editBuilding(false);return {events:current.events,residentIds:current.events.map(e=>e.residentId),sourceDigest:current.edition.sourceDigest,asOf:current.edition.asOf};
+  }});
+  async function reconcile(){
+   const pending=(await db!.prepare('SELECT id FROM manager_events WHERE dispatched_at IS NULL ORDER BY created_at LIMIT 50').all<{id:string}>()).results;
+   const current=await app.editBuilding(true);await manager.enqueue({events:current.events,residentIds:current.events.map(e=>e.residentId),sourceDigest:current.edition.sourceDigest,asOf:current.edition.asOf});
+   if(pending.length)await db!.batch(pending.map(e=>db!.prepare('UPDATE manager_events SET dispatched_at=? WHERE id=? AND dispatched_at IS NULL').bind(new Date().toISOString(),e.id)));
+  }
+  if(url.pathname.startsWith('/api/v1/operator/')){
+   if(request.headers.has('Cookie')||request.headers.has('Origin')&&request.headers.get('Origin')!==env.PUBLIC_ORIGIN||request.headers.get('Sec-Fetch-Site')==='cross-site')return json({error:'origin_rejected'},403);
+   if(!await operator())return json({error:'operator_required'},401);
+   if(url.pathname==='/api/v1/operator/tower/accounts'&&request.method==='POST'){
+    let value:Record<string,unknown>;try{if(Number(request.headers.get('Content-Length')??0)>1024)return json({error:'body_too_large'},413);const raw=await request.text();if(raw.length>1024)return json({error:'body_too_large'},413);value=JSON.parse(raw);}catch{return json({error:'invalid_json'},400);}
+    if(!value||typeof value!=='object'||Array.isArray(value)||typeof value.credential!=='string'||!/^[a-f0-9]{64}$/.test(value.credential)||Object.keys(value).some(k=>k!=='credential'))return json({error:'invalid_credential'},400);
+    const hashed=await digest(value.credential),id=crypto.randomUUID().replaceAll('-',''),time=new Date().toISOString();
+    await db.prepare('INSERT INTO accounts(id,login_hash,created_at,test_only) VALUES(?,?,?,0) ON CONFLICT(login_hash) DO NOTHING').bind(id,hashed,time).run();
+    const account=await db.prepare('SELECT id FROM accounts WHERE login_hash=?').bind(hashed).first<{id:string}>();await db.prepare("INSERT INTO tower_audit(id,account_id,room_id,action,revision,detail_json,created_at) VALUES(?,?,NULL,'operator-account-authorized',NULL,'{}',?)").bind(crypto.randomUUID(),account!.id,time).run();return json({accountId:account!.id},201);
+   }
+   if(url.pathname==='/api/v1/operator/manager/models'&&request.method==='GET'){
+    if(!metaSecretConfigured)return json({error:'provider_not_configured'},503);
+    try{const r=await fetch('https://api.meta.ai/v1/models',{headers:{Authorization:`Bearer ${env.meta_muse_api}`},signal:AbortSignal.timeout(15000)});if(!r.ok)return json({available:false,httpStatus:r.status},502);const d=await r.json() as {data?:{id:string}[]};return json({available:!!d.data?.some(x=>x.id===MANAGER_MODEL),model:MANAGER_MODEL});}catch{return json({error:'provider_unavailable'},502);}
+   }
+   if(url.pathname==='/api/v1/operator/manager/process'&&request.method==='POST'){await reconcile();await manager.processOne();return json({processed:true});}
+   if(url.pathname==='/api/v1/operator/manager'&&request.method==='GET')return json({configured:manager.configured(),jobs:(await db.prepare('SELECT id,source_digest,state,reserved_micro,actual_micro,input_tokens,output_tokens,provider_id,error_code,created_at,completed_at FROM manager_jobs ORDER BY created_at DESC LIMIT 30').all()).results});
+   return json({error:'not_found'},404);
+  }
+  const intake=createTowerIntake({db,origin:env.PUBLIC_ORIGIN!,localTest:false,sourceOrigins:sourceOrigins(env.TOWER_SOURCE_ORIGINS),ownerAttestation:async()=>operator(),onChange:async()=>{await reconcile();}});
+  const tower=await intake.fetch(request);if(tower)return tower;
+  if(api){const response=await app.fetch(request,request.headers.get('CF-Connecting-IP')??'unknown');
+   if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET'){const last=await db.prepare("SELECT completed_at FROM manager_jobs WHERE state='complete' ORDER BY completed_at DESC LIMIT 1").first<{completed_at:string}>();return json({...await response.json(),manager:manager.configured()?(last?'event-driven-live':'event-driven-configured-not-health-verified'):'rules-on-public-update',scheduled:false,runtime:{...safe,databaseReady:true,metaConfiguredNotHealthVerified:!!generator,managerConfigured:manager.configured(),managerLastSuccessAt:last?.completed_at??null,levelVisibility:'private-only'}},response.status);}
+   return response;}
  }
  if(!env.ASSETS)return json({available:false,error:'assets_not_bound'},503);
- // Explicit live SPA routes avoid accidental 404 HTML for real resident deep links.
  if(/^\/(move-in|neighbors|home\/[a-f0-9]{16}(\/(inside|dreams))?)\/?$/.test(url.pathname)){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
   const target=new URL('/',url);return env.ASSETS.fetch(new Request(target,request));

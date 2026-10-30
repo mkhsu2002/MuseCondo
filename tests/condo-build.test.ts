@@ -70,10 +70,15 @@ test('public PNG strips private source metadata after checking the original revi
  }finally{await rm(f.dir,{recursive:true,force:true});}
 });
 
-test('sanitizer preserves IDAT and valid transparency but removes every nonessential ancillary chunk',async()=>{
+test('sanitizer preserves pixels and valid transparency, strips metadata and zlib trailing bytes',async()=>{
  const modulePath='../server/framework/png-public.ts';const helper=await import(modulePath).catch(()=>undefined);assert.equal(typeof helper?.sanitizePublicPNG,'function','Public PNG sanitizer must exist');
  const original=png(16,9,2),headerEnd=33;const transparent=Buffer.concat([original.subarray(0,headerEnd),pngChunk('tRNS',Buffer.alloc(6)),original.subarray(headerEnd)]);
  assert.deepEqual(await helper!.sanitizePublicPNG(transparent),new Uint8Array(transparent));
+ const idatOffset=(()=>{for(let p=8;p<transparent.length;){const n=transparent.readUInt32BE(p);if(transparent.subarray(p+4,p+8).toString()==='IDAT')return p;p+=n+12;}throw Error('missing IDAT');})();
+ const originalLength=transparent.readUInt32BE(idatOffset),idatEnd=idatOffset+originalLength+12;
+ const trailing=Buffer.concat([transparent.subarray(0,idatOffset),pngChunk('IDAT',Buffer.concat([transparent.subarray(idatOffset+8,idatOffset+8+originalLength),Buffer.from('PRIVATE_TRAILING_BYTES')])),transparent.subarray(idatEnd)]);
+ let normalized:Uint8Array|null=null;try{normalized=await helper!.sanitizePublicPNG(trailing);}catch{/* Runtimes that enforce zlib exhaustion may reject malformed input. */}
+ if(normalized)assert(!Buffer.from(normalized).includes(Buffer.from('PRIVATE_TRAILING_BYTES')),'Public PNG must discard bytes after zlib stream');
  const extra=['tEXt','zTXt','iTXt','eXIf','iCCP','gAMA','cHRM','sRGB','prIV'].map(type=>pngChunk(type,Buffer.from('PRIVATE-SOURCE')));
  const tagged=Buffer.concat([transparent.subarray(0,-12),...extra,transparent.subarray(-12)]);assert.deepEqual(await helper!.sanitizePublicPNG(tagged),new Uint8Array(transparent));
  const invalid=Buffer.concat([original.subarray(0,headerEnd),pngChunk('tRNS',Buffer.from('PRIVATE-SOURCE')),original.subarray(headerEnd)]);await assert.rejects(helper!.sanitizePublicPNG(invalid),/tRNS/);

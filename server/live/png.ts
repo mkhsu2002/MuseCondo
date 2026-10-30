@@ -3,7 +3,7 @@ const crcTable=Uint32Array.from({length:256},(_,n)=>{let c=n;for(let k=0;k<8;k++
 function crc(bytes:Uint8Array){let c=0xffffffff;for(const b of bytes)c=crcTable[(c^b)&255]^(c>>>8);return (c^0xffffffff)>>>0;}
 export async function validatePNG(bytes:Uint8Array){
  if(bytes.length<57||bytes.length>8*1024*1024||![137,80,78,71,13,10,26,10].every((v,i)=>bytes[i]===v))throw new Error('invalid PNG signature');
- const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);let offset=8,width=0,height=0,depth=0,color=0,ended=false,seenData=false,dataEnded=false,palette=false;
+ const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);let offset=8,width=0,height=0,depth=0,color=0,ended=false,seenData=false,dataEnded=false,palette=false,paletteEntries=0,transparency=false;
  const compressed:Uint8Array[]=[];
  while(offset<bytes.length){
   if(offset+12>bytes.length)throw new Error('truncated PNG chunk');const length=view.getUint32(offset);if(length>bytes.length-offset-12)throw new Error('truncated PNG data');
@@ -17,7 +17,11 @@ export async function validatePNG(bytes:Uint8Array){
    if(!width||!height||width>8192||height>8192||!depths[color]?.includes(depth)||data[10]!==0||data[11]!==0||data[12]!==0)throw new Error('unsupported PNG format');
   }else if(type==='IDAT'){if(dataEnded)throw new Error('noncontiguous PNG data');seenData=true;compressed.push(data);}
   else if(type==='IEND'){if(length!==0||!seenData||offset+12!==bytes.length)throw new Error('invalid IEND');ended=true;}
-  else{if(seenData)dataEnded=true;if(type==='PLTE'){if(palette||seenData||color===0||color===4||!length||length%3||length>768||(color===3&&length/3>2**depth))throw new Error('invalid palette');palette=true;}else if(type.charCodeAt(0)>=65&&type.charCodeAt(0)<=90)throw new Error('unsupported PNG critical chunk');}
+  else{if(seenData)dataEnded=true;if(type==='PLTE'){if(palette||transparency||seenData||color===0||color===4||!length||length%3||length>768||(color===3&&length/3>2**depth))throw new Error('invalid palette');palette=true;paletteEntries=length/3;}else if(type==='tRNS'){
+   if(transparency||seenData||![0,2,3].includes(color)||(color===0&&length!==2)||(color===2&&length!==6)||(color===3&&(!palette||length===0||length>paletteEntries)))throw new Error('invalid PNG tRNS transparency');
+   if(color===0||color===2){const maximum=2**depth-1;for(let p=0;p<length;p+=2)if(((data[p]<<8)|data[p+1])>maximum)throw new Error('invalid PNG tRNS transparency sample');}
+   transparency=true;
+  }else if(type.charCodeAt(0)>=65&&type.charCodeAt(0)<=90)throw new Error('unsupported PNG critical chunk');}
   offset+=length+12;
  }
  if(!ended||(color===3&&!palette))throw new Error('incomplete PNG');

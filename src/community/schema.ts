@@ -35,12 +35,12 @@ export function publicEvents(input: unknown, residentIds: readonly string[], asO
 }
 export function sourcePath(e: PublicEvent): string { return `${e.residentId}${e.type === 'arrival' ? '' : '/inside'}#event-${e.id}`; }
 export function canonicalEvents(events: PublicEvent[]): string { return JSON.stringify(events); }
-export function validateCommunity(eventsFile: EventFile, edition: Edition, residentIds: readonly string[]): Community {
+export function validateCommunity(eventsFile: EventFile, edition: Edition, residentIds: readonly string[], options:{redactedModel?:boolean}={}): Community {
   if (eventsFile.schemaVersion !== 1 || edition.schemaVersion !== 1 || !timestamp(edition.asOf) || !timestamp(edition.editedAt) || edition.editedAt < edition.asOf || eventsFile.sourceDigest !== edition.sourceDigest || !/^[a-f0-9]{64}$/.test(edition.sourceDigest) || !safeId(edition.id)) throw new Error('Edition metadata mismatch');
   const events = publicEvents(eventsFile.events, residentIds, edition.asOf);
   if (canonicalEvents(events) !== canonicalEvents(eventsFile.events)) throw new Error('Public snapshot is not canonical');
   if (!edition.editor || !['rules', 'meta-api'].includes(edition.editor.kind) || !text(edition.editor.version, 100) || (edition.editor.kind === 'rules' && edition.editor.model !== null)) throw new Error('Missing editor provenance');
-  if (edition.editor.kind === 'meta-api' && (!edition.editor.model || !text(edition.editor.model.id, 100) || !text(edition.editor.model.metadataSource, 500) || !timestamp(edition.editor.model.verifiedAt))) throw new Error('Unverified model');
+  if (edition.editor.kind === 'meta-api' && !(options.redactedModel&&edition.editor.model===null) && (!edition.editor.model || !text(edition.editor.model.id, 100) || !text(edition.editor.model.metadataSource, 500) || !timestamp(edition.editor.model.verifiedAt))) throw new Error('Unverified model');
   if (edition.isFixture !== events.every(e => e.isFixture)) throw new Error('Fixture provenance mismatch');
   const byId = new Map(events.map(e => [e.id, e]));
   const seen = new Set<string>();

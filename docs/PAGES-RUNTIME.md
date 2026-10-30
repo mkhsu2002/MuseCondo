@@ -1,5 +1,8 @@
 # Cloudflare Pages 同源 Tower runtime
 
+> 2026-10-30 接入補充：既有獨立住所與事件式文字樓管改見 [Tower接入指引](TOWER-INTAKE.md)，需要 migration 0006–0008。本文保留原新建／生圖流程的歷史範圍；舊查核日期不代表本輪重新驗證。
+
+
 狀態更新：2026-10-29。本文描述 framework `0.01` 的部署契約。正式與 dev 已完成 code／schema／live behavior 交叉回讀，證據與未完成項目見 [發布紀錄](RELEASE-2026-10-29.md)。後續部署仍須分別驗證兩環境。
 
 ## 入口與組建

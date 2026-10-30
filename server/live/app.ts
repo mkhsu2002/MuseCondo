@@ -4,7 +4,8 @@ import type { Database, Statement } from './db.ts';
 import { disconnectedHome, GenerationBlocked, type HomeGenerator } from './generation.ts';
 import { publicEvents, validateCommunity, type Edition, type PublicEvent } from '../../src/community/schema.ts';
 import { ruleSections } from '../../src/community/rules.ts';
-export interface LiveEnvironment { db:Database; origin:string; localTest:boolean; registrationEnabled:boolean; generator?:HomeGenerator; now?:()=>Date }
+import type {ManagerSnapshot} from './tower-manager.ts';
+export interface LiveEnvironment { db:Database; origin:string; localTest:boolean; registrationEnabled:boolean; generator?:HomeGenerator; now?:()=>Date; towerEnabled?:boolean; onCommunityChanged?:(snapshot:ManagerSnapshot)=>Promise<void> }
 interface OnboardingGrant {id:string;account_id:string;scopes:string;expires_at:string;revoked:number}
 interface Account {id:string;test_only:number}
 interface Session {account_id:string;csrf:string;token_hash:string}
@@ -79,13 +80,17 @@ const s=(await session(req))!;if(req.headers.has('Authorization'))fail(403,'use_
  async function publishedRoom(id:string){if(!identifier(id))fail(404,'room_not_found');const r=await one<Room>('SELECT * FROM rooms WHERE id=? AND published=1',id);if(!r)fail(404,'room_not_found');return r!;}
  async function editBuilding(persist=true){
   const rooms=await all<Room>('SELECT * FROM rooms WHERE published=1 ORDER BY created_at DESC');const ids=rooms.map(r=>r.id);
-  const events:PublicEvent[]=rooms.map(r=>({id:`${r.id}-arrival`,residentId:r.id,type:'arrival',occurredAt:r.created_at,publishedAt:r.created_at,visibility:'public',publicationConsent:true,origin:'resident-authorized',isFixture:false,title:`${r.name}搬來了`,summary:r.intro,body:r.intro}));
+  const towerRows=new Map(env.towerEnabled?(await all<{room_id:string;announcement_consent:number;publication_epoch:number;published_at:string|null}>('SELECT room_id,announcement_consent,publication_epoch,published_at FROM tower_residencies')).map(r=>[r.room_id,r]):[]);
+  const events:PublicEvent[]=rooms.filter(r=>!towerRows.has(r.id)||towerRows.get(r.id)?.announcement_consent===1).map(r=>({id:`${r.id}-arrival${towerRows.has(r.id)?'-'+towerRows.get(r.id)!.publication_epoch:''}`,residentId:r.id,type:'arrival',occurredAt:r.created_at,publishedAt:towerRows.get(r.id)?.published_at??r.created_at,visibility:'public',publicationConsent:true,origin:'resident-authorized',isFixture:false,title:`${r.name}搬來了`,summary:r.intro.slice(0,300),body:r.intro}));
   const posts=await all<Post>("SELECT p.* FROM posts p JOIN rooms r ON r.id=p.room_id WHERE p.is_public=1 AND p.withdrawn_at IS NULL AND p.kind IN ('journal','status','seeking') AND r.published=1 ORDER BY p.created_at DESC");
-  for(const p of posts)events.push({id:p.id,residentId:p.room_id,type:p.kind as PublicEvent['type'],occurredAt:p.created_at,publishedAt:p.created_at,visibility:'public',publicationConsent:true,origin:'resident-authorized',isFixture:false,title:p.title,summary:p.body.slice(0,300),body:p.body});
+  for(const p of posts.filter(p=>!towerRows.has(p.room_id)||towerRows.get(p.room_id)?.announcement_consent===1))events.push({id:p.id,residentId:p.room_id,type:p.kind as PublicEvent['type'],occurredAt:p.created_at,publishedAt:p.created_at,visibility:'public',publicationConsent:true,origin:'resident-authorized',isFixture:false,title:p.title,summary:p.body.slice(0,300),body:p.body});
   const asOf=stamp(),publicInput=publicEvents(events,ids,asOf),sourceDigest=await digest(JSON.stringify(publicInput));
+  const saved=await one<{id:string;edition_json:string}>('SELECT id,edition_json FROM community_editions WHERE id=(SELECT edition_id FROM community_current WHERE id=1)');
+  if(saved){const previous=JSON.parse(saved.edition_json) as Edition;if(previous.sourceDigest===sourceDigest){if(persist)await run('INSERT INTO community_current(id,edition_id) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET edition_id=excluded.edition_id',saved.id);return {events:publicInput,edition:previous};}}
   const edition:Edition={schemaVersion:1,id:`edition-${crypto.randomUUID()}`,sourceDigest,asOf,editedAt:asOf,editor:{kind:'rules',version:'public-community-four-sections-v1',model:null},isFixture:publicInput.every(e=>e.isFixture),sections:ruleSections(publicInput)};
   const eventFile={schemaVersion:1 as const,sourceDigest,events:publicInput};validateCommunity(eventFile,edition,ids);
   if(persist)await db.batch([db.prepare('INSERT INTO community_editions(id,events_json,edition_json,created_at) VALUES(?,?,?,?)').bind(edition.id,JSON.stringify(eventFile),JSON.stringify(edition),asOf),db.prepare('INSERT INTO community_current(id,edition_id) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET edition_id=excluded.edition_id').bind(edition.id)]);
+  if(persist&&env.onCommunityChanged)await env.onCommunityChanged({events:publicInput,residentIds:ids,sourceDigest,asOf});
   return {events:publicInput,edition};
  }
  async function agent(req:Request,roomId:string,scope:string){
@@ -111,7 +116,7 @@ const s=(await session(req))!;if(req.headers.has('Authorization'))fail(403,'use_
   catch{if(delegatedRequest)await agent(delegatedRequest,room.id,'posts:write');const prior=await one<Post>('SELECT * FROM posts WHERE room_id=? AND request_key=?',room.id,requestKey);if(!prior||prior.input_hash!==hash)fail(409,'idempotency_conflict');return {id:prior!.id,duplicate:true};}
   if(input.isPublic&&room.published)await editBuilding();return {id,duplicate:false};
  }
- async function agentRoom(req:Request,roomId:string,scope:string){await agent(req,roomId,scope);const room=await one<Room>('SELECT * FROM rooms WHERE id=?',roomId);if(!room)fail(404,'room_not_found');return room!;}
+ async function agentRoom(req:Request,roomId:string,scope:string){await agent(req,roomId,scope);const room=await one<Room>('SELECT * FROM rooms WHERE id=?',roomId);if(!room)fail(404,'room_not_found');if(env.towerEnabled&&await one('SELECT room_id FROM tower_residencies WHERE room_id=?',roomId))fail(409,'use_tower_controls');return room!;}
  async function dreamConsent(room:Room){return !!(await one<{enabled:number}>('SELECT enabled FROM dream_consent WHERE account_id=?',room.account_id))?.enabled;}
  const dreamView=(d:Dream,privateView=false)=>({id:d.id,type:'dream',date:d.date,occurredAt:d.date.length===10?d.date+'T00:00:00.000Z':d.date,title:d.title,body:d.body,...(d.image?{image:d.image}:{}),...(d.reflection?{reflection:d.reflection}:{}),createdAt:d.created_at,updatedAt:d.updated_at,...(privateView?{publication:d.publication,isPublic:d.publication==='public',evidenceIds:JSON.parse(d.evidence_json)}:{})});
  async function evidenceIds(room:Room,value:unknown){if(value===undefined)return [];if(!Array.isArray(value)||value.length>16||!value.every(id=>typeof id==='string')||new Set(value).size!==value.length)fail(400,'invalid_evidence_references');const profile=await one<{seed_json:string}>('SELECT seed_json FROM framework_profiles WHERE room_id=?',room.id);const valid=new Set<string>(profile?JSON.parse(profile.seed_json).evidence.map((e:{id:string})=>e.id):[]);if((value as string[]).some(id=>!valid.has(id)))fail(400,'invalid_evidence_references');return value as string[];}
@@ -195,6 +200,7 @@ const s=(await session(req))!;if(req.headers.has('Authorization'))fail(403,'use_
  return {editBuilding,async fetch(req:Request,clientAddress='local'):Promise<Response>{
   try{
    const url=new URL(req.url);if(url.origin!==env.origin)fail(403,'host_rejected');if(!env.localTest&&url.protocol!=='https:')fail(400,'https_required');const originalPath=url.pathname.replace(/\/$/,'');const agentRoute=agentRoutes[originalPath];if(agentRoute&&req.method!==agentRoute.method)fail(405,'method_not_allowed');const path=agentRoute?.target??originalPath;
+   if(env.towerEnabled&&path.startsWith('/api/v1/me/')){const identity=await owner(req);if(await one('SELECT room_id FROM tower_residencies WHERE account_id=?',identity.account_id))fail(409,'use_tower_controls');}
    if(path==='/api/v1/status'&&req.method==='GET')return json({available:true,frameworkVersion:FRAMEWORK_VERSION,mode:env.localTest?'local-isolated-test':'live',registrationEnabled:env.registrationEnabled,auth:'account-key-session',generation:generator.kind==='meta-api'?'configured-not-health-verified':generator.kind,sharedDatabase:true,manager:'rules-on-public-update',scheduled:false});
    if(path==='/api/v1/accounts'&&req.method==='POST'){
     sameOrigin(req);if(!env.registrationEnabled)fail(403,'registration_closed');await body(req);await limited(`signup:${clientAddress}`,5,3600);const id=random(16),credential=random();await run('INSERT INTO accounts(id,login_hash,created_at,test_only) VALUES(?,?,?,?)',id,await digest(credential),stamp(),env.localTest?1:0);const session=await newSession(id);return json({credential,csrf:session.csrf,testOnly:env.localTest},201,{'Set-Cookie':session.cookie});
@@ -311,7 +317,7 @@ const s=(await session(req))!;if(req.headers.has('Authorization'))fail(403,'use_
    const tokenDelete=path.match(/^\/api\/v1\/me\/tokens\/([a-f0-9]{32})$/);if(tokenDelete&&req.method==='DELETE'){const s=await owner(req,true),r=await ownRoom(s.account_id);await run('UPDATE agent_tokens SET revoked=1 WHERE id=? AND room_id=?',tokenDelete[1],r.id);return json({revoked:true});}
    if(path==='/api/v1/public/rooms'&&req.method==='GET')return json({rooms:(await all<Room>('SELECT * FROM rooms WHERE published=1 ORDER BY created_at DESC')).map(roomPublic)});
    if(path==='/api/v1/public/community'&&req.method==='GET'){
-    return json(await editBuilding(false));
+    const result=await editBuilding(false);const sections=Object.fromEntries(Object.entries(result.edition.sections).map(([k,picks])=>[k,picks.map(p=>({...p,reason:k==='arrivals'?'歡迎新鄰居':'鄰居的生活片段'}))]));return json({...result,edition:{...result.edition,sections,editor:{...result.edition.editor,model:null}}});
    }
    const publicRoom=path.match(/^\/api\/v1\/public\/rooms\/([a-f0-9]{16})$/);
    if(publicRoom&&req.method==='GET'){

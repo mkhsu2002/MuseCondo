@@ -12,3 +12,22 @@ test('CRC-valid but corrupt zlib payload is not a valid image',async()=>{await a
 test('decoded scanline length and filter are validated, including oversized inflation',async()=>{
  await assert.rejects(validatePNG(png(Uint8Array.from([0,1]))));await assert.rejects(validatePNG(png(new Uint8Array(10000))));await assert.rejects(validatePNG(png(Uint8Array.from([5,12,34,56,255]))));
 });
+test('transparency rejects hidden payloads, alpha color types, duplicate chunks and invalid ordering',async()=>{
+ const original=png();const insert=(data:Uint8Array)=>Buffer.concat([original.subarray(0,33),chunk('tRNS',data),original.subarray(33)]);
+ await assert.rejects(validatePNG(insert(Buffer.from('PRIVATE_METADATA_IN_TRNS'))));
+ await assert.rejects(validatePNG(insert(Uint8Array.of(0,0,0,0,0,0))));
+});
+function transparencyPNG(color:number,transparency:Uint8Array,options:{duplicate?:boolean;afterData?:boolean;beforePalette?:boolean}={}){
+ const header=Buffer.alloc(13);header.writeUInt32BE(1);header.writeUInt32BE(1,4);header[8]=8;header[9]=color;
+ const alpha=chunk('tRNS',transparency),palette=color===3?[chunk('PLTE',Uint8Array.of(0,0,0))]:[],data=chunk('IDAT',deflateSync(new Uint8Array(1+({0:1,2:3,3:1,4:2,6:4}[color]??4))));
+ return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),...(options.beforePalette?[alpha,...palette]:[...palette,...(options.afterData?[]:[alpha])]),...(options.duplicate?[alpha]:[]),data,...(options.afterData?[alpha]:[]),chunk('IEND',new Uint8Array())]);
+}
+test('legal grayscale, RGB and indexed transparency preserve valid image semantics',async()=>{
+ for(const [color,bytes]of [[0,Uint8Array.of(0,0)],[2,new Uint8Array(6)],[3,Uint8Array.of(128)]] as const)assert.deepEqual(await validatePNG(transparencyPNG(color,bytes)),{width:1,height:1});
+});
+test('transparency lengths, sample ranges, uniqueness and palette/data ordering are enforced',async()=>{
+ for(const [color,bytes]of [[0,new Uint8Array(3)],[0,Uint8Array.of(1,0)],[2,new Uint8Array(7)],[2,Uint8Array.of(1,0,0,0,0,0)],[3,new Uint8Array(2)],[3,new Uint8Array(0)],[4,new Uint8Array(2)],[6,new Uint8Array(6)]] as const)await assert.rejects(validatePNG(transparencyPNG(color,bytes)));
+ await assert.rejects(validatePNG(transparencyPNG(0,new Uint8Array(2),{duplicate:true})));
+ await assert.rejects(validatePNG(transparencyPNG(0,new Uint8Array(2),{afterData:true})));
+ await assert.rejects(validatePNG(transparencyPNG(3,Uint8Array.of(0),{beforePalette:true})));
+});
