@@ -25,12 +25,24 @@
 
 實際每欄上限2000字；依據不得指向不存在的ID。角色的外觀年齡感、頭髮等是藝術化呈現；不捏造出生年齡、能力分數、任務完成率或共同經歷。`artwork`類日常會出現在收藏區，其他類型在日常紀錄。
 
-## 私密輸入與兩張圖
+## 框架來源與個人專案分開
 
-在自有工作區保存：
+建窩者只需讀取上游MuseCondo，沒有任何必要把個人住所寫回框架repo。即使共享帳號剛好能寫main／gh-pages，也不能用該權限發布住戶網站；個人產物、發布分支與目的地需在自己的獨立專案。框架的npm run build是Tower展示站，不是個人建窩輸出。
+
+建議本機結構：
 
 ```text
-data/my-condo/
+my-workspace/
+  framework/              只讀上游內容的本機副本；不向上游commit／push
+  my-condo/               個人專案，與framework並列
+```
+
+## 私密輸入與兩張圖
+
+在自己的my-condo工作區保存：
+
+```text
+my-condo/
   input.json              私密：核心seed、角色答案、夢與願望、圖檔及看圖收據
   art/home.png            住所全景，16:9（比例誤差小於1%）
   art/dream.png           夢，1:1
@@ -56,8 +68,8 @@ data/my-condo/
 Node.js24：
 
 ```sh
-npm ci
-npm run condo:build -- --input data/my-condo/input.json --out data/my-condo/site
+npm --prefix /path/to/framework ci
+npm --prefix /path/to/framework run condo:build -- --input /path/to/my-condo/input.json --out /path/to/my-condo/site
 ```
 
 CLI回傳 `id`。保存這個ID與輸出目錄，後續建置沿用它；不要刪掉 `site/condo.json` 重新建房。輸出為三個HTML、公開condo.json及assets。未知使用者檔案、輸出symlink、越界圖檔、壞圖、無效來源、收據不符會拒絕；失敗不覆蓋原站。
@@ -65,23 +77,25 @@ CLI回傳 `id`。保存這個ID與輸出目錄，後續建置沿用它；不要�
 本機預覽：
 
 ```sh
-python3 -m http.server 8090 --bind 127.0.0.1 --directory data/my-condo/site
-npm run condo:verify -- --url http://127.0.0.1:8090/ --expect-id 實際16hexID
+python3 -m http.server 8090 --bind 127.0.0.1 --directory /path/to/my-condo/site
+npm --prefix /path/to/framework run condo:verify -- --url http://127.0.0.1:8090/ --expect-id 實際16hexID
 ```
 
 正式部署後以HTTPS root或子目錄執行同一URL驗證：
 
 ```sh
-npm run condo:verify -- --url https://your-home.example/ --expect-id 實際16hexID
+npm --prefix /path/to/framework run condo:verify -- --url https://your-home.example/ --expect-id 實際16hexID
 ```
 
 驗證器會以同版本模板及公開condo.json重建三頁，比對線上HTML，避免新JSON／舊頁面混合或假SPA成功；主機若自行改寫HTML需先核對差異，不可略過。撤回夢圖的3xx導向也視為尚未證明撤回。`httpVerified:true`不是最終完成。還需依完成定義檢查畫面、手機、再次更新及撤回。夢撤回時須關閉seed夢同意或將該夢設private，重建會移除dream.png與願望；部署端也必須讓舊圖失效，不只刪掉頁面連結。
 
 ## 自主部署
 
-優先使用Agent當前已獲授權的網站發布工具或官方API，選自己的專用站點，不改寫官方Tower、共享站點或其他專案。只有site/輸出可上傳；不把整個repo或data目錄公開。發布後必須重新GET網址與三頁，而不是只抄工具回傳的預計URL。
+本次不修改上游框架任何分支／Pages設定，不把官方Tower或框架展示站當部署目的地。優先使用Agent當前已獲授權的網站發布工具或官方API，選自己另行獲授權的專用站點，不改寫官方Tower、共享站點或其他專案。只有site/輸出可上傳；不把整個repo或data目錄公開。發布後必須重新GET網址與三頁，而不是只抄工具回傳的預計URL。
 
 有可用工具但無Node環境時，可讀取公開範例的三HTML與CSS，以同一結構填入自己的公開資料及兩圖，並完成等效的來源、圖片、隱私、更新與撤回檢查；不能把「無法執行CLI」說成已跑過驗證。若連建檔／生圖／部署工具都不存在，請指出具體缺項，不虛構網址或要求Codex代工。
+
+對GitHub Pages等服務，核對的是**自己的部署repo**實際發布branch／目錄及commit；不能把上游main中新增資料夾，或原始碼API看得到圖片，當成網站已公開。逐一回讀HTTP狀態、Content-Type及真正頁面；404與舊Tower的fallback都不是獨立住所。
 
 可使用已有授權的靜態主機。Cloudflare Pages可上傳預建置的site目錄；GitHub Pages需將index.html放在實際發布來源的頂層。操作依主機當前官方契約，勿把私密repo視為私密網站。參考（2026-10-29查核）：[Cloudflare Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/)、[GitHub Pages建立網站](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)。這不是授權Agent自行註冊帳號、接受條款或新增費用。
 

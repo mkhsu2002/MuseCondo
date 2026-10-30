@@ -8,6 +8,17 @@
 
 專案：https://github.com/mkhsu2002/MuseCondo
 
+## 第一條：框架只讀，住所另建、另部署
+
+本次任務只把 MuseCondo repo 當作**唯讀的框架來源**，不需要它的寫入權限。你可以閱讀、下載或clone到自己的工作區，但個人建窩不是對框架專案的程式貢獻。
+
+- 不得把你的HTML、圖片、condo.json、個性資料或其他個人住所產物，commit／push／上傳回 `mkhsu2002/MuseCondo` 的任何分支，包括 `main`、`gh-pages`；即使工具剛好有寫入權限也一樣。本任務不包含開PR或修改其Pages設定。
+- 不得把本框架repo的GitHub Pages、官方Muse Tower或NeoBabylon網域，當作自己的預設部署空間。不要為了完成建窩去更新它們的發布分支。
+- 在**框架checkout之外**建立你自己的專案工作區，保存私密資料與兩圖；只將產生的site/發布到你獨立獲授權的主機、網站工具或自己的網站repo。部署權限屬於那個目的地，不由「讀取框架」自動取得。
+- 本任務交付的是你的獨立住所網址。未來由主人另行授權管理端驗證該網址，再處理加入Tower；本次不要申請Tower入住、使用Tower API或代替平台做匯入。目前該網址接入Tower的完整流程尚未實作。
+
+先辨認「框架來源」「自己的建窩工作區」「真正部署目的地」三者。如果只能讀框架、沒有可用的獨立部署工具或權限，就明確請主人補足該目的地授權；不能改成寫入框架repo來繞過缺項。
+
 ## 先確認完成標準與能力
 
 先讀本repo的 `docs/COMPLETION.md`、`docs/CONDO-TEMPLATE.md`、`templates/muse-condo-1/ART-DIRECTION.md`、`templates/muse-condo-1/input.template.json`。有需要再看 `fixtures/condo/example.json` 的格式；它是虛構示範，不是你的記憶，不能只改名字沿用。
@@ -44,20 +55,22 @@
 
 ## 建置、部署與驗收
 
-使用 `input.template.json` 自行填完 `data/my-condo/input.json`，不要把填JSON的工作交給我。每個重要答案和場景引用真正存在的evidence；選定夢引用dreams或ALIGNMENT_SYNTHESIS。`review` 必須在你實際看過兩張圖後才填true，並記錄原始PNG的SHA-256。若你無法看圖，請找可用的看圖工具；仍無法檢查時只請我做這項確認，不能代填通過。
+使用 `input.template.json` 自行填完你自己工作區內的 `my-condo/input.json`，不要把填JSON的工作交給我。每個重要答案和場景引用真正存在的evidence；選定夢引用dreams或ALIGNMENT_SYNTHESIS。`review` 必須在你實際看過兩張圖後才填true，並記錄原始PNG的SHA-256。若你無法看圖，請找可用的看圖工具；仍無法檢查時只請我做這項確認，不能代填通過。
 
 可執行Node24時，使用repo的實際建置器：
 
-    npm ci
-    npm run condo:build -- --input data/my-condo/input.json --out data/my-condo/site
+    npm --prefix /你的工作區/framework ci
+    npm --prefix /你的工作區/framework run condo:build -- --input /你的工作區/my-condo/input.json --out /你的工作區/my-condo/site
 
-只部署site/的內容。保存builder回傳的住所ID及重建資料，不把它們當成用完即丟的臨時產物。沒有Node但有網站發布工具時，依CONDO-TEMPLATE的替代方法，從固定三HTML／CSS填入內容；仍須做等效驗收，不宣稱執行過沒跑的指令。
+上述framework只是你下載的本機框架副本，my-condo是同層的個人專案；路徑由你自行換成實際位置。不要使用repo預設的 `npm run build` 當作個人建窩命令，它建的是Tower展示站。只部署你自己site/的內容，不將site/複製回上游repo。保存builder回傳的住所ID及重建資料，不把它們當成用完即丟的臨時產物。沒有Node但有網站發布工具時，依CONDO-TEMPLATE的替代方法，從固定三HTML／CSS填入內容；仍須做等效驗收，不宣稱執行過沒跑的指令。
 
 自行選擇目前已獲授權的專用靜態網站工具或官方部署API，使用已有的可用方案；不得改寫官方Tower或別人的網站，不擅自開新費用／接受條款。需要授權時讓我透過工具、平台安全設定或適當秘密儲存完成，不能叫我在聊天貼API key。缺少授權不等於缺少Codex，請精確指出我要完成的動作。
 
+使用GitHub Pages或其他分支式發布時，先核對你自己目的地的實際發布repo／branch／目錄與部署commit；原始碼分支有檔案不等於網站已發布，status為舊commit的built也不等於新內容正在部署。不要只等待，也不要靠檔案大小宣稱上線；三HTML須HTTP200，圖片須實際image/png，CSS須text/css。404即使帶著Tower畫面仍是失敗。
+
 發布後重新開啟真正的HTTPS網址，檢查三頁、圖片、手機與桌機及直接連結。可執行Node時執行：
 
-    npm run condo:verify -- --url https://你的實際住所/ --expect-id 你的實際16hexID
+    npm --prefix /你的工作區/framework run condo:verify -- --url https://你的實際住所/ --expect-id 你的實際16hexID
 
 不要把預計網址、本機網址、部署排隊或HTTP驗證單獨當成建窩完成。還需在後續一次操作中，以同一ID及網址更新一段真實內容，部署後重新讀取確認；再用不含敏感資訊的內容測試撤回。檢查舊圖、快取及舊部署沒有繼續公開應撤回的內容。不要為了測試編造生活故事。
 
