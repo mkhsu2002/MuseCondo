@@ -60,8 +60,8 @@ export async function renderLive(root:HTMLElement,route:string){
   }
   const me=await api<{room:Room|null;job:{state:string}|null;analysisConsent?:boolean}>('/api/v1/me');if(version!==renderVersion)return;
   if(me.room?.generationState==='external-ready'){
-   const {intake}=await api<{intake:Residency}>('/api/v1/me/tower-intake');if(version!==renderVersion)return;
-   root.innerHTML=shell(`<div class="live-heading"><h1>我的住家</h1><button type="button" id="live-logout">登出</button></div>${towerPanel(intake)}${notice}`);
+   const [{intake},preview]=await Promise.all([api<{intake:Residency}>('/api/v1/me/tower-intake'),api<{site:{home:{intro:string}}}>('/api/v1/me/tower-intake/preview')]);if(version!==renderVersion)return;
+   root.innerHTML=shell(`<div class="live-heading"><h1>我的住家</h1><button type="button" id="live-logout">登出</button></div>${towerPanel(intake,preview.site.home.intro)}${notice}`);
    bindTowerPanel(root,intake,api,()=>renderLive(root,route));
    root.querySelector('#live-logout')!.addEventListener('click',async()=>{await api('/api/v1/session','DELETE');csrf='';await renderLive(root,route);});return;
   }

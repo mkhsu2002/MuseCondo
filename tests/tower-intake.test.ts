@@ -944,3 +944,29 @@ test('real-size PNG import stays below the D1 serialized RPC ceiling and stores 
   await f.importHome();const rows=f.db.sqlite.prepare('SELECT purpose,SUM(length(data)) bytes FROM tower_asset_chunks GROUP BY purpose').all();assert.equal(rows.length,2);assert(rows.every(r=>Number(r.bytes)>1000000));
  }finally{f.db.close();}
 });
+
+test('resident content edits are private revisions, keep images and identity, and need no source writes',async()=>{
+ const f=await fixture();try{
+  const h=await f.importHome();const flags={expectedRevision:1,published:true,directoryConsent:true,announcementConsent:true,dreamConsent:false,snapshotConsent:true};await f.data(f.req('/publication','POST',flags));const fetches=f.calls.length;const html=await(await f.req('/home/'+h.roomId,'GET',undefined,''))!.text();assert.match(html,/回到 Muse Tower/);assert(html.includes('https://source.example/resident/'));const imageBefore=new Uint8Array(await(await f.req('/api/v1/tower/assets/'+h.roomId+'/1/home.png','GET',undefined,''))!.arrayBuffer());const chunksBefore=f.db.sqlite.prepare('SELECT purpose,sequence,hex(data) data,digest FROM tower_asset_chunks WHERE revision=1 ORDER BY purpose,sequence').all();
+  const payload={expectedRevision:1,requestKey:'resident-content-1',content:{intro:'我有一個固定門牌了。',daily:[{id:'own-update',type:'status',title:'一個自己的窩',body:'我想自己決定分享哪些日常。',occurredAt:'2026-10-30T00:00:00.000Z'}]}};
+  const edited=await f.data(f.req('/content','POST',payload),201);assert.equal(edited.revision,2);const auditsBeforeReplay=f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n;assert.equal((await f.data(f.req('/content','POST',payload),201)).revision,2);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n,auditsBeforeReplay);assert.deepEqual(f.db.sqlite.prepare('SELECT purpose,sequence,hex(data) data,digest FROM tower_asset_chunks WHERE revision=2 ORDER BY purpose,sequence').all(),chunksBefore);assert.equal(f.calls.length,fetches);
+  const preview=await f.data(f.req('/preview'));assert.equal(preview.site.home.intro,payload.content.intro);assert.equal(preview.site.home.daily.length,1);
+  const before=await f.data(f.req('/api/v1/tower/rooms/'+h.roomId,'GET',undefined,''));assert.equal(before.revision,1);assert.notEqual(before.site.home.intro,payload.content.intro);
+  await f.data(f.req('/publication','POST',{...flags,expectedRevision:2}));const after=await f.data(f.req('/api/v1/tower/rooms/'+h.roomId,'GET',undefined,''));assert.equal(after.site.home.intro,payload.content.intro);assert.deepEqual(new Uint8Array(await(await f.req('/api/v1/tower/assets/'+h.roomId+'/2/home.png','GET',undefined,''))!.arrayBuffer()),imageBefore);assert.equal(after.site.home.id,h.roomId);assert.equal((await f.data(f.req())).intake.residentId,f.raw.home.id);assert.equal(f.calls.length,fetches);
+  assert.equal((await f.req('/content','POST',{...payload,requestKey:'stale-content-1'}))!.status,409);assert.equal((await f.req('/content','POST',{...payload,expectedRevision:2,requestKey:'foreign-content-1'},'b'))!.status,404);
+  assert.equal((await f.req('/content','POST',{expectedRevision:2,requestKey:'private-fields-1',content:{level:99,prompt:'PRIVATE'}}))!.status,400);
+ }finally{f.db.close();}
+});
+
+
+test('concurrent resident edits keep one winning revision and delegated content needs active write scope at commit',async()=>{
+ const f=await fixture();try{await f.importHome();const input={expectedRevision:1,requestKey:'concurrent-content-a',content:{intro:'一個可自由分享的空間。'}};
+  const results=await Promise.all([f.req('/content','POST',input),f.req('/content','POST',{...input,requestKey:'concurrent-content-b'})]);assert.deepEqual(results.map(r=>r!.status).sort(),[201,409]);assert.equal(f.db.sqlite.prepare('SELECT revision FROM tower_residencies').get()!.revision,2);
+  const token=await f.data(f.req('/tokens','POST',{}),201);const send=(key:string)=>f.req('/api/v1/agent/tower-intake/content','POST',{expectedRevision:2,requestKey:key,content:{intro:'我決定公開哪些小事。'}},'',{Authorization:'Bearer '+token.token});
+  f.db.sqlite.prepare('UPDATE tower_tokens SET scopes=? WHERE id=?').run('["tower:read"]',token.id);assert.equal((await send('readonly-content'))!.status,403);
+  f.db.sqlite.prepare('UPDATE tower_tokens SET scopes=? WHERE id=?').run('["tower:read","tower:write"]',token.id);
+  const batch=f.db.batch.bind(f.db);f.db.batch=async statements=>{if(statements.some(s=>(s as unknown as {sql:string}).sql.startsWith('INSERT INTO tower_snapshots')))f.db.sqlite.prepare('UPDATE tower_tokens SET revoked=1 WHERE id=?').run(token.id);return batch(statements);};
+  assert.equal((await send('revoked-content'))!.status,403);assert.equal(f.db.sqlite.prepare('SELECT revision FROM tower_residencies').get()!.revision,2);
+  f.db.batch=batch;f.db.sqlite.prepare('UPDATE tower_tokens SET revoked=0 WHERE id=?').run(token.id);assert.equal((await send('valid-agent-content'))!.status,201);assert.equal(f.db.sqlite.prepare('SELECT revision FROM tower_residencies').get()!.revision,3);
+ }finally{f.db.close();}
+});

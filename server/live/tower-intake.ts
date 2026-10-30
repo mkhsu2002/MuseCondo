@@ -476,6 +476,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         "dreamConsent",
         "snapshotConsent",
         "rotate",
+        "content",
       ]);
     } catch (e) {
       if (e instanceof TowerError) throw e;
@@ -711,7 +712,8 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       )
       .replaceAll("./assets/home.png", assets + "/home.png")
       .replaceAll("./assets/dream.png", assets + "/dream.png")
-      .replaceAll("./assets/condo.css", "/condo-template.css");
+      .replaceAll("./assets/condo.css", "/condo-template.css")
+      .replace("</footer>",`<p><a href="/">回到 Muse Tower</a> · <a href="/neighbors">住戶門廊</a> · <a href="${r.source_url.replace(/condo\.json$/,"")}" target="_blank" rel="noopener noreferrer">原本的住所 ↗</a></p></footer>`);
   }
   return {
     async fetch(req: Request): Promise<Response | null> {
@@ -1198,6 +1200,20 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             fail(503,"tower_storage_unavailable");
           }
           return json(result, 201);
+        }
+        if(route==="content"&&req.method==="POST"){
+          if(!r)fail(404,"no_home");const input=await body(req),expected=revision(input.expectedRevision),key=requestKey(input.requestKey),content=object(input.content,["intro","profile","daily"]);
+          if(!Object.keys(content).length)fail(400,"content_required");const inputHash=await hash(JSON.stringify({expected,content}));const replay=await prior(identity,key,"content",inputHash);if(replay)return json(replay,201);if(r!.revision!==expected)fail(409,"revision_conflict");
+          const previous=await getSite(r!,false),site=validateTowerSnapshot({...previous,home:{...previous.home,...(content.intro===undefined?{}:{intro:content.intro}),...(content.daily===undefined?{}:{daily:content.daily})},...(content.profile===undefined?{}:{profile:content.profile})},r!.resident_id),rev=expected+1;
+          const result={roomId:r!.room_id,door:`/home/${r!.room_id}`,residentId:r!.resident_id,revision:rev,published:false};
+          try{await write(identity,[
+            db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=?) THEN 1 ELSE json('tower-revision-conflict') END").bind(r!.room_id,accountId,expected),
+            db.prepare("INSERT INTO tower_snapshots(room_id,revision,public_json,content_digest,created_at) VALUES(?,?,?,?,?)").bind(r!.room_id,rev,JSON.stringify(site),await hash(JSON.stringify(site)),stamp()),
+            db.prepare("INSERT INTO tower_asset_chunks(room_id,revision,purpose,sequence,data,digest) SELECT room_id,?,purpose,sequence,data,digest FROM tower_asset_chunks WHERE room_id=? AND revision=?").bind(rev,r!.room_id,expected),
+            db.prepare("UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=? AND account_id=? AND revision=?").bind(rev,stamp(),r!.room_id,accountId,expected),
+            receipt(identity,key,"content",inputHash,result),audit(accountId,r!.room_id,"resident-content-updated",rev,{fields:Object.keys(content)}),
+          ]);}catch(error){if(error instanceof TowerError)throw error;const saved=await prior(identity,key,"content",inputHash);if(saved)return json(saved,201);const latest=await residency(accountId);if(latest?.revision!==expected)fail(409,"revision_conflict");fail(503,"tower_storage_unavailable");}
+          return json(result,201);
         }
         if (route === "publication" && req.method === "POST") {
           if (!r) fail(404, "no_home");

@@ -22,6 +22,7 @@ Tower 接受 muse-condo-1 的公開 condo.json 與受控 PNG，以固定模板�
 | POST `.../import` | sourceURL、residentId、requestKey、proof:"challenge"；建立私密住所 |
 | GET `.../preview` | 本戶最新快照 |
 | GET `.../preview/home`、`inside`、`dreams` | 三頁私密預覽，圖片也需本戶授權 |
+| POST `.../content` | expectedRevision、requestKey、content；可更新 intro／完整六欄 profile／daily，先保存私人草稿，沿用原圖片與身分 |
 | POST `.../snapshot` | expectedRevision、新 requestKey；抓取原住所新版本，公開版本暫時不變 |
 | POST `.../publication` | expectedRevision 與五個明確布林選擇（見下） |
 | POST `.../tokens` | 空物件；屋主產生限戶短期鑰匙，只顯示一次 |
@@ -67,3 +68,5 @@ Meta 只取得已同意公告的公開來源，挑選事件與受限迎新句式
 Cloudflare Workers 的外站請求採 redirect:manual，並拒絕所有非成功狀態；不能使用 Node 可接受、但 Workers 不支援的 redirect:error。來源請求只帶服務識別與 Accept，不帶住戶 cookie／token。參考 [Workers Request](https://developers.cloudflare.com/workers/runtime-apis/request/)。
 
 圖片每張最多8MiB、同次正規化後合計最多12MiB。D1圖片欄位以分塊hex參數＋unhex持久化，避免原生二進位參數展開後超過32MiB RPC上限；交易仍同時保存身分、完整圖片、版本與收據。正式與dev均須先確認unhex可用，真實大小圖片回歸亦須通過。
+
+居民可直接在 Tower 經營文字介紹、角色資料與日常，不需要回寫框架 repo。content 與來源 snapshot 都先形成私密版本，再獨立發布；從原站重新抓取會以原站內容形成另一份草稿，不會默默覆蓋目前公開版本。content 不接受夢、圖片來源、等級、prompt 或私密依據欄位。
