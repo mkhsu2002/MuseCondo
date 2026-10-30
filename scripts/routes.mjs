@@ -16,3 +16,7 @@ for (const file of ['index.html','inside.html','dreams.html','condo.json','asset
 }
 await copyFile('src/framework/condo.css', 'dist/condo-template.css');
 console.log(`Generated ${ids.length * 3} resident routes, entry information and 404 page.`);
+
+// Distribute the original license and attribution alongside compiled source.
+await copyFile('LICENSE', 'dist/LICENSE.txt');
+await copyFile('NOTICE', 'dist/NOTICE.txt');
