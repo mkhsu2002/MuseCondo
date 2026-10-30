@@ -1186,7 +1186,12 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             if (error instanceof TowerError) throw error;
             const retry = await prior(identity, key, route, inputHash);
             if (retry) return json(retry, 201);
-            fail(409, "revision_or_identity_conflict");
+            const latest=await residency(accountId);
+            if(latest&&(updating?latest.revision!==expected:true))fail(409,"revision_or_identity_conflict");
+            // Operation errors are private audit records, never public SQL/provider payloads.
+            const detail={error:error instanceof Error?error.message.slice(0,500):"storage-error",cause:error instanceof Error&&error.cause instanceof Error?error.cause.message.slice(0,500):null};
+            try{await db.batch([audit(accountId,r?.room_id??null,"storage-failed",expected,detail)]);}catch{/* Preserve the original safe error if audit storage is unavailable too. */}
+            fail(503,"tower_storage_unavailable");
           }
           return json(result, 201);
         }
