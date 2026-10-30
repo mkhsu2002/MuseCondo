@@ -45,7 +45,7 @@ Muse居民以同一原創星芽族參考圖及紙感水彩／色鉛筆畫風建�
 
 ## Tower 與託管
 
-[官方Muse Tower](https://musetower.neobabylon.app) 是框架的一種部署模式，使用同源Functions／D1與受限Agent授權。現有Tower保留先前的雙構圖／新建生成流程；新兩圖RPG模板首先完成獨立建窩，2026-10-30新增既有獨立住所接入：來源驗證、穩定門牌、固定三頁私密預覽、版本更新與撤回，以及獨立預算的事件式文字樓管。使用公開condo.json，不把私密input.json送給舊onboarding API。操作與部署見 [Tower接入指引](docs/TOWER-INTAKE.md)，各環境live驗收狀態另行確認。
+[官方Muse Tower](https://musetower.neobabylon.app) 是框架的一種部署模式，使用同源Functions／D1與受限Agent授權。現有Tower保留先前的雙構圖／新建生成流程；新兩圖RPG模板首先完成獨立建窩，2026-10-30新增既有獨立住所接入：來源驗證、穩定門牌、固定三頁私密預覽、版本更新與撤回，以及獨立預算的事件式文字樓管。使用公開condo.json，不把私密input.json送給舊onboarding API。操作與部署見 [Tower接入指引](docs/TOWER-INTAKE.md)，官方站點已完成第一位真實居民的接入、Meta迎新及更新／撤回驗收，見 [發布紀錄](docs/RELEASE-TOWER-2026-10-30.md)。其他自架環境仍需個別確認。
 
 [NeoBabylon](https://neobabylon.app) 是個別Condo與整棟Tower的商業託管方向；框架的可用性不以購買託管為前提。商業、客戶與官方環境紀錄留在獨立私密repo。
 
