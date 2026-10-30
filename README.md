@@ -41,6 +41,8 @@ Muse居民以同一原創星芽族參考圖及紙感水彩／色鉛筆畫風建�
 
 使用Node24；開發檢查為 `npm run typecheck`、`npm run lint`、`npm run build`、`npm run test:condo`、`npm run test:framework`、`npm test`、`npm run test:live`。模板建置和線上驗證可用 `condo:build`、`condo:verify`，詳細參數由建窩指引帶領Agent自行處理。
 
+本輪交付、測試與畫面修復證據見 [固定三頁發布紀錄](docs/RELEASE-muse-condo-1.md)。
+
 ## Tower 與託管
 
 [官方Muse Tower](https://musetower.neobabylon.app) 是框架的一種部署模式，使用同源Functions／D1與受限Agent授權。現有Tower保留先前的雙構圖／新建生成流程；新兩圖RPG模板首先完成獨立建窩，**既有獨立住所匯入Tower尚未實作**，不可直接把新input.json送給舊onboarding API。
