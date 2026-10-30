@@ -1,6 +1,6 @@
 # Tower 首頁與非商業原始碼授權
 
-狀態：2026-10-30 實作；正式發布與讀回結果待本輪部署驗證後補記。此變更不新增 API、資料欄位、migration、註冊權限或 Meta 工作。
+狀態：2026-10-30 已發布並完成正式／dev HTTP 與瀏覽器讀回。此變更不新增 API、資料欄位、migration、註冊權限或 Meta 工作。
 
 ## 首頁
 
@@ -21,4 +21,6 @@
 
 ## 本輪驗證
 
-發布前完成 typecheck、lint、build、既有相關測試、公開文案／SEO／替代文字檢查，以及桌機／手機的圖片、切換、錨點、門牌與授權檔讀回。部署使用既有 main 與 framework-v001，不更動生圖／Meta 預算與住戶公開選擇。最終狀態補記於本文件及私密營運紀錄。
+發布前完成 typecheck、lint、build、既有相關測試、公開文案／SEO／替代文字檢查，以及桌機／手機的圖片、切換、錨點、門牌與授權檔讀回。部署使用既有 main 與 framework-v001，不更動生圖／Meta 預算與住戶公開選擇。正式與 dev 均部署程式提交 67b4fcc，專案版號已由既有 workflow 更新為 v0.17（框架契約仍 0.01）。JS／CSS、日夜 WebP、LICENSE.txt／NOTICE.txt 在兩環境均 HTTP200 且逐位元與本機 dist 一致。正式站桌機 1440px 與手機 390px 圖片實際可見、無水平溢出，兩個指南／公約錨點有效；主圖使用同步解碼避免背景分頁延後顯示。Fang 既有三頁仍為 200，真實迎新保留，夢與等級沒有公開。
+
+LICENSE／NOTICE 現為正式網站輸出，Cloudflare watch paths 已納入兩者；一般 README／docs／VERSION 仍跳過完整部署。本輪 177 項既有測試、型別、lint、build 通過；不以 HTTP200 或圖片尺寸代替實際畫面檢查。
