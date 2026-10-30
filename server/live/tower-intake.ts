@@ -118,6 +118,9 @@ function revision(v: unknown) {
     fail(400, "expected_revision_required");
   return v as number;
 }
+function pngBytes(hex:string){
+ const result=new Uint8Array(hex.length/2);for(let i=0;i<result.length;i++){const a=hex.charCodeAt(i*2),b=hex.charCodeAt(i*2+1);result[i]=(a<=57?a-48:a-55)*16+(b<=57?b-48:b-55);}return result;
+}
 function requestKey(v: unknown) {
   const s = string(v, 80);
   if (!/^[a-zA-Z0-9-]{8,80}$/.test(s)) fail(400, "idempotency_key_required");
@@ -748,16 +751,16 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             )
               fail(404, "asset_not_found");
             const chunks = await all<{
-              data: ArrayBuffer | Uint8Array;
+              data: string;
               digest: string;
             }>(
-              "SELECT data,digest FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose=? ORDER BY sequence",
+              "SELECT hex(data) AS data,digest FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose=? ORDER BY sequence",
               roomId,
               r!.public_revision,
               asset[3],
             );
             if (!chunks.length) fail(404, "asset_not_found");
-            const parts = chunks.map((c) => new Uint8Array(c.data)),
+            const parts = chunks.map((c) => pngBytes(c.data)),
               bytes = new Uint8Array(parts.reduce((s, b) => s + b.length, 0));
             let p = 0;
             for (const b of parts) {
@@ -843,14 +846,14 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         if (privateAsset && req.method === "GET") {
           if (!r || Number(privateAsset[1]) !== r.revision)
             fail(404, "asset_not_found");
-          const chunks = await all<{ data: ArrayBuffer | Uint8Array }>(
-            "SELECT data FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose=? ORDER BY sequence",
+          const chunks = await all<{ data: string }>(
+            "SELECT hex(data) AS data FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose=? ORDER BY sequence",
             r.room_id,
             r.revision,
             privateAsset[2],
           );
           if (!chunks.length) fail(404, "asset_not_found");
-          const parts = chunks.map((c) => new Uint8Array(c.data)),
+          const parts = chunks.map((c) => pngBytes(c.data)),
             bytes = new Uint8Array(parts.reduce((n, b) => n + b.length, 0));
           let p = 0;
           for (const b of parts) {
