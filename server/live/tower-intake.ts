@@ -392,13 +392,10 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       const response = await (env.fetcher ?? fetch)(url.href, {
         redirect: "error",
         signal: controller.signal,
-        headers: { Accept: mime },
+        headers: { Accept: mime, "User-Agent":"MuseCondo-Tower-Intake/1.0", "Cache-Control":"no-cache" },
       });
-      if (
-        !response.ok ||
-        response.headers.get("Content-Type")?.split(";")[0].trim() !== mime
-      )
-        fail(400, "source_unavailable");
+      if(!response.ok)fail(400,"source_http_"+response.status);
+      if(response.headers.get("Content-Type")?.split(";")[0].trim()!==mime)fail(400,"source_type_rejected");
       if (Number(response.headers.get("Content-Length") ?? 0) > max)
         fail(413, "source_too_large");
       const reader = response.body?.getReader();
@@ -424,7 +421,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       return bytes;
     } catch (e) {
       if (e instanceof TowerError) throw e;
-      fail(400, "source_unavailable");
+      fail(400, controller.signal.aborted?"source_timeout":"source_network_unavailable");
     } finally {
       clearTimeout(timer);
     }
