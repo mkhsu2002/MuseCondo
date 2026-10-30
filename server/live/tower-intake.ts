@@ -622,6 +622,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       );
       images.push({ purpose, bytes, digest: await hash(bytes) });
     }
+    if(images.reduce((n,image)=>n+image.bytes.length,0)>12*1024*1024)fail(413,"source_images_too_large");
     return { site, images };
   }
   function snapshotStatements(
@@ -642,14 +643,14 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         statements.push(
           db
             .prepare(
-              "INSERT INTO tower_asset_chunks(room_id,revision,purpose,sequence,data,digest) VALUES(?,?,?,?,?,?)",
+              "INSERT INTO tower_asset_chunks(room_id,revision,purpose,sequence,data,digest) VALUES(?,?,?,?,unhex(?),?)",
             )
             .bind(
               roomId,
               rev,
               im.purpose,
               p / 524288,
-              im.bytes.slice(p, p + 524288).buffer,
+              Array.from(im.bytes.subarray(p,p+524288),b=>b.toString(16).padStart(2,"0")).join(""),
               im.digest,
             ),
         );

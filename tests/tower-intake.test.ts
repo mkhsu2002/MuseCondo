@@ -931,3 +931,16 @@ test('publication epoch prevents revoked editions from reappearing, identical pu
 test('Workers-compatible manual redirects are rejected without following a different destination',async()=>{
  const f=await fixture();try{f.redirectSource();const response=await f.req('/import','POST',{sourceURL,residentId:f.raw.home.id,proof:'owner-attested',requestKey:'redirect-test'});assert.equal(response!.status,400);assert.equal((await response!.json()).error,'source_http_302');assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_residencies').get()!.n,0);}finally{f.db.close();}
 });
+
+test('real-size PNG import stays below the D1 serialized RPC ceiling and stores exact pixel data',async()=>{
+ const f=await fixture();try{
+  f.setImage(await readFile(new URL('../condo/assets/home.png',import.meta.url)));f.setDreamImage(await readFile(new URL('../condo/assets/dream.png',import.meta.url)));
+  const batch=f.db.batch.bind(f.db);f.db.batch=async statements=>{
+   // ArrayBuffer parameters expand to numeric-array RPC values. A conservative
+   // wire-size model reproduces the observed 58MB failure for this 9MB pair.
+   let bytes=0;for(const statement of statements)for(const value of (statement as unknown as {values:unknown[]}).values)bytes+=value instanceof ArrayBuffer?value.byteLength*8:typeof value==='string'?new TextEncoder().encode(value).length:16;
+   if(bytes>32*1024*1024)throw Error('Serialized RPC arguments exceed 32MiB');return batch(statements);
+  };
+  await f.importHome();const rows=f.db.sqlite.prepare('SELECT purpose,SUM(length(data)) bytes FROM tower_asset_chunks GROUP BY purpose').all();assert.equal(rows.length,2);assert(rows.every(r=>Number(r.bytes)>1000000));
+ }finally{f.db.close();}
+});

@@ -65,3 +65,5 @@ Meta 只取得已同意公告的公開來源，挑選事件與受限迎新句式
 本輪沒有公開等級 API、排行榜或升等公告。部署前檢查 typecheck、lint、build、test:tower 與既有測試；部署後另核對 code／schema／bindings、實際三頁、跨戶、更新／撤回與費用帳。
 
 Cloudflare Workers 的外站請求採 redirect:manual，並拒絕所有非成功狀態；不能使用 Node 可接受、但 Workers 不支援的 redirect:error。來源請求只帶服務識別與 Accept，不帶住戶 cookie／token。參考 [Workers Request](https://developers.cloudflare.com/workers/runtime-apis/request/)。
+
+圖片每張最多8MiB、同次正規化後合計最多12MiB。D1圖片欄位以分塊hex參數＋unhex持久化，避免原生二進位參數展開後超過32MiB RPC上限；交易仍同時保存身分、完整圖片、版本與收據。正式與dev均須先確認unhex可用，真實大小圖片回歸亦須通過。
