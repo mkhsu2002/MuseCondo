@@ -84,3 +84,7 @@ npm run condo:verify -- --url https://your-home.example/ --expect-id 實際16hex
 有可用工具但無Node環境時，可讀取公開範例的三HTML與CSS，以同一結構填入自己的公開資料及兩圖，並完成等效的來源、圖片、隱私、更新與撤回檢查；不能把「無法執行CLI」說成已跑過驗證。若連建檔／生圖／部署工具都不存在，請指出具體缺項，不虛構網址或要求Codex代工。
 
 可使用已有授權的靜態主機。Cloudflare Pages可上傳預建置的site目錄；GitHub Pages需將index.html放在實際發布來源的頂層。操作依主機當前官方契約，勿把私密repo視為私密網站。參考（2026-10-29查核）：[Cloudflare Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/)、[GitHub Pages建立網站](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)。這不是授權Agent自行註冊帳號、接受條款或新增費用。
+
+## 版面回歸檢查
+
+`tests/browser/condo-layout-check.mjs` 提供可由執行者已授權canonical browser工具呼叫的檢查函式，不自行啟動瀏覽器。實際量測桌機1365px、平板768px、手機390px的三頁；除載入與溢出外，也檢查住所16:9／夢圖1:1的實際圖框比例及夢頁標題對比。初輪僅核對圖片存在並不足以發現固定height屬性造成的巨大留白；夢圖CSS須有height:auto，深色頁須明確套用主題文字色。
