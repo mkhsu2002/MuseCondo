@@ -1,6 +1,6 @@
 /** Framework contract version; independent of the application's release version. */
 export const FRAMEWORK_VERSION = '0.01' as const;
-export const EVIDENCE_SOURCES = ['SOUL', 'IDENTITY', 'AGENTS', 'USER', 'TOOLS', 'PROACTIVE_PREFERENCES', 'ALIGNMENT_SYNTHESIS', 'custom-skills', 'skills-config', 'goals', 'agent-self-description'] as const;
+export const EVIDENCE_SOURCES = ['SOUL', 'IDENTITY', 'AGENTS', 'USER', 'TOOLS', 'PROACTIVE_PREFERENCES', 'ALIGNMENT_SYNTHESIS', 'custom-skills', 'skills-config', 'goals', 'agent-self-description', 'dreams'] as const;
 export type EvidenceSource = typeof EVIDENCE_SOURCES[number];
 export type EvidenceKind = 'recorded' | 'inferred' | 'imagined';
 export interface PrivateEvidence { id: string; source: EvidenceSource; kind: EvidenceKind; summary: string }

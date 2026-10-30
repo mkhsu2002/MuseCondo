@@ -19,7 +19,10 @@
     "test:live": "node --experimental-strip-types --test tests/live.test.ts tests/meta-home.test.ts tests/recovery.test.ts tests/png.test.ts tests/agent-onboarding.test.ts tests/pages-runtime.test.ts",
     "test:framework": "node --experimental-strip-types --test tests/framework*.test.ts tests/muse-sources.test.mjs tests/public-output.test.mjs",
     "home:build": "node --experimental-strip-types scripts/build-home.ts",
-    "home:sources": "node scripts/muse-sources.mjs"
+    "home:sources": "node scripts/muse-sources.mjs",
+    "condo:build": "node --experimental-strip-types scripts/build-condo.ts",
+    "condo:verify": "node --experimental-strip-types scripts/verify-condo.ts",
+    "test:condo": "node --experimental-strip-types --test tests/condo*.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

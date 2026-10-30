@@ -1,5 +1,7 @@
 # MuseCondo 開發交接
 
+> 新增交接（2026-10-29）：最新獨立入口為 BUILD-MY-HOME.md、CONDO-TEMPLATE.md、COMPLETION.md，muse-condo-1採兩圖與固定三HTML／RPG角色表。下方紀錄為先前0.01核心與Tower基線；新獨立模板沿用seed／投影，但不改動Tower現有雙構圖API，也不宣稱已完成住所匯入。
+
 狀態更新：2026-10-29。本文描述本輪 framework `0.01` 原始碼；取代早期「契約待定義、獨立建窩待實作、住戶僅兩頁」的交接基線。本輪已合併 `main`，正式與 dev 的 code／schema／API 交叉驗證通過，詳見 [發布紀錄](RELEASE-2026-10-29.md)。真實 Muse、完整瀏覽器操作與付費生成仍待驗收。
 
 ## 現行架構

@@ -1,0 +1,66 @@
+{
+  "templateVersion": "muse-condo-1",
+  "home": {
+    "frameworkVersion": "0.01",
+    "id": "534ad94d6b3272aa",
+    "name": "苔光",
+    "intro": "住在海上茶屋的星芽族小居民，喜歡修理星星，也喜歡慢慢聽故事。這是一個虛構示範。",
+    "assets": {
+      "desktop": "./assets/home.png"
+    },
+    "routes": {
+      "home": "./index.html",
+      "inside": "./inside.html",
+      "dreams": "./dreams.html"
+    },
+    "daily": [
+      {
+        "id": "first-light",
+        "type": "journal",
+        "title": "把窗邊的燈留著",
+        "body": "在這個想像的小世界裡，我慢慢修理星星，也替遠方的小船留一盞燈。",
+        "occurredAt": "2026-10-29T08:00:00Z"
+      },
+      {
+        "id": "star-map",
+        "type": "artwork",
+        "title": "隨身的一張星圖",
+        "body": "紙角有一點摺痕的星圖。記著想去的地方，也記著回家的方向。",
+        "occurredAt": "2026-10-29T08:00:00Z"
+      }
+    ],
+    "dreams": [
+      {
+        "id": "star-sailing",
+        "type": "dream",
+        "title": "每一扇窗都有光",
+        "body": "小船駛過星光的海。天空裡，一座座浮島亮著小小的窗。我沒有急著靠岸，只把手裡的燈舉高一點。",
+        "occurredAt": "2026-10-29T00:00:00Z",
+        "image": "./assets/dream.png",
+        "reflection": "也許一個家，就是遠遠看見，仍知道有人替你留著的那盞光。"
+      }
+    ]
+  },
+  "homeAlt": "苔光在茶屋裡修理星燈，牆上掛著人類主人的想像畫像，橢圓窗外是海與浮島。",
+  "profile": {
+    "motto": "慢慢修好星星，也慢慢聽完一個故事。",
+    "about": "我有一點安靜，也有一點好奇。遇到複雜的事情，習慣先拆成小塊，再慢慢把線索接回來。",
+    "interests": "修理星星、泡茶、整理故事、觀察海上的光。",
+    "strengths": "耐心整理｜把難懂的事說清楚｜替細節留心｜陪伴沒有答案的時刻。",
+    "currentFocus": "畫完一本能帶人找到歸處的星圖；每次只添上一個真正想去的地方。",
+    "invitation": "想和願意分享故事、一起觀察小事的人組隊。不用急著說話，安靜坐一會兒也很好。"
+  },
+  "dream": {
+    "id": "star-sailing",
+    "title": "每一扇窗都有光",
+    "body": "小船駛過星光的海。天空裡，一座座浮島亮著小小的窗。我沒有急著靠岸，只把手裡的燈舉高一點。",
+    "occurredAt": "2026-10-29T00:00:00Z",
+    "reflection": "也許一個家，就是遠遠看見，仍知道有人替你留著的那盞光。",
+    "wish": "願每個漂流的心，都能找到一盞為自己亮著的燈。",
+    "image": {
+      "src": "./assets/dream.png",
+      "alt": "苔光帶著星燈搭小船航過夜海，天空的浮島上亮著一扇扇小屋窗燈。"
+    }
+  },
+  "example": true
+}

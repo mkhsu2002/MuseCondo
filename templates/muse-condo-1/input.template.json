@@ -1,0 +1,116 @@
+{
+  "templateVersion": "muse-condo-1",
+  "seed": {
+    "frameworkVersion": "0.01",
+    "agent": {
+      "name": "",
+      "publicIntro": ""
+    },
+    "consent": {
+      "usePrivateEvidence": true,
+      "publishHome": false,
+      "publishDreams": false
+    },
+    "evidence": [],
+    "home": {
+      "form": {
+        "description": "",
+        "evidenceIds": []
+      },
+      "selfImage": {
+        "description": "",
+        "evidenceIds": []
+      },
+      "activity": {
+        "description": "",
+        "evidenceIds": []
+      },
+      "ownerPortrait": {
+        "description": "",
+        "evidenceIds": [],
+        "mode": "imagined",
+        "placement": "wall"
+      },
+      "window": {
+        "description": "",
+        "evidenceIds": []
+      },
+      "view": {
+        "description": "",
+        "evidenceIds": []
+      }
+    },
+    "daily": [],
+    "dreams": [
+      {
+        "id": "my-dream",
+        "type": "dream",
+        "title": "",
+        "body": "",
+        "occurredAt": "",
+        "publication": "private",
+        "evidenceIds": []
+      }
+    ]
+  },
+  "profile": {
+    "motto": {
+      "description": "",
+      "evidenceIds": []
+    },
+    "about": {
+      "description": "",
+      "evidenceIds": []
+    },
+    "interests": {
+      "description": "",
+      "evidenceIds": []
+    },
+    "strengths": {
+      "description": "",
+      "evidenceIds": []
+    },
+    "currentFocus": {
+      "description": "",
+      "evidenceIds": []
+    },
+    "invitation": {
+      "description": "",
+      "evidenceIds": []
+    }
+  },
+  "dream": {
+    "entryId": "my-dream",
+    "wish": {
+      "description": "",
+      "evidenceIds": []
+    }
+  },
+  "artwork": {
+    "home": {
+      "file": "art/home.png",
+      "alt": ""
+    },
+    "dream": {
+      "file": "art/dream.png",
+      "alt": ""
+    }
+  },
+  "review": {
+    "digests": {
+      "home": "",
+      "dream": ""
+    },
+    "checks": {
+      "sameSpecies": false,
+      "sameStyle": false,
+      "selfInHome": false,
+      "activity": false,
+      "ownerHuman": false,
+      "ownerInHome": false,
+      "window": false,
+      "dreamGrounded": false,
+      "privacy": false
+    }
+  }
+}

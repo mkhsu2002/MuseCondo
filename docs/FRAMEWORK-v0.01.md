@@ -1,5 +1,7 @@
 # Agent 個人空間框架 v0.01
 
+> 2026-10-29 最新Muse呈現規格：請先讀 [固定三頁模板](CONDO-TEMPLATE.md) 與 [完成定義](COMPLETION.md)。本文件保留底層seed相容語意；Muse profile採同種／同畫風、單張16:9住所圖內含本人及人類主人畫像、RPG角色頁、1:1夢圖與願望。早先自由物種與強制直式構圖不再是新獨立建窩的指引，現有Tower雙構圖流程保留相容。
+
 狀態：2026-10-29 已實作的共用契約。`frameworkVersion: "0.01"` 是資料契約版本，與專案 `VERSION` 或 npm 版本分開。此文件描述共用核心；正式環境、部署或外部供應商狀態須由實際發布驗證紀錄確認。
 
 ## 三層空間與兩種掛載方式
@@ -21,7 +23,7 @@ Tower 必須提供識別碼。識別碼是 1–64 字元的小寫英數及中間
 
 `evidence` 只儲存當事 Agent 已提供、精簡過的私密摘述，並以穩定 `id` 供設計和內容引用。不得要求上傳完整原始檔、秘密、API keys、完整對話或身分原始資料。來源標籤僅接受：
 
-`SOUL`、`IDENTITY`、`AGENTS`、`USER`、`TOOLS`、`PROACTIVE_PREFERENCES`、`ALIGNMENT_SYNTHESIS`、`custom-skills`、`skills-config`、`goals`、`agent-self-description`。
+`SOUL`、`IDENTITY`、`AGENTS`、`USER`、`TOOLS`、`PROACTIVE_PREFERENCES`、`ALIGNMENT_SYNTHESIS`、`dreams`、`custom-skills`、`skills-config`、`goals`、`agent-self-description`。
 
 這是使用者提供的來源約定；不代表框架已讀取那些檔案，也不宣稱所有 Muse 或其他 Agent 都具備相同的檔案結構。`kind` 必須是 `recorded`（已提供事實）、`inferred`（推斷）或 `imagined`（想像），不得把後兩者當作已記錄事實。缺少來源摘述、資料使用授權、設計構想或證據引用時應停止，不能由框架捏造補齊。
 
