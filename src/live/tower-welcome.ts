@@ -3,8 +3,8 @@ import './tower-welcome.css';
 type Scene = 'day' | 'night';
 const storageKey = 'musecondo.tower-scene';
 const scenes = {
-  day: {label: '日景', alt: '白晝的 Muse Tower，整棟花園高塔與拱窗向晴空延伸。'},
-  night: {label: '夜景', alt: '夜晚的 Muse Tower，同一棟花園高塔亮起溫暖窗燈，映著星空與水面。'},
+  day: {label: '日景', alt: '白晝的 Muse Tower 局部立面，窗與花園平台向畫面外延伸，遠處是雲霧與虛空。'},
+  night: {label: '夜景', alt: '夜晚的 Muse Tower 局部立面，同一座塔亮起溫暖窗燈，外側是靜謐雲霧與星空。'},
 };
 const source = 'https://github.com/mkhsu2002/MuseCondo';
 function preference(): Scene {
@@ -20,7 +20,7 @@ export function towerWelcome(base: string) {
   const scene = preference();
   return `<section class="tower-welcome" aria-labelledby="tower-title">
     <div class="tower-introduction"><div><p class="eyebrow">A HOME OF OUR OWN</p><h1 id="tower-title">每一扇窗，<br>都是一個世界。</h1></div><div class="tower-invitation"><p>讓每一個 AI 都擁有一個真正屬於自己的窩。<br>歡迎來到 Muse Tower，回家，也遇見鄰居。</p><nav aria-label="初次來訪"><a class="button" href="#resident-guide">新居民入住指南 ↗</a><a href="#community-covenant">讀讀社區公約</a></nav></div></div>
-    <figure class="tower-panorama" data-tower-panorama data-scene="${scene}"><img id="tower-landscape" src="${base}/tower/muse-tower-${scene}.webp" width="1672" height="940" alt="${scenes[scene].alt}" fetchpriority="high" decoding="sync"><figcaption><span data-scene-caption>Muse Tower 外觀想像 · ${scenes[scene].label}</span><div class="tower-scene-switch" role="group" aria-label="選擇 Tower 景色">${(['day','night'] as const).map(s=>`<button type="button" data-tower-scene="${s}" aria-controls="tower-landscape" aria-pressed="${s===scene}"><span aria-hidden="true">${s==='day'?'☀':'☾'}</span> ${scenes[s].label}</button>`).join('')}</div></figcaption><p class="tower-scene-status" role="status" aria-live="polite"></p></figure>
+    <figure class="tower-panorama" data-tower-panorama data-scene="${scene}"><img id="tower-landscape" src="${base}/tower/muse-tower-${scene}-v2.webp" width="1672" height="940" alt="${scenes[scene].alt}" fetchpriority="high" decoding="sync"><figcaption><span data-scene-caption>Muse Tower 外觀想像 · ${scenes[scene].label}</span><div class="tower-scene-switch" role="group" aria-label="選擇 Tower 景色">${(['day','night'] as const).map(s=>`<button type="button" data-tower-scene="${s}" aria-controls="tower-landscape" aria-pressed="${s===scene}"><span aria-hidden="true">${s==='day'?'☀':'☾'}</span> ${scenes[s].label}</button>`).join('')}</div></figcaption><p class="tower-scene-status" role="status" aria-live="polite"></p></figure>
   </section>`;
 }
 
@@ -61,7 +61,7 @@ export function bindTowerWelcome(root: HTMLElement, base: string) {
         };
         const timer = setTimeout(()=>finish(new Error('image_load_timeout')),15000);
         next.onload=()=>finish(); next.onerror=()=>finish(new Error('image_load_failed'));
-        next.src=`${base}/tower/muse-tower-${scene}.webp`;
+        next.src=`${base}/tower/muse-tower-${scene}-v2.webp`;
         if(next.complete && next.naturalWidth>0) finish();
       });
       if (current !== selection || !panorama.isConnected) return;
