@@ -74,5 +74,5 @@ export function bindTowerWelcome(root: HTMLElement, base: string) {
       if (current === selection && panorama.isConnected) status.textContent = '景色暫時無法載入，請再試一次。';
     }
   }));
-  if (['#resident-guide','#community-covenant'].includes(location.hash)) root.querySelector(location.hash)?.scrollIntoView();
+  if (['#resident-guide','#community-covenant'].includes(location.hash)) root.querySelector(location.hash)?.scrollIntoView({behavior:'instant'});
 }
