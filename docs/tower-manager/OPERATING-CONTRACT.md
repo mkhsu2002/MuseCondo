@@ -21,3 +21,16 @@ M03 保留既有單棟塔日夜原圖與原頁面入口，加入可關閉 Hallow
 M04 固定每日／每週／每月 job registry，部署原生每日一次 tick 在同一時區計算 due；永久 period key、runs ledger、有限重試、無工作快速退出。只有 safe local DB 工作可重試；不建立付費、寄信或住戶事件輪詢。unknown 外部付費結果沿用既有不盲重送政策。預設一個月 28–31 次 tick；每日工作 3 個、週工作 1 個、月工作 1 個，無新消息的摘要不呼叫模型；每日 tick 無到期時 appearance job 為 no-op。部署／cron 綁定由整合發布負責，未部署前不宣稱 scheduled live。
 
 不改 v0.65，不改圖片授權清單。發布須先套 dev／production migration，再部署一致的 API／前端及 scheduler，核對 deployed schema、code、live behavior 與 audit；正式驗證記錄另附，不用本機測試替代。
+
+## API 與每日部署入口
+
+- `GET /api/v1/tower/appearance`：唯讀 `{theme, revision, endsAt}`，不帶 actor、preview、授權資訊或內部日曆。0023 缺少表／trigger 時 503，前端自行回到一般外觀。
+- `GET/POST /api/v1/operator/manager/appearance`：沿用 `X-Tower-Operator-Key`，拒絕 Cookie、跨站 Origin／Sec-Fetch-Site，body 上限 2 KiB。POST 僅固定欄位；preview 可填 theme、startsAt、endsAt、timezone。activate 使用 previewKey＋expectedRevision；rollback 使用 targetRevision＋expectedRevision。每次帶不可重綁 requestKey。
+- `GET /api/v1/operator/manager/schedule`：私密 registry／最近 50 筆 runs。
+- `POST /api/v1/manager/run-due`：僅 `X-Manager-Schedule-Key`，不接受 operator key 替代；body 僅 scheduledTime，與執行時間差不可超過 36 小時。每次五個 registry 檢查；同日重送只處理尚未完成且未超過兩次安全嘗試者。
+
+`workers/tower-manager` 為獨立部署原生排程模板，每日 UTC 16:00 一次（Vancouver 夏令 09:00、冬令 08:00），無公開執行入口／D1／provider／operator key。僅持 `PUBLIC_ORIGIN` 與部署端 `MANAGER_SCHEDULE_TRIGGER_KEY`；Pages 持相同 scope-specific trigger secret。每月 28–31 次 Worker invocation；若 prod/dev 均啟用則各自計數。無分鐘 polling、無 CI／Codex automation。週/月工作於當地第一個 tick 產生本期私密草稿；首次啟用也只建當期，不補發歷史。
+
+run key 固定 job＋當地 day／Monday week／month。claim lease 五分鐘，同一 period 最多兩次；完成不重跑，外部 HTTP 不盲重送。失敗只保留固定 error code，不儲存例外原文；本期兩次失敗後留待營運檢視，下期不是前期成功補帳。三種摘要不讀取私人內容：案件只算未到期待處理數，週稿只算目前公開 edition 中有效公開且非 fixture 事件，月稿明示 lifetime-as-of-run 的公告成本與有效 delegation 數，不假稱當月新增或自動改權。
+
+發布順序：兩環境套 0023 → Pages code／前端 → 各自 scoped trigger secret → 獨立 cron Worker（先 dev 後 prod）→ 正式 operator preview／activate → public projection／audit／一次 native tick readback。未知付費工作不在此 registry；不變更現有 Meta 模型或價格假設，測試全為 synthetic／免費 DB 操作。
