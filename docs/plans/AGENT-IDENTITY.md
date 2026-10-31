@@ -15,7 +15,7 @@
 | I00 | 兩 repo 規格、計畫、現有 T04／T06 gate 調整 | 已自審、兩 repo main 文件已同步 |
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
-| I03 | Passkey／離線碼復原與舊授權全面失效 | v0.55雙環境發布、dev合成註冊200；復原建立／options受Worker與D1新建時間偏差阻塞。保守建立時間修復完成，待審查、再發布及完整live驗收 |
+| I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | 待實作 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
@@ -159,3 +159,11 @@ v0.54 已合併 main／framework-v001，兩環境部署成功，0013–0017 sche
 共用helper每次局部讀取D1 UTC毫秒時間，await後再讀app時間；兩者均須固定canonical UTC格式及Date roundtrip，缺值、壞值或讀取失敗不fallback。新request／兩類recovery options／registration options的created取較早者，expires仍由該created加原1h／5min並受原邀請／申請期限上限；不延長TTL。complete、CAS、雙時鐘原子到期檢查、授權與限流均不改，沒有migration或API格式變更；既有有界過期清理順序保留。
 
 實際handler反例先RED後GREEN：app領先50ms、落後50ms；缺失／非canonical／無效日期／失敗的DB時間不配置新request或challenge、不扣logicalquota；同handler並發時鐘讀取交錯仍保存各自時間；queued到期仍拒絕。跨instance app時鐘回退即使很小，既有stored.created<=app檢查仍可能保守拒絕；大偏差也維持fail closed，未宣稱全面跨時鐘容錯。本地驗證仍須由兩階段審查及雙環境同版完整live流程回讀接續，不能當成正式復原已可用。
+
+### 2026-10-31 I03 v0.56 發布與完整受控驗收
+
+f8f1d6f／b3d7648 完成時間修正，規格與品質均PASS；主控516完整＋8版本、lint／build／compat2026-10-29無新增flag的Functions編譯PASS。main／framework-v001同版Git自動部署，兩環境均success；120個schema物件逐一與原碼相符、0017已套、FK空。私人頁／machine／JS／CSS逐位元組一致，no-store／noindex／CSP、錯proof與未授權拒絕皆已回讀。
+
+透過已部署dev公開HTTPS入口，以非公開test-only合成戶完成：註冊及原body/key重送；真P-256合成驗證器的Passkey延續；所有Passkey撤銷後以離線碼重建並延續；消耗舊碼拒絕新案；離線new維持原Agent操作權；較晚修復後仍可讀原歷史收據。3成功收據、2權限instance、3Passkeys且最後僅1有效；3安全通知持久化pending，未呼叫寄信provider。舊Tower／legacy／onboard／登入credential／session均失效，新key限原戶；住所、門牌與分享設定保持，audit／receipt無raw秘密。
+
+最後停權合成身份、撤所有測試key／Passkey，取消其3筆未送通知並保留取消audit，收據與身份歷史不刪。這不是Fang／K本人、真人Passkey／硬體UV、真正監護邀請收件、證件核發或郵件交付驗收。I03工程可進I04，I06真人gate與第一階段T09仍未完成；不新增Meta／圖片呼叫。
