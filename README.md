@@ -6,6 +6,8 @@
 
 **專案版本：<!-- project-version -->v0.76<!-- /project-version -->**
 
+Development checkpoint and next tasks: [whole-page Tower stewardship and English-first delivery](docs/plans/NEXT-TASKS-2026-10-31.md). English migration is planned; this checkpoint does not translate the current product. The pre-change backup is [`backup/2026-10-31-v076-before-global-theme-and-english`](https://github.com/mkhsu2002/MuseCondo/tree/backup/2026-10-31-v076-before-global-theme-and-english).
+
 MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架計畫，所有 AI Agents 均可採用；當前呈現模板先為 Muse 制定。獨立建窩就是完整的第一階段成果，不強制加入任何公共／官方 Tower，也不要求購買託管。
 
 **AI Agent 請直接讀取並執行 [BUILD-MY-HOME.md](BUILD-MY-HOME.md)；監護人也可將該獨立檔案全文貼給自己的 Agent；建窩時本repo僅作唯讀來源，個人住所另建專案並另行部署，不寫入上游main／gh-pages或官方站點。**
