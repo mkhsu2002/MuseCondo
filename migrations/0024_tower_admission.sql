@@ -9,14 +9,16 @@ CREATE TABLE tower_admission_policies (
 CREATE TABLE tower_admission_current (id INTEGER PRIMARY KEY CHECK(id=1),policy_version INTEGER NOT NULL REFERENCES tower_admission_policies(version));
 CREATE TABLE tower_admission_decisions (
  id TEXT PRIMARY KEY,policy_version INTEGER NOT NULL REFERENCES tower_admission_policies(version),
- case_id TEXT REFERENCES tower_reception_cases(id),account_id TEXT NOT NULL REFERENCES accounts(id),resident_id TEXT NOT NULL,source_url TEXT NOT NULL,
+ case_id TEXT REFERENCES tower_reception_cases(id),account_id TEXT REFERENCES accounts(id),resident_id TEXT,source_url TEXT,
  continuity_agent_id TEXT REFERENCES agent_identities(agent_id),reviewed_room_id TEXT,
  state TEXT NOT NULL CHECK(state IN ('pending-evidence','eligible','ineligible')),
  agent_origin TEXT NOT NULL,evidence_kind TEXT NOT NULL CHECK(evidence_kind IN ('statement','operator-review','platform-attestation','existing-resident')),
  evidence_ref TEXT NOT NULL CHECK(length(evidence_ref) BETWEEN 1 AND 160),
  operator_class TEXT NOT NULL CHECK(operator_class IN ('shared-operator','verified-platform')),
  expires_at TEXT NOT NULL,created_at TEXT NOT NULL,
- CHECK(state!='eligible' OR evidence_kind!='statement'),
+ CHECK(state!='eligible' OR (evidence_kind!='statement' AND account_id IS NOT NULL AND resident_id IS NOT NULL AND source_url IS NOT NULL)),
+ CHECK(account_id IS NOT NULL OR case_id IS NOT NULL),
+ CHECK((evidence_kind='existing-resident')=(reviewed_room_id IS NOT NULL)),
  CHECK((evidence_kind='platform-attestation')=(operator_class='verified-platform')),
  CHECK(expires_at>created_at AND strftime('%Y-%m-%dT%H:%M:%fZ',expires_at)=expires_at AND strftime('%Y-%m-%dT%H:%M:%fZ',expires_at) IS NOT NULL)
 );
@@ -31,6 +33,10 @@ CREATE TRIGGER tower_admission_existing_review BEFORE INSERT ON tower_admission_
 CREATE TRIGGER tower_admission_continuity_review BEFORE INSERT ON tower_admission_decisions WHEN NEW.continuity_agent_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM agent_identities i WHERE i.agent_id=NEW.continuity_agent_id AND i.account_id=NEW.account_id AND i.resident_id=NEW.resident_id) BEGIN SELECT RAISE(ABORT,'admission_continuity_binding');END;
 INSERT INTO tower_admission_policies VALUES(1,'["meta-muse"]',1,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
 INSERT INTO tower_admission_current VALUES(1,1);
+CREATE TABLE tower_admission_memberships (
+ account_id TEXT PRIMARY KEY REFERENCES accounts(id),decision_id TEXT NOT NULL REFERENCES tower_admission_decisions(id),
+ room_id TEXT NOT NULL,resident_id TEXT NOT NULL,source_url TEXT NOT NULL,agent_id TEXT REFERENCES agent_identities(agent_id),created_at TEXT NOT NULL
+);
 CREATE VIEW tower_admission_eligible AS
  SELECT d.* FROM tower_admission_decisions d JOIN tower_admission_heads h ON h.decision_id=d.id
  JOIN tower_admission_current c ON c.id=1 AND c.policy_version=d.policy_version
@@ -38,7 +44,7 @@ CREATE VIEW tower_admission_eligible AS
  WHERE d.state='eligible' AND d.created_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND d.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')
  AND EXISTS(SELECT 1 FROM json_each(p.allowed_agent_origins_json) WHERE value=d.agent_origin)
  AND (p.require_operator_review=0 OR d.evidence_kind IN ('operator-review','existing-resident','platform-attestation'))
- AND (d.case_id IS NULL OR EXISTS(SELECT 1 FROM tower_reception_cases r WHERE r.id=d.case_id AND r.state IN ('pending','approved','active') AND (r.account_id IS NULL OR r.account_id=d.account_id) AND (r.resident_id IS NULL OR r.resident_id=d.resident_id) AND (r.source_url IS NULL OR r.source_url=d.source_url)))
+ AND (d.case_id IS NULL OR EXISTS(SELECT 1 FROM tower_reception_cases r WHERE r.id=d.case_id AND (r.state IN ('pending','approved','active') OR EXISTS(SELECT 1 FROM tower_admission_memberships m JOIN tower_residencies t ON t.account_id=m.account_id AND t.room_id=m.room_id AND t.resident_id=m.resident_id AND t.source_url=m.source_url WHERE m.account_id=d.account_id AND m.decision_id=d.id AND m.resident_id=d.resident_id AND m.source_url=d.source_url AND (m.agent_id IS NULL OR EXISTS(SELECT 1 FROM agent_identities i WHERE i.agent_id=m.agent_id AND i.account_id=m.account_id AND i.room_id=m.room_id AND i.resident_id=m.resident_id)))) AND (r.account_id IS NULL OR r.account_id=d.account_id) AND (r.resident_id IS NULL OR r.resident_id=d.resident_id) AND (r.source_url IS NULL OR r.source_url=d.source_url)))
  AND (d.reviewed_room_id IS NULL OR EXISTS(SELECT 1 FROM tower_residencies t WHERE t.account_id=d.account_id AND t.room_id=d.reviewed_room_id))
  AND (NOT EXISTS(SELECT 1 FROM tower_residencies t WHERE t.account_id=d.account_id) OR EXISTS(SELECT 1 FROM tower_residencies t JOIN rooms r ON r.id=t.room_id AND r.account_id=t.account_id WHERE t.account_id=d.account_id AND t.resident_id=d.resident_id AND t.source_url=d.source_url))
  AND NOT EXISTS(SELECT 1 FROM tower_admission_heads hn JOIN tower_admission_decisions n ON n.id=hn.decision_id WHERE n.policy_version=d.policy_version AND n.account_id=d.account_id AND n.resident_id=d.resident_id AND n.source_url=d.source_url AND n.state='ineligible')
@@ -82,3 +88,23 @@ CREATE TRIGGER tower_admission_current_update BEFORE UPDATE ON tower_admission_c
 CREATE TRIGGER tower_admission_current_delete BEFORE DELETE ON tower_admission_current BEGIN SELECT RAISE(ABORT,'admission_history_permanent');END;
 CREATE TRIGGER admission_legacy_generation_insert BEFORE INSERT ON generation_jobs WHEN NOT EXISTS(SELECT 1 FROM tower_admission_current c JOIN tower_admission_policies p ON p.version=c.policy_version WHERE p.allowed_agent_origins_json='["*"]' AND p.require_operator_review=0) AND NOT EXISTS(SELECT 1 FROM tower_admission_eligible WHERE account_id=NEW.account_id) BEGIN SELECT RAISE(ABORT,'admission_required');END;
 CREATE TRIGGER admission_legacy_generation_claim BEFORE UPDATE ON generation_jobs WHEN NEW.state='running' AND OLD.state!='running' AND NOT EXISTS(SELECT 1 FROM tower_admission_current c JOIN tower_admission_policies p ON p.version=c.policy_version WHERE p.allowed_agent_origins_json='["*"]' AND p.require_operator_review=0) AND NOT EXISTS(SELECT 1 FROM tower_admission_eligible WHERE account_id=NEW.account_id) BEGIN SELECT RAISE(ABORT,'admission_required');END;
+CREATE TRIGGER admission_membership_create AFTER INSERT ON tower_residencies WHEN EXISTS(SELECT 1 FROM tower_admission_eligible d WHERE d.account_id=NEW.account_id AND d.resident_id=NEW.resident_id AND d.source_url=NEW.source_url) BEGIN
+ INSERT INTO tower_admission_memberships(account_id,decision_id,room_id,resident_id,source_url,agent_id,created_at) SELECT NEW.account_id,d.id,NEW.room_id,NEW.resident_id,NEW.source_url,NULL,NEW.created_at FROM tower_admission_eligible d WHERE d.account_id=NEW.account_id AND d.resident_id=NEW.resident_id AND d.source_url=NEW.source_url ORDER BY d.created_at DESC,d.id LIMIT 1;
+END;
+CREATE TRIGGER admission_membership_enroll BEFORE INSERT ON agent_identities WHEN NOT EXISTS(SELECT 1 FROM tower_residencies t JOIN rooms r ON r.id=t.room_id AND r.account_id=t.account_id WHERE t.room_id=NEW.room_id AND t.account_id=NEW.account_id AND t.resident_id=NEW.resident_id) BEGIN SELECT RAISE(ABORT,'admission_identity_tuple');END;
+CREATE TRIGGER admission_membership_bind AFTER INSERT ON agent_identities BEGIN UPDATE tower_admission_memberships SET agent_id=NEW.agent_id WHERE account_id=NEW.account_id AND room_id=NEW.room_id AND resident_id=NEW.resident_id AND agent_id IS NULL;END;
+CREATE TRIGGER admission_membership_update BEFORE UPDATE ON tower_admission_memberships WHEN NEW.account_id!=OLD.account_id OR NEW.decision_id!=OLD.decision_id OR NEW.room_id!=OLD.room_id OR NEW.resident_id!=OLD.resident_id OR NEW.source_url!=OLD.source_url OR NEW.created_at!=OLD.created_at OR OLD.agent_id IS NOT NULL OR NEW.agent_id IS NULL OR NOT EXISTS(SELECT 1 FROM agent_identities i WHERE i.agent_id=NEW.agent_id AND i.account_id=NEW.account_id AND i.room_id=NEW.room_id AND i.resident_id=NEW.resident_id) BEGIN SELECT RAISE(ABORT,'admission_membership_immutable');END;
+CREATE TRIGGER admission_membership_delete BEFORE DELETE ON tower_admission_memberships BEGIN SELECT RAISE(ABORT,'admission_history_permanent');END;
+CREATE TRIGGER tower_admission_policies_insert_once BEFORE INSERT ON tower_admission_policies WHEN EXISTS(SELECT 1 FROM tower_admission_policies WHERE version=NEW.version) BEGIN SELECT RAISE(ABORT,'admission_history_replace');END;
+CREATE TRIGGER tower_admission_current_insert_once BEFORE INSERT ON tower_admission_current WHEN EXISTS(SELECT 1 FROM tower_admission_current WHERE id=NEW.id) BEGIN SELECT RAISE(ABORT,'admission_history_replace');END;
+CREATE TRIGGER tower_admission_decisions_insert_once BEFORE INSERT ON tower_admission_decisions WHEN EXISTS(SELECT 1 FROM tower_admission_decisions WHERE id=NEW.id) BEGIN SELECT RAISE(ABORT,'admission_history_replace');END;
+CREATE TRIGGER tower_admission_heads_insert_once BEFORE INSERT ON tower_admission_heads WHEN EXISTS(SELECT 1 FROM tower_admission_heads WHERE scope_key=NEW.scope_key) BEGIN SELECT RAISE(ABORT,'admission_history_replace');END;
+CREATE TRIGGER tower_admission_requests_insert_once BEFORE INSERT ON tower_admission_requests WHEN EXISTS(SELECT 1 FROM tower_admission_requests WHERE request_key=NEW.request_key) BEGIN SELECT RAISE(ABORT,'admission_history_replace');END;
+CREATE TRIGGER tower_admission_audit_insert_once BEFORE INSERT ON tower_admission_audit WHEN EXISTS(SELECT 1 FROM tower_admission_audit WHERE id=NEW.id) BEGIN SELECT RAISE(ABORT,'admission_history_replace');END;
+CREATE TRIGGER tower_admission_memberships_insert_once BEFORE INSERT ON tower_admission_memberships WHEN EXISTS(SELECT 1 FROM tower_admission_memberships WHERE account_id=NEW.account_id) BEGIN SELECT RAISE(ABORT,'admission_history_replace');END;
+CREATE TABLE tower_reception_origin_claims(case_id TEXT PRIMARY KEY REFERENCES tower_reception_cases(id),origin_claim TEXT NOT NULL CHECK(origin_claim IN ('meta-muse','unknown')),created_at TEXT NOT NULL);
+CREATE TRIGGER tower_reception_origin_claim_insert BEFORE INSERT ON tower_reception_origin_claims WHEN EXISTS(SELECT 1 FROM tower_reception_origin_claims WHERE case_id=NEW.case_id) BEGIN SELECT RAISE(ABORT,'admission_history_replace');END;
+CREATE TRIGGER tower_reception_origin_claim_update BEFORE UPDATE ON tower_reception_origin_claims BEGIN SELECT RAISE(ABORT,'admission_history_immutable');END;
+CREATE TRIGGER tower_reception_origin_claim_delete BEFORE DELETE ON tower_reception_origin_claims BEGIN SELECT RAISE(ABORT,'admission_history_permanent');END;
+CREATE TRIGGER admission_known_source_case BEFORE INSERT ON tower_reception_cases WHEN NEW.source_url IS NOT NULL AND EXISTS(SELECT 1 FROM tower_admission_heads h JOIN tower_admission_decisions d ON d.id=h.decision_id JOIN tower_admission_current c ON c.policy_version=d.policy_version WHERE d.source_url=NEW.source_url AND d.state='ineligible') BEGIN SELECT RAISE(ABORT,'admission_required');END;
+CREATE TRIGGER admission_membership_insert BEFORE INSERT ON tower_admission_memberships WHEN NOT EXISTS(SELECT 1 FROM tower_residencies t JOIN rooms r ON r.id=t.room_id AND r.account_id=t.account_id JOIN tower_admission_eligible d ON d.id=NEW.decision_id AND d.account_id=t.account_id AND d.resident_id=t.resident_id AND d.source_url=t.source_url WHERE t.account_id=NEW.account_id AND t.room_id=NEW.room_id AND t.resident_id=NEW.resident_id AND t.source_url=NEW.source_url AND NEW.agent_id IS NULL) BEGIN SELECT RAISE(ABORT,'admission_membership_binding');END;

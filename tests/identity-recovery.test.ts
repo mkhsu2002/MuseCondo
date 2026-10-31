@@ -25,7 +25,7 @@ const origin = "https://identity.example",
   candidate = "1".repeat(64);
 const native = new LocalDatabase(":memory:");
 test.after(() => native.close());
-async function fixture(onMailEvent?: (id: string) => void | Promise<void>) {
+async function fixture(onMailEvent?: (id: string) => void | Promise<void>, officialAdmission=false) {
   const db = new LocalDatabase(":memory:");
   for (const name of readdirSync(new URL("../migrations/", import.meta.url))
     .filter((x) => x.endsWith(".sql"))
@@ -48,6 +48,16 @@ async function fixture(onMailEvent?: (id: string) => void | Promise<void>) {
   db.sqlite
     .prepare("INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)")
     .run(account, await hashIdentityInput("a".repeat(64)), time);
+  if(officialAdmission){
+    db.sqlite.prepare("INSERT INTO tower_admission_policies VALUES(3,'[\"meta-muse\"]',1,?)").run(time);
+    db.sqlite.prepare('UPDATE tower_admission_current SET policy_version=3').run();
+    const caseId='c'.repeat(32),source='https://source.example/a/condo.json';
+    db.sqlite.prepare("INSERT INTO tower_reception_cases VALUES(?,?,'pending',1,'Synthetic','new','request',?,?,NULL,NULL,NULL,'{}','{}','{}','pending','2027-01-01T00:00:00.000Z',?,?)").run(caseId,'case-hash',source,account,time,time);
+    const {createTowerAdmission}=await import('../server/live/tower-admission.ts');
+    const admitted=await createTowerAdmission({db,origin,now:()=>new Date(time),operator:async()=>true}).fetch(new Request(origin+'/api/v1/operator/tower-admission/decisions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey:'official-review-1',expectedPolicyVersion:3,expectedHeadRevision:0,caseId,accountId:account,residentId:account,sourceURL:source,continuityAgentId:null,state:'eligible',agentOrigin:'meta-muse',evidenceKind:'operator-review',evidenceRef:'evidence:synthetic',expiresAt:'2027-01-01T00:00:00.000Z',existingResidency:null})}));
+    assert.equal(admitted!.status,201,await admitted!.clone().text());
+    db.sqlite.prepare("UPDATE tower_reception_cases SET state='active',account_id=? WHERE id=?").run(account,caseId);
+  }
   db.sqlite
     .prepare(
       "INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Synthetic Home','Private','resident','external-ready',?)",
@@ -3248,5 +3258,16 @@ for(const decision of ['continue','new']) test('Pages automatically dispatches t
  suppressionFails=false;assert.deepEqual(await (await runtime.fetch(request(),enabled)).json(),result);assert.equal(posts,1);assert.equal(f.db.sqlite.prepare('SELECT state FROM identity_mail_events WHERE id=?').get(event.id)!.state,'accepted');
  assert.deepEqual(await (await runtime.fetch(request(),enabled)).json(),result);assert.equal(posts,1);assert.equal(f.count('identity_mail_dispatches'),1);assert.equal(f.count('identity_mail_finish_receipts'),1);assert.equal(f.count('identity_mail_events'),1);assert.equal(JSON.stringify(f.db.sqlite.prepare('SELECT * FROM agent_identities').all()),before);
  const payload=JSON.parse(notices[0]);assert.equal(payload.attachments,undefined);assert(!JSON.stringify(result).includes('lease'));assert(!JSON.stringify(result).includes('recipient'));assert(!JSON.stringify(result).includes('synthetic-runtime-key'));
+ }finally{f.db.close();}
+});
+
+test('reviewed case admission survives the native guardian recovery sequence revoking the original case before minting a new key',async()=>{
+ const f=await fixture(undefined,true);try{
+  const before=f.db.sqlite.prepare('SELECT * FROM tower_residencies').get();
+  const start=await f.begin();const completed=await f.send('guardian/recovery/complete',await f.body(start));
+  assert.equal(completed.status,200,await completed.clone().text());
+  assert.equal(f.db.sqlite.prepare('SELECT state FROM tower_reception_cases').get()!.state,'revoked');
+  assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM identity_recovery_instances').get()!.n,1);
+  assert.deepEqual(f.db.sqlite.prepare('SELECT * FROM tower_residencies').get(),before);
  }finally{f.db.close();}
 });

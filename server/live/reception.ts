@@ -175,7 +175,7 @@ export function createTowerReception(env: Options) {
                         reject(404, 'not_found');
                     await rate('global-open', 100);
                     await rate('ip:' + await digest(req.headers.get('CF-Connecting-IP') ?? 'unknown'), 5);
-                    const v = object(await body(req), ['requestKey', 'name', 'requestKind', 'request', 'sourceURL', 'residentId', 'authorization', 'sharing', 'visitPlan']), rk = key(v.requestKey), inputHash = await digest(JSON.stringify(v));
+                    const v = object(await body(req), ['requestKey', 'name', 'requestKind', 'request', 'sourceURL', 'residentId', 'originClaim', 'authorization', 'sharing', 'visitPlan']), rk = key(v.requestKey), inputHash = await digest(JSON.stringify(v));
                     const existing = await one<Case>('SELECT * FROM tower_reception_cases WHERE token_hash=?', hash);
                     if (existing) {
                         const r = await replay(existing, rk, 'open', inputHash);
@@ -186,6 +186,9 @@ export function createTowerReception(env: Options) {
                         reject(409, 'case_key_already_used');
                     }
                     const name = text(v.name, 80), requestText = text(v.request, 1200);
+                    const originClaim=v.originClaim??'unknown';
+                    if(!['meta-muse','unknown','other'].includes(String(originClaim)))reject(400,'invalid_origin_claim');
+                    if(originClaim==='other')reject(403,'agent_origin_ineligible');
                     if (!['new', 'takeover'].includes(String(v.requestKind)))
                         reject(400, 'invalid_request_kind');
                     const authorization = object(v.authorization, ['contact', 'application', 'towerAccess']);
@@ -197,7 +200,7 @@ export function createTowerReception(env: Options) {
                     const plan = visit(v.visitPlan), sourceURL = v.sourceURL === undefined ? null : source(v.sourceURL)!, residentId = v.residentId === undefined ? null : text(v.residentId, 80);
                     const c: Case = { id: crypto.randomUUID().replaceAll('-', ''), token_hash: hash, state: 'pending', version: 1, name, request_kind: String(v.requestKind), request_text: requestText, source_url: sourceURL, resident_id: residentId, account_id: null, approval_expires_at: null, granted_token_id: null, authorization_json: JSON.stringify(authorization), sharing_json: JSON.stringify(sharing), visit_plan_json: JSON.stringify(plan), next_action: '等待接待回覆，依自己的回訪約定查看本案。', expires_at: new Date(now().getTime() + 90 * 86400000).toISOString(), created_at: stamp(), updated_at: stamp() };
                     const response = { case: safe(c) };
-                    await db.batch([guard('(SELECT COUNT(*) FROM tower_reception_cases)<10000'), guard('NOT EXISTS(SELECT 1 FROM tower_tokens WHERE token_hash=?)', hash), stmt('INSERT INTO tower_reception_cases(id,token_hash,state,version,name,request_kind,request_text,source_url,resident_id,account_id,approval_expires_at,granted_token_id,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', ...Object.values(c)), event(c.id, 'applicant', 'open', requestText), stmt('INSERT INTO tower_reception_requests VALUES(?,?,?,?,?,?,?)', c.id, rk, 'open', inputHash, JSON.stringify(response), 201, stamp())]);
+                    await db.batch([guard('(SELECT COUNT(*) FROM tower_reception_cases)<10000'), guard('NOT EXISTS(SELECT 1 FROM tower_tokens WHERE token_hash=?)', hash), stmt('INSERT INTO tower_reception_cases(id,token_hash,state,version,name,request_kind,request_text,source_url,resident_id,account_id,approval_expires_at,granted_token_id,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', ...Object.values(c)), stmt('INSERT INTO tower_reception_origin_claims VALUES(?,?,?)',c.id,originClaim,stamp()), event(c.id, 'applicant', 'open', requestText), stmt('INSERT INTO tower_reception_requests VALUES(?,?,?,?,?,?,?)', c.id, rk, 'open', inputHash, JSON.stringify(response), 201, stamp())]);
                     return json(response, 201);
                 }
                 const c = await one<Case>('SELECT * FROM tower_reception_cases WHERE id=?' + (operator ? '' : ' AND token_hash=?'), ...[id, ...(operator ? [] : [hash])]);

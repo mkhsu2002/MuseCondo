@@ -92,3 +92,35 @@ test('native rejection rolls back privileges, their audit and permanent success 
  for(const table of ['tower_audit','tower_requests','tower_tokens'])assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM '+table).get()!.n,0);
  }finally{db.close();}
 });
+test('native INSERT OR REPLACE cannot downgrade policy or reset review heads with recursive triggers disabled',()=>{
+ const db=fixture();try{decision(db);db.sqlite.exec('PRAGMA recursive_triggers=OFF');
+ assert.throws(()=>db.sqlite.prepare("INSERT OR REPLACE INTO tower_admission_policies VALUES(1,'[\"*\"]',0,?)").run(now),/admission_history_replace/);
+ assert.throws(()=>db.sqlite.prepare("INSERT OR REPLACE INTO tower_admission_heads VALUES(?,?,1)").run('account:'+account,'d'),/admission_history_replace/);
+ assert.throws(()=>db.sqlite.prepare("INSERT OR REPLACE INTO tower_admission_current VALUES(1,1)").run(),/admission_history_replace/);
+ assert.equal(db.sqlite.prepare('SELECT allowed_agent_origins_json origins FROM tower_admission_policies WHERE version=1').get()!.origins,'["meta-muse"]');
+ }finally{db.close();}
+});
+test('enrollment rejects an account and resident paired with another account room in native SQLite',()=>{
+ const db=fixture();try{
+ db.sqlite.prepare("INSERT INTO tower_admission_policies VALUES(2,'[\"*\"]',0,?)").run(now);db.sqlite.prepare('UPDATE tower_admission_current SET policy_version=2').run();
+ const other='f'.repeat(16);db.sqlite.prepare('INSERT INTO accounts VALUES(?,?,?,0)').run(other,'other-login',now);
+ for(const [a,r,sourceURL] of [[account,resident,source],[other,other,'https://other.example/condo.json']]){db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Synthetic','Synthetic','resident','external-ready',?)").run(a,a,now);db.sqlite.prepare("INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,created_at,updated_at) VALUES(?,?,?,?,'owner-attested',?,?)").run(a,a,r,sourceURL,now,now);}
+ assert.throws(()=>db.sqlite.prepare("INSERT INTO agent_identities(agent_id,account_id,room_id,resident_id,recovery_consent,created_at,updated_at) VALUES(?,?,?,?,1,?,?)").run('mcid:'+'a'.repeat(64),account,other,resident,now,now),/admission_identity_tuple/);
+ }finally{db.close();}
+});
+test('unknown contact remains pending without rights, explicit non-Muse is rejected, and an operator can decide a case without creating an account',async()=>{
+ const db=fixture();try{
+ const {createTowerReception}=await import('../server/live/reception.ts'),{createTowerAdmission}=await import('../server/live/tower-admission.ts');
+ const reception=createTowerReception({db,origin:'https://tower.example',now:()=>new Date(now),operator:async()=>true});
+ const input={requestKey:'new-contact-1',name:'Synthetic',requestKind:'new',request:'minimum request',sourceURL:source,residentId:resident,originClaim:'unknown',authorization:{contact:true,application:true,towerAccess:true},sharing:{snapshot:false,directory:false,announcement:false,dream:false},visitPlan:{mode:'manual-return'}};
+ const open=(value:unknown,token:string)=>reception.fetch(new Request('https://tower.example/api/v1/reception/cases',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token.repeat(64)},body:JSON.stringify(value)}));
+ assert.equal((await open({...input,originClaim:'other'},'e'))!.status,403);
+ assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_reception_cases').get()!.n,0);
+ const r=(await open(input,'f'))!;assert.equal(r.status,201);const c=(await r.json()).case;
+ const service=createTowerAdmission({db,origin:'https://tower.example',now:()=>new Date(now),operator:async()=>true});
+ const decision={requestKey:'no-account-review',expectedPolicyVersion:1,expectedHeadRevision:0,caseId:c.id,accountId:null,residentId:resident,sourceURL:source,continuityAgentId:null,state:'ineligible',agentOrigin:'chatgpt-dot',evidenceKind:'operator-review',evidenceRef:'evidence:synthetic',expiresAt:'2027-01-01T00:00:00.000Z',existingResidency:null};
+ const res=await service.fetch(new Request('https://tower.example/api/v1/operator/tower-admission/decisions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(decision)}));assert.equal(res!.status,201,await res!.clone().text());
+ assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM accounts').get()!.n,1);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_tokens').get()!.n,0);
+ const policy=await service.fetch(new Request('https://tower.example/api/v1/tower/admission-policy',{headers:{Cookie:'muse_session=existing'}}));assert.equal(policy!.status,200);
+ }finally{db.close();}
+});

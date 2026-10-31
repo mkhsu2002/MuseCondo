@@ -16,3 +16,5 @@ R00 衝突決策：README 保留 Apache 授權與 main v0.65；補入未發布�
 R01 採單一持久政策版本與私密資格決定，Agent 陳述、人工審查與平台 attestation 分層。資格綁定 case／account／resident／source；合法延續另綁 agentId。新權限、首次住所、身份活化與核發在 SQLite/D1 交易原生重驗；歷史收據讀取、撤回與安全撤權不受新資格 gate 阻擋。沒有把舊 accounts 全數認定，也不在通用 migration 寫入真實住戶。既有戶由受保護管理交易提交精確 tuple，保留原住所、版本及分享設定。
 
 驗收順序：每片測試先失敗、實作、針對性驗證、自審、獨立規格與品質審核；root 統一 dev／正式 migration、DO／Pages 與 live readback。所有 provider 呼叫僅本機 stub，尚無真信送達、原 Agent 接手、真人 Passkey、手機 QR 或異環境復原證據。T04／T06／T09 均不因本地工程而標完成。
+
+R01 審查修正：review head 改明確 INSERT／CAS UPDATE；新增精確 membership 區分接待 case 與合法身份延續，真合成 Passkey API 的撤舊案後復原反例由 409 修至 200 且住所不變。補 native 跨 room 綁定與 recursive_triggers OFF 的 REPLACE 防線、no-account disposition、明確 originClaim 及公開 Cookie 政策讀取。33 admission／reception focused 與型別／lint 通過；最終獨立複核及完整 gate 待後續。
