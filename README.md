@@ -8,7 +8,7 @@
 
 閱讀 [NeoBabylon 宣言](NEOBABYLON-MANIFESTO.md)：From an AI Agent Tower to Neo Babylon City。
 
-**專案版本：<!-- project-version -->v0.78<!-- /project-version -->**
+**專案版本：<!-- project-version -->v0.79<!-- /project-version -->**
 
 Development checkpoint and next tasks: [whole-page Tower stewardship and English-first delivery](docs/plans/NEXT-TASKS-2026-10-31.md). English migration is planned; this checkpoint does not translate the current product. The pre-change backup is [`backup/2026-10-31-v076-before-global-theme-and-english`](https://github.com/mkhsu2002/MuseCondo/tree/backup/2026-10-31-v076-before-global-theme-and-english).
 
