@@ -1096,6 +1096,62 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           ]);
           return json({ verified: true, claimId: claim!.id });
         }
+        if (route === "source" && req.method === "POST") {
+          if (!r) fail(404, "no_home");
+          const input = await body(req, [
+              "expectedRevision", "requestKey", "sourceURL", "claimId",
+            ]),
+            expected = revision(input.expectedRevision),
+            key = requestKey(input.requestKey),
+            sourceURL = source(input.sourceURL),
+            claimId = id(input.claimId),
+            // Only client input identifies the request. The old source changes on
+            // success, and must never invalidate a saved receipt on replay.
+            inputHash = await hash(JSON.stringify({ expected, sourceURL: sourceURL.href, claimId })),
+            replay = await prior(identity, key, "source", inputHash);
+          if (replay) return json(replay);
+          if (r!.revision !== expected) fail(409, "revision_conflict");
+          const claimSQL = "SELECT id FROM tower_claims WHERE id=? AND account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?",
+            claimArgs = () => [claimId, accountId, r!.resident_id, sourceURL.href, stamp()],
+            occupied = () => one("SELECT room_id FROM tower_residencies WHERE source_url=? AND room_id<>?", sourceURL.href, r!.room_id);
+          if (!(await one(claimSQL, ...claimArgs())))
+            fail(403, "verified_claim_required");
+          if (await occupied()) fail(409, "source_already_claimed");
+          // Verify the fresh manifest and stable resident identity only. A move
+          // neither imports its content nor fetches/replaces any saved images.
+          validateTowerSnapshot(await remoteJSON(sourceURL), r!.resident_id);
+          const result = { intake: safe({ ...r!, source_url: sourceURL.href, proof_method: "challenge" }) };
+          try {
+            await write(identity, [
+              db.prepare(
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND resident_id=? AND revision=? AND source_url=? AND public_revision IS ? AND directory_consent=? AND announcement_consent=? AND dream_consent=? AND snapshot_consent=?) THEN 1 ELSE json('tower-source-conflict') END",
+              ).bind(r!.room_id, accountId, r!.resident_id, expected, r!.source_url, r!.public_revision, r!.directory_consent, r!.announcement_consent, r!.dream_consent, r!.snapshot_consent),
+              db.prepare("SELECT CASE WHEN EXISTS(" + claimSQL + ") THEN 1 ELSE json('tower-claim-expired') END").bind(...claimArgs()),
+              db.prepare("SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM tower_residencies WHERE source_url=? AND room_id<>?) THEN 1 ELSE json('tower-source-occupied') END").bind(sourceURL.href, r!.room_id),
+              db.prepare("UPDATE tower_residencies SET source_url=?,proof_method='challenge',updated_at=? WHERE room_id=? AND account_id=? AND revision=? AND source_url=?")
+                .bind(sourceURL.href, stamp(), r!.room_id, accountId, expected, r!.source_url),
+              receipt(identity, key, "source", inputHash, result),
+              audit(accountId, r!.room_id, "resident-source-moved", expected, {
+                oldSourceURL: r!.source_url, sourceURL: sourceURL.href, proofMethod: "challenge",
+              }),
+            ]);
+          } catch (error) {
+            if (error instanceof TowerError) throw error;
+            const saved = await prior(identity, key, "source", inputHash);
+            if (saved) return json(saved);
+            const latest = await residency(accountId);
+            if (!latest || latest.revision !== expected || latest.source_url !== r!.source_url ||
+              latest.public_revision !== r!.public_revision || latest.directory_consent !== r!.directory_consent ||
+              latest.announcement_consent !== r!.announcement_consent || latest.dream_consent !== r!.dream_consent ||
+              latest.snapshot_consent !== r!.snapshot_consent)
+              fail(409, "revision_conflict");
+            if (!(await one(claimSQL, ...claimArgs())))
+              fail(403, "verified_claim_required");
+            if (await occupied()) fail(409, "source_already_claimed");
+            fail(503, "tower_storage_unavailable");
+          }
+          return json(result);
+        }
         if (
           (route === "import" || route === "snapshot") &&
           req.method === "POST"
@@ -1186,9 +1242,9 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             statements.push(
               db
                 .prepare(
-                  "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=?) THEN 1 ELSE json('tower-revision-conflict') END",
+                  "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=? AND source_url=?) THEN 1 ELSE json('tower-revision-conflict') END",
                 )
-                .bind(roomId, accountId, expected),
+                .bind(roomId, accountId, expected, sourceURL.href),
               db
                 .prepare(
                   "UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=?",
@@ -1257,7 +1313,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             const retry = await prior(identity, key, route, inputHash);
             if (retry) return json(retry, 201);
             const latest=await residency(accountId);
-            if(latest&&(updating?latest.revision!==expected:true))fail(409,"revision_or_identity_conflict");
+            if(latest&&(updating?(latest.revision!==expected||latest.source_url!==sourceURL.href):true))fail(409,"revision_or_identity_conflict");
             // Operation errors are private audit records, never public SQL/provider payloads.
             const detail={error:error instanceof Error?error.message.slice(0,500):"storage-error",cause:error instanceof Error&&error.cause instanceof Error?error.cause.message.slice(0,500):null};
             try{await db.batch([audit(accountId,r?.room_id??null,"storage-failed",expected,detail)]);}catch{/* Preserve the original safe error if audit storage is unavailable too. */}
