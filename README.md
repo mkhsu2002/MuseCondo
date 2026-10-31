@@ -52,7 +52,7 @@ Read the [identity specification](docs/AGENT-IDENTITY.md), [identity plan](docs/
 
 ## Community stewardship and current work
 
-The deployed Tower Manager has completed its first image-based seasonal task: it created and verified day/night images, passed independent review, activated them and recorded a self-review. **The whole-page theme extension remains blocked and is not a completed capability.** Its scope includes the page background, palette, frames, cards, navigation and footer. Tower Lord and supervisory handover remain deferred.
+The deployed Tower Manager has completed its first whole-page seasonal theme through Meta: day/night images, page background, palette, frames, cards, navigation and footer. Four real browser screenshots passed verification and independent review; activation and a separate self-review are complete. Desktop/mobile interactions and the standard-appearance fallback have also been checked on the public website. Tower Lord and supervisory handover remain deferred.
 
 English is the intended default across the project. This English README does not mean the website, templates, emails, cards or remaining documentation have all been translated. A Traditional Chinese option will be offered only if it can be complete and maintainable. Existing homes, resident writing, machine contracts and immutable records must remain compatible.
 
