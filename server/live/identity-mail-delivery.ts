@@ -134,7 +134,7 @@ export function createIdentityMailDelivery(env:IdentityMailDeliveryEnvironment){
   return apply('readback',opId,providerEmail,facts.includes(last as Fact)?last as Fact:'accepted',raw);
  }
  async function safe<T>(action:()=>Promise<T>):Promise<T>{try{return await action();}catch(error){if(error instanceof DeliveryError)throw error;fail(503,'delivery_unavailable');}}
- return {receipt:(source:Source,id:string)=>safe(()=>receipt(source,id)),status:(id:string)=>safe(()=>status(id)),applyReadback:(opId:string,email:unknown)=>safe(()=>readback(opId,email)),async handleWebhook(request:Request):Promise<Response>{
+ return {control:(id:string)=>safe(async()=>{configured();if(!eventId(id))fail(400,'delivery_control_rejected');const c=await historical(id);return c?{eventId:id,providerId:c.row.provider_id,recipient:c.recipient,from:c.from,subject:c.subject,createdAt:c.row.created_at}:null;}),receipt:(source:Source,id:string)=>safe(()=>receipt(source,id)),status:(id:string)=>safe(()=>status(id)),applyReadback:(opId:string,email:unknown)=>safe(()=>readback(opId,email)),async handleWebhook(request:Request):Promise<Response>{
   try{
    configured();if(new URL(request.url).origin!==env.origin)fail(403,'host_rejected');if(request.method!=='POST')fail(405,'method_not_allowed');
    const h=headersValid(request.headers);if(!h)fail(400,'webhook_verification_failed');const raw=await rawBody(request);
