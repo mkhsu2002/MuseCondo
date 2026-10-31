@@ -120,11 +120,12 @@ test('recovery private document uses a fixed directory without clean URL loops a
 
 test('status distinguishes bound autonomy from an enabled mandate and fails closed on missing guards',async()=>{
  const db=database();try{
-  const env:PagesBindings={DB:db,PUBLIC_ORIGIN:origin,meta_muse_api:'synthetic-not-a-provider-key',MANAGER_SCHEDULE_TRIGGER_KEY:'synthetic-trigger',MANAGER_RUNTIME:{async fetch(){throw Error('status must not dispatch');}},MANAGER_ASSETS:{async put(){throw Error('status must not write');},async get(){return null;}}};
+  const env:PagesBindings={DB:db,PUBLIC_ORIGIN:origin,meta_muse_api:'synthetic-not-a-provider-key',MANAGER_SCHEDULE_TRIGGER_KEY:'synthetic-trigger',MANAGER_RUNTIME:{async fetch(){throw Error('status must not dispatch');}},MANAGER_ASSETS:{async put(){throw Error('status must not write');},async get(){return null;}},ASSETS:{async fetch(){throw Error('status must not fetch assets');}}};
   const status=async()=>{const r=await runtime.fetch(request(),env);assert.equal(r.status,200);return r.json();};
   let result=await status();assert.equal(result.scheduled,false);assert.equal(result.runtime.managerAutonomy,'bound-not-health-verified');
   db.sqlite.exec('UPDATE tower_autonomy_mandate SET enabled=1 WHERE id=1');
   result=await status();assert.equal(result.scheduled,true);assert.equal(result.runtime.managerAutonomy,'enabled');
+  const assets=env.ASSETS;delete env.ASSETS;result=await status();assert.equal(result.scheduled,false);assert.equal(result.runtime.managerAutonomy,'unavailable');env.ASSETS=assets;
   db.sqlite.exec('DROP TRIGGER tower_autonomy_events_update');
   result=await status();assert.equal(result.scheduled,false);assert.equal(result.runtime.managerAutonomy,'bound-not-health-verified');
  }finally{db.close();}
