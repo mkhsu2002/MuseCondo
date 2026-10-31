@@ -1,6 +1,6 @@
 # I05b／I05c：身分證附件與投遞
 
-2026-10-31 狀態更新：I05a已完成正式sender metadata查核；b1及b2私有串流／寄送核心與成功／receipt重放的exact-event接線已通過本地驗收（v0.70），c仍待實作。下列b1原切片限制為歷史邊界；本地已接新transport，但尚未發布，0020／0021未套遠端、寄送預設關閉，不代表已寄信。沿既有身份／監護／outbox及newsletter-worker-standard，不建立行銷訂閱或平行寄送系統。provider key只在Pages部署端，沒有本機／runner key、分鐘polling或新排程。
+2026-10-31 狀態更新：I05a已完成正式sender metadata查核；b1／b2及c1簽章投遞核心已通過本地驗收（v0.71），c2正式入口／provider配置／unknown查核仍待實作。下列b1原切片限制為歷史邊界；本地已接新transport，但尚未發布，0020–0022未套遠端、寄送預設關閉，不代表已寄信。沿既有身份／監護／outbox及newsletter-worker-standard，不建立行銷訂閱或平行寄送系統。provider key只在Pages部署端，沒有本機／runner key、分鐘polling或新排程。
 
 ## b1：凍結信件核心（本地切片）
 

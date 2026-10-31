@@ -17,7 +17,7 @@
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
-| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64雙環境發布與真provider sender查核PASS。b1／b2：本地v0.70凍結／私有串流／永久寄送與receipt事件接線，兩階段審查、719tests及actual compiled本機Workers/D1核發撤證模擬寄送PASS；未發布、0020／21未套遠端，c待實作 |
+| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64雙環境發布與真provider sender查核PASS。b1／b2／c1：本地v0.71信件接線與簽章投遞，兩階段審查、744tests及actual compiled本機Workers/D1驗證PASS；未發布、0020–22未套遠端，c2待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
 ### I01 共用核心
@@ -317,3 +317,14 @@ b2b guardian／card／recovery的commit及歷史receipt replay事件接線、no-
 固定ecf2185的實際compiled Pages＋DO＋Miniflare D1，先模擬原4.4MB卡信，再以本機真renderer／TTF核發新卡、自動喚起卡信、撤卡喚起通知，兩項原request重放不新增POST。新PDF4,377,072bytes＋真Ed25519 JSON521bytes，body5,837,481bytes；兩附件摘要與D1一致，3個原事件各1POST／lease／finish／sendingaudit。公開internal入口404，公開verify顯示revoked且不觸發寄送。Synthetic戶籍／備援與100%本機providerstub，無真人或真provider；不能當Fang/K完成或郵件已收到。無新schema、providerkey仍只Pages。
 
 本輪未push／部署，0020／21仍未套遠端、delivery預設false，正式兩環境仍0.64／0019／146物件、I04 Worker0.61。b已完成本地工程；c簽署投遞／配置與unknown reconcile接續，真正provider交付、原Agent／監護人I06及T09仍未完成。
+
+
+### I05c1 簽章與永久投遞事實（2026-10-31，v0.71未發布）
+
+產品876d6ff；新0022三表／九trigger共12物件，receipt／fact／audit永久不可刪改，來源共181物件；沒有改舊migration。私有factory提供handleWebhook、applyReadback、receipt、status，仍未接公開router／provider管理／GET／reconcile／readiness。原始Svix bytes＋HMAC與app／原生clock五分鐘時窗、永久payload HMAC去重及歷史封套／lease關聯，避免rawbody SHA成為地址字典oracle；五種投遞事實保持單向、負面優先，原HTTP finish receipt不改。provider ID已屬他事件或競態被占用時不錯認第二次投遞，不以目前guardian／撤卡狀態抹掉歷史。
+
+主控744完整／8版號／type-lint-build／公開輸出檢查PASS；獨立spec與quality各25focused及額外原生時間／雙runtime／衝突／正負並發與五模板歷史反例PASS。webhook12／readback10條SQL，26 captured queries／bindings通過原生SQLite官方限制。
+
+固定876d6ff actualcompiledcore＋Miniflare原生D1，使用synthetic身份／secret與已領lease，將身份停權及卡撤銷後，完整65,536bytes合法簽章body仍正確記錄過往delivery；同id/body原收據重放，改body再合法簽章409、壞signature400，fact／receipt／audit各一筆。此是本機合成投遞訊號，沒有真provider送達或真人收件；不能把測試deliveryVerified=true當正式完成。
+
+本片未push／發布，0020–22均未套遠端，正式兩環境仍0.64／0019／146物件，寄送預設false。c2要完成真部署端固定ownorigin provider webhook配置、encrypted secret／受保護與公開路由、真正readygate、已知／未知provider結果安全查核，再整合雙環境發布與實測。原Agent／監護人I06及T09仍待。第二住戶來源已收到，T06表內舊待來源狀態已同步更正；不因此視為新戶核准。
