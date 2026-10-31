@@ -4,7 +4,7 @@
 
 ## 已取代的舊版設計
 
-M03 的「Codex 預製 Halloween SVG/CSS、operator 手動 activate 即交付」及 M04 的「沒有新消息就不呼叫模型、只有 DB 摘要」於 2026-10-31 明確 **superseded**。舊 0023 私密 preview／永久 receipt 與安全 DB registry 保留相容性；舊 theme 不再產生公開 Halloween 投影。舊 SVG／UI 視覺測試僅為歷史介面基建證據，不能充當部署樓管生圖／審核／發布證據。
+M03 的「Codex 預製 Halloween SVG/CSS、operator 手動 activate 即交付」及 M04 的「沒有新消息就不呼叫模型、只有 DB 摘要」於 2026-10-31 明確 **superseded**。舊 0023 私密 preview／永久 receipt 與安全 DB registry 保留相容性；舊 theme 不再產生公開 Halloween 投影。預製 SVG 與 Halloween 裝飾 CSS 已移除生產引用；舊測試僅留在 Git 歷史，不能充當部署樓管生圖／審核／發布證據。
 
 ## 固定授權與日常職責
 
@@ -28,9 +28,9 @@ M03 的「Codex 預製 Halloween SVG/CSS、operator 手動 activate 即交付」
 
 驗證實際從 **R2 重新讀取**已生成圖：存在、bytes、SHA256、PNG CRC／chunk 順序／解壓 scanline、最低解析度與16:9、day/night 完整且 hash 不同。後續獨立 Spark TaskAudit 使用兩張原圖與兩張 R2 實際讀回圖，做畫面與方案比對；單純模型字串 PASS 不足以 activation。D1 guard 同時驗證 PASS 對應獨立 paid receipt、deterministic evidence generation、兩圖 provider provenance、固定 permission、有效 mandate、native clock／lease、CAS revision；immutable records 阻擋 UPDATE／DELETE／INSERT OR REPLACE。
 
-TaskAudit FAIL 可在同一原任務最多修一次；重新執行工具、驗證、獨立審核。無法修復則 blocked，仍嘗試另一次私密 daily selfreview，保存事實、記憶與 nextTasks；反省本身也失敗時不假稱完成。未知外部付費仍留在原 task／anchor；下一日可以思考、檢查健康及反省，但不能 clone/restart 其影像工作。
+TaskAudit FAIL 可在同一原任務最多修一次；重新執行工具、驗證、獨立審核。無法修復則 blocked，仍嘗試另一次私密 daily selfreview，保存事實、記憶與 nextTasks；反省本身也失敗時不假稱完成。未知外部付費仍留在原 task／anchor；下一日可以思考、檢查健康及反省，但不能 clone/restart 其影像工作。跨日 lease 中斷先以 CAS 將未知 call 與失敗結果持久化，繼續該任務的獨立反省；每步回傳的 pending 查所有剩餘 cycles，舊任務 blocked 不會使 DO 清除當日尚待思考的 alarm。遲到的 provider 成功不能覆寫 unknown receipt。
 
-只有已驗證且 PASS 的 pair 可啟用 runtime pointer。Halloween window 為 `2026-10-31T07:00:00Z` 至 `2026-11-01T07:00:00Z`，America/Vancouver；到期公開 projection／asset endpoint 即回一般外觀，無須等 cron。公開只出 theme、revision、endsAt、generation 與同源 day/night URL；沒有 prompt、模型、QA、工作安排或居民資訊。找不到可用 runtime 圖則保留一般原圖。
+只有已驗證且 PASS 的 pair 可啟用 runtime pointer。Halloween window 為 `2026-10-31T07:00:00Z` 至 `2026-11-01T07:00:00Z`，America/Vancouver；到期公開 projection／asset endpoint 即回一般外觀，無須等 cron。公開只出 theme、revision、endsAt、generation 與同源 day/night URL；沒有 prompt、模型、QA、工作安排或居民資訊。找不到可用 runtime 圖則保留一般原圖。前端檢查 generation 與兩張圖的精確同源相對路徑，拒絕外部／絕對 URL、query、跨 generation 路徑；兩張實際圖均預載成功後才接管 `img.src`。日夜與外觀按鈕共用同一圖片控制器，保留目前 scene；任一圖失敗、開頁到期或使用者選一般外觀，立即回到對應日夜原圖，沒有替代 SVG 成果。
 
 ## 部署與保護入口
 
@@ -49,8 +49,10 @@ TaskAudit FAIL 可在同一原任務最多修一次；重新執行工具、驗�
 
 ## 本機證據（2026-10-31）
 
-`tests/tower-autonomy.test.ts` synthetic provider 驗證空消息仍思考、獨立audit與selfreview、真正function call/output replay、有效雙PNG、R2讀回、四圖audit、atomic activate、同task FAIL修復、unknown保留reservation／跨日仍思考但不clone、損毀artifact阻擋公開、dev缺provider failclosed、alarm有界續跑。測試圖只存在記憶體，未上傳R2，不能充當真實Meta產物。
+`tests/tower-autonomy.test.ts` synthetic provider 驗證空消息仍思考、獨立audit與selfreview、真正function call/output replay、有效雙PNG、R2讀回、四圖audit、atomic activate、同task FAIL修復、unknown保留reservation／跨日仍思考但不clone、損毀artifact阻擋公開、dev缺provider failclosed、alarm有界續跑、跨日中斷仍完成失敗反省及今日思考。`tower-appearance-ui.test.ts` 四例核對真正 DOM img.src、日夜／原生手機按鈕、一般外觀偏好、精確路徑、雙圖載入失敗與開頁到期；真正瀏覽器畫面由整合端另驗證。測試圖只存在記憶體，未上傳R2，不能充當真實Meta產物。
 
 `scripts/test-tower-manager-native.mjs <existing-node_modules>` 重用現有 Wrangler4.156／Miniflare5／workerd、compatibility2026-10-30；原生D1套完整migration、編譯Pages scope／projection／devdisabled、cron dispatch，以及實際SQLite DO wake→alarm→scoped step→停止均通過。外網拒絕或synthetic handler，無真實provider付費。原生 `redirect:'manual'` 拒絕3xx，不使用workerd不支援的`redirect:'error'`。
 
 官方契約重查2026-10-31：[Responses](https://dev.meta.ai/docs/protocols/responses)、[token count](https://dev.meta.ai/docs/api-reference/responses/count-input-tokens)、[tools](https://dev.meta.ai/docs/tool-calling)、[images](https://dev.meta.ai/docs/image-generation)。tool_choice僅auto；函式回合上限由應用限制；images JSON edits、WxH aspect ratio、tool_enablement／reasoning_strength以官方契約為準，不能套用其他供應商參數假設。
+
+`scripts/preview-tower-appearance.mjs` 為 loopback-only wiring fixture，以兩張既有原圖回應 synthetic runtime URL，僅驗證 UI 圖源切換、排版與到期，不是 Meta 生成產物，也不寫 R2／正式 pointer。

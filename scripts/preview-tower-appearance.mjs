@@ -18,13 +18,15 @@ const server=createServer(async(req,res)=>{
   if(!['GET','HEAD'].includes(req.method)){res.writeHead(405).end();return;}
   const url=new URL(req.url??'/',origin);
   if(url.pathname==='/api/v1/tower/appearance'){
-   res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify({theme:Date.now()<Date.parse(endsAt)?'halloween':'standard',revision:1,endsAt}));return;
+   res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify({theme:Date.now()<Date.parse(endsAt)?'halloween':'standard',revision:1,endsAt,generation:'manager-2026-10-31-r0',images:{day:'/api/v1/tower/appearance/assets/manager-2026-10-31-r0/day.png',night:'/api/v1/tower/appearance/assets/manager-2026-10-31-r0/night.png'}}));return;
   }
+  const scene=url.pathname.match(/^\/api\/v1\/tower\/appearance\/assets\/manager-2026-10-31-r0\/(day|night)\.png$/);
+  if(scene){const bytes=await readFile(resolve(root,`tower/muse-tower-${scene[1]}-v2.webp`));res.writeHead(200,{'Content-Type':'image/webp','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end(req.method==='HEAD'?undefined:bytes);return;}
   if(url.pathname.startsWith('/api/')){const response=await app.fetch(new Request(url,{method:req.method}),'synthetic-visual-fixture');res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}
   let file=resolve(root,'.'+decodeURIComponent(url.pathname));if(file!==root&&!file.startsWith(root+'/')){res.writeHead(403).end();return;}
   let bytes;try{bytes=await readFile(file);}catch{try{file=resolve(file,'index.html');bytes=await readFile(file);}catch{file=resolve(root,'index.html');bytes=await readFile(file);}}
   res.writeHead(200,{'Content-Type':mime[extname(file)]??'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end(req.method==='HEAD'?undefined:bytes);
  }catch{res.writeHead(500).end('Synthetic fixture unavailable');}
 });
-server.listen(port,'127.0.0.1',()=>console.log(`Synthetic Tower appearance preview: ${origin}; expires ${endsAt}; no external API or paid calls.`));
+server.listen(port,'127.0.0.1',()=>console.log(`Synthetic runtime-URL wiring preview (original artwork only, not Meta output): ${origin}; expires ${endsAt}; no external API or paid calls.`));
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(()=>{db.close();process.exit(0);}));

@@ -1,23 +1,75 @@
-const storageKey='musecondo.tower-decoration';
-/** Fixed local artwork; configuration never supplies markup, CSS, URLs or scripts. */
-export function appearanceDecorations(){
- const pumpkin=(x:number,y:number,scale:number)=>`<g transform="translate(${x} ${y}) scale(${scale})"><path d="M-4-43q-1-16 12-19" fill="none" stroke="#657351" stroke-width="8"/><ellipse rx="40" ry="36" fill="#d66624"/><ellipse rx="29" ry="36" fill="#f28a31"/><ellipse rx="15" ry="36" fill="#ffab43"/><path d="m-24-6 13-11 7 16zm48 0L11-17 4-1zM-22 12q22 25 44 0l-10 3-3-6-7 8-7-8-3 6z" fill="#ffe8a0"/></g>`;
- return `<div class="tower-festive-decor" aria-hidden="true"><svg class="tower-lantern-garland" viewBox="0 0 1200 160" focusable="false"><path d="M0 10Q600 130 1200 10" fill="none" stroke="#5b493c" stroke-width="3"/>${[100,300,600,900,1100].map((x,i)=>`<g transform="translate(${x} ${i===2?70:i===1||i===3?57:30})"><path d="M0-14V5" stroke="#5b493c" stroke-width="3"/><rect x="-14" y="5" width="28" height="35" rx="10" fill="#ffb661"/><path d="M-6 12v20m12-20v20" stroke="#ffdc9d" stroke-width="3"/></g>`).join('')}</svg><svg class="tower-halloween-corner tower-halloween-left" viewBox="-110 -135 240 245" focusable="false"><path d="M-87 67q85-17 177 3" stroke="#f8bd67" stroke-width="2" fill="none"/>${pumpkin(-35,35,1)}${pumpkin(43,57,.66)}<path d="M-65-85q-13-22-28-7l13 10-3 16 19-8 20 8-4-16 14-10q-17-14-31 7zM73-39q-11-19-24-7l10 9-2 12 16-6 16 6-2-12 10-9q-13-12-24 7z" fill="#4b384d"/><path d="m35-102 3 8 9 3-9 3-3 9-3-9-9-3 9-3z" fill="#ffdd9b"/></svg><svg class="tower-halloween-corner tower-halloween-right" viewBox="-110 -135 240 245" focusable="false">${pumpkin(30,40,1.1)}${pumpkin(-45,65,.57)}<path d="M-48-50q-15-25-32-9l14 12-3 16 22-9 21 9-3-16 14-12q-17-16-33 9z" fill="#4b384d"/><path d="m54-94 4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#ffdd9b"/></svg></div><p class="tower-appearance-banner" data-appearance-banner hidden>萬聖夜，留一盞暖燈。</p>`;
+const appearanceStorageKey='musecondo.tower-decoration',sceneStorageKey='musecondo.tower-scene';
+export type TowerScene='day'|'night';
+export const towerScenes={
+ day:{label:'日景',alt:'白晝的 Muse Tower 局部立面，窗與花園平台向畫面外延伸，遠處是雲霧與虛空。'},
+ night:{label:'夜景',alt:'夜晚的 Muse Tower 局部立面，同一座塔亮起溫暖窗燈，外側是靜謐雲霧與星空。'},
+};
+interface Projection {generation:string;images:{day:string;night:string};endsAt:number}
+function projection(value:unknown,now:number):Projection|null{
+ if(!value||typeof value!=='object')return null;
+ const v=value as Record<string,unknown>,images=v.images as Record<string,unknown>|undefined;
+ if(v.theme!=='halloween'||typeof v.generation!=='string'||!/^manager-\d{4}-\d{2}-\d{2}-r[01]$/.test(v.generation)||!Number.isSafeInteger(v.revision)||Number(v.revision)<1||typeof v.endsAt!=='string'||!images)return null;
+ const endsAt=Date.parse(v.endsAt);if(!Number.isFinite(endsAt)||endsAt<=now||endsAt-now>7*86400000)return null;
+ const path=`/api/v1/tower/appearance/assets/${v.generation}`;
+ if(images.day!==`${path}/day.png`||images.night!==`${path}/night.png`)return null;
+ return {generation:v.generation,images:{day:images.day as string,night:images.night as string},endsAt};
 }
-export function appearanceControls(){return `<div class="tower-appearance-control"><button type="button" data-appearance-toggle hidden>一般外觀</button></div>`;}
-export async function bindTowerAppearance(root:HTMLElement,base:string,fetcher:typeof fetch=fetch,clock:()=>number=Date.now):Promise<()=>void>{
+export function appearanceControls(){return '<div class="tower-appearance-control"><button type="button" data-appearance-toggle hidden>一般外觀</button></div>';}
+async function loadImage(src:string){
+ const next=new Image();await new Promise<void>((resolve,reject)=>{
+  const finish=(error?:Error)=>{clearTimeout(timer);next.onload=null;next.onerror=null;if(error)reject(error);else resolve();};
+  const timer=setTimeout(()=>finish(Error('image_load_timeout')),15000);
+  next.onload=()=>finish();next.onerror=()=>finish(Error('image_load_failed'));next.src=src;
+  if(next.complete&&next.naturalWidth>0)finish();
+ });
+}
+/** Only a verified activated pair supplies scene URLs. Scene and appearance share one image owner. */
+export async function bindTowerAppearance(root:HTMLElement,base:string,fetcher:typeof fetch=fetch,clock:()=>number=Date.now,preload:(src:string)=>Promise<void>=loadImage):Promise<()=>void>{
  const panorama=root.querySelector<HTMLElement>('[data-tower-panorama]');if(!panorama)return ()=>{};
- const button=panorama.querySelector<HTMLButtonElement>('[data-appearance-toggle]')!,banner=panorama.querySelector<HTMLElement>('[data-appearance-banner]')!;
- panorama.dataset.theme='standard';let timer:ReturnType<typeof setTimeout>|undefined,endsAt=0,enabled=true;
- const apply=()=>{const live=endsAt>clock(),show=live&&enabled;panorama.dataset.theme=show?'halloween':'standard';button.hidden=!live;banner.hidden=!show;button.textContent=show?'一般外觀':'顯示節慶佈景';};
+ const image=panorama.querySelector<HTMLImageElement>('img'),button=panorama.querySelector<HTMLButtonElement>('[data-appearance-toggle]');
+ if(!image||!button)return ()=>{};
+ const caption=panorama.querySelector<HTMLElement>('[data-scene-caption]'),status=panorama.querySelector<HTMLElement>('[role=status]');
+ const sceneButtons=Array.from(panorama.querySelectorAll<HTMLButtonElement>('[data-tower-scene]'));
+ let active:Projection|null=null,enabled=true,disposed=false,selection=0,timer:ReturnType<typeof setTimeout>|undefined;
+ const scene=():TowerScene=>panorama.dataset.scene==='night'?'night':'day';
+ const original=(value:TowerScene)=>`${base}/tower/muse-tower-${value}-v2.webp`;
+ const source=(value:TowerScene)=>active&&enabled&&active.endsAt>clock()?`${base}${active.images[value]}`:original(value);
+ function controls(show:boolean){panorama!.dataset.theme=show?'halloween':'standard';button!.hidden=!active||active.endsAt<=clock();button!.textContent=show?'一般外觀':'顯示節慶外觀';}
+ function commit(value:TowerScene,src:string,announce:boolean){
+  image!.src=src;image!.alt=towerScenes[value].alt;panorama!.dataset.scene=value;
+  if(caption)caption.textContent=`Muse Tower 外觀想像 · ${towerScenes[value].label}`;
+  for(const control of sceneButtons)control.setAttribute('aria-pressed',String(control.dataset.towerScene===value));
+  if(status)status.textContent=announce?`已切換為${towerScenes[value].label}。`:'';
+  controls(src!==original(value));
+ }
+ function fallback(){active=null;selection++;if(timer)clearTimeout(timer);commit(scene(),original(scene()),false);}
+ async function show(value:TowerScene,announce=false){
+  const current=++selection,src=source(value);if(status&&announce)status.textContent=`正在換成${towerScenes[value].label}…`;
+  try{
+   await preload(src);if(current!==selection||disposed||!panorama!.isConnected)return;
+   // The mandate can expire while the image is loading.
+   if(src!==source(value)){commit(value,original(value),announce);return;}
+   commit(value,src,announce);
+   try{localStorage.setItem(sceneStorageKey,value);}catch{/* Optional local preference. */}
+  }catch{
+   if(current!==selection||disposed)return;
+   if(src!==original(value)){fallback();return;}
+   if(status)status.textContent='景色暫時無法載入，請再試一次。';
+  }
+ }
+ const sceneListeners=sceneButtons.map(control=>{const listener=()=>show(control.dataset.towerScene==='night'?'night':'day',true);control.addEventListener('click',listener);return {control,listener};});
+ const toggle=async()=>{enabled=!enabled;try{localStorage.setItem(appearanceStorageKey,enabled?'on':'off');}catch{/* Optional local preference. */}if(!enabled){selection++;commit(scene(),original(scene()),false);}else await show(scene());};
+ const imageError=()=>{if(active&&enabled)fallback();};
+ button.addEventListener('click',toggle);image.addEventListener('error',imageError);controls(false);
+ const cleanup=()=>{disposed=true;selection++;if(timer)clearTimeout(timer);button.removeEventListener('click',toggle);image.removeEventListener('error',imageError);for(const {control,listener} of sceneListeners)control.removeEventListener('click',listener);};
  try{
   const response=await fetcher(`${base}/api/v1/tower/appearance`,{credentials:'omit',headers:{Accept:'application/json'},signal:AbortSignal.timeout(4000)});
-  if(!response.ok)return ()=>{};const value=await response.json() as {theme?:unknown;endsAt?:unknown};
-  if(value.theme!=='halloween'||typeof value.endsAt!=='string')return ()=>{};endsAt=Date.parse(value.endsAt);
-  if(!Number.isFinite(endsAt)||endsAt<=clock()||endsAt-clock()>7*86400000)return ()=>{};
-  try{enabled=localStorage.getItem(storageKey)!=='off';}catch{/* The switch does not require storage. */}
-  button.addEventListener('click',()=>{enabled=!enabled;try{localStorage.setItem(storageKey,enabled?'on':'off');}catch{/* Optional preference. */}apply();});
-  apply();timer=setTimeout(apply,Math.min(endsAt-clock(),2147483647));
- }catch{/* General appearance remains usable if the service is unavailable. */}
- return ()=>{if(timer)clearTimeout(timer);};
+  if(!response.ok)return cleanup;const candidate=projection(await response.json(),clock());if(!candidate)return cleanup;
+  try{enabled=localStorage.getItem(appearanceStorageKey)!=='off';}catch{/* Optional local preference. */}
+  // Both scenes must load before either scene is presented as the active exterior.
+  await Promise.all([preload(`${base}${candidate.images.day}`),preload(`${base}${candidate.images.night}`)]);
+  if(disposed||candidate.endsAt<=clock())return cleanup;
+  active=candidate;await show(scene());if(active)timer=setTimeout(fallback,Math.min(candidate.endsAt-clock(),2147483647));
+ }catch{fallback();}
+ return cleanup;
 }

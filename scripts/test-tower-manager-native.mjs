@@ -35,6 +35,15 @@ try{
  assert.equal((await post('/api/v1/operator/manager/autonomy',{action:'enable'})).status,503);
  assert.equal((await post('/api/v1/manager/autonomy/step',{},'X-Manager-Schedule-Key','synthetic-native-schedule')).status,200);
  assert.equal((await db.prepare('SELECT enabled FROM tower_autonomy_mandate WHERE id=1').first()).enabled,0);
+ // Recovery must keep today's thinking runnable after an older dispatch lease expires.
+ await db.prepare('UPDATE tower_autonomy_mandate SET enabled=1 WHERE id=1').run();
+ const previousDay=new Date(Date.now()-86400000).toISOString().slice(0,10),previousId=`manager-${previousDay}`;
+ await db.prepare("INSERT INTO tower_autonomy_cycles(id,day,state,purpose,budget_micro,created_at,updated_at,lease_until) VALUES(?,?,'image-day','synthetic interrupted prior task',1000000,?,?,?)").bind(previousId,previousDay,start,start,new Date(Date.now()-60000).toISOString()).run();
+ await db.prepare("INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,state,reserved_micro,created_at) VALUES('synthetic-interrupted',?,'synthetic-expired','image-day-r0','muse-image-1.0','dispatching',10000,?)").bind(previousId,start).run();
+ const recover=()=>post('/api/v1/manager/autonomy/step',{},'X-Manager-Schedule-Key','synthetic-native-schedule');
+ const recovered=await (await recover()).json();assert.equal(recovered.state,'selfreview');assert.equal(recovered.pending,true);
+ const unavailableReview=await (await recover()).json();assert.equal(unavailableReview.state,'blocked');assert.equal(unavailableReview.pending,true);assert.equal((await db.prepare("SELECT state FROM tower_autonomy_calls WHERE id='synthetic-interrupted'").first()).state,'unknown');assert.equal((await db.prepare("SELECT reserved_micro FROM tower_autonomy_calls WHERE id='synthetic-interrupted'").first()).reserved_micro,10000);
+ assert.equal((await db.prepare("SELECT count(*) n FROM tower_autonomy_cycles WHERE state='thinking'").first()).n,1);
  console.log('PASS native compiled Pages + D1: provider-disabled autonomy fail-closed, migrations, private preview, activation, immutable replay, conflict, public projection, scope isolation, calendar ledger, audit permanence');
 }finally{await mf.dispose();}
 let calls=0;
@@ -49,12 +58,12 @@ try{
 // Real workerd Durable Object alarm: a scoped wake leads to one stage and clears its alarm.
 const clockSource=await build({entryPoints:['workers/tower-manager/worker.ts'],bundle:true,format:'esm',platform:'browser',write:false,target:'es2022'});
 let alarmCalls=0;
-const clockConfig={modules:true,script:clockSource.outputFiles[0].text,compatibilityDate:'2026-10-30',durableObjects:{MANAGER_CLOCK:{className:'ManagerClock',useSQLite:true}},bindings:{PUBLIC_ORIGIN:origin,MANAGER_SCHEDULE_TRIGGER_KEY:'synthetic-native-schedule'},outboundService:async request=>{alarmCalls++;assert.equal(request.url,origin+'/api/v1/manager/autonomy/step');assert.equal(request.headers.get('X-Manager-Schedule-Key'),'synthetic-native-schedule');return Response.json({pending:false,state:'complete'});}};
+const clockConfig={modules:true,script:clockSource.outputFiles[0].text,compatibilityDate:'2026-10-30',durableObjects:{MANAGER_CLOCK:{className:'ManagerClock',useSQLite:true}},bindings:{PUBLIC_ORIGIN:origin,MANAGER_SCHEDULE_TRIGGER_KEY:'synthetic-native-schedule'},outboundService:async request=>{alarmCalls++;assert.equal(request.url,origin+'/api/v1/manager/autonomy/step');assert.equal(request.headers.get('X-Manager-Schedule-Key'),'synthetic-native-schedule');return Response.json({pending:alarmCalls===1,state:alarmCalls===1?'blocked':'complete'});}};
 const nativeClock=new Miniflare(convertV4MiniflareOptions?convertV4MiniflareOptions(clockConfig):clockConfig);
 try{
  assert.equal((await nativeClock.dispatchFetch('https://manager.internal/wake',{method:'POST'})).status,401);
  assert.equal((await nativeClock.dispatchFetch('https://manager.internal/wake',{method:'POST',headers:{'X-Manager-Schedule-Key':'synthetic-native-schedule'}})).status,200);
- for(let attempt=0;attempt<30&&alarmCalls===0;attempt++)await new Promise(resolve=>setTimeout(resolve,200));
- assert.equal(alarmCalls,1);await new Promise(resolve=>setTimeout(resolve,500));assert.equal(alarmCalls,1);
- console.log('PASS native compiled ManagerClock SQLite DO: protected wake, actual alarm continuation, scoped Pages step dispatch, stop without polling');
+ for(let attempt=0;attempt<30&&alarmCalls<2;attempt++)await new Promise(resolve=>setTimeout(resolve,200));
+ assert.equal(alarmCalls,2);await new Promise(resolve=>setTimeout(resolve,500));assert.equal(alarmCalls,2);
+ console.log('PASS native compiled ManagerClock SQLite DO: protected wake, actual alarm continues after blocked previous task while today is pending, scoped Pages dispatch, stop without polling');
 }finally{await nativeClock.dispose();}
