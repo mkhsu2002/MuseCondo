@@ -57,7 +57,7 @@ test('frozen private envelope has real attachments, exact bytes, safe audit, and
   const service=createIdentityMailEnvelope(f.env),descriptor=await service.prepare(f.event),result=await service.materialize(f.event,descriptor.bodyDigest),body=JSON.parse(result.body);
   assert.equal(body.from,f.env.from);assert.deepEqual(body.to,['shared@example.com']);assert.deepEqual(body.tags,[{name:'identity_event',value:f.event}]);
   assert.deepEqual(body.attachments.map((a:{filename:string})=>a.filename),['agent-identity-card.pdf','agent-identity-credential.json']);
-  assert.deepEqual(Buffer.from(body.attachments[0].content,'base64'),Buffer.from(f.pdf));assert.equal(await hashIdentityInput(result.body),descriptor.bodyDigest);assert.equal(enc.encode(result.body).length,descriptor.bodyLength);
+  assert.deepEqual(Buffer.from(body.attachments[0].content,'base64'),Buffer.from(f.pdf));assert.equal(await hashPrivate(key,'mail-body:'+f.event,result.body),descriptor.bodyDigest);assert.equal(enc.encode(result.body).length,descriptor.bodyLength);
   assert.equal(Buffer.from(body.attachments[1].content,'base64').toString(),f.db.sqlite.prepare('SELECT signed_json FROM identity_credentials WHERE credential_id=?').get(f.cid)!.signed_json);
   for(const secret of ['PRIVATE HOME','PRIVATE RELATION','private.example','offline'])assert(!body.text.includes(secret));
   const row=f.db.sqlite.prepare('SELECT state,attempt_count FROM identity_mail_events WHERE id=?').get(f.event);assert.equal(row!.state,'pending');assert.equal(row!.attempt_count,0);
@@ -224,4 +224,15 @@ test('event time must be canonical and security links lead to the actual recover
   await f.security();f.db.sqlite.prepare('UPDATE identity_mail_events SET created_at=? WHERE id=?').run('private home details',f.event);await assert.rejects(createIdentityMailEnvelope(f.env).prepare(f.event));assert.equal(f.count('identity_mail_envelopes'),0);
   f.db.sqlite.prepare('UPDATE identity_mail_events SET created_at=? WHERE id=?').run(time,f.event);const body=JSON.parse((await createIdentityMailEnvelope(f.env).materialize(f.event)).body);assert(body.text.includes('事件時間：'+time));assert(body.text.includes('找回身份：'+origin+'/identity/recover'));assert(body.subject.includes('身分證'));
  }finally{f.close();}
+});
+test('body integrity is keyed and event/purpose-bound, never a DB-only plaintext email dictionary oracle',async()=>{
+ const {createIdentityMailEnvelope}=await factory();
+ for(const template of ['identity-card-v1','identity-card-revoked-v1','identity-recovery-continued-v1','identity-guardian-repaired-v1','guardian-invitation']){const f=await fixture();try{
+  if(template==='guardian-invitation')await f.invitation();else if(template!=='identity-card-v1')await f.security(template);
+  const s=createIdentityMailEnvelope(f.env),r=await s.materialize(f.event),plain=await hashIdentityInput(r.body),expected=await hashPrivate(key,'mail-body:'+f.event,r.body);
+  assert.notEqual(r.descriptor.bodyDigest,plain);assert.equal(r.descriptor.bodyDigest,expected);assert.equal((await createIdentityMailEnvelope(f.env).materialize(f.event,expected)).descriptor.bodyDigest,expected);
+  assert.notEqual(expected,await hashPrivate(key,'mail-body:'+'0'.repeat(32),r.body));assert.notEqual(expected,await hashPrivate(key,'mail-payload:'+f.event,r.body));assert.notEqual(expected,await hashPrivate('8'.repeat(64),'mail-body:'+f.event,r.body));
+  const stored=String(f.db.sqlite.prepare('SELECT body_digest FROM identity_mail_envelopes WHERE event_id=?').get(f.event)!.body_digest),audit=String(f.db.sqlite.prepare("SELECT detail_json FROM identity_mail_audit WHERE event_id=? AND action='prepared'").get(f.event)!.detail_json);assert.equal(stored,expected);assert.equal(JSON.parse(audit).bodyDigest,expected);assert(!audit.includes(plain));
+  f.db.sqlite.exec('DROP TRIGGER identity_mail_envelope_immutable');f.db.sqlite.prepare('UPDATE identity_mail_envelopes SET body_digest=? WHERE event_id=?').run(plain,f.event);await assert.rejects(s.materialize(f.event),{code:'envelope_digest_mismatch'});
+ }finally{f.close();}}
 });

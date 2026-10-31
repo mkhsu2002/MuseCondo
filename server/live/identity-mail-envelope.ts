@@ -1,5 +1,5 @@
 import type {Database,Statement} from './db.ts';
-import {decryptPrivate,encryptPrivate,hashPrivate,hashIdentityInput,randomIdentityId,validContactKey,validateGuardianEmail} from './identity-private.ts';
+import {decryptPrivate,encryptPrivate,hashPrivate,randomIdentityId,validContactKey,validateGuardianEmail} from './identity-private.ts';
 import {senderDomain} from './identity-mail-readiness.ts';
 import {verifyCredential,type SignedCredential} from '../../src/identity/index.ts';
 
@@ -140,7 +140,7 @@ export function createIdentityMailEnvelope(env:IdentityMailEnvelopeEnvironment){
    if(!senderDomain(env.from))fail('sender_unavailable');
    metadata={version:1,origin:env.origin,from:env.from!,to:email,...message(template,q,event),templateVersion:template,binding:q.binding,attachmentRefs:a.refs};
    const encoded=body(metadata,id,a.attachments),cipher=await encryptPrivate(env.contactKey,'mail-envelope',id,JSON.stringify(metadata));if(cipher.length>32768)fail('envelope_metadata_too_large');
-   const candidate:Stored={event_id:id,template_version:template,metadata_ciphertext:cipher,body_digest:await hashIdentityInput(encoded),body_length:encoder.encode(encoded).length,attachment_refs:JSON.stringify(a.refs)},now=stamp();
+   const candidate:Stored={event_id:id,template_version:template,metadata_ciphertext:cipher,body_digest:await hashPrivate(env.contactKey,'mail-body:'+id,encoded),body_length:encoder.encode(encoded).length,attachment_refs:JSON.stringify(a.refs)},now=stamp();
    const detail=JSON.stringify({bodyDigest:candidate.body_digest,bodyLength:candidate.body_length,templateVersion:template,attachmentRefs:a.refs});
    if(expectedDigest!==undefined&&expectedDigest!==candidate.body_digest)fail('envelope_expected_digest_mismatch');
    let committed=false;
@@ -153,7 +153,7 @@ export function createIdentityMailEnvelope(env:IdentityMailEnvelopeEnvironment){
   try{metadata=JSON.parse(await decryptPrivate(env.contactKey,'mail-envelope',id,row.metadata_ciphertext)) as Metadata;}catch{fail('envelope_metadata_unavailable');}
   if(metadata.version!==1||metadata.origin!==env.origin)fail('envelope_origin_blocked');
   if(metadata.binding!==q.binding||metadata.to!==email||metadata.templateVersion!==template||row.template_version!==template||!senderDomain(metadata.from)||JSON.stringify(metadata.attachmentRefs)!==JSON.stringify(a.refs)||row.attachment_refs!==JSON.stringify(a.refs))fail('envelope_context_blocked');
-  const encoded=body(metadata,id,a.attachments);if(await hashIdentityInput(encoded)!==row.body_digest||encoder.encode(encoded).length!==row.body_length)fail('envelope_digest_mismatch');
+  const encoded=body(metadata,id,a.attachments);if(await hashPrivate(env.contactKey,'mail-body:'+id,encoded)!==row.body_digest||encoder.encode(encoded).length!==row.body_length)fail('envelope_digest_mismatch');
   if(expectedDigest!==undefined&&expectedDigest!==row.body_digest)fail('envelope_expected_digest_mismatch');
   // No await may separate these guards from a future caller's atomic pending-to-send claim.
   const guards=()=>[...a.guards,contextGuard(q)];

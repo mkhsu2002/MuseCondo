@@ -4,9 +4,11 @@
 
 `createIdentityMailEnvelope({db, origin, contactKey, from, trustedKeys, now})` 只接收後端明確提供的公開 Ed25519 `CryptoKey` trust map。沒有 provider secret、fetcher、磁碟住戶資料或模型依賴。`origin` 必須是完整 HTTPS origin；`from` 沿用 readiness 的嚴格 parser。
 
-- `prepare(eventId)`：只接受 pending 的 32 位十六進位既存事件，驗證資格與附件後，永久凍結小型 AES-GCM metadata、body SHA256／UTF-8 長度、模板版次與附件 refs，與唯一 prepared audit 同交易寫入；不更動 event state／attempt_count／quota。
+- `prepare(eventId)`：只接受 pending 的 32 位十六進位既存事件，驗證資格與附件後，永久凍結小型 AES-GCM metadata、body 的 event／purpose-bound HMAC 完整性碼／UTF-8 長度、模板版次與附件 refs，與唯一 prepared audit 同交易寫入；不更動 event state／attempt_count／quota。
 - `materialize(eventId, expectedDigest?)`：同樣只接受 pending，每次重驗目前戶籍四方 tuple、原事件密文、目前 guardian／聯絡人與模板真實事實，再由 immutable chunks 重建完整固定 JSON body。返回 `{body, recipient, from, descriptor, guards}`，全部只供受控私有後端使用，禁止放入公開 HTTP、console 或 audit。
 - 同 event 的新 factory、不同時間與 FROM 顯示設定仍回傳原 body。origin 改動、目前資格失效、聯絡人／guardian 指定關係變更、憑證撤銷或 superseded 會阻擋；不會自動取消或假裝已寄送。
+
+完整郵件 body 的 `bodyDigest` 是以 contact key 執行 `hashPrivate(contactKey, "mail-body:" + eventId, encodedBody)` 的 HMAC-SHA256。資料庫與 prepared audit 只保存此 keyed integrity code，不保存包含收件人的 body 明文 SHA256，避免僅持有資料庫者用 email 字典推算收件人。相同 event／body／key 可確定重放；不同 event、用途或 key 的碼不同。PDF／JSON 附件 manifest 仍使用既有 SHA256，64hex 欄位契約不變。
 
 `guards()` 在呼叫時重新取得 injected clock，並包含附件逐 chunk／總數／signed JSON guard 與最後的原生 context guard（證件附件最多共 4 條 SELECT；其餘通知僅需 context guard）。永久 binding 保留原事件、四方戶籍 tuple、guardian／invite 指定與 immutable 憑證／收據事實；動態 context 另核對目前版次、epoch、房屋 revision，合法新版不會永久凍住信件。I05b2 須將 `materialized.guards()` 與自己的原子 pending-to-sending claim 放進同一個 D1 transaction；最後 context guard 後不可插入 await 或先提交 guard 再另開 lease transaction。factory 的 materialize 驗證本身不是 sending 授權，回傳 body 不代表可盲重寄。非 pending 會拋出 `IdentityMailEnvelopeError`，`code='event_already_processed'`；其他失格、digest mismatch 等以固定 code 回報，沒有收件地址或原始 provider 錯誤。
 
