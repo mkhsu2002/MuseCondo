@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "node --experimental-strip-types --test tests/domain.test.ts tests/community.test.ts tests/build-output.test.mjs",
+    "test:identity": "node --experimental-strip-types --test tests/identity-core.test.ts",
     "test:e2e": "playwright test",
     "manager:edit": "node --experimental-strip-types scripts/edit-community.ts",
     "dev:live": "node --experimental-strip-types server/live/local-server.ts",
