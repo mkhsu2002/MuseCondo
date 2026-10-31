@@ -2460,7 +2460,7 @@ test("offline identical completion races replay exactly once for both delayed ex
     }
   }
 });
-test("offline options require explicit decisions and share HTTP and permanent challenge quotas with Passkey", async () => {
+test("offline options require explicit decisions and share HTTP and active challenge quotas with Passkey", async () => {
   const f = await fixture();
   try {
     const created = await (await f.create()).json();
@@ -2519,7 +2519,7 @@ test("offline options require explicit decisions and share HTTP and permanent ch
         "UPDATE rate_limits SET count=1 WHERE key='recovery:global:challenges'",
       )
       .run();
-    // Both methods share the same permanent cap, including retained consumed challenges.
+    // Both methods share the same active pending challenge capacity.
     const columns = f.db.sqlite
       .prepare("PRAGMA table_info(identity_offline_recovery_challenges)")
       .all()
@@ -2543,7 +2543,7 @@ test("offline options require explicit decisions and share HTTP and permanent ch
       (
         await f.send("guardian/recovery/offline/options", {
           ...options,
-          requestKey: "offline-permanent-cap",
+          requestKey: "offline-active-cap",
         })
       ).status,
       429,
@@ -2551,7 +2551,7 @@ test("offline options require explicit decisions and share HTTP and permanent ch
     assert.equal(
       (
         await f.send("guardian/recovery/options", {
-          requestKey: "passkey-permanent-cap",
+          requestKey: "passkey-active-cap",
           requestId: created.requestId,
           decision: "continue",
           method: "passkey",
@@ -2631,7 +2631,7 @@ test("0016 storage bindings and Pages readiness require immutable retained offli
       ["table", "identity_offline_recovery_challenges"],
       ["trigger", "identity_offline_recovery_challenge_binding"],
       ["trigger", "identity_offline_recovery_challenge_immutable"],
-      ["trigger", "identity_offline_recovery_challenge_permanent"],
+      ["trigger", "identity_offline_recovery_challenge_prune_guard"],
       ["trigger", "identity_passkey_permanent"],
     ];
     for (const [type, name] of objects) {
@@ -2738,3 +2738,376 @@ test("offline challenges cannot be substituted between candidate requests and us
     f.db.close();
   }
 });
+
+// These allocations use real handlers and unchanged HTTP/hourly limits. Advancing the
+// native clock once per 1,000 allocations demonstrates the public reachable state.
+test("10,000 expired anonymous requests release active capacity and physically prune only a bounded batch", async () => {
+  const f = await fixture();
+  try {
+    for (let n = 0; n < 10000; n++) {
+      f.setTime(new Date(Date.parse(time) + Math.floor(n / 1000) * 3600000).toISOString());
+      const response = await f.send("recovery/requests", {requestKey: "anonymous-request-" + n, agentId}, {
+        "X-Identity-Candidate-Key": (100000 + n).toString(16).padStart(64, "0"),
+        "CF-Connecting-IP": "synthetic-request-" + Math.floor(n / 30),
+      });
+      assert.equal(response.status, 201, "allocation " + n + ": " + await response.text());
+    }
+    assert.equal(f.count("identity_recovery_requests"), 10000);
+    assert.equal(f.count("identity_recovery_receipts"), 0);
+    f.setTime(new Date(Date.parse(time) + 48 * 3600000).toISOString());
+    const fresh = await f.create();
+    assert.equal(fresh.status, 201, await fresh.clone().text());
+    assert.equal(f.count("identity_recovery_requests"), 9951);
+    assert.equal(f.count("identity_recovery_instances"), 0);
+    assert.equal(f.count("identity_recovery_receipts"), 0);
+  } finally { f.db.close(); }
+});
+
+test("10,000 unsigned challenges cannot permanently block fresh Passkey or valid offline recovery", async () => {
+  const f = await fixture();
+  try {
+    for (let hour = 0; hour < 10; hour++) {
+      f.setTime(new Date(Date.parse(time) + hour * 3600000).toISOString());
+      const created = await f.send("recovery/requests", {requestKey: "challenge-parent-" + hour, agentId}, {
+        "X-Identity-Candidate-Key": (200000 + hour).toString(16).padStart(64, "0"),
+        "CF-Connecting-IP": "synthetic-parent-" + hour,
+      });
+      assert.equal(created.status, 201);
+      const request = await created.json();
+      for (let n = 0; n < 1000; n++) {
+        const options = await f.send("guardian/recovery/options", {
+          requestKey: "unsigned-options-" + n, requestId: request.requestId, decision: "continue", method: "passkey",
+        }, {"CF-Connecting-IP": "synthetic-options-" + hour + "-" + Math.floor(n / 30)});
+        assert.equal(options.status, 200, "options " + hour + "/" + n + ": " + await options.text());
+      }
+    }
+    assert.equal(f.count("identity_recovery_challenges"), 10000);
+    f.setTime(new Date(Date.parse(time) + 48 * 3600000).toISOString());
+    const created = await f.create();
+    assert.equal(created.status, 201);
+    const request = await created.json();
+    // One create prunes 50 children; their parents still have children and survive.
+    assert.equal(f.count("identity_recovery_challenges"), 9950);
+    assert.equal(f.count("identity_recovery_requests"), 11);
+    const passkey = await f.send("guardian/recovery/options", {
+      requestKey: "fresh-passkey-options", requestId: request.requestId, decision: "continue", method: "passkey",
+    });
+    assert.equal(passkey.status, 200, await passkey.clone().text());
+    const offline = await f.send("guardian/recovery/offline/options", {
+      requestKey: "fresh-offline-options", requestId: request.requestId, decision: "continue", currentOfflineRecoveryCode: "e".repeat(64),
+    });
+    assert.equal(offline.status, 200, await offline.clone().text());
+    assert.equal(f.count("identity_recovery_challenges"), 9851);
+    assert.equal(f.count("identity_offline_recovery_challenges"), 1);
+    assert.equal(f.count("identity_recovery_receipts"), 0);
+    assert.equal(f.count("identity_recovery_instances"), 0);
+  } finally { f.db.close(); }
+});
+
+test("0017 retains issued instance bindings permanently, including raw UPDATE and DELETE", async () => {
+  const f = await fixture();
+  try {
+    const start = await f.begin();
+    const completed = await f.send("guardian/recovery/complete", await f.body(start));
+    assert.equal(completed.status, 200);
+    assert.throws(() => f.db.sqlite.exec("UPDATE identity_recovery_instances SET authority_epoch=authority_epoch+1"));
+    assert.throws(() => f.db.sqlite.exec("DELETE FROM identity_recovery_instances"));
+  } finally { f.db.close(); }
+});
+
+test("raw DELETE enforces native expiry plus exactly 24 hours for both unused challenge types and pending parents", async () => {
+  const f = await fixture();
+  try {
+    const passkey = await f.begin();
+    const offline = await offlineStart(f, "continue", "2".repeat(64), "retention");
+    const tables = ["identity_recovery_challenges", "identity_offline_recovery_challenges"];
+    for (const table of [...tables, "identity_recovery_requests"])
+      assert.throws(() => f.db.sqlite.exec("DELETE FROM " + table));
+    f.setTime("2026-11-01T00:04:59.999Z");
+    for (const table of tables) assert.throws(() => f.db.sqlite.exec("DELETE FROM " + table));
+    // App time alone never permits cleanup or bypasses the raw SQL guard.
+    f.setTime("2026-11-02T00:00:00.000Z", "2026-11-01T00:04:59.999Z");
+    for (const table of tables) assert.throws(() => f.db.sqlite.exec("DELETE FROM " + table));
+    f.setTime("2026-11-01T00:05:00.000Z");
+    for (const table of tables) f.db.sqlite.exec("DELETE FROM " + table);
+    assert.equal(f.count("identity_recovery_requests"), 2);
+    const retained = await f.create();
+    assert.equal(retained.status, 201);
+    const original = await retained.json();
+    assert.equal(original.requestId, passkey.request.requestId);
+    assert.equal(original.state, "pending");
+    assert(original.expiresAt < "2026-11-01T00:05:00.000Z");
+    assert.equal((await f.send("guardian/recovery/options", {
+      requestKey: "expired-retained-options", requestId: original.requestId, decision: "continue", method: "passkey",
+    })).status, 409);
+    f.setTime("2026-11-01T00:59:59.999Z");
+    assert.throws(() => f.db.sqlite.exec("DELETE FROM identity_recovery_requests"));
+    f.setTime("2026-11-01T01:00:00.000Z");
+    f.db.sqlite.exec("DELETE FROM identity_recovery_requests");
+    assert.equal(f.count("identity_recovery_requests"), 0);
+    assert.equal((await f.send("guardian/recovery/options", {
+      requestKey: "old-pruned-options", requestId: passkey.request.requestId, decision: "continue", method: "passkey",
+    })).status, 403);
+    assert.equal((await f.send("guardian/recovery/offline/complete", offline.body)).status, 403);
+    // Only this never-authorized/pruned candidate can be reused; issued hashes cannot.
+    assert.equal((await f.create()).status, 201);
+  } finally { f.db.close(); }
+});
+
+test("pending requests with any receipt, instance, notification or remaining challenge cannot be pruned", async () => {
+  const f = await fixture();
+  try {
+    const requestIds: string[] = [];
+    for (let n = 0; n < 4; n++) {
+      const created = await f.create({requestKey: "protected-request-" + n, agentId}, (300000 + n).toString(16).padStart(64, "0"));
+      assert.equal(created.status, 201);
+      requestIds.push((await created.json()).requestId);
+    }
+    f.db.sqlite.prepare("INSERT INTO identity_recovery_receipts VALUES(?,'retained-receipt',?,'{}',?)").run(requestIds[0], "0".repeat(64), time);
+    f.db.sqlite.prepare("INSERT INTO tower_tokens(id,account_id,token_hash,scopes,created_at,expires_at) VALUES('retained-token',?,?, '[]',?,'2026-11-20T00:00:00.000Z')").run(account, "b".repeat(64), time);
+    f.db.sqlite.prepare("INSERT INTO identity_recovery_instances VALUES(?,?,1,'retained-token',?,?)").run("b".repeat(32), agentId, requestIds[1], time);
+    f.db.sqlite.prepare("INSERT INTO identity_mail_events(id,kind,entity_id,dedupe_key,recipient_ciphertext,recipient_hash,payload_ciphertext,created_at,updated_at) VALUES(?,'security-notice',?,'retained-mail','cipher',?,'cipher',?,?)").run("b".repeat(32), requestIds[2], "b".repeat(64), time, time);
+    const options = await f.send("guardian/recovery/options", {requestKey: "retained-child", requestId: requestIds[3], decision: "new", method: "passkey"});
+    assert.equal(options.status, 200);
+    const child = await options.json();
+    // A consumed proof is permanent, even if a transaction has no receipt yet.
+    f.db.sqlite.prepare("UPDATE identity_recovery_challenges SET consumed_at=? WHERE challenge_id=?").run(time, child.challengeId);
+    f.setTime("2026-11-02T00:00:00.000Z");
+    for (const id of requestIds) assert.throws(() => f.db.sqlite.prepare("DELETE FROM identity_recovery_requests WHERE id=?").run(id));
+    assert.throws(() => f.db.sqlite.exec("DELETE FROM identity_recovery_challenges"));
+    assert.equal((await f.create()).status, 201);
+    assert.equal(f.count("identity_recovery_requests"), 5);
+    assert.equal(f.count("identity_recovery_challenges"), 1);
+    assert.equal(f.count("identity_recovery_receipts"), 1);
+    assert.equal(f.count("identity_recovery_instances"), 1);
+    assert.equal(f.count("identity_mail_events"), 1);
+  } finally { f.db.close(); }
+});
+
+for (const method of ["passkey", "offline"]) for (const decision of ["continue", "new"]) {
+  test(method + " " + decision + " preserves original proof receipts after pruning and large permanent history never consumes active capacity", async () => {
+    const f = await fixture();
+    try {
+      const start = method === "offline" ? await offlineStart(f, decision) : await f.begin(decision);
+      const completeBody = method === "offline" ? start.body : await f.body(start);
+      const requestId = method === "offline" ? start.body.requestId : start.request.requestId;
+      // A second unused challenge on the winning case is eligible after 24h.
+      const extra = await f.send("guardian/recovery/options", {requestKey: "unused-sibling", requestId, decision, method: "passkey"});
+      assert.equal(extra.status, 200);
+      const path = "guardian/recovery/" + (method === "offline" ? "offline/" : "") + "complete";
+      const completed = await f.send(path, completeBody);
+      assert.equal(completed.status, 200, await completed.clone().text());
+      const receipt = await completed.json();
+      const columns = f.db.sqlite.prepare("PRAGMA table_info(identity_recovery_requests)").all().map(x => String(x.name));
+      const values = columns.map(c => c === "id" ? "printf('%032x',n)" : c === "candidate_hash" ? "printf('%064x',n)" : c === "state" ? "CASE WHEN n%2=0 THEN 'continued' ELSE 'new-admission-required' END" : "r." + c);
+      f.db.sqlite.exec("WITH RECURSIVE nums(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM nums WHERE n<10000) INSERT INTO identity_recovery_requests(" + columns.join(",") + ") SELECT " + values.join(",") + " FROM nums CROSS JOIN (SELECT * FROM identity_recovery_requests LIMIT 1) r");
+      f.db.sqlite.exec("INSERT INTO identity_recovery_receipts SELECT id,'fixture-history',input_hash,'{}',created_at FROM identity_recovery_requests WHERE id<>'" + requestId + "'");
+      if (method === "passkey") f.db.sqlite.prepare("UPDATE identity_guardian_passkeys SET revoked_at=?").run(time);
+      const permanentTables = ["agent_identities", "identity_recovery_receipts", "identity_recovery_instances", "identity_secret_history", "identity_guardian_passkeys", "identity_offline_recovery_codes", "identity_audit", "identity_mail_events", "identity_mail_audit", "tower_audit", "tower_tokens", "rooms", "tower_residencies", "consent_events"];
+      const snapshot = () => permanentTables.map(t => [t, JSON.stringify(f.db.sqlite.prepare("SELECT * FROM " + t).all())]);
+      const before = snapshot();
+      f.setTime("2026-11-02T00:00:00.000Z");
+      assert.equal((await f.create({requestKey: "fresh-after-success", agentId}, "2".repeat(64))).status, 201);
+      const retry = await f.send(path, completeBody);
+      assert.equal(retry.status, 200, await retry.clone().text());
+      assert.deepEqual(await retry.json(), receipt);
+      assert.deepEqual(snapshot(), before);
+      assert.equal(f.count("identity_recovery_requests"), 10002);
+      assert.equal(f.count("identity_recovery_challenges") + f.count("identity_offline_recovery_challenges"), 1);
+      assert.throws(() => f.db.sqlite.prepare("DELETE FROM identity_recovery_requests WHERE id=?").run(requestId));
+      assert.throws(() => f.db.sqlite.exec("DELETE FROM " + (method === "offline" ? "identity_offline_recovery_challenges" : "identity_recovery_challenges")));
+      if (decision === "continue") {
+        assert.equal((await f.create({requestKey: "issued-key-reuse", agentId})).status, 409);
+      }
+    } finally { f.db.close(); }
+  });
+}
+
+test("retained consumed challenges and unused challenges on completed parents do not occupy active capacity", async () => {
+  for (const completedParent of [false, true]) {
+    const f = await fixture();
+    try {
+      const start = await f.begin("new");
+      if (completedParent) {
+        const extra = await f.send("guardian/recovery/options", {requestKey: "history-unused", requestId: start.request.requestId, decision: "new", method: "passkey"});
+        assert.equal(extra.status, 200);
+        assert.equal((await f.send("guardian/recovery/complete", await f.body(start))).status, 200);
+      } else {
+        f.db.sqlite.prepare("UPDATE identity_recovery_challenges SET consumed_at=?").run(time);
+      }
+      const columns = f.db.sqlite.prepare("PRAGMA table_info(identity_recovery_challenges)").all().map(x => String(x.name));
+      const values = columns.map(c => c === "challenge_id" ? "printf('%032x',n)" : c === "request_key" ? "'retained-challenge-'||n" : "c." + c);
+      f.db.sqlite.exec("WITH RECURSIVE nums(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM nums WHERE n<10000) INSERT INTO identity_recovery_challenges(" + columns.join(",") + ") SELECT " + values.join(",") + " FROM nums CROSS JOIN (SELECT * FROM identity_recovery_challenges ORDER BY consumed_at LIMIT 1) c");
+      const request = await (await f.create({requestKey: "fresh-with-history", agentId}, "2".repeat(64))).json();
+      const options = await f.send("guardian/recovery/options", {requestKey: "fresh-history-options", requestId: request.requestId, decision: "continue", method: "passkey"});
+      assert.equal(options.status, 200, await options.clone().text());
+      assert.equal(f.count("identity_recovery_challenges"), completedParent ? 10003 : 10002);
+    } finally { f.db.close(); }
+  }
+});
+
+test("two concurrent pruners are independently bounded, atomically delete children first and cannot double allocate a replay", async () => {
+  const f = await fixture();
+  try {
+    const start = await f.begin();
+    const offline = await f.send("guardian/recovery/offline/options", {requestKey: "mixed-prune-offline", requestId: start.request.requestId, decision: "continue", currentOfflineRecoveryCode: "e".repeat(64)});
+    assert.equal(offline.status, 200);
+    for (const table of ["identity_recovery_challenges", "identity_offline_recovery_challenges"]) {
+      const columns = f.db.sqlite.prepare("PRAGMA table_info(" + table + ")").all().map(x => String(x.name));
+      const values = columns.map(c => c === "challenge_id" ? "printf('%032x',n)" : c === "request_key" ? "'mixed-prune-'||n" : "c." + c);
+      f.db.sqlite.exec("WITH RECURSIVE nums(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM nums WHERE n<119) INSERT INTO " + table + "(" + columns.join(",") + ") SELECT " + values.join(",") + " FROM nums CROSS JOIN (SELECT * FROM " + table + " LIMIT 1) c");
+    }
+    f.setTime("2026-11-02T00:00:00.000Z");
+    const batch = f.db.batch.bind(f.db), deleted: number[][] = [];
+    f.db.batch = async rows => {
+      const result = await batch(rows);
+      if (rows.some(s => "sql" in s && String(s.sql).startsWith("DELETE FROM identity_recovery_challenges"))) {
+        const changes = result.map(r => Number(r.meta.changes));
+        assert.equal(changes.length, 3);
+        assert(changes.every(n => n <= 50));
+        assert(changes.reduce((a,b) => a+b, 0) <= 150);
+        deleted.push(changes);
+      }
+      return result;
+    };
+    const fresh = () => f.create({requestKey: "mixed-prune-fresh", agentId}, "3".repeat(64));
+    const results = await Promise.all([fresh(), fresh()]);
+    for (const response of results) assert.equal(response.status, 201, await response.clone().text());
+    assert.deepEqual(await results[0].json(), await results[1].json());
+    assert.equal(deleted.length, 2);
+    assert.equal(f.count("identity_recovery_challenges"), 20);
+    assert.equal(f.count("identity_offline_recovery_challenges"), 20);
+    assert.equal(f.count("identity_recovery_requests"), 2);
+    // Next allocation removes the remaining children and then the empty parent.
+    assert.equal((await f.create({requestKey: "next-mixed-prune", agentId}, "2".repeat(64))).status, 201);
+    assert.equal(f.count("identity_recovery_challenges"), 0);
+    assert.equal(f.count("identity_offline_recovery_challenges"), 0);
+    assert.equal(f.count("identity_recovery_requests"), 2);
+    assert.equal(f.count("identity_recovery_receipts"), 0);
+  } finally { f.db.close(); }
+});
+
+for (const cleanupFirst of [false, true]) {
+  test("cleanup/complete race rechecks native time and permanent proof when " + (cleanupFirst ? "cleanup" : "completion") + " wins", async () => {
+    const f = await fixture();
+    let release = () => {};
+    let delayed: Promise<Response> | undefined;
+    try {
+      const start = await f.begin(), completeBody = await f.body(start), batch = f.db.batch.bind(f.db);
+      let entered = () => {}, paused = false;
+      const waiting = new Promise<void>(resolve => { entered = resolve; });
+      const gate = new Promise<void>(resolve => { release = resolve; });
+      f.db.batch = async rows => {
+        const target = cleanupFirst ? "INSERT INTO identity_recovery_receipts" : "DELETE FROM identity_recovery_challenges";
+        if (!paused && rows.some(s => "sql" in s && String(s.sql).startsWith(target))) {
+          paused = true;
+          entered();
+          await gate;
+        }
+        return batch(rows);
+      };
+      if (!cleanupFirst) f.setTime("2026-11-02T00:00:00.000Z");
+      delayed = cleanupFirst ? f.send("guardian/recovery/complete", completeBody) : f.create({requestKey: "race-prune-fresh", agentId}, "2".repeat(64));
+      await waiting;
+      try {
+        if (cleanupFirst) {
+          f.setTime("2026-11-02T00:00:00.000Z");
+          assert.equal((await f.create({requestKey: "race-prune-fresh", agentId}, "2".repeat(64))).status, 201);
+          assert.equal(f.count("identity_recovery_challenges"), 0);
+        } else {
+          // A delayed cleanup must re-read the native clock after rollback.
+          f.setTime(time);
+          assert.equal((await f.send("guardian/recovery/complete", completeBody)).status, 200);
+        }
+      } finally { release(); }
+      assert.equal((await delayed).status, cleanupFirst ? 409 : 201);
+      assert.equal(f.count("identity_recovery_receipts"), cleanupFirst ? 0 : 1);
+      assert.equal(f.count("identity_recovery_instances"), cleanupFirst ? 0 : 1);
+      assert.equal(f.count("identity_recovery_challenges"), cleanupFirst ? 0 : 1);
+      assert.equal(f.count("tower_tokens"), cleanupFirst ? 0 : 1);
+    } finally {
+      release();
+      if (delayed) await delayed;
+      f.db.close();
+    }
+  });
+}
+
+test("0017 readiness requires every new guard and cleanup index and advertises the retention boundary", async () => {
+  const f = await fixture();
+  try {
+    const worker = (await import("../server/live/worker.ts")).default;
+    const objects = f.db.sqlite.prepare("SELECT type,name FROM sqlite_master WHERE name IN ('identity_recovery_request_prune_guard','identity_recovery_challenge_prune_guard','identity_offline_recovery_challenge_prune_guard','identity_recovery_instance_immutable','identity_recovery_instance_permanent','identity_recovery_request_pending_expiry','identity_recovery_challenge_pending_expiry','identity_offline_recovery_challenge_pending_expiry','identity_recovery_challenge_request','identity_offline_recovery_challenge_request','identity_mail_entity')").all();
+    assert.equal(objects.length, 11);
+    for (const object of objects) {
+      f.db.sqlite.exec("SAVEPOINT missing_retention_object");
+      try {
+        f.db.sqlite.exec("DROP " + object.type + " " + object.name);
+        const missing = await worker.fetch(new Request(origin + "/api/v1/status"), {DB: f.db, PUBLIC_ORIGIN: origin});
+        assert.equal(missing.status, 503, String(object.name));
+        assert.equal((await missing.json()).error, "database_schema_not_ready");
+      } finally { f.db.sqlite.exec("ROLLBACK TO missing_retention_object; RELEASE missing_retention_object"); }
+    }
+    const capability = JSON.parse(readFileSync(new URL("../public/identity-onboarding.json", import.meta.url), "utf8")).recovery;
+    assert.equal(capability.recoveryAvailable, false);
+    assert.equal(capability.uiAvailable, false);
+    assert.equal(capability.requestRules.activePendingRequestCap, 10000);
+    assert.equal(capability.requestRules.activePendingChallengeCap, 10000);
+    assert(!("permanentRequestCap" in capability.requestRules));
+    assert(!("permanentChallengeCap" in capability.requestRules));
+    assert.equal(capability.retention.minimumSecondsAfterExpiry, 86400);
+    assert.equal(capability.retention.maxPrunedRowsPerAllocation, 150);
+    assert.equal(capability.retention.maxPrunedRowsPerChallengeType, 50);
+    assert.equal(capability.retention.maxPrunedRequestsPerAllocation, 50);
+  } finally { f.db.close(); }
+});
+
+test("failed cleanup rolls back the entire bounded batch without reserving a candidate or changing authorization", async () => {
+  const f = await fixture();
+  try {
+    await f.begin();
+    f.setTime("2026-11-02T00:00:00.000Z");
+    f.db.sqlite.exec("CREATE TRIGGER test_block_prune BEFORE DELETE ON identity_recovery_requests BEGIN SELECT RAISE(ABORT,'test-prune-failure');END");
+    const beforeQuota = f.db.sqlite.prepare("SELECT count FROM rate_limits WHERE key='recovery:global:requests'").get()!.count;
+    const fresh = () => f.create({requestKey: "cleanup-failure-fresh", agentId}, "2".repeat(64));
+    assert.equal((await fresh()).status, 503);
+    assert.equal(f.count("identity_recovery_challenges"), 1);
+    assert.equal(f.count("identity_recovery_requests"), 1);
+    assert.equal(f.count("identity_recovery_receipts"), 0);
+    assert.equal(f.count("identity_recovery_instances"), 0);
+    assert.equal(f.db.sqlite.prepare("SELECT count FROM rate_limits WHERE key='recovery:global:requests'").get()!.count, beforeQuota);
+    f.db.sqlite.exec("DROP TRIGGER test_block_prune");
+    assert.equal((await fresh()).status, 201);
+    assert.equal(f.count("identity_recovery_challenges"), 0);
+    assert.equal(f.count("identity_recovery_requests"), 1);
+  } finally { f.db.close(); }
+});
+
+for (const kind of ["requests", "challenges"]) {
+  test("queued " + kind + " allocation counts only rows still active at native execution time", async () => {
+    const f = await fixture();
+    try {
+      const start = await f.begin();
+      const table = "identity_recovery_" + kind;
+      const columns = f.db.sqlite.prepare("PRAGMA table_info(" + table + ")").all().map(x => String(x.name));
+      const created = new Date(Date.parse(time) - (kind === "requests" ? 3600000 : 300000) + 1).toISOString();
+      const expires = new Date(Date.parse(time) + 1).toISOString();
+      const values = columns.map(c => c === "id" || c === "challenge_id" ? "printf('%032x',n)" : c === "candidate_hash" && kind === "requests" ? "printf('%064x',n)" : c === "request_key" ? "'clock-cap-'||n" : c === "created_at" ? "'" + created + "'" : c === "expires_at" ? "'" + expires + "'" : "r." + c);
+      f.db.sqlite.exec("WITH RECURSIVE nums(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM nums WHERE n<9999) INSERT INTO " + table + "(" + columns.join(",") + ") SELECT " + values.join(",") + " FROM nums CROSS JOIN (SELECT * FROM " + table + " LIMIT 1) r");
+      assert.equal(f.count(table), 10000);
+      const batch = f.db.batch.bind(f.db);
+      let crossed = false;
+      f.db.batch = async rows => {
+        if (rows.some(s => "sql" in s && String(s.sql).startsWith("INSERT INTO " + table + "("))) {
+          crossed = true;
+          f.setTime(time, expires);
+        }
+        return batch(rows);
+      };
+      const result = kind === "requests" ? await f.create({requestKey: "clock-new-request", agentId}, "2".repeat(64)) : await f.send("guardian/recovery/options", {requestKey: "clock-new-options", requestId: start.request.requestId, decision: "continue", method: "passkey"});
+      assert(crossed);
+      assert.equal(result.status, kind === "requests" ? 201 : 200, await result.clone().text());
+      assert.equal(f.count(table), 10001);
+    } finally { f.db.close(); }
+  });
+}

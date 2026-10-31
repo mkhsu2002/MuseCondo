@@ -5,7 +5,7 @@ import runtime from '../server/live/worker.ts';
 import {digest,createLiveApp} from '../server/live/app.ts';
 import {LocalDatabase} from '../server/live/local-db.ts';
 const origin='https://tower.example';
-function database(){const db=new LocalDatabase(':memory:');for(const f of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql','0006_tower_intake.sql','0007_tower_manager.sql','0008_tower_publication_events.sql','0009_tower_reception.sql','0010_tower_visits.sql','0011_tower_activities.sql','0012_agent_identity.sql','0013_identity_guardian_invites.sql','0014_identity_guardian_credentials.sql','0015_identity_recovery.sql','0016_identity_offline_recovery.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8'));return db;}
+function database(){const db=new LocalDatabase(':memory:');for(const f of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql','0006_tower_intake.sql','0007_tower_manager.sql','0008_tower_publication_events.sql','0009_tower_reception.sql','0010_tower_visits.sql','0011_tower_activities.sql','0012_agent_identity.sql','0013_identity_guardian_invites.sql','0014_identity_guardian_credentials.sql','0015_identity_recovery.sql','0016_identity_offline_recovery.sql','0017_identity_recovery_retention.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8'));return db;}
 
 test('operator account bootstrap is protected, replayable, audited and leaves public registration closed',async()=>{
  const db=database();try{

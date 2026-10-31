@@ -355,7 +355,40 @@ export function createIdentityRecovery(env: Environment) {
     if (!row) fail(503, "identity_recovery_unavailable");
     if (row!.count > 30) fail(429, "recovery_http_rate_limited");
   }
-  function quota(kind: string): Statement[] {
+  const nativeNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+    retentionCutoff = "strftime('%Y-%m-%dT%H:%M:%fZ'," + nativeNow + ",'-24 hours')",
+    expiredUnusedChallenge = "consumed_at IS NULL AND expires_at<=" + retentionCutoff,
+    expiredUnprovenRequest =
+      "state='pending' AND expires_at<=" + retentionCutoff +
+      " AND NOT EXISTS(SELECT 1 FROM identity_recovery_receipts WHERE request_id=identity_recovery_requests.id)" +
+      " AND NOT EXISTS(SELECT 1 FROM identity_recovery_instances WHERE request_id=identity_recovery_requests.id)" +
+      " AND NOT EXISTS(SELECT 1 FROM identity_mail_events WHERE entity_id=identity_recovery_requests.id)" +
+      " AND NOT EXISTS(SELECT 1 FROM identity_recovery_challenges WHERE request_id=identity_recovery_requests.id)" +
+      " AND NOT EXISTS(SELECT 1 FROM identity_offline_recovery_challenges WHERE request_id=identity_recovery_requests.id)";
+  // Event-driven only: at most 50 per challenge type and 50 requests (150 rows).
+  // Select a finite id set, then recheck eligibility at execution; triggers protect
+  // raw DELETE too. Children go first, all three deletions share one atomic batch.
+  async function pruneExpiredAttempts() {
+    const boundedDelete = (table: string, column: string, eligible: string) =>
+      stmt("DELETE FROM " + table + " WHERE " + column + " IN (SELECT " + column +
+        " FROM " + table + " WHERE " + eligible + " ORDER BY expires_at," + column +
+        " LIMIT 50) AND " + eligible);
+    await db.batch([
+      boundedDelete("identity_recovery_challenges", "challenge_id", expiredUnusedChallenge),
+      boundedDelete("identity_offline_recovery_challenges", "challenge_id", expiredUnusedChallenge),
+      boundedDelete("identity_recovery_requests", "id", expiredUnprovenRequest),
+    ]);
+  }
+  function activeCapacityCount(kind: "requests" | "challenges") {
+    if (kind === "requests")
+      return "(SELECT COUNT(*) FROM identity_recovery_requests WHERE state='pending' AND expires_at>" + nativeNow + ")";
+    const count = (table: string) =>
+      "(SELECT COUNT(*) FROM " + table + " c JOIN identity_recovery_requests r ON r.id=c.request_id" +
+      " WHERE c.consumed_at IS NULL AND c.expires_at>" + nativeNow +
+      " AND r.state='pending' AND r.expires_at>" + nativeNow + ")";
+    return count("identity_recovery_challenges") + "+" + count("identity_offline_recovery_challenges");
+  }
+  function quota(kind: "requests" | "challenges"): Statement[] {
     const bucket = "recovery:global:" + kind;
     return [
       guard(
@@ -366,32 +399,13 @@ export function createIdentityRecovery(env: Environment) {
         "INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,strftime('%Y-%m-%dT%H:%M:%fZ',strftime('%Y-%m-%dT%H:%M:%fZ','now'),'+1 hour')) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN expires_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') THEN 1 ELSE count+1 END,expires_at=CASE WHEN expires_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') THEN excluded.expires_at ELSE expires_at END",
         bucket,
       ),
-      guard(
-        "(SELECT COUNT(*) FROM " +
-          (kind === "requests"
-            ? "identity_recovery_requests"
-            : "identity_recovery_challenges") +
-          ")" +
-          (kind === "requests"
-            ? ""
-            : "+(SELECT COUNT(*) FROM identity_offline_recovery_challenges)") +
-          "<10000",
-      ),
+      guard(activeCapacityCount(kind) + "<10000"),
     ];
   }
   async function quotaExceeded(kind: "requests" | "challenges") {
-    const table =
-      kind === "requests"
-        ? "identity_recovery_requests"
-        : "identity_recovery_challenges";
     return !!(await one(
-      "SELECT 1 WHERE EXISTS(SELECT 1 FROM rate_limits WHERE key=? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND count>=1000) OR (SELECT COUNT(*) FROM " +
-        table +
-        ")" +
-        (kind === "requests"
-          ? ""
-          : "+(SELECT COUNT(*) FROM identity_offline_recovery_challenges)") +
-        ">=10000",
+      "SELECT 1 WHERE EXISTS(SELECT 1 FROM rate_limits WHERE key=? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND count>=1000) OR " +
+        activeCapacityCount(kind) + ">=10000",
       "recovery:global:" + kind,
     ));
   }
@@ -462,6 +476,7 @@ export function createIdentityRecovery(env: Environment) {
           };
           const prior = await previous();
           if (prior) return prior;
+          await pruneExpiredAttempts();
           const hmac = await hashPrivate(
               env.contactKey!,
               "identity-offline-recovery",
@@ -567,6 +582,7 @@ export function createIdentityRecovery(env: Environment) {
           const prior = await previous();
           if (prior) return prior;
           await check(requestGuard(r!));
+          await pruneExpiredAttempts();
           const options = offline
               ? await registrationOptions(env.origin, r!.agent_id, "MuseCondo")
               : await authenticationOptions(env.origin),

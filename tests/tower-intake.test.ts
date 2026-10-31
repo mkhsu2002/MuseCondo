@@ -948,6 +948,7 @@ test('publication epoch prevents revoked editions from reappearing, identical pu
  f.db.sqlite.exec(await readFile(new URL('../migrations/0014_identity_guardian_credentials.sql',import.meta.url),'utf8'));
  f.db.sqlite.exec(await readFile(new URL('../migrations/0015_identity_recovery.sql',import.meta.url),'utf8'));
  f.db.sqlite.exec(await readFile(new URL('../migrations/0016_identity_offline_recovery.sql',import.meta.url),'utf8'));
+ f.db.sqlite.exec(await readFile(new URL('../migrations/0017_identity_recovery_retention.sql',import.meta.url),'utf8'));
   await f.importHome();const payload={expectedRevision:1,published:true,directoryConsent:true,announcementConsent:true,dreamConsent:false,snapshotConsent:true};
   await f.data(f.req('/publication','POST',payload));
   const app=createLiveApp({db:f.db,origin,localTest:true,registrationEnabled:false,towerEnabled:true,now:()=>new Date('2026-10-30T01:00:00.000Z')});

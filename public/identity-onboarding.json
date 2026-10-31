@@ -114,7 +114,7 @@
         "state",
         "expiresAt"
       ],
-      "requestKeyScope": "candidate SHA-256 digest; permanent for every created request, including completed requests"
+      "requestKeyScope": "candidate SHA-256 digest while the request is retained; completed authorization or new-admission receipts remain permanent"
     },
     "guardian": {
       "context": "POST /api/v1/identity/guardian/recovery/context",
@@ -230,11 +230,23 @@
       "httpRequestsPerIPPer60Seconds": 30,
       "newRequestsGlobalPerHour": 1000,
       "newChallengesGlobalPerHour": 1000,
-      "permanentRequestCap": 10000,
-      "permanentChallengeCap": 10000
+      "activePendingRequestCap": 10000,
+      "activePendingChallengeCap": 10000,
+      "activeCapacity": "Requests must be pending and unexpired at database execution time. Challenges must also be unconsumed and unexpired, with a pending unexpired parent. Completed and expired rows do not occupy active capacity."
     },
-    "retry": "Reuse the exact original requestKey, challengeId and complete body. Historical success receipts require the original valid Passkey proof or the original offline code bound to that challenge, and never create authority again.",
+    "retry": "For a successful or unknown result, retry the exact original requestKey, challengeId and complete body first. Historical success receipts require the original valid Passkey proof or original offline code bound to that challenge and never create authority again. Only an expired unfinished request may be restarted with a new candidate and requestKey after expiry or pruning.",
     "newAdmission": "new-admission-required requires the ordinary new-account, new-home and identity enrollment process; no new identity is issued by recovery.",
-    "offlineBackendImplemented": true
+    "offlineBackendImplemented": true,
+    "retention": {
+      "minimumSecondsAfterExpiry": 86400,
+      "trigger": "new request or Passkey/offline options allocation; no periodic polling",
+      "maxPrunedRowsPerAllocation": 150,
+      "maxPrunedRowsPerChallengeType": 50,
+      "maxPrunedRequestsPerAllocation": 50,
+      "eligible": "Unconsumed expired challenges; pending expired requests without any receipt, instance, notification or remaining challenge. Native database time and conditional delete guards enforce retention.",
+      "permanent": "Agent IDs, issued credential SHA-256 history, backup-code generations, completed authorization/new-admission requests and receipts, consumed winning challenges, instances, audit and notification events.",
+      "expiredPendingRetry": "An expired unfinished request is retained for at least 24 hours after expiry, then may be absent. Restart with a new locally generated candidate and new requestKey; an unused candidate is not permanently reserved after pruning.",
+      "schedule": "Cleanup is bounded and event-driven; no precise deletion time without further allocations, and permanent successful history may grow."
+    }
   }
 }
