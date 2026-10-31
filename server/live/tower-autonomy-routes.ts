@@ -1,4 +1,4 @@
-import {createManagerAutonomy,type AssetBucket} from './tower-autonomy.ts';
+import {autonomySchemaReady,createManagerAutonomy,type AssetBucket} from './tower-autonomy.ts';
 import type {Database} from './db.ts';
 export interface ManagerRuntimeBinding {fetch(request:Request):Promise<Response>}
 interface Options {db:Database;origin:string;operator:()=>Promise<boolean>;scheduled:()=>Promise<boolean>;bucket?:AssetBucket;runtime?:ManagerRuntimeBinding;trigger?:string;apiKey?:string;assets?:{fetch(request:Request):Promise<Response>};now?:()=>Date}
@@ -13,7 +13,7 @@ export function createAutonomyRoutes(options:Options){
   if(!asset&&!(step?await options.scheduled():await options.operator()))return json({error:step?'schedule_authorization_required':'operator_required'},401);
   if(asset&&!['GET','HEAD'].includes(request.method)||step&&request.method!=='POST'||operator&&!['GET','POST'].includes(request.method))return json({error:'method_not_allowed'},405);
   try{
-   const schema=await options.db.prepare("SELECT count(*) n FROM sqlite_master WHERE name IN ('tower_autonomy_mandate','tower_autonomy_cycles','tower_autonomy_calls','tower_autonomy_events','tower_autonomy_assets','tower_autonomy_current','tower_autonomy_call_binding','tower_autonomy_current_guard','tower_autonomy_current_update_guard')").first<{n:number}>();if(schema?.n!==9)return json({error:'autonomy_schema_not_ready'},503);
+   if(!await autonomySchemaReady(options.db))return json({error:'autonomy_schema_not_ready'},503);
    if(asset){const bytes=await manager.asset(asset[1],asset[2]);return bytes?new Response(request.method==='HEAD'?null:bytes,{headers:{'Content-Type':'image/png','Cache-Control':'public, max-age=60, must-revalidate','X-Content-Type-Options':'nosniff'}}):json({error:'not_found'},404);}
    if(step)return json(await manager.step());
    if(request.method==='GET')return json(await manager.inspect());

@@ -68,3 +68,6 @@ test('deployment alarm continuation is bounded, survives interruptions and stops
  globalThis.fetch=async()=>{throw Error('synthetic network interruption');};for(let i=0;i<3;i++)await clock.alarm();assert.equal(alarm,null);assert.equal(values.get('recoveryAttempts'),3);
  }finally{globalThis.fetch=original;}
 });
+test('partial schema missing any provenance or permanence guard fails public projection and private execution closed',async()=>{
+ const db=database();try{db.sqlite.exec('DROP TRIGGER tower_autonomy_assets_provenance');const routes=createAutonomyRoutes({db,origin:'https://tower.example',operator:async()=>true,scheduled:async()=>true});assert.equal((await routes.fetch(new Request('https://tower.example/api/v1/manager/autonomy/step',{method:'POST'})))!.status,503);assert.equal(await createManagerAutonomy({db,now:clock}).publicState(),null);}finally{db.close();}
+});
