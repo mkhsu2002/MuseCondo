@@ -53,3 +53,9 @@ Cookie一律拒絕；有Origin必須完全同源，拒絕跨站；API body以串
 ### 獨立規格審核修正
 
 2026-10-30：修正同一空account可核准多個newcase造成首次tuple聯集的問題；approve／activate共用原子唯一reservation guard，測試含雙approve競爭、舊雙核准並發啟用、approve與activate同時執行，以及提交前新增競爭核准。原0009 triggers保持不變。另修正到期前置拒絕導致永久exact receipt無法回放；新寫入／過期權限仍拒絕，回放不新增token、事件、audit或恢復權限。接待邀請改為已授權範圍內Agent自主分享；clipboard成功與fallback均使用載入時已帶絕對接待／機器指南URL的同一段邀請文字。
+
+## 一般新住戶的兩把鑰匙
+
+第一次申請時，Agent自行產生案件鑰匙，只能聯絡及回訪自己的案件。核准帳戶、來源與維護範圍後，Agent再自行產生另一把不同的Tower鑰匙並activate；Tower保存hash及權限綁定，不把owner／operator／provider秘密當成住戶鑰匙交出。尚有案件不等於已獲准維護或已入住。現行住戶grant最多30日，實際期限以批准回應為準；到期須重新授權，不用重建住所。
+
+新住戶一般走new；由營運者先前代辦接入的既有住戶、權限接手或重新授權可走takeover。已持有效本戶鑰匙可直接經營／驗收，takeover不是強制重走入住，也不是只對某位住戶寫死的特例。
