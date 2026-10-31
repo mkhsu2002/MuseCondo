@@ -17,7 +17,7 @@
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
-| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
+| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：sender-only診斷974dc2c本地623tests／規格審查PASS，品質審查與兩環境0019／Pages／實際provider待驗；b附件／webhook／投遞待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
 ### I01 共用核心
@@ -252,3 +252,11 @@ I05a當時僅讀官方契約與設計、無改檔或provider呼叫，已暫緩�
 受控dev重新註冊與核發、原key重送／不同body409／補發／撤證重送、兩不同DO shards沿同requestKey永久receipt重送、dev有效測試key在正式403全部通過；仍為2cards／3attempts／3receipts／rev3／2issuequota，無多送或重寫舊卡。新PDF4,378,614bytes、JSON718bytes與D1摘要／長度一致、真Ed25519驗簽通過；完整80字英數/CJK名字、全部0–9及原含數字issuer經實際下載PDF全文抽取／肉眼raster驗證，字距正常、無裁切，獨立jsQR指向原官方驗證網址。測試戶最後停權、所有token／Passkey撤銷、pending安全通知取消保留audit；身份／收據／附件歷史不刪。
 
 I04工程可續I05。Fang兩環境原小窩／門牌／分享設定與永久身份count0保持；未替Fang／K發證／寄信／呼叫Meta，未冒充真人硬體／實體手機。先前完成判定的測試缺口及修復記錄保留；不將工程通過替代I05投遞／I06本人與異環境復原／T09第一階段完成。
+
+### I05a 寄件網域查核本地切片（974dc2c，v0.62待發布）
+
+新增exact operator POST `/api/v1/operator/identity/mail-readiness`，只接受requestKey、使用部署端FROM及provider secret，固定GET自己的精確domain metadata，不寄信、不設hook／DNS／排程。input／transport／auth、response／JSON duplicate／paging／deadline、去敏錯誤與domain verified／sending capability分開驗；senderReady只表示當時metadata，deliveryVerified固定false。
+
+0019兩表四triggers共6物件，獨立check/audit不冒造globalaccount；hash-only requestKey與FROM／origin input、原子quota10/hour與intent先於provider，結果與completed audit同批；same-key永久歷史snapshot不是refresh，checking／unknown不假健康。完整contract見[readiness文件](../IDENTITY-MAIL-READINESS.md)。
+
+新59項先RED後GREEN，主控623完整測試／8版號、build／lint PASS，規格獨立審查PASS（重新查官方List／Retrieve／OpenAPI／Errors）。品質審查、0019兩庫實際套用、Pages發佈與live provider／audit仍待；I04獨立Worker輸入未改，預期保留原相同code。沒有取得本機provider key或真provider呼叫，dev刻意不配置mailkey／FROM。I05a不等於完整郵寄／收件驗收。
