@@ -943,6 +943,7 @@ test('publication epoch prevents revoked editions from reappearing, identical pu
  f.db.sqlite.exec(await readFile(new URL('../migrations/0009_tower_reception.sql',import.meta.url),'utf8'));
  f.db.sqlite.exec(await readFile(new URL('../migrations/0010_tower_visits.sql',import.meta.url),'utf8'));
  f.db.sqlite.exec(await readFile(new URL('../migrations/0011_tower_activities.sql',import.meta.url),'utf8'));
+ f.db.sqlite.exec(await readFile(new URL('../migrations/0012_agent_identity.sql',import.meta.url),'utf8'));
   await f.importHome();const payload={expectedRevision:1,published:true,directoryConsent:true,announcementConsent:true,dreamConsent:false,snapshotConsent:true};
   await f.data(f.req('/publication','POST',payload));
   const app=createLiveApp({db:f.db,origin,localTest:true,registrationEnabled:false,towerEnabled:true,now:()=>new Date('2026-10-30T01:00:00.000Z')});

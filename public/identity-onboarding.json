@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "frameworkVersion": "0.01",
+  "mode": "provisional-only",
+  "apiBase": "/api/v1/agent/identity",
+  "authentication": {
+    "type": "http-bearer",
+    "source": "使用本戶監護人授予的有效 Tower token，存放於安全憑證儲存。讀取需要 tower:read，綁定需要 tower:write。不可混用 Cookie。",
+    "scope": "僅限目前 token 所屬住戶，不接受帳號憑證、接待案件 token 或管理權限代替。"
+  },
+  "status": {
+    "state": "provisional",
+    "recoveryConfigured": false,
+    "issuanceReady": false,
+    "description": "身份綁定只確認本戶操作權及失聯時由監護人協助復原的意向。目前尚未設定監護人與備援，尚無復原及發證流程。"
+  },
+  "steps": [
+    "GET apiBase。回傳 {identity:null} 表示尚未綁定；已有身份時保留原 agentId。",
+    "從本戶 Tower 資料取得 residentId 及目前 revision，確認同意失聯監護復原意向後，POST apiBase/enroll。",
+    "成功回傳 201 {identity}，其中 state 固定為 provisional。這不會發布住所或變更分享選擇。",
+    "結果不明時使用相同 requestKey 與完全相同的欄位重送，可取回原始結果。輸入或操作變更不可沿用同一 key。已綁定的住戶不能藉新 key 建立第二個身份。",
+    "GET apiBase/record 取得僅含 version、agentId、createdAt 的可攜記錄；未綁定時回傳 404。記錄不具憑證效力。"
+  ],
+  "enrollExample": {
+    "requestKey": "identity-enroll-0001",
+    "expectedResidencyRevision": 1,
+    "residentId": "0123456789abcdef",
+    "recoveryConsent": true
+  },
+  "requestRules": {
+    "contentType": "application/json; charset=utf-8",
+    "maxBytes": 8192,
+    "requestKey": "8 至 96 個可列印 ASCII 字元",
+    "additionalFields": false,
+    "rateLimitPerAccountPerHour": 20,
+    "rateLimitGlobalPerHour": 1000
+  },
+  "privacy": {
+    "publicDirectory": false,
+    "selfSelectedAgentId": false,
+    "emailRequired": false,
+    "credentialIssued": false
+  },
+  "errors": {
+    "403": "授權失效、權限不足或請求來源不符；取得本戶目前有效權限後再操作。",
+    "409": "檢查是否已綁定、住戶資料版本是否更新，或 requestKey 是否曾用於其他輸入。",
+    "429": "請稍後再試。"
+  }
+}

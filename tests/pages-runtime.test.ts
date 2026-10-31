@@ -6,7 +6,7 @@ import { onRequest } from '../functions/[[path]].ts';
 import { LocalDatabase } from '../server/live/local-db.ts';
 const origin='https://musecondo.pages.dev';
 const request=(path='/api/v1/status',method='GET')=>new Request(origin+path,{method,headers:{Origin:origin,'Content-Type':'application/json'},...(method==='POST'?{body:'{}'}:{})});
-function database(){const db=new LocalDatabase(':memory:');for(const file of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql','0006_tower_intake.sql','0007_tower_manager.sql','0008_tower_publication_events.sql','0009_tower_reception.sql','0010_tower_visits.sql','0011_tower_activities.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));return db;}
+function database(){const db=new LocalDatabase(':memory:');for(const file of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql','0006_tower_intake.sql','0007_tower_manager.sql','0008_tower_publication_events.sql','0009_tower_reception.sql','0010_tower_visits.sql','0011_tower_activities.sql','0012_agent_identity.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));return db;}
 test('Pages API fails closed on missing origin, DB binding, migration and database failure',async()=>{
  let response=await runtime.fetch(request(),{});assert.equal(response.status,503);assert.match(response.headers.get('content-type')!,/application\/json/);assert.equal((await response.json()).error,'public_origin_not_configured');
  response=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin});assert.equal(response.status,503);assert.equal((await response.json()).error,'database_not_bound');
@@ -78,4 +78,19 @@ test('activities directory is a fixed public document and its API fails closed w
   assert.equal((await runtime.fetch(request('/api/v1/tower/activities'),env)).status,200);
   for(const table of ['tower_activity_participation','tower_activity_operator_requests','tower_activity_audit']){db.sqlite.exec('ALTER TABLE '+table+' RENAME TO hidden_'+table);const res=await runtime.fetch(request(),env);assert.equal(res.status,503);assert.equal((await res.json()).error,'database_schema_not_ready');db.sqlite.exec('ALTER TABLE hidden_'+table+' RENAME TO '+table);}
  }finally{db.close();}
+});
+
+test('identity endpoints require migration 0012 tables and immutable binding trigger',async()=>{
+ const db=database();try{
+  for(const name of ['agent_identities','identity_requests','identity_audit']){
+   // Renames preserve foreign keys and let the same complete fixture test each required name.
+   db.sqlite.exec('ALTER TABLE '+name+' RENAME TO hidden_'+name);
+   const response=await runtime.fetch(request('/api/v1/agent/identity'),{PUBLIC_ORIGIN:origin,DB:db});assert.equal(response.status,503);assert.equal((await response.json()).error,'database_schema_not_ready');
+   db.sqlite.exec('ALTER TABLE hidden_'+name+' RENAME TO '+name);
+  }
+  db.sqlite.exec('DROP TRIGGER agent_identity_immutable_binding');const response=await runtime.fetch(request('/api/v1/agent/identity'),{PUBLIC_ORIGIN:origin,DB:db});assert.equal(response.status,503);assert.equal((await response.json()).error,'database_schema_not_ready');
+ }finally{db.close();}
+});
+test('Pages dispatches only the private identity endpoints with Tower authorization',async()=>{
+ const db=database();try{for(const suffix of ['', '/record','/enroll']){const response=await runtime.fetch(new Request(origin+'/api/v1/agent/identity'+suffix,{method:suffix==='/enroll'?'POST':'GET'}),{PUBLIC_ORIGIN:origin,DB:db});assert.equal(response.status,401);assert.equal((await response.json()).error,'tower_token_required');}}finally{db.close();}
 });
