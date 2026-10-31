@@ -969,7 +969,7 @@ test("legacy reception approval and pre-existing approval activation cannot bypa
   }
 });
 
-test("Pages dispatches recovery and requires every new schema object; machine capability remains unavailable overall", async () => {
+test("Pages dispatches recovery and requires every new schema object; machine capability enables the guardian recovery UI", async () => {
   const f = await fixture();
   try {
     const worker = (await import("../server/live/worker.ts")).default,
@@ -1023,8 +1023,8 @@ test("Pages dispatches recovery and requires every new schema object; machine ca
         "utf8",
       ),
     );
-    assert.equal(capability.recovery.recoveryAvailable, false);
-    assert.equal(capability.recovery.offlineCodeResetAvailable, false);
+    assert.equal(capability.recovery.recoveryAvailable, true);
+    assert.equal(capability.recovery.offlineCodeResetAvailable, true);
     assert.equal(capability.recovery.backendMethods[0], "passkey");
   } finally {
     f.db.close();
@@ -2660,8 +2660,8 @@ test("0016 storage bindings and Pages readiness require immutable retained offli
         "utf8",
       ),
     );
-    assert.equal(capability.recovery.recoveryAvailable, false);
-    assert.equal(capability.recovery.uiAvailable, false);
+    assert.equal(capability.recovery.recoveryAvailable, true);
+    assert.equal(capability.recovery.uiAvailable, true);
     assert.equal(capability.recovery.offlineBackendImplemented, true);
     assert(capability.recovery.backendMethods.includes("offline"));
     assert.deepEqual(
@@ -3049,8 +3049,8 @@ test("0017 readiness requires every new guard and cleanup index and advertises t
       } finally { f.db.sqlite.exec("ROLLBACK TO missing_retention_object; RELEASE missing_retention_object"); }
     }
     const capability = JSON.parse(readFileSync(new URL("../public/identity-onboarding.json", import.meta.url), "utf8")).recovery;
-    assert.equal(capability.recoveryAvailable, false);
-    assert.equal(capability.uiAvailable, false);
+    assert.equal(capability.recoveryAvailable, true);
+    assert.equal(capability.uiAvailable, true);
     assert.equal(capability.requestRules.activePendingRequestCap, 10000);
     assert.equal(capability.requestRules.activePendingChallengeCap, 10000);
     assert(!("permanentRequestCap" in capability.requestRules));

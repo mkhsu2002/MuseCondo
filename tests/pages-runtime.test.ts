@@ -105,3 +105,14 @@ test('identity uses the fixed directory document for clean paths and safely foll
  for(const path of ['/identity','/identity/','/identity.html'])assert.equal((await runtime.fetch(request(path,'POST'),env)).status,405,path);
  assert.equal((await runtime.fetch(request('/identity'),{})).status,503);
 });
+
+test('recovery private document uses a fixed directory without clean URL loops and refuses mutations',async()=>{
+ const paths:string[]=[],methods:string[]=[];
+ const env:PagesBindings={ASSETS:{async fetch(req){const path=new URL(req.url).pathname;paths.push(path);methods.push(req.method);if(path==='/identity-recovery.html')return new Response(null,{status:308,headers:{Location:origin+'/identity/recover'}});if(path==='/identity/recover/index.html')return new Response(null,{status:308,headers:{Location:origin+'/identity/recover/'}});return path==='/identity/recover/'?new Response(req.method==='HEAD'?null:'<h1>找回身份</h1>'):new Response('missing',{status:404});}}};
+ for(const path of ['/identity/recover','/identity/recover/']){const res=await runtime.fetch(request(path),env);assert.equal(res.status,200,path);assert.equal(await res.text(),'<h1>找回身份</h1>');assert.equal(res.headers.get('Location'),null);for(const [header,value] of [['Cache-Control','no-store'],['X-Robots-Tag','noindex, nofollow'],['Referrer-Policy','no-referrer']])assert.equal(res.headers.get(header),value);assert.match(res.headers.get('Content-Security-Policy')!,/default-src 'none'/);}
+ assert.deepEqual(paths,['/identity/recover/','/identity/recover/']);
+ const head=await runtime.fetch(request('/identity/recover','HEAD'),env);assert.equal(head.status,200);assert.equal(await head.text(),'');assert.equal(methods.at(-1),'HEAD');
+ const file=await runtime.fetch(request('/identity-recovery.html'),env);assert.equal(file.status,308);assert.equal(file.headers.get('Location'),origin+'/identity/recover');assert.equal((await runtime.fetch(new Request(file.headers.get('Location')!),env)).status,200);
+ for(const path of ['/identity/recover','/identity/recover/','/identity-recovery.html'])for(const method of ['POST','PUT'])assert.equal((await runtime.fetch(request(path,method),env)).status,405,path);
+ assert.equal((await runtime.fetch(request('/identity/recover'),{})).status,503);
+});

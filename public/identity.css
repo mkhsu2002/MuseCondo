@@ -246,3 +246,16 @@ footer {
     scroll-behavior: auto;
   }
 }
+
+fieldset {
+  min-width: 0;
+  margin: 24px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+legend {
+  font: 16px/1.8 ui-sans-serif, sans-serif;
+  padding: 0 6px;
+}
+.check { min-height: 44px; }

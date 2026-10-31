@@ -40,11 +40,13 @@ const server=createServer(async(req,res)=>{
    if(response){res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}
   }
   if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405).end();return;}
+  if(url.pathname==='/identity-recovery.html'){res.writeHead(308,{'Location':'/identity/recover','Cache-Control':'no-store','X-Robots-Tag':'noindex, nofollow','Referrer-Policy':'no-referrer'}).end();return;}
   const path=resolve(root,'.'+decodeURIComponent(url.pathname));
   if(path!==root&&!path.startsWith(root+'/')){res.writeHead(403).end();return;}
   let file=path;let bytes:Buffer;
   try{bytes=await readFile(file);}catch{try{file=resolve(path,'index.html');bytes=await readFile(file);}catch{file=resolve(root,'index.html');bytes=await readFile(file);}}
-  res.writeHead(200,{'Content-Type':mime[extname(file)]??'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});res.end(req.method==='HEAD'?undefined:bytes);
+  const privateIdentity=/^\/identity\/recover\/?$/.test(url.pathname)?{'X-Robots-Tag':'noindex, nofollow','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}:{};
+  res.writeHead(200,{...privateIdentity,'Content-Type':mime[extname(file)]??'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});res.end(req.method==='HEAD'?undefined:bytes);
  }catch{res.writeHead(500).end('Local service error');}
 });
 server.listen(port,'127.0.0.1',()=>console.log(`Isolated local MVP at ${origin}; Meta generation disconnected; not a public service.`));

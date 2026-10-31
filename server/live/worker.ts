@@ -85,6 +85,13 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET'){const last=await db.prepare("SELECT completed_at FROM manager_jobs WHERE state='complete' ORDER BY completed_at DESC LIMIT 1").first<{completed_at:string}>();return json({...await response.json(),manager:manager.configured()?(last?'event-driven-live':'event-driven-configured-not-health-verified'):'rules-on-public-update',scheduled:false,runtime:{...safe,databaseReady:true,metaConfiguredNotHealthVerified:!!generator,managerConfigured:manager.configured(),managerLastSuccessAt:last?.completed_at??null,levelVisibility:'private-only'}},response.status);}
    return response;}
  }
+ if(/^\/identity\/recover\/?$/.test(url.pathname)||url.pathname==='/identity-recovery.html'){
+  if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
+  if(!env.ASSETS)return json({error:'assets_not_bound'},503);
+  const response=url.pathname==='/identity-recovery.html'?new Response(null,{status:308,headers:{Location:new URL('/identity/recover',url).href}}):await env.ASSETS.fetch(new Request(new URL('/identity/recover/',url),request));
+  const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  return new Response(response.body,{status:response.status,headers});
+ }
  if(/^\/(reception|activities|identity)\/?$/.test(url.pathname)){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
   if(!env.ASSETS)return json({error:'assets_not_bound'},503);

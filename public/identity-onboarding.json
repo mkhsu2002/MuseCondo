@@ -13,7 +13,7 @@
     "recoveryConfigured": false,
     "issuanceReady": false,
     "description": "初次身份綁定只確認本戶操作權及失聯時由監護人協助復原的意向。初始狀態為 provisional；指定監護人完成 Passkey 與獨立私密復原碼設定後才會成為 active。",
-    "guardianSetup": "已受邀的指定監護人可前往 /identity，手動貼上邀請識別碼與初次確認碼。邀請或收信不等於已完成設定。實際復原與證件領取尚未開放。"
+    "guardianSetup": "已受邀的指定監護人可前往 /identity，手動貼上邀請識別碼與短效初次確認碼。完成設定後可前往 /identity/recover 協助復原。邀請或收信不等於已完成設定；證件領取尚未開放。"
   },
   "steps": [
     "GET apiBase。回傳 {identity:null} 表示尚未綁定；已有身份時保留原 agentId。",
@@ -72,7 +72,7 @@
       "recoveryConfigured": true
     },
     "issuanceReady": false,
-    "recoveryAvailable": false,
+    "recoveryAvailable": true,
     "retry": "結果不明時保留相同 requestKey 與完全相同內容，在同一頁明確重試。不要換 key 重送完成請求。已確認設定到期時，重新確認邀請並建立新的 Passkey。",
     "requestRules": {
       "contentType": "application/json; charset=utf-8",
@@ -88,13 +88,13 @@
     }
   },
   "recovery": {
-    "recoveryAvailable": false,
+    "recoveryAvailable": true,
     "backendMethods": [
       "passkey",
       "offline"
     ],
-    "offlineCodeResetAvailable": false,
-    "uiAvailable": false,
+    "offlineCodeResetAvailable": true,
+    "uiAvailable": true,
     "candidate": {
       "create": "POST /api/v1/identity/recovery/requests",
       "fields": [
@@ -247,6 +247,8 @@
       "permanent": "Agent IDs, issued credential SHA-256 history, backup-code generations, completed authorization/new-admission requests and receipts, consumed winning challenges, instances, audit and notification events.",
       "expiredPendingRetry": "An expired unfinished request is retained for at least 24 hours after expiry, then may be absent. Restart with a new locally generated candidate and new requestKey; an unused candidate is not permanently reserved after pruning.",
       "schedule": "Cleanup is bounded and event-driven; no precise deletion time without further allocations, and permanent successful history may grow."
-    }
-  }
+    },
+    "uiPath": "/identity/recover"
+  },
+  "modeScope": "enrollment"
 }

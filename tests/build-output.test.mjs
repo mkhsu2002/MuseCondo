@@ -20,11 +20,12 @@ test('route generation needs no personal residence and never publishes it',async
  const dir=await mkdtemp(join(tmpdir(),'muse-routes-'));
  try{
   await mkdir(join(dir,'dist'));await mkdir(join(dir,'public'));await mkdir(join(dir,'src/framework'),{recursive:true});
-  for(const [file,text] of [['dist/index.html','<p>compiled fixture</p>'],['src/framework/condo.css','/* template */'],['LICENSE','license'],['NOTICE','notice'],['public/reception.html','<p>reception fixture</p>'],['public/activities.html','<p>activities fixture</p>'],['public/identity.html','<p>identity fixture</p>']])await writeFile(join(dir,file),text);
+  for(const [file,text] of [['dist/index.html','<p>compiled fixture</p>'],['src/framework/condo.css','/* template */'],['LICENSE','license'],['NOTICE','notice'],['public/reception.html','<p>reception fixture</p>'],['public/activities.html','<p>activities fixture</p>'],['public/identity.html','<p>identity fixture</p>'],['public/identity-recovery.html','<p>identity recovery fixture</p>']])await writeFile(join(dir,file),text);
   await promisify(execFile)(process.execPath,[fileURLToPath(new URL('../scripts/routes.mjs',import.meta.url))],{cwd:dir});
   await access(join(dir,'dist/about/index.html'));
   assert.equal(await readFile(join(dir,'dist/reception/index.html'),'utf8'),'<p>reception fixture</p>');
   assert.equal(await readFile(join(dir,'dist/identity/index.html'),'utf8'),'<p>identity fixture</p>');
+  assert.equal(await readFile(join(dir,'dist/identity/recover/index.html'),'utf8'),'<p>identity recovery fixture</p>');
   assert.equal(await readFile(join(dir,'dist/activities/index.html'),'utf8'),'<p>activities fixture</p>');
   await access(join(dir,'dist/condo-template.css'));
   await assert.rejects(access(join(dir,'dist/condo')));
