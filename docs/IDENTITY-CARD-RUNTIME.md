@@ -1,6 +1,6 @@
 # 身分證 runtime 與發布 gate
 
-2026-10-31 最新 gate：v0.60 的雙環境部署／140物件DDL／授權／核發補發撤銷／摘要簽章及QR已驗，但額外PDF全文檢查發現含數字issuer文字映射不完整，I04尚不能完成。修復目標為關閉該靜態字體的locl替代，保留完整TTF及所有immutable附件；待真PDF反例、兩階段審查與重新部署驗證。I05接線暫緩。Fang／K真人、手機實掃、實際附檔寄送仍未完成。以下既有通過項目不代表此新缺陷已修復。
+2026-10-31 最新gate：I04工程已於v0.61通過。v0.60的部署／140物件DDL／授權／生命週期／摘要簽章／QR證據保留；其後發現的PDF數字映射缺口已補真PDF RED反例、兩階段審查、564全測及兩環境Worker部署後新卡完整姓名／issuer／字距／QR與audit重驗。純renderer修正未改Pages任何輸入，既有Pages v0.60接線與來源逐檔一致、公開JS／CSS bytes實讀相同，因此未觸發多餘Pages重建；不是部署失敗或契約失配。I05寄送與I06原Agent／真人／手機實掃仍未完成。
 
 ## 執行邊界
 
@@ -15,7 +15,7 @@ Pages `server/live/worker.ts` 只用結構型 `IDENTITY_CARDS` namespace 將原 
 1. 先保存現有 Pages dev／production 配置全文。私密產生兩份Worker配置，使用不同 Worker name、DO namespace、D1 DB、PUBLIC_ORIGIN、contact key及signer／public ring；保留模板 compat2026-10-29、flags[]、SQLite migration、workers_dev:false、preview_urls:false、run_worker_first:true。禁止把帳號ID、真DB ID或secret寫入公開repo。
 2. 每環境獨立部署Worker並核對class export／namespace ID／內部ASSETS。`DB`須指向該環境原Tower D1；不得dev綁正式。新Worker以部署平台secret持有 `IDENTITY_CONTACT_KEY`、`IDENTITY_SIGNING_JWK`、`IDENTITY_SIGNING_KEY_ID`、`IDENTITY_PUBLIC_KEYS`。contact key沿該環境既有加密能力；signer與目前ring公鑰必須匹配，歷史公鑰保留。不得從request取得配置，不新增Meta／付費provider key。Pages不新增signer secret。
 3. 在每環境實際套0018並逐一比對表、trigger與index、foreign_key_check。DO lifecycle fetch逐次檢查0018物件存在；缺schema回503。keys不要求render/contact/signer，仍須有效origin、DB binding及trusted public ring。卡面渲染與簽章缺配置失敗時，不將pending候選誤認為已核發。
-4. 保留原有Pages配置並只增加該環境 `IDENTITY_CARDS` 外部DO binding（class `IdentityCardCoordinator`、`script_name`該Worker、若用命名環境須明確對應其environment）。dev／production使用不同namespace且不得以preview自動fallback正式。部署同版Pages／Worker，原host與PUBLIC_ORIGIN不符一律403；不以binding或secret名稱存在表示healthy。status只會報 `bound-not-health-verified`／`unavailable`。
+4. 保留原有Pages配置並只增加該環境 `IDENTITY_CARDS` 外部DO binding（class `IdentityCardCoordinator`、`script_name`該Worker、若用命名環境須明確對應其environment）。dev／production使用不同namespace且不得以preview自動fallback正式。有Pages與Worker／契約變更時同步部署；純獨立Worker修正可保留既有Pages，但需逐檔比對Pages輸入未改、實際JS／CSS與API接線相容並記錄兩端code baseline。原host與PUBLIC_ORIGIN不符一律403；不以binding或secret名稱存在表示healthy。status只會報 `bound-not-health-verified`／`unavailable`。
 5. 完成實際 dev／production deployed code、schema、綁定、secret名稱與live behavior交叉驗證後，才可聲稱可用。缺任一層不啟用核發或改寫歷史live日期。不得只部署前端。
 
 ## PDF 與公開頁契約

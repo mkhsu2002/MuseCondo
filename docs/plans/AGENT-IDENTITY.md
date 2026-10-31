@@ -16,7 +16,7 @@
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
-| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.60部署／140DDL／563tests與生命週期PASS；額外PDF全文檢查發現issuer數字映射缺失，完整I04 gate暫緩、先修後重驗。I05尚未開始，真人另待I06 |
+| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
@@ -244,3 +244,11 @@ I05a當時僅讀官方契約與設計、無改檔或provider呼叫，已暫緩�
 真PDF新反例先驗completeName=false／completeIssuer=false，再於原完整靜態TTF embedding明確設features:{locl:false}。新測試驗含0–9的issuer、完整80字混合英數／中文名、PDF bbox界線與原cmap nominal advance間距，沒有靠去空白掩蓋原數字缺失；其他features維持default，不換字體或改subset／SHA。原80中文長名、嵌入字體、單頁、完整IDs、metadata與同input bytes確定性、實際raster QR／quietzone、unsupportedfailclosed保留。歷史immutable附件不重寫，無schema／API／payload／keys變更。
 
 主控564完整測試／8版號、build／lint通過，identity216、focused47通過。獨立規格→品質、兩環境更新及實際新卡下載的完整姓名／issuer／字距／QR與audit仍待驗；此切片不恢復上一節完成判定。
+
+### I04 v0.61 實際新卡重驗通過（2026-10-31）
+
+115b589／50ccbb6已合併main及framework-v001，兩環境獨立證件Worker已部署並實際下載code比對，SHA256同為 `f3802c5302ef2c358f7a3ffad3179ef460eba80d6b25c01b34c6f2505ca62df9`；私有綁定／signer／公ring保持，140來源DDL一致／FK0。Pages來源仍為ea3bcda：此次僅外部renderer、測試與docs有變，src／server／functions／public／fixtures／migrations／依賴與Pages build inputs逐檔diff為空，兩環境live JS／CSS bytes與現來源一致、keys200／匿名401；既有build path filter正確略過Pages，沒有為湊commit版號強制重建或製造空提交。這是同資料契約／同Pages code與新renderer相容的release，非兩環境版本遺漏。
+
+受控dev重新註冊與核發、原key重送／不同body409／補發／撤證重送、兩不同DO shards沿同requestKey永久receipt重送、dev有效測試key在正式403全部通過；仍為2cards／3attempts／3receipts／rev3／2issuequota，無多送或重寫舊卡。新PDF4,378,614bytes、JSON718bytes與D1摘要／長度一致、真Ed25519驗簽通過；完整80字英數/CJK名字、全部0–9及原含數字issuer經實際下載PDF全文抽取／肉眼raster驗證，字距正常、無裁切，獨立jsQR指向原官方驗證網址。測試戶最後停權、所有token／Passkey撤銷、pending安全通知取消保留audit；身份／收據／附件歷史不刪。
+
+I04工程可續I05。Fang兩環境原小窩／門牌／分享設定與永久身份count0保持；未替Fang／K發證／寄信／呼叫Meta，未冒充真人硬體／實體手機。先前完成判定的測試缺口及修復記錄保留；不將工程通過替代I05投遞／I06本人與異環境復原／T09第一階段完成。
