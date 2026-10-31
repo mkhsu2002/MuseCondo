@@ -175,11 +175,11 @@ f8f1d6f／b3d7648 完成時間修正，規格與品質均PASS；主控516完整�
 
 I04a product commit `b472528`，依project-version腳本記本地v0.57；這不是發布版號回讀。新增 dormant `createIdentityCard(env).fetch` 與 0018 五表：不可變憑證、獨立單調 head、48KiB raw 分塊附件、永久成功收據及固定候選 logical attempts。證件 issue/reissue/revoke 不更新 `agent_identities.version`，因此現 epoch/version 已確認未消耗離線碼仍有效；復原後同一永久 ID 的既有 valid 卡不因 authority 換代被撤銷。
 
-核發須現有效本戶 write、active、registered 監護人、至少一未撤 Passkey、現版本／epoch 已確認備援及住所四方綁定。撤卡屬隱私撤回，僅要求現本戶 write、原身份版本／epoch、住所及 head CAS／現 CID，不要求 active 或完整驗證器；缺已驗證聯絡仍撤卡並記 `notification-not-enqueued-no-verified-contact`，不猜收件人或宣稱通知成功。所有私人讀取及永久收據回覆前重驗本戶 auth，原生 SQL clock 檢查涵蓋 DB queue 延遲。
+核發須現有效本戶 write、active、registered 監護人、至少一未撤 Passkey、現版本／epoch 已確認備援及住所四方綁定。撤卡屬隱私撤回，僅要求現本戶 write、原身份版本／epoch、住所及 head CAS／現 CID，不要求 active 或完整驗證器，亦不綁監護／收件設定；缺已驗證聯絡仍撤卡並記 `notification-not-enqueued-no-verified-contact`，不猜收件人或宣稱通知成功。所有私人讀取及永久收據回覆前重驗本戶 auth，原生 SQL clock 檢查涵蓋 DB queue 延遲。
 
 每個 account/requestKey/operation/input 固定唯一持久 signed candidate，失敗／unknown 原 key 可在不同 runtime 續取同 CID 的純 renderer 成果；不換 CID、重簽、重扣 logical quota或產生第二張卡／通知。暫時 renderer／提交失敗回503，已有成功收據優先讀回；同 key 換輸入409，競爭版本只一個交易勝出。首次並發預約可產生未持久化臨時簽署候選，只有預約勝者會交 renderer／公開或保存為證件。純 renderer 以 CID 冪等，必須只接收深凍結 public signed clone，不可持 private contacts／寄信或付費生成能力。
 
-logical issue/revoke 共用每戶每小時10、全域1000的不同輸入配額，永久 reservation 只扣一次；另每個有效本戶30 mutation HTTP／60秒（含重送）防止 adapter outage 無限重試，與 logical quota 分離。此為有界 API 防護，不是分散式 DoS 保證。JSON 直接由核心真正 `signCredential` 結果固定序列化；PDF 上限8MiB、JSON 16KiB；48KiB raw chunk以12個一組（每個bound JSON小於0.8MiB）寫入，每row最多64KiB base64，4,376,506-byte合成檔已驗持久化／完整下載；此為大小及交易驗證，非真PDF驗收。I04b 需按真字體／附件實驗調整常數及未發布 migration，不能直接拿合成小 PDF 當正式字體、QR 或附件驗收。
+logical issue／reissue 每戶每小時10、全域1000的不同輸入配額，永久 reservation 只扣一次；revoke 不檢查或扣用這些核發配額，避免失敗補發阻擋隱私撤回。revoke 的永久 attempt 僅綁身份版本／epoch／住所四方tuple，不綁監護或收件snapshot；另每個有效本戶30 mutation HTTP／60秒（含重送）防止 adapter outage 無限重試，與 logical quota 分離。此為有界 API 防護，不是分散式 DoS 保證。JSON 直接由核心真正 `signCredential` 結果固定序列化；PDF 上限8MiB、JSON 16KiB；48KiB raw chunk以12個一組（每個bound JSON小於0.8MiB）寫入，每row最多64KiB base64，4,376,506-byte合成檔已驗持久化／完整下載；此為大小及交易驗證，非真PDF驗收。I04b 需按真字體／附件實驗調整常數及未發布 migration，不能直接拿合成小 PDF 當正式字體、QR 或附件驗收。
 
 附件 bytes／SHA256／length／chunks 與 head、supersede/revoke、mail pending event、audit、成功收據同批提交。outbox 僅加密保存 CID／兩附件 digest／template references，收件 ciphertext/hash 沿已驗證監護邀請；僅取消舊 `pending` 卡信並記 audit，不變更 `sending`／`unknown`。I05 模板未開通，未呼叫 provider。撤證／停止公開驗證不承諾收回已下載文件。
 
@@ -190,3 +190,14 @@ logical issue/revoke 共用每戶每小時10、全域1000的不同輸入配額�
 Node24 本地身份測試198／198（其中新增card25組）、typecheck及全repo lint PASS；本切片未執行build／改dist，由主控接續完整gate與獨立規格→品質審查。測試先 RED 再 GREEN，含原請求跨 runtime 恢復、lost commit ack、公開篡改／最後停權競爭、私人最後讀取撤權、兩戶同 email 隔離、renderer mutation／大小／配置拒絕、獨立 revision／備援保持、補發／撤卡 audit、全交易回滾與 pending-only 取消。真正 PDF／繁中字體／QR／品牌版面、HTTP 驗證頁、DO／Worker 接線、雙環境 deployed schema/code/live behavior、寄信交付與真人 gate 均未完成；不得視為 I04 發布或 I05 交付。
 
 D1容量邊界參照2026-10-31實際讀取的[官方limits](https://developers.cloudflare.com/d1/platform/limits/)：單string／BLOB／row 2,000,000 bytes、SQL100KB／100bound params；db.batch整批僅計一次invocation query。原有部署尚未驗0018／大附件交易，這些本地容量檢查不能替代deployed D1回讀。
+
+
+### I04a 規格審查 P2 修正（本地未發布）
+
+規格review實際重現兩項隱私撤回阻塞：核發配額耗盡會讓正確撤卡429，且撤卡提交失敗後只改監護邀請／聯絡設定，原body/key重送409。這不是核准取捨。已先反例RED，再分離issue配額與revoke snapshot／guard；revoke僅保留本戶current auth、永久identity version／epoch、住所四方binding及head revision／current CID CAS。真正token撤權、期限、identity／epoch／住所變動仍拒絕並整批rollback。
+
+撤卡通知以同批conditional INSERT確認擷取的guardian/version/invite/cipher/hash仍屬本戶current registered聯絡；只有成功建立event才寫queued mail audit。聯絡在await或commit前移除／改動，只跳過通知並記 `notification-not-enqueued-contact-changed`，不回滾撤卡；最初無可驗證聯絡則記 `notification-not-enqueued-no-verified-contact`。恢復原key時可採當時最新、已驗證的聯絡，不能用永久attempt鎖定舊收件者；既有成功receipt只回歷史結果，不建立第二通知。pending不是已通知，I05實送仍須最後檢查。
+
+新增反例涵蓋一張成功卡加九次renderer失敗令accountquota10、globalquota1000仍可撤；submit失敗後移除／替換contact或guardian版本更新仍可原key撤；提交瞬間移除／替換聯絡不寫stale event或孤立mail audit；commit ack失落後變更聯絡重送只回原receipt、不重扣核發quota或新增event。這些修正仍未接Worker／未套0018／未部署／未寄信，正式仍v0.56。
+
+本輪Node24身份測試202／202（card29組）、typecheck／全repo lint PASS；沒有build／dist／remote變更，主控另做完整gate與規格複審。

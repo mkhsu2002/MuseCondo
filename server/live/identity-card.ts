@@ -32,6 +32,13 @@ interface Context {
     email_hash: string | null;
     residency_revision: number;
 }
+/** Privacy withdrawal depends only on authority and the permanent residence tuple. */
+function contextSnapshot(c: Context, operation: string): string {
+    return JSON.stringify(operation === 'issue' ? c : {
+        agent_id: c.agent_id, account_id: c.account_id, room_id: c.room_id, resident_id: c.resident_id,
+        version: c.version, authority_epoch: c.authority_epoch, residency_revision: c.residency_revision,
+    });
+}
 interface Head {
     revision: number;
     current_credential_id: string | null;
@@ -264,8 +271,11 @@ export function createIdentityCard(env: IdentityCardEnvironment) {
         return json(JSON.parse(saved.response_json), saved.status);
     }
     async function reserve(auth: Authorization, v: Input, operation: string, hash: string, c: Context, candidate: SignedCredential | null): Promise<Attempt | Response> {
-        const attempt: Attempt = { operation, input_hash: hash, context_json: JSON.stringify(c), credential_id: candidate?.payload.credentialId ?? null, signed_json: candidate ? JSON.stringify(candidate) : null };
-        const now = stamp(), expiry = new Date(Date.parse(now) + 3600000).toISOString(), limits = [['identity-card:account:' + auth.accountId, 10], ['identity-card:global', 1000]] as const;
+        const attempt: Attempt = { operation, input_hash: hash, context_json: contextSnapshot(c, operation), credential_id: candidate?.payload.credentialId ?? null, signed_json: candidate ? JSON.stringify(candidate) : null };
+        const now = stamp(), expiry = new Date(Date.parse(now) + 3600000).toISOString(), limits: readonly (readonly [
+            string,
+            number
+        ])[] = operation === 'issue' ? [['identity-card:account:' + auth.accountId, 10], ['identity-card:global', 1000]] : [];
         const statements: Statement[] = [auth.guard(), db.prepare('INSERT INTO identity_card_attempts(account_id,request_key,operation,input_hash,context_json,credential_id,signed_json,created_at) VALUES(?,?,?,?,?,?,?,?)').bind(auth.accountId, v.requestKey, operation, hash, attempt.context_json, attempt.credential_id, attempt.signed_json, now)];
         for (const [key, max] of limits)
             statements.push(db.prepare("SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM rate_limits WHERE key=? AND expires_at>? AND count>=?) THEN 1 ELSE json('card-rate-limit') END").bind(key, now, max), db.prepare('INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN expires_at<=? THEN 1 ELSE count+1 END,expires_at=CASE WHEN expires_at<=? THEN excluded.expires_at ELSE expires_at END').bind(key, expiry, now, now));
@@ -290,10 +300,29 @@ export function createIdentityCard(env: IdentityCardEnvironment) {
         }
         return attempt;
     }
-    function contextGuard(c: Context, v: Input, operation: string) { return db.prepare("SELECT CASE WHEN EXISTS(" + (operation === 'issue' ? configuredSql : contextSql) + " AND i.agent_id=? AND i.version=? AND i.authority_epoch=? AND g.guardian_id IS ? AND g.version IS ? AND g.invitation_id IS ? AND v.recipient_ciphertext IS ? AND v.email_hash IS ? AND t.revision=? AND i.room_id=? AND i.resident_id=?) AND COALESCE((SELECT revision FROM identity_card_heads WHERE account_id=?),0)=? THEN 1 ELSE json('card-context-changed') END").bind(c.account_id, c.agent_id, v.expectedIdentityVersion, c.authority_epoch, c.guardian_id, c.guardian_version, c.invitation_id, c.recipient_ciphertext, c.email_hash, c.residency_revision, c.room_id, c.resident_id, c.account_id, v.expectedCardRevision); }
+    function contextGuard(c: Context, v: Input, operation: string) {
+        if (operation === 'revoke') {
+            return db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM agent_identities i JOIN tower_residencies t ON t.account_id=i.account_id AND t.room_id=i.room_id AND t.resident_id=i.resident_id JOIN rooms r ON r.id=i.room_id AND r.account_id=i.account_id WHERE i.account_id=? AND i.agent_id=? AND i.version=? AND i.authority_epoch=? AND t.revision=? AND i.room_id=? AND i.resident_id=?) AND EXISTS(SELECT 1 FROM identity_card_heads WHERE account_id=? AND revision=? AND current_credential_id=?) THEN 1 ELSE json('card-context-changed') END").bind(c.account_id, c.agent_id, v.expectedIdentityVersion, c.authority_epoch, c.residency_revision, c.room_id, c.resident_id, c.account_id, v.expectedCardRevision, v.credentialId);
+        }
+        return db.prepare("SELECT CASE WHEN EXISTS(" + configuredSql + " AND i.agent_id=? AND i.version=? AND i.authority_epoch=? AND g.guardian_id IS ? AND g.version IS ? AND g.invitation_id IS ? AND v.recipient_ciphertext IS ? AND v.email_hash IS ? AND t.revision=? AND i.room_id=? AND i.resident_id=?) AND COALESCE((SELECT revision FROM identity_card_heads WHERE account_id=?),0)=? THEN 1 ELSE json('card-context-changed') END").bind(c.account_id, c.agent_id, v.expectedIdentityVersion, c.authority_epoch, c.guardian_id, c.guardian_version, c.invitation_id, c.recipient_ciphertext, c.email_hash, c.residency_revision, c.room_id, c.resident_id, c.account_id, v.expectedCardRevision);
+    }
     async function mail(c: Context, credentialId: string, kind: 'identity-card' | 'security-notice', refs: unknown, now: string) {
         const id = randomIdentityId(), payload = await encryptPrivate(env.contactKey!, 'mail-payload', id, JSON.stringify(refs));
         return [db.prepare("INSERT INTO identity_mail_events(id,kind,entity_id,dedupe_key,recipient_ciphertext,recipient_hash,payload_ciphertext,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'pending',?,?)").bind(id, kind, credentialId, 'card:' + kind + ':' + credentialId, c.recipient_ciphertext, c.email_hash, payload, now, now), db.prepare("INSERT INTO identity_mail_audit(id,event_id,action,detail_json,created_at) VALUES(?,?,'queued','{}',?)").bind(randomIdentityId(), id, now)];
+    }
+    async function revocationMail(c: Context, credentialId: string, revision: number, now: string) {
+        const omission = (action: string) => db.prepare('INSERT INTO identity_audit(id,agent_id,action,detail_json,created_at) VALUES(?,?,?,?,?)').bind(randomIdentityId(), c.agent_id, action, JSON.stringify({ credentialId, revision }), now);
+        if (!c.recipient_ciphertext || !c.email_hash || !c.guardian_id || !c.invitation_id)
+            return [omission('notification-not-enqueued-no-verified-contact')];
+        if (!validContactKey(env.contactKey))
+            return [omission('notification-not-enqueued-configuration-unavailable')];
+        const id = randomIdentityId(), payload = await encryptPrivate(env.contactKey!, 'mail-payload', id, JSON.stringify({ credentialId, template: 'identity-card-revoked-v1' }));
+        // Contact changes never block withdrawal. Only this exact still-verified contact may receive a notice.
+        return [
+            db.prepare("INSERT INTO identity_mail_events(id,kind,entity_id,dedupe_key,recipient_ciphertext,recipient_hash,payload_ciphertext,state,created_at,updated_at) SELECT ?,'security-notice',?,?,?,?,?,'pending',?,? WHERE EXISTS(SELECT 1 FROM identity_guardians g JOIN identity_guardian_invites v ON v.id=g.invitation_id AND v.agent_id=g.agent_id AND v.state='registered' JOIN agent_identities i ON i.agent_id=g.agent_id AND i.account_id=v.account_id WHERE i.agent_id=? AND i.account_id=? AND g.guardian_id=? AND g.version=? AND g.invitation_id=? AND v.recipient_ciphertext=? AND v.email_hash=?)").bind(id, credentialId, 'card:security-notice:' + credentialId, c.recipient_ciphertext, c.email_hash, payload, now, now, c.agent_id, c.account_id, c.guardian_id, c.guardian_version, c.invitation_id, c.recipient_ciphertext, c.email_hash),
+            db.prepare("INSERT INTO identity_mail_audit(id,event_id,action,detail_json,created_at) SELECT ?,?,'queued','{}',? WHERE EXISTS(SELECT 1 FROM identity_mail_events WHERE id=?)").bind(randomIdentityId(), id, now, id),
+            db.prepare("INSERT INTO identity_audit(id,agent_id,action,detail_json,created_at) SELECT ?,?,'notification-not-enqueued-contact-changed',?,? WHERE NOT EXISTS(SELECT 1 FROM identity_mail_events WHERE id=?)").bind(randomIdentityId(), c.agent_id, JSON.stringify({ credentialId, revision }), now, id),
+        ];
     }
     function cancelPending(credentialId: string, now: string) { return [db.prepare("INSERT INTO identity_mail_audit(id,event_id,action,detail_json,created_at) SELECT lower(hex(randomblob(16))),id,'cancelled','{\"code\":\"card_no_longer_current\"}',? FROM identity_mail_events WHERE entity_id=? AND kind='identity-card' AND state='pending'").bind(now, credentialId), db.prepare("UPDATE identity_mail_events SET state='cancelled',error_code='card_no_longer_current',updated_at=? WHERE entity_id=? AND kind='identity-card' AND state='pending'").bind(now, credentialId)]; }
     async function perform(auth: Authorization, v: Input, operation: string, hash: string): Promise<Response> {
@@ -325,7 +354,7 @@ export function createIdentityCard(env: IdentityCardEnvironment) {
             attempt = reserved;
         }
         // A candidate is bound to the original authority/residence snapshot, even across runtimes.
-        if (attempt.context_json !== JSON.stringify(c))
+        if (attempt.context_json !== contextSnapshot(c, operation))
             fail(409, 'card_context_conflict');
         try {
             await contextGuard(c, v, operation).first();
@@ -369,10 +398,7 @@ export function createIdentityCard(env: IdentityCardEnvironment) {
         }
         else {
             statements.push(db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM identity_credentials WHERE credential_id=? AND account_id=? AND state='issued') THEN 1 ELSE json('card-state-changed') END").bind(v.credentialId, auth.accountId), db.prepare("UPDATE identity_credentials SET state='revoked',updated_at=? WHERE credential_id=? AND state='issued'").bind(now, v.credentialId), db.prepare('UPDATE identity_card_heads SET revision=?,current_credential_id=NULL,public_verification_consent=0,updated_at=? WHERE account_id=?').bind(revision, now, auth.accountId), ...cancelPending(v.credentialId!, now));
-            if (c.recipient_ciphertext && c.email_hash && validContactKey(env.contactKey))
-                statements.push(...await mail(c, v.credentialId!, 'security-notice', { credentialId: v.credentialId, template: 'identity-card-revoked-v1' }, now));
-            else
-                statements.push(db.prepare('INSERT INTO identity_audit(id,agent_id,action,detail_json,created_at) VALUES(?,?,?,?,?)').bind(randomIdentityId(), c.agent_id, c.recipient_ciphertext && c.email_hash ? 'notification-not-enqueued-configuration-unavailable' : 'notification-not-enqueued-no-verified-contact', JSON.stringify({ credentialId: v.credentialId, revision }), now));
+            statements.push(...await revocationMail(c, v.credentialId!, revision, now));
             result = { revision, card: null, revokedCredentialId: v.credentialId };
             status = 200;
         }

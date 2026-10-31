@@ -143,10 +143,10 @@ HTTP客戶端請帶可識別的應用程式User-Agent，例如 MuseCondo-Residen
 
 私人端拒絕混Cookie、跨站、錯origin、錯host及query；嚴格JSON／8KiB輸入，不接受Agent指定email、圖片、門牌、來源或其他欄位。publicName依payload契約完整保留最多80 Unicode characters，不截斷或改名；公開驗證同意與住所公開獨立，第一版固定品牌圖樣。QR URL維持簽署payload既有 `/identity/verify/:credentialId`，I04b另接該頁，不能把API JSON地址偷換進原canonical契約。
 
-證件head獨立CAS，不遞增identity.version。issue/reissue原子建立新CID及附件、舊issued→superseded、head、outbox、audit及永久成功收據；revoke只使現證issued→revoked，不撤永久ID／住戶權限。issue要求active＋current registered監護人／未撤Passkey／未消耗且confirmed現epoch/version備援／住所四方綁定；revoke屬隱私撤回，不以停權或遺失監護驗證器為由阻止現有效本戶write持有人撤卡。缺已驗證監護聯絡不阻止撤卡，記錄通知未排入的audit，不能猜email或聲稱已通知。
+證件head獨立CAS，不遞增identity.version。issue/reissue原子建立新CID及附件、舊issued→superseded、head、outbox、audit及永久成功收據；revoke只使現證issued→revoked，不撤永久ID／住戶權限。issue要求active＋current registered監護人／未撤Passkey／未消耗且confirmed現epoch/version備援／住所四方綁定；revoke屬隱私撤回，不以停權、遺失監護驗證器、核發配額耗盡或監護／收件設定改動為由阻止現有效本戶write持有人撤卡；其attempt snapshot及最終guard僅綁current auth、永久身份version／epoch、住所四方tuple及head revision／現CID。缺已驗證監護聯絡不阻止撤卡，記錄通知未排入的audit，不能猜email或聲稱已通知。
 
-邏輯預約永久綁account/key/operation/inputhash與固定signed candidate／原context；renderer必須以CID冪等，在timeout／503／runtime重建後原body/key可續取同成果，不換候選或重扣quota。收據讀回仍需當前auth；重送不能恢復撤銷token。正文相異409；head／identityVersion／epoch／guardian／住所變動及原生DB clock跨期限皆在交易最終重驗，整批rollback。未完成候選不是已核發證件，不能公開查到或當作權限。
+邏輯預約永久綁account/key/operation/inputhash與固定signed candidate／原context；renderer必須以CID冪等，在timeout／503／runtime重建後原body/key可續取同成果，不換候選或重扣quota。收據讀回仍需當前auth；重送不能恢復撤銷token。正文相異409；head／identityVersion／epoch／住所變動及原生DB clock跨期限皆在交易最終重驗，整批rollback；issue另重驗guardian／contact完整snapshot，revoke不以guardian／contact變動阻擋撤回。核發account／global logicalquota只扣issue/reissue，撤卡不受其耗盡影響，但仍有一般HTTP保護。未完成候選不是已核發證件，不能公開查到或當作權限。
 
 env signer私JWK／signingKeyId／trusted歷史公鑰ring均僅部署端。使用既有Ed25519 `signCredential`／`verifyCredential`，現在signer須與ring公鑰匹配；JSON bytes固定來自真簽署結果。trusted `renderCard(publicSignedFrozenSnapshot)` 不可取得監護contact或secret，缺adapter fail closed，不fallback假PDF。附件SHA256、byte length及48KiB raw分塊同批持久，PDF8MiB／JSON16KiB上限；I04b以真附件實驗修訂同一未發布0018與常數。測試小PDF明示只驗生命週期，不代表正式PDF、QR、字體或郵件附件合格。
 
-outbox僅加密refs `{credentialId,pdfDigest,jsonDigest,template}`；收件cipher/hash沿原已驗證監護邀請，不接受Agent輸入收件地址。不把大PDF base64塞入32KiB private-envelope。I05未有模板時identity-card/security-notice維持pending；補發／撤卡只取消舊pending卡信並同批記audit，sending／unknown不聲稱未寄或取消。公開查驗驗簽後重讀最新狀態；停止公開驗證或撤卡不保證收回已下載檔案。
+outbox僅加密refs `{credentialId,pdfDigest,jsonDigest,template}`；收件cipher/hash沿原已驗證監護邀請，不接受Agent輸入收件地址。不把大PDF base64塞入32KiB private-envelope。I05未有模板時identity-card/security-notice維持pending；補發／撤卡只取消舊pending卡信並同批記audit，sending／unknown不聲稱未寄或取消。撤卡security-notice以交易內conditional INSERT核對同戶current registered guardian／invite及擷取cipher/hash；聯絡變動只略過通知並同批記omission audit，queued audit僅隨實際event建立，不把變動當整個撤卡交易的guard。公開查驗驗簽後重讀最新狀態；停止公開驗證或撤卡不保證收回已下載檔案。

@@ -33,11 +33,11 @@ async function fixture(adapter?: Adapter) {
     const env = { db, origin, contactKey, signingKeyId: 'test-key', signingPrivateJwk: JSON.stringify(privateJwk), trustedPublicJwks: JSON.stringify({ 'test-key': publicJwk }), now: () => new Date(app), renderCard: async (s: Readonly<SignedCredential>) => { renders++; return adapter ? adapter(s) : pdfFixture.slice(); } };
     const create = (settings: IdentityCardEnvironment) => {
         const service = createIdentityCard(settings);
-        return {fetch: async (request: Request): Promise<Response> => {
-            const response = await service.fetch(request);
-            assert(response, 'the test request must match an identity-card route');
-            return response;
-        }};
+        return { fetch: async (request: Request): Promise<Response> => {
+                const response = await service.fetch(request);
+                assert(response, 'the test request must match an identity-card route');
+                return response;
+            } };
     };
     const handler = create(env);
     const send = async (path: string, body?: unknown, token = 'a', headers: Record<string, string> = {}) => (await handler.fetch(new Request(origin + path, { method: body === undefined ? 'GET' : 'POST', headers: { ...(token ? { Authorization: 'Bearer ' + token.repeat(64) } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }))) as Response;
@@ -659,10 +659,13 @@ test('large public-only PDF persists in bounded groups below D1 row and free inv
     try {
         let finalBatch = 0;
         const batch = f.db.batch.bind(f.db);
-        f.db.batch = async (s) => { if (s.some(s => (s as unknown as {
-            sql: string;
-        }).sql.startsWith('INSERT INTO identity_credentials')))
-            finalBatch = s.length; return batch(s); };
+        f.db.batch = async (s) => {
+            if (s.some(s => (s as unknown as {
+                sql: string;
+            }).sql.startsWith('INSERT INTO identity_credentials')))
+                finalBatch = s.length;
+            return batch(s);
+        };
         const r = await issue(f);
         const response = await f.send(base + '/' + r.card.credentialId + '/pdf');
         assert.equal(response.status, 200);
@@ -677,10 +680,13 @@ test('large public-only PDF persists in bounded groups below D1 row and free inv
 });
 test('key rotation preserves historical trust and a pre-rotation candidate resumes without changing its signature', async () => {
     let unavailable = true;
-    const f = await fixture(async () => { if (unavailable) {
-        unavailable = false;
-        throw new Error('synthetic timeout');
-    } return pdfFixture; });
+    const f = await fixture(async () => {
+        if (unavailable) {
+            unavailable = false;
+            throw new Error('synthetic timeout');
+        }
+        return pdfFixture;
+    });
     try {
         assert.equal((await f.send(base + '/issue', f.issue)).status, 503);
         const candidate = JSON.parse(String(f.db.sqlite.prepare('SELECT signed_json FROM identity_card_attempts').get()!.signed_json));
@@ -694,6 +700,127 @@ test('key rotation preserves historical trust and a pre-rotation candidate resum
         assert.equal((await (await f.send('/api/v1/identity/verify/' + r.card.credentialId, undefined, '')).json()).status, 'valid');
         const second = await issue(f, { ...f.issue, requestKey: 'post-rotation-issue', expectedCardRevision: 1 });
         assert.equal((await (await f.send(base + '/' + second.card.credentialId + '/json')).json()).payload.keyId, 'rotated-key');
+    }
+    finally {
+        f.close();
+    }
+});
+test('privacy revoke ignores exhausted issuance quotas after one issued card and nine failed reissue candidates', async () => {
+    for (const quota of ['account', 'global']) {
+        let outage = false;
+        const f = await fixture(async () => { if (outage)
+            throw new Error('synthetic renderer outage'); return pdfFixture; });
+        try {
+            const card = await issue(f);
+            outage = true;
+            if (quota === 'account')
+                for (let i = 0; i < 9; i++)
+                    assert.equal((await f.send(base + '/issue', { ...f.issue, requestKey: 'failed-reissue-' + i, expectedCardRevision: 1 })).status, 503);
+            else
+                f.db.sqlite.prepare('UPDATE rate_limits SET count=1000,expires_at=? WHERE key=?').run('2026-10-31T01:00:00.000Z', 'identity-card:global');
+            const before = f.db.sqlite.prepare("SELECT key,count,expires_at FROM rate_limits WHERE key IN (?,?) ORDER BY key").all('identity-card:account:' + 'a'.repeat(16), 'identity-card:global');
+            const revoked = await f.send(base + '/revoke', { requestKey: 'quota-free-revoke', expectedIdentityVersion: 3, expectedCardRevision: 1, credentialId: card.card.credentialId });
+            assert.equal(revoked.status, 200, await revoked.clone().text());
+            assert.equal(f.db.sqlite.prepare('SELECT state FROM identity_credentials').get()!.state, 'revoked');
+            assert.deepEqual(f.db.sqlite.prepare("SELECT key,count,expires_at FROM rate_limits WHERE key IN (?,?) ORDER BY key").all('identity-card:account:' + 'a'.repeat(16), 'identity-card:global'), before);
+        }
+        finally {
+            f.close();
+        }
+    }
+});
+test('revoke retries after precommit failure despite removed or changed guardian contact without notifying stale recipient', async () => {
+    for (const change of ['removed', 'replaced', 'guardian-version']) {
+        const f = await fixture();
+        try {
+            const r = await issue(f), id = r.card.credentialId, body = { requestKey: 'contact-resume-revoke', expectedIdentityVersion: 3, expectedCardRevision: 1, credentialId: id }, batch = f.db.batch.bind(f.db);
+            let failOnce = true;
+            f.db.batch = async (s) => { if (failOnce && s.some(s => (s as unknown as {
+                sql: string;
+            }).sql.startsWith("UPDATE identity_credentials SET state='revoked'"))) {
+                failOnce = false;
+                throw new Error('synthetic precommit unavailable');
+            } return batch(s); };
+            assert.equal((await f.send(base + '/revoke', body)).status, 503);
+            if (change === 'removed')
+                f.db.sqlite.exec("UPDATE identity_guardian_invites SET state='cancelled' WHERE id='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'");
+            if (change === 'guardian-version')
+                f.db.sqlite.exec("UPDATE identity_guardians SET version=version+1 WHERE guardian_id='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'");
+            if (change === 'replaced') {
+                // Test-only external contact replacement; production currently forbids modifying initial invite contacts.
+                f.db.sqlite.exec('DROP TRIGGER identity_guardian_immutable_binding');
+                f.db.sqlite.prepare('UPDATE identity_guardian_invites SET recipient_ciphertext=?,email_hash=? WHERE id=?').run(await encryptPrivate(contactKey, 'guardian-recipient', 'mcid:' + 'a'.repeat(64), 'replacement@example.com'), await hashPrivate(contactKey, 'guardian-email', 'replacement@example.com'), 'a'.repeat(32));
+            }
+            const resumed = await f.send(base + '/revoke', body);
+            assert.equal(resumed.status, 200, await resumed.clone().text());
+            assert.equal(f.db.sqlite.prepare('SELECT state FROM identity_credentials').get()!.state, 'revoked');
+            assert.equal(f.count('identity_card_requests'), 2);
+            const events = f.db.sqlite.prepare("SELECT * FROM identity_mail_events WHERE kind='security-notice'").all();
+            assert.equal(events.length, change === 'removed' ? 0 : 1);
+            if (events.length)
+                assert.equal(await decryptPrivate(contactKey, 'guardian-recipient', 'mcid:' + 'a'.repeat(64), String(events[0].recipient_ciphertext)), change === 'replaced' ? 'replacement@example.com' : 'shared@example.com');
+            else
+                assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM identity_audit WHERE action='notification-not-enqueued-no-verified-contact'").get()!.n, 1);
+        }
+        finally {
+            f.close();
+        }
+    }
+});
+test('contact removal or replacement immediately before revoke commit skips only notification and commits privacy withdrawal', async () => {
+    for (const change of ['removed', 'replaced']) {
+        const f = await fixture();
+        try {
+            const r = await issue(f), id = r.card.credentialId, batch = f.db.batch.bind(f.db);
+            let changed = false;
+            const replacementCipher = await encryptPrivate(contactKey, 'guardian-recipient', 'mcid:' + 'a'.repeat(64), 'replacement@example.com'), replacementHash = await hashPrivate(contactKey, 'guardian-email', 'replacement@example.com');
+            f.db.batch = async (s) => { if (!changed && s.some(s => (s as unknown as {
+                sql: string;
+            }).sql.startsWith("UPDATE identity_credentials SET state='revoked'"))) {
+                changed = true;
+                if (change === 'removed')
+                    f.db.sqlite.exec("UPDATE identity_guardian_invites SET state='cancelled' WHERE id='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'");
+                else {
+                    f.db.sqlite.exec('DROP TRIGGER identity_guardian_immutable_binding');
+                    f.db.sqlite.prepare('UPDATE identity_guardian_invites SET recipient_ciphertext=?,email_hash=? WHERE id=?').run(replacementCipher, replacementHash, 'a'.repeat(32));
+                }
+            } return batch(s); };
+            const response = await f.send(base + '/revoke', { requestKey: 'contact-final-race', expectedIdentityVersion: 3, expectedCardRevision: 1, credentialId: id });
+            assert.equal(response.status, 200, await response.clone().text());
+            assert(changed);
+            assert.equal(f.db.sqlite.prepare('SELECT state FROM identity_credentials').get()!.state, 'revoked');
+            assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM identity_mail_events WHERE kind='security-notice'").get()!.n, 0);
+            assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM identity_audit WHERE action='notification-not-enqueued-contact-changed'").get()!.n, 1);
+            assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM identity_mail_audit WHERE action='queued'").get()!.n, 1);
+            assert.equal(f.db.sqlite.prepare('SELECT state FROM identity_mail_events WHERE entity_id=?').get(id)!.state, 'cancelled');
+            assert.equal(f.count('identity_card_requests'), 2);
+        }
+        finally {
+            f.close();
+        }
+    }
+});
+test('lost revoke acknowledgement replays the original receipt after contact removal with no second event or quota charge', async () => {
+    const f = await fixture();
+    try {
+        const card = await issue(f), body = { requestKey: 'lost-revoke-ack', expectedIdentityVersion: 3, expectedCardRevision: 1, credentialId: card.card.credentialId }, batch = f.db.batch.bind(f.db);
+        let lost = false;
+        f.db.batch = async (s) => { const r = await batch(s); if (!lost && s.some(s => (s as unknown as {
+            sql: string;
+        }).sql.startsWith("UPDATE identity_credentials SET state='revoked'"))) {
+            lost = true;
+            throw new Error('synthetic committed acknowledgement lost');
+        } return r; };
+        const first = await f.send(base + '/revoke', body);
+        assert.equal(first.status, 200);
+        const receipt = await first.json();
+        assert(lost);
+        f.db.sqlite.exec("UPDATE identity_guardian_invites SET state='cancelled' WHERE id='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'");
+        assert.deepEqual(await (await f.send(base + '/revoke', body)).json(), receipt);
+        assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM identity_mail_events WHERE kind='security-notice'").get()!.n, 1);
+        assert.equal(f.count('identity_card_requests'), 2);
+        assert.equal(f.db.sqlite.prepare('SELECT count FROM rate_limits WHERE key=?').get('identity-card:account:' + 'a'.repeat(16))!.count, 1);
+        assert.equal(f.db.sqlite.prepare('SELECT version FROM agent_identities WHERE account_id=?').get('a'.repeat(16))!.version, 3);
     }
     finally {
         f.close();
