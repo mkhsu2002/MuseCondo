@@ -309,8 +309,10 @@ export function createIdentityRegistration(env: Environment) {
     await verifyGuard(challengeGuard(c));
     return json(optionsResult(c));
   }
+  // Independent indexed lookups avoid the deployed D1 compound-SELECT term limit.
+  // Reuse the same predicate in preflight and the atomic registration guard.
   const collisionSQL =
-    "SELECT 1 FROM accounts WHERE login_hash=? UNION ALL SELECT 1 FROM tower_tokens WHERE token_hash=? UNION ALL SELECT 1 FROM tower_reception_cases WHERE token_hash=? UNION ALL SELECT 1 FROM onboarding_grants WHERE token_hash=? UNION ALL SELECT 1 FROM agent_tokens WHERE token_hash=? UNION ALL SELECT 1 FROM sessions WHERE token_hash=? UNION ALL SELECT 1 FROM identity_secret_history WHERE secret_hash=? UNION ALL SELECT 1 FROM identity_recovery_requests WHERE candidate_hash=?";
+    "SELECT 1 WHERE EXISTS(SELECT 1 FROM accounts WHERE login_hash=?) OR EXISTS(SELECT 1 FROM tower_tokens WHERE token_hash=?) OR EXISTS(SELECT 1 FROM tower_reception_cases WHERE token_hash=?) OR EXISTS(SELECT 1 FROM onboarding_grants WHERE token_hash=?) OR EXISTS(SELECT 1 FROM agent_tokens WHERE token_hash=?) OR EXISTS(SELECT 1 FROM sessions WHERE token_hash=?) OR EXISTS(SELECT 1 FROM identity_secret_history WHERE secret_hash=?) OR EXISTS(SELECT 1 FROM identity_recovery_requests WHERE candidate_hash=?)";
   const collisionArgs = (hash: string) => Array(8).fill(hash);
   async function offlineSafe(sha: string, hash: string) {
     if (

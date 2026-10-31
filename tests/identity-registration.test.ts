@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { LocalDatabase } from "../server/live/local-db.ts";
-import type { Statement } from "../server/live/db.ts";
+import type { Database, Statement } from "../server/live/db.ts";
 import {
   hashIdentityInput,
   hashPrivate,
@@ -16,7 +16,7 @@ const origin = "https://identity.example",
   base = "/api/v1/identity/guardian/registration";
 const native = new LocalDatabase(":memory:");
 test.after(() => native.close());
-async function fixture() {
+async function fixture(compoundSelectLimit?: number) {
   const db = new LocalDatabase(":memory:");
   for (const f of readdirSync(new URL("../migrations/", import.meta.url))
     .filter((f) => f.endsWith(".sql"))
@@ -94,8 +94,18 @@ async function fixture() {
   );
   const { createIdentityRegistration } =
     await import("../server/live/identity-registration.ts");
+  const handlerDb: Database = compoundSelectLimit === undefined ? db : {
+    prepare(sql) {
+      // Model the remote engine's parser limit, independently of collision SQL shape.
+      const terms = 1 + (sql.match(/\b(?:UNION(?:\s+ALL)?|INTERSECT|EXCEPT)\b/gi)?.length ?? 0);
+      if (terms > compoundSelectLimit)
+        throw new Error("too many terms in compound SELECT: SQLITE_ERROR");
+      return db.prepare(sql);
+    },
+    batch: (statements) => db.batch(statements),
+  };
   const handler = createIdentityRegistration({
-    db,
+    db: handlerDb,
     origin,
     contactKey,
     now: () => new Date(appNow),
@@ -160,6 +170,101 @@ async function fixture() {
     },
   };
 }
+test("registration completes with a five-term compound SELECT limit", async () => {
+  const f = await fixture(5);
+  try {
+    const { response } = await f.complete(await f.begin());
+    assert.equal(response.status, 200, await response.clone().text());
+    assert.equal(f.count("identity_registration_requests"), 1);
+    assert.equal(f.count("identity_audit"), 1);
+  } finally {
+    f.db.close();
+  }
+});
+
+test("every offline-code collision source rejects before registration and at atomic commit under the D1 compound limit", async (t) => {
+  const sources = ["accounts", "tower_tokens", "tower_reception_cases", "onboarding_grants", "agent_tokens", "sessions", "identity_secret_history", "identity_recovery_requests", "identity_offline_recovery_codes"] as const;
+  const historyCapture: Record<string, string | undefined> = {
+    accounts: "identity_history_accounts_update",
+    tower_tokens: "identity_history_tower_tokens",
+    tower_reception_cases: "identity_history_cases",
+    onboarding_grants: "identity_history_onboarding",
+    agent_tokens: "identity_history_agent_tokens",
+    sessions: "identity_history_sessions",
+  };
+  for (const source of sources) for (const atCommit of [false, true]) {
+    await t.test(source + (atCommit ? " appears at commit" : " exists before verification"), async () => {
+      const f = await fixture(5);
+      try {
+        const start = await f.begin(),
+          sha = await hashIdentityInput("e".repeat(64)),
+          account = "b".repeat(16),
+          agent = "mcid:" + "b".repeat(64),
+          offlineHash = await hashPrivate(contactKey, "identity-offline-recovery", "e".repeat(64));
+        const seed = () => {
+          // Keep each source independent: seed without also capturing it in secret history.
+          // All immutable-history, binding and registration guards remain installed.
+          const capture = historyCapture[source];
+          if (capture) f.db.sqlite.exec("DROP TRIGGER " + capture);
+          const put = (sql: string, ...args: string[]) => f.db.sqlite.prepare(sql).run(...args);
+          switch (source) {
+            case "accounts":
+              put("UPDATE accounts SET login_hash=? WHERE id=?",sha,account);
+              break;
+            case "tower_tokens":
+              put("INSERT INTO tower_tokens(id,account_id,token_hash,scopes,expires_at,created_at) VALUES('collision',?,?,'[]',?,?)",account,sha,time,time);
+              break;
+            case "tower_reception_cases":
+              put("INSERT INTO tower_reception_cases(id,token_hash,state,name,request_kind,request_text,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at) VALUES('collision',?,'pending','Synthetic','new','','{}','{}','{}','',?,?,?)",sha,time,time,time);
+              break;
+            case "onboarding_grants":
+              put("INSERT INTO onboarding_grants(id,account_id,token_hash,scopes,created_at,expires_at) VALUES('collision',?,?,'[]',?,?)",account,sha,time,time);
+              break;
+            case "agent_tokens":
+              put("INSERT INTO agent_tokens(id,room_id,token_hash,scopes,created_at,expires_at) VALUES('collision',?,?,'[]',?,?)",account,sha,time,time);
+              break;
+            case "sessions":
+              put("INSERT INTO sessions(token_hash,account_id,csrf,expires_at) VALUES(?,?,'synthetic',?)",sha,account,time);
+              break;
+            case "identity_secret_history":
+              put("INSERT INTO identity_secret_history(secret_hash) VALUES(?)",sha);
+              break;
+            case "identity_recovery_requests":
+              put("INSERT INTO identity_recovery_requests(id,agent_id,candidate_hash,request_key,input_hash,created_at,expires_at) VALUES(?,?,?,'collision-request',?,?,?)","f".repeat(32),agent,sha,"f".repeat(64),time,"2026-10-31T01:00:00.000Z");
+              break;
+            case "identity_offline_recovery_codes":
+              put("INSERT INTO identity_offline_recovery_codes(agent_id,code_hash,authority_epoch,identity_version,created_at,confirmed_at) VALUES(?,?,1,3,?,?)",agent,offlineHash,time,time);
+              break;
+          }
+          if (source !== "identity_secret_history") assert.equal(f.db.sqlite.prepare("SELECT count(*) n FROM identity_secret_history WHERE secret_hash=?").get(sha)!.n,0);
+        };
+        if (atCommit) {
+          const batch = f.db.batch.bind(f.db);
+          let injected = false;
+          f.db.batch = async (statements) => {
+            if (!injected && statements.some(s =>
+              (s as unknown as { sql: string }).sql.startsWith("INSERT INTO identity_guardians"),
+            )) {
+              injected = true;
+              seed();
+            }
+            return batch(statements);
+          };
+        } else seed();
+        const { response } = await f.complete(start);
+        assert.equal(response.status,400,await response.clone().text());
+        assert.deepEqual(await response.json(),{error:"independent_offline_code_required"});
+        for (const table of ["identity_guardians","identity_guardian_passkeys","identity_registration_requests","identity_audit"]) assert.equal(f.count(table),0,table);
+        assert.deepEqual({...f.db.sqlite.prepare("SELECT state,version FROM agent_identities WHERE agent_id=?").get(start.agentId)!},{state:"provisional",version:3});
+        assert.equal(f.db.sqlite.prepare("SELECT consumed_at FROM identity_guardian_challenges WHERE challenge_id=?").get(start.challengeId)!.consumed_at,null);
+        assert.equal(f.db.sqlite.prepare("SELECT state FROM identity_guardian_invites WHERE id=?").get(f.input.invitationId)!.state,"accepted");
+        assert.equal(f.count("identity_offline_recovery_codes"),source === "identity_offline_recovery_codes" ? 1 : 0);
+      } finally {
+        f.db.close();
+      }
+    });
+  }
+});
 test("official WebAuthn registration options bind a random user handle and can only activate with Passkey plus independent confirmed offline code", async () => {
   const f = await fixture();
   try {

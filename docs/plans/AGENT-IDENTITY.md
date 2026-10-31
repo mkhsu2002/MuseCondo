@@ -15,7 +15,7 @@
 | I00 | 兩 repo 規格、計畫、現有 T04／T06 gate 調整 | 已自審、兩 repo main 文件已同步 |
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
-| I03 | Passkey／離線碼復原與舊授權全面失效 | a與b後端及頁面已兩階段審核通過；c的Passkey／離線後端均兩階段審核PASS；過期容量修正已兩階段審核PASS；UI已兩階段審核PASS；整批正在發布驗證 |
+| I03 | Passkey／離線碼復原與舊授權全面失效 | v0.54已雙環境發布；dev合成註冊遇D1 compound SELECT限制而阻塞。等價EXISTS修復與回歸測試完成，待修復審核、再發布及完整live驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | 待實作 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
@@ -100,7 +100,7 @@ I02品質審查91f17fb PASS：獨立29項測試與4項GET／收據讀出後撤�
 
 I03a工程79bae08／bf4832a／6cc7ebd已規格與品質兩階段PASS（370項當時完整測試）。I03b後端9b7962d／d009fe8／a0472e0／3c68e5b的確認授權順序與雙方並發重送測試皆已修正，401項完整測試、規格與品質複審PASS。2691913頁面進入規格審查，抓到畸形options 200無法原請求重試及信件缺必填邀請碼，尚待修正。I03a／b維持未發布，直到c復原功能與頁面一起可用，避免先宣稱已具備實際尚不可用的復原能力。固定d009fe8的Pages Functions以Wrangler4.156.0／compat2026-10-29無新增flag編譯成功，此只證bundle相容，不代替Workerd／正式crypto行為驗證。新依賴原授權已在public/licenses複製保留。
 
-### I03c 實作切片與驗收契約（設計，尚未實作）
+### I03c 實作切片與驗收契約（歷史設計；目前狀態見進度表及最後紀錄）
 
 先完成復原後端與舊發權路徑隔離並兩階段審查，再完成監護復原頁面、離線驗證器重建與跨環境整合；未全部通過前不發布I03a／b或宣告復原可用。
 
@@ -139,3 +139,13 @@ I03c容量修正f022d15規格與品質審核PASS：461完整測試＋8版本測�
 legacy部署隱私補正9c17bd8：依既有sanitize-public政策，只從gh-pages生成物移除四份開發素材manifest，保留其餘74個路徑/mode/blob，包含Fang四個舊址及所有圖片。規格／品質PASS，官方Pages讀回同commit built；四份普通公開URL均404，首頁、新JS與Fang四個路徑HTTP200且byte-identical。公開framework原始碼的通用範例與正式訪客輸出分開管理；未變更Muse Tower身份發布基線。
 
 I03c復原頁224ea2e／2ddcbed兩階段審核PASS：新申請不得沿用前案指紋勾選／決策P2已真RED→GREEN；unknown complete仍過期後原body/key/signedresponse重試。主控Node24獨立490完整＋8版本測試／lint PASS，品質43既有＋7記憶體async／expiry／wrongsubject反例PASS。真瀏覽器、原生Passkey／下載與正式尚待後續，不把VM當真人。
+
+### 2026-10-31 I03 雙環境發布後的 D1 相容性阻塞
+
+v0.54 已合併 main／framework-v001，兩環境部署成功，0013–0017 schema 比對及 foreign_key_check 通過。這些證據未代表完整流程可用：dev test-only 私密合成戶 registration options 回200，complete回503，故I03仍阻塞，I04不開始；沒有用合成驗收替代Fang／K真人，也沒有寄真信或改真住戶。
+
+原handler經remote D1 adapter取得原始錯誤 `7500 too many terms in compound SELECT: SQLITE_ERROR`，定位於註冊offlineSafe的八來源UNION ALL。實際dev最小只讀測試中5個term成功，6／7／8個拒絕；這是當前環境實測，非官方公告的通用上限。本地SQLite及workerd crypto通過不能取代remote SQL行為。八來源OR EXISTS等價只讀查詢已分別在dev／正式接受。
+
+修復僅將同一碰撞查詢改為八個有索引的EXISTS，以原參數順序同時供預檢及原11-statement原子batch guard使用；另有offline HMAC碰撞檢查不變。沒有migration、API格式、授權或交易邊界變更。記憶體Database wrapper模擬compound最多5個term，實際handler正常註冊與九來源（八個SHA來源加offline HMAC）在預檢／提交前的碰撞測試先RED（503）再GREEN，逐項確認拒絕且無guardian／passkey／收據／audit或challenge消耗。runtime全文搜尋只找到此次一處UNION，已移除。
+
+此修復仍待規格／品質審查、同版雙環境發布與完整合成live流程回讀（註冊、Passkey延續、全Passkey撤銷後離線修復、新生、舊權拒絕、收據／audit及住所保持）。沒有把本地測試或已部署v0.54記作修復已上線。
