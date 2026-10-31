@@ -50,13 +50,9 @@ test('identity-card build guard requires the standalone route/resources/privacy 
 
 // Render the real TypeScript module without loading CSS in Node.
 test('official footer and covenant distinguish commercial software from separately licensed artwork on root and subpath',async()=>{
- const {transpileModule,ModuleKind}=await import('typescript');
- const {runInNewContext}=await import('node:vm');
- const source=await readFile(new URL('../src/live/tower-welcome.ts',import.meta.url),'utf8');
- const exports={};
- runInNewContext(transpileModule(source,{compilerOptions:{module:ModuleKind.CommonJS}}).outputText,{exports,require:()=>({})});
+ const {licenseAttribution,residentGuide}=await import('../src/shared/lobby-markup.ts');
  for(const base of ['','/MuseCondo']){
-  const footer=exports.licenseAttribution(base),covenant=exports.residentGuide(base);
+  const footer=licenseAttribution(base),covenant=residentGuide(base);
   assert.match(footer,/開源 By NeoBabylon.App/);
   assert.match(footer,/Apache 2.0/);
   assert.match(footer,/商用/);

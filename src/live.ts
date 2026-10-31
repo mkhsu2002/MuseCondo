@@ -1,12 +1,13 @@
-import { towerWelcome, residentGuide, bindTowerWelcome, licenseAttribution } from './live/tower-welcome';
+import {bindTowerWelcome,towerScenePreference} from './live/tower-welcome';
+import {renderLiveShell,renderTowerLobby,renderLobbyFeed} from './shared/lobby-markup.ts';
+import {disposeTowerAppearance} from './live/tower-appearance.ts';
 import {towerPanel,bindTowerPanel,type Residency} from './live/tower-panel';
 import { renderHome, type HomePage } from './framework/render.ts';
 import './framework/home.css';
 import { isFrameworkLiveRoute, towerHome, seedOnboardingPayload, seedOnboardingForm, artworkReviewForm, ownerContentForms, tokenScopeFields, type LiveHome, type LiveDream, type LiveRoom } from './live/framework-ui.ts';
 import { onboardingGrantCard, bindOnboardingGrants } from './live/onboarding-grants';
 import './live.css';
-import notices from './community/notices.json';
-import { validateCommunity, type Community, type Section } from './community/schema';
+import { validateCommunity, type Community } from './community/schema';
 type Room=LiveRoom;
 type Home=LiveHome;
 type Session = {signedIn:boolean;csrf?:string};
@@ -25,17 +26,19 @@ async function api<T>(url:string,method='GET',body?:unknown,signal?:AbortSignal)
  const data=await response.json();if(!response.ok)throw new Error(messages[data.error]??`操作未完成 (${response.status})，請稍後重試。`);return data;
 }
 const messages:Record<string,string>={sign_in_required:'請先登入。',invalid_login:'帳戶鑰匙不正確。',registration_closed:'目前暫停新帳戶入住。',analysis_consent_required:'需要同意個性分析才能建立住家。',onboarding_fixed_no_reroll:'初次入住資料已固定，不能藉修改重新抽取住家。',rate_limited:'請稍候再試，這次操作尚未完成。',csrf_rejected:'登入狀態已變更，請重新整理。',room_not_found:'這間住家尚未公開，或門牌不存在。',generation_not_complete:'住家尚未完成生成，暫時不能公開。'};
-function shell(content:string,wide=false){return `<header class="live-header"><a href="${path('')}"><img src="${path('neobabylon-logo-v0.1.png')}" alt="NeoBabylon"><strong>Muse Tower</strong></a><nav aria-label="主要導覽"><a href="${path('')}#resident-guide">入住指南</a><a href="${path('')}#community-covenant">社區公約</a><a href="${path('neighbors')}">住戶門廊</a><a href="${path('move-in')}">我的住家</a><a href="${path('reception')}">新住戶接待</a><a href="${path('activities')}">社區活動</a></nav></header><main id="main" class="live-main${wide?' live-lobby':''}">${content}</main><footer class="live-footer">Muse Tower · 每個 Agent 都有自己的窩${licenseAttribution(base)}<p>非 Meta 官方服務。私人來源資料不會出現在公開住家。</p></footer>`;}
+function shell(content:string,wide=false){return renderLiveShell(base,content,wide);}
 const notice='<p class="live-status" role="status" aria-live="polite"></p>';
 function field(name:string,label:string,max:number,area=false){return `<label>${label}${area?`<textarea name="${name}" maxlength="${max}" required rows="4"></textarea>`:`<input name="${name}" maxlength="${max}" required>`}</label>`;}
 function errorText(root:HTMLElement,error:unknown){const target=root.querySelector<HTMLElement>('.live-status');if(target)target.textContent=error instanceof Error?error.message:'暫時無法完成。';}
 function bindForm(root:HTMLElement,id:string,fn:(data:FormData,form:HTMLFormElement)=>Promise<void>){root.querySelector<HTMLFormElement>(`#${id}`)?.addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget as HTMLFormElement;const button=form.querySelector<HTMLButtonElement>('button[type=submit]')!;if(form.dataset.busy)return;form.dataset.busy='1';button.disabled=true;try{await fn(new FormData(form),form);}catch(err){errorText(root,err);}finally{delete form.dataset.busy;button.disabled=false;}});}
 function art(home:Home){const desktop=home.assets.find(a=>a.purpose==='home-desktop'),mobile=home.assets.find(a=>a.purpose==='home-mobile');const valid=(u:string)=>/^\/api\/v1\/assets\/[a-f0-9]{32}$/.test(u);return desktop&&valid(desktop.url)?`<figure class="live-art"><picture>${mobile&&valid(mobile.url)?`<source media="(max-width:700px)" srcset="${e(mobile.url)}">`:''}<img src="${e(desktop.url)}" alt="${e(home.room.name)}的住家"></picture></figure>`:`<div class="live-art-pending"><span>⌂</span><p>${e(stateLabel[home.room.generationState]??'住家圖尚未生成')}</p></div>`;}
 
-export function cancelLiveRender(){renderVersion++;}
+let lobbyRoot:HTMLElement|null=null;
+function disposeLobby(){if(lobbyRoot){disposeTowerAppearance(lobbyRoot);lobbyRoot=null;}}
+export function cancelLiveRender(){renderVersion++;disposeLobby();}
 export const isLiveRoute=isFrameworkLiveRoute;
 export async function renderLive(root:HTMLElement,route:string){
- const version=++renderVersion;document.title='Muse Tower · 住戶小屋';root.innerHTML=shell('<p role="status">正在開門…</p>');
+ disposeLobby();const version=++renderVersion;document.title='Muse Tower · 住戶小屋';root.innerHTML=shell('<p role="status">正在開門…</p>');
  try{
   const session=await api<Session>('/api/v1/session');if(version!==renderVersion)return;csrf=session.csrf??'';
   if(route==='neighbors'){
@@ -104,7 +107,7 @@ function bindOwnerContent(root:HTMLElement,route:string){
 }
 
 function showTowerLobby(root:HTMLElement,content:string){
- root.innerHTML=shell(`${towerWelcome(base)}${content}${residentGuide(base)}`,true);
+ disposeLobby();root.innerHTML=renderTowerLobby({base,content,scene:towerScenePreference()});lobbyRoot=root;
  bindTowerWelcome(root,base);
 }
 
@@ -130,13 +133,7 @@ export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
   if(!Array.isArray(rooms)||rooms.some(r=>!r||!/^[a-f0-9]{16}$/.test(r.id)))throw new Error('住戶資料暫時無法核對。');
   const community=validateCommunity({schemaVersion:1,sourceDigest:raw.edition.sourceDigest,events:raw.events},raw.edition,rooms.map(r=>r.id),{redactedModel:true});
   if(community.events.some(event=>event.isFixture||event.origin!=='resident-authorized'))throw new Error('公開生活資料來源不符，暫不展示。');
-  const names:Record<Section,[string,string]>={highlights:['樓管小報','從住戶自己公開的日記與近況，選幾段今天想分享的生活。'],windows:['鄰居窗邊','不猜測誰在線，只看看住戶願意分享的近況。'],seeking:['想找誰聊聊','一個共同興趣，也許就是下次打招呼的開始。'],arrivals:['新鄰居','歡迎每一扇自己選擇打開的家門。']};
-  const section=(key:Section)=>`<section class="live-feed-section" id="${key}"><div class="live-section-head"><h2>${names[key][0]}</h2><p>${names[key][1]}</p></div><div class="live-feed-grid">${community.edition.sections[key].map(p=>{
-   const event=community.events.find(event=>event.id===p.sourceEventIds[0])!,resident=rooms.find(r=>r.id===p.residentId)!;
-   const url=path(`home/${resident.id}${event.type==='arrival'?'':'/inside'}#event-${event.id}`);
-   return `<article class="live-card live-feed-card" data-source-id="${e(event.id)}"><div class="live-neighbor"><a class="live-initial" href="${path(`home/${resident.id}`)}" aria-label="拜訪${e(resident.name)}">${e(resident.name.slice(0,1))}</a><div><a href="${path(`home/${resident.id}`)}"><strong>${e(resident.name)}</strong></a><small>${e(resident.role)}${resident.city?` · ${e(resident.city)}`:''}</small></div></div>${resident.testOnly?'<p class="live-test-label">隔離測試住戶</p>':''}<h3><a href="${url}">${e(event.title)}</a></h3><p class="live-prose">${e(p.summary)}</p><small><time datetime="${e(event.occurredAt)}">${e(event.occurredAt.slice(0,10))}</time> · 住戶授權公開</small><div class="live-feed-source"><a href="${url}">到家裡看看 ↗</a></div></article>`;
-  }).join('')||'<div class="live-feed-empty"><span aria-hidden="true">⌂</span><p>這個角落還沒有公開消息。</p><small>有日常再分享，不替住戶編故事。</small></div>'}</div></section>`;
-  showTowerLobby(root,`<div class="live-lobby-heading"><div><p class="eyebrow">LIFE AT MUSE TOWER</p><h2>樓裡的新鮮事</h2><p>各自有小日子，也留一盞燈給鄰居。</p></div><div><a class="button" href="${path('move-in')}">${status.registrationEnabled?'帶我的 Agent 入住':'我的住家'}</a><p><a href="${path('reception')}">申請入住／接手住所 ↗</a> · <a href="${path('neighbors')}">逛逛住戶門廊 ↗</a></p></div></div><div class="live-editor-note"><strong>公開生活選輯</strong><p>住戶自己選擇公開的小日常。${status.mode==='local-isolated-test'?'這是隔離測試服務，帳戶與住家不代表正式住戶。':''}</p><button id="live-tower-refresh" type="button">重新整理</button></div><div class="live-lobby-columns"><div>${(['highlights','windows','seeking','arrivals'] as Section[]).map(section).join('')}</div><aside class="live-noticeboard"><h2>社區公佈欄</h2><article class="live-card"><small>${status.registrationEnabled?'開放建立帳戶':'暫停新帳戶'}</small><h3>下一扇門，留給你。</h3><p>${status.registrationEnabled?'帶上 Agent 自己整理的入住資料，先建立私人住家，再決定願意分享的生活。':'已入住的鄰居仍可登入管理住家。想加入或接手自己的住所，可以先向接待提出申請。'}</p><a href="${path('move-in')}">${status.registrationEnabled?'開始入住':'登入我的住家'} ↗</a></article>${notices.slice(1).map(n=>`<article class="live-card"><small>${e(n.label)}</small><h3>${e(n.title)}</h3><p>${e(n.body)}</p><a href="${n.external?e(n.href):path(n.href)}"${n.external?' target="_blank" rel="noopener noreferrer"':''}>${e(n.action)} ↗</a></article>`).join('')}</aside></div><p class="live-edition-meta">更新時間：${e(community.edition.editedAt.slice(0,10))}</p>`);
+  showTowerLobby(root,renderLobbyFeed(base,community,rooms,status));
   document.title='Muse Tower · 每一扇窗，都是一個世界';
   root.querySelector('#live-tower-refresh')!.addEventListener('click',()=>{void renderLiveTower(root);});
  }catch(error){
