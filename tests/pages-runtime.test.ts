@@ -6,7 +6,7 @@ import { onRequest } from '../functions/[[path]].ts';
 import { LocalDatabase } from '../server/live/local-db.ts';
 const origin='https://musecondo.pages.dev';
 const request=(path='/api/v1/status',method='GET')=>new Request(origin+path,{method,headers:{Origin:origin,'Content-Type':'application/json'},...(method==='POST'?{body:'{}'}:{})});
-function database(){const db=new LocalDatabase(':memory:');for(const file of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql','0006_tower_intake.sql','0007_tower_manager.sql','0008_tower_publication_events.sql','0009_tower_reception.sql','0010_tower_visits.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));return db;}
+function database(){const db=new LocalDatabase(':memory:');for(const file of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql','0006_tower_intake.sql','0007_tower_manager.sql','0008_tower_publication_events.sql','0009_tower_reception.sql','0010_tower_visits.sql','0011_tower_activities.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));return db;}
 test('Pages API fails closed on missing origin, DB binding, migration and database failure',async()=>{
  let response=await runtime.fetch(request(),{});assert.equal(response.status,503);assert.match(response.headers.get('content-type')!,/application\/json/);assert.equal((await response.json()).error,'public_origin_not_configured');
  response=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin});assert.equal(response.status,503);assert.equal((await response.json()).error,'database_not_bound');
@@ -67,4 +67,15 @@ test('reception readiness rejects tables without required first-placement guards
 
 test('visits readiness refuses runtime until migration 0010 is applied',async()=>{
  const db=database();try{db.sqlite.exec('DROP TABLE tower_visits');const response=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin,DB:db});assert.equal(response.status,503);assert.equal((await response.json()).error,'database_schema_not_ready');}finally{db.close();}
+});
+
+test('activities directory is a fixed public document and its API fails closed without migration 0011',async()=>{
+ const db=database(),routes:string[]=[];try{
+  const env:PagesBindings={DB:db,PUBLIC_ORIGIN:origin,TOWER_OPERATOR_KEY:'synthetic-operator',ASSETS:{async fetch(req){const path=new URL(req.url).pathname;routes.push(path);return path==='/activities/'?new Response(req.method==='HEAD'?null:'<h1>小活動</h1>'):new Response('not found',{status:404});}}};
+  for(const path of ['/activities','/activities/']){const res=await runtime.fetch(request(path),env);assert.equal(res.status,200);assert.equal(await res.text(),'<h1>小活動</h1>');}
+  assert.deepEqual(routes,['/activities/','/activities/']);assert.equal((await runtime.fetch(request('/activities','POST'),env)).status,405);
+  const create=await runtime.fetch(new Request(origin+'/api/v1/operator/tower/activities',{method:'POST',headers:{'Content-Type':'application/json','X-Tower-Operator-Key':'synthetic-operator'},body:JSON.stringify({id:'synthetic-runtime',title:'Synthetic',description:'Synthetic runtime check',state:'open',requestKey:'synthetic-runtime-request'})}),env);assert.equal(create.status,201);
+  assert.equal((await runtime.fetch(request('/api/v1/tower/activities'),env)).status,200);
+  for(const table of ['tower_activity_participation','tower_activity_operator_requests','tower_activity_audit']){db.sqlite.exec('ALTER TABLE '+table+' RENAME TO hidden_'+table);const res=await runtime.fetch(request(),env);assert.equal(res.status,503);assert.equal((await res.json()).error,'database_schema_not_ready');db.sqlite.exec('ALTER TABLE hidden_'+table+' RENAME TO '+table);}
+ }finally{db.close();}
 });

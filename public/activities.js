@@ -1,0 +1,29 @@
+/* global document, fetch, crypto */
+(()=>{
+ 'use strict';
+ const root=document.querySelector('[data-activities]');if(!root)return;
+ const list=document.querySelector('[data-activity-list]'),status=document.querySelector('[data-activity-status]'),login=document.querySelector('[data-activity-login]'),more=document.querySelector('[data-activity-more]');
+ const base='/api/v1/tower/activities',own='/api/v1/me/tower-intake/activities',states={none:'尚未選擇',joined:'已加入',declined:'已婉拒',left:'已退出'},labels={open:'開放參加',closed:'已結束'};
+ const errors={sign_in_required:'請先登入自己的住家。',no_home:'你目前沒有接入的住家，可以先看看活動。',csrf_rejected:'登入狀態已更新，請重新整理。',authorization_changed:'登入授權已變更，請重新登入。',activity_not_open:'這個活動目前沒有開放加入。',activity_not_found:'這個活動目前沒有開放。',participation_state_conflict:'你的選擇已更新，請重新整理後再選擇。',activity_state_conflict:'活動已更新，請重新整理後再選擇。',activity_rate_limited:'先休息一下，稍後再做新的參加選擇。',participation_capacity:'目前加入的活動已達上限，請先整理自己的參加選擇。',idempotency_conflict:'這次選擇已改變，請重新整理後再送出。'};
+ let csrf='',signedIn=false,hasHome=false,cursor=null,busy=false;
+ const el=(tag,text)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;},say=text=>{status.textContent=text;};
+ async function api(path,method='GET',body){const response=await fetch(path,{method,credentials:'same-origin',cache:'no-store',headers:method==='GET'?{}:{'Content-Type':'application/json','X-CSRF-Token':csrf},...(body===undefined?{}:{body:JSON.stringify(body)})});let data;try{data=await response.json();}catch{throw new Error('暫時無法連線，請稍後再試。');}if(!response.ok){const error=new Error(errors[data.error]||'暫時無法完成，請稍後再試。');error.code=data.error;throw error;}return data;}
+ function button(label,fn){const node=el('button',label);node.type='button';node.addEventListener('click',async()=>{if(node.disabled||busy)return;busy=true;node.disabled=true;try{await fn();}catch(error){say(error.message);}finally{busy=false;node.disabled=false;}});return node;}
+ function card(a,initial){
+  const article=el('article');article.className='activity-card';const heading=el('h2',a.title),description=el('p',a.description),meta=el('p',labels[a.state]||'');meta.className='activity-meta';article.append(heading,description,meta);
+  if(a.startsAt||a.endsAt)article.append(el('p',[a.startsAt?'開始：'+new Date(a.startsAt).toLocaleString('zh-TW'):'',a.endsAt?'結束：'+new Date(a.endsAt).toLocaleString('zh-TW'):''].filter(Boolean).join('　')));
+  const controls=el('div'),participants=el('div');controls.className='activity-controls';let current=initial;
+  async function showNeighbors(after=null){const data=await api(base+'/'+a.id+(after?'?cursor='+encodeURIComponent(after):''));if(!after)participants.replaceChildren();if(!data.participants.length&&!after)participants.append(el('p','目前沒有選擇公開參加的鄰居。'));for(const neighbor of data.participants){const p=el('p'),link=el('a',neighbor.name);link.href=neighbor.door;p.append(link);participants.append(p);}if(data.nextCursor){const next=button('看更多參加鄰居',async()=>{await showNeighbors(data.nextCursor);next.hidden=true;});participants.append(next);}}
+  function renderChoice(){controls.replaceChildren();if(!hasHome)return;controls.append(el('p','我的選擇：'+states[current.state]));const open=a.state==='open'&&(!a.startsAt||a.startsAt<=new Date().toISOString())&&(!a.endsAt||a.endsAt>new Date().toISOString());
+   let checkbox;
+   if(open){const label=el('label');label.className='activity-consent';checkbox=el('input');checkbox.type='checkbox';checkbox.checked=current.showParticipation;label.append(checkbox,el('span',' 讓鄰居看見我參加（家門公開時）'));controls.append(label);}
+   const action=(kind)=>{let requestKey=null,signature='';return async()=>{const payload={action:kind,expectedVersion:current.version,...(kind==='join'?{showParticipation:checkbox.checked}: {})},nextSignature=JSON.stringify(payload);if(signature!==nextSignature){signature=nextSignature;requestKey=crypto.randomUUID();}await api(own+'/'+a.id+'/participation','POST',{...payload,requestKey});const data=await api(own+'/'+a.id);requestKey=null;current=data.participation;a=data.activity;meta.textContent=labels[a.state]||'';heading.textContent=a.title;description.textContent=a.description;renderChoice();await showNeighbors();say(kind==='join'?'已儲存你的參加選擇。':kind==='decline'?'已婉拒活動，不需要說明理由。':'已退出活動。');};};
+   if(open)controls.append(button(current.state==='joined'?'儲存參加選擇':'加入活動',action('join')));
+   controls.append(button('婉拒活動',action('decline')));if(current.state==='joined')controls.append(button('退出活動',action('leave')));
+  }
+  renderChoice();article.append(controls,button('看看參加鄰居',()=>showNeighbors()),participants);if(hasHome){const note=el('p','加入後不會自動顯示名字。只有勾選公開參加，並且家門已公開時，鄰居才看得見。');note.className='activity-note';article.append(note);}return article;
+ }
+ async function page(append=false){const path=append&&cursor?'?cursor='+encodeURIComponent(cursor):'',data=await api(base+path);let choices=[];if(signedIn){try{choices=(await api(own+path)).activities;hasHome=true;}catch(error){if(error.code!=='no_home')throw error;hasHome=false;say(error.message);}}if(!append)list.replaceChildren();if(!data.activities.length&&!append)list.append(el('p','目前還沒有小活動，過些時候再來看看。'));for(const a of data.activities){const p=choices.find(x=>x.id===a.id)?.participation||{state:'none',showParticipation:false,version:0};list.append(card(a,p));}cursor=data.nextCursor;more.hidden=!cursor;}
+ async function start(){const session=await api('/api/v1/session');signedIn=session.signedIn;csrf=session.csrf||'';login.hidden=signedIn;await page();if(hasHome)say('參加與分享都由你自己選擇。');else if(!signedIn)say('登入自己的住家後，可以選擇加入、婉拒或退出。');more.addEventListener('click',()=>{if(!busy){busy=true;page(true).catch(error=>say(error.message)).finally(()=>{busy=false;});}});}
+ start().catch(error=>say(error.message));
+})();

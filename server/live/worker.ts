@@ -13,7 +13,7 @@ export interface PagesBindings {
  META_MANAGER_APPROVED?:string;META_MANAGER_BUDGET_MICRO?:string;META_MANAGER_DAILY_MICRO?:string;META_MANAGER_MONTHLY_MICRO?:string;
 }
 export interface RuntimeContext {waitUntil(promise:Promise<unknown>):void}
-const requiredTables=['accounts','sessions','rooms','private_profiles','generation_jobs','assets','asset_chunks','posts','interactions','agent_tokens','rate_limits','community_editions','community_current','consent_events','recovery_audit','provider_requests','onboarding_grants','framework_profiles','dream_consent','dreams','asset_reviews','tower_residencies','tower_snapshots','tower_asset_chunks','tower_claims','tower_tokens','tower_requests','tower_audit','manager_jobs','manager_events','tower_reception_cases','tower_reception_events','tower_reception_requests','tower_visits'];
+const requiredTables=['accounts','sessions','rooms','private_profiles','generation_jobs','assets','asset_chunks','posts','interactions','agent_tokens','rate_limits','community_editions','community_current','consent_events','recovery_audit','provider_requests','onboarding_grants','framework_profiles','dream_consent','dreams','asset_reviews','tower_residencies','tower_snapshots','tower_asset_chunks','tower_claims','tower_tokens','tower_requests','tower_audit','manager_jobs','manager_events','tower_reception_cases','tower_reception_events','tower_reception_requests','tower_visits','tower_activities','tower_activity_participation','tower_activity_operator_requests','tower_activity_audit'];
 const requiredTriggers=['tower_reception_first_claim','tower_reception_first_home'];
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 function validOrigin(value:string|undefined){try{return !!value&&new URL(value).origin===value&&value.startsWith('https://');}catch{return false;}}
@@ -47,6 +47,8 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   }
   const reception=createTowerReception({db,origin:env.PUBLIC_ORIGIN!,operator:async()=>operator()});
   const receptionResponse=await reception.fetch(request);if(receptionResponse)return receptionResponse;
+  const intake=createTowerIntake({db,origin:env.PUBLIC_ORIGIN!,localTest:false,sourceOrigins:sourceOrigins(env.TOWER_SOURCE_ORIGINS),operator:async()=>operator(),ownerAttestation:async()=>operator(),onChange:async()=>{await reconcile();}});
+  const tower=await intake.fetch(request);if(tower)return tower;
   if(url.pathname.startsWith('/api/v1/operator/')){
    if(request.headers.has('Cookie')||request.headers.has('Origin')&&request.headers.get('Origin')!==env.PUBLIC_ORIGIN||request.headers.get('Sec-Fetch-Site')==='cross-site')return json({error:'origin_rejected'},403);
    if(!await operator())return json({error:'operator_required'},401);
@@ -65,16 +67,15 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    if(url.pathname==='/api/v1/operator/manager'&&request.method==='GET')return json({configured:manager.configured(),jobs:(await db.prepare('SELECT id,source_digest,state,reserved_micro,actual_micro,input_tokens,output_tokens,provider_id,error_code,created_at,completed_at FROM manager_jobs ORDER BY created_at DESC LIMIT 30').all()).results});
    return json({error:'not_found'},404);
   }
-  const intake=createTowerIntake({db,origin:env.PUBLIC_ORIGIN!,localTest:false,sourceOrigins:sourceOrigins(env.TOWER_SOURCE_ORIGINS),ownerAttestation:async()=>operator(),onChange:async()=>{await reconcile();}});
-  const tower=await intake.fetch(request);if(tower)return tower;
+
   if(api){const response=await app.fetch(request,request.headers.get('CF-Connecting-IP')??'unknown');
    if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET'){const last=await db.prepare("SELECT completed_at FROM manager_jobs WHERE state='complete' ORDER BY completed_at DESC LIMIT 1").first<{completed_at:string}>();return json({...await response.json(),manager:manager.configured()?(last?'event-driven-live':'event-driven-configured-not-health-verified'):'rules-on-public-update',scheduled:false,runtime:{...safe,databaseReady:true,metaConfiguredNotHealthVerified:!!generator,managerConfigured:manager.configured(),managerLastSuccessAt:last?.completed_at??null,levelVisibility:'private-only'}},response.status);}
    return response;}
  }
- if(/^\/reception\/?$/.test(url.pathname)){
+ if(/^\/(reception|activities)\/?$/.test(url.pathname)){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
   if(!env.ASSETS)return json({error:'assets_not_bound'},503);
-  return env.ASSETS.fetch(new Request(new URL('/reception/',url),request));
+  return env.ASSETS.fetch(new Request(new URL('/'+url.pathname.split('/')[1]+'/',url),request));
  }
  const legacy=legacyHomeRedirect(request,env.LEGACY_HOME_REDIRECTS);if(legacy)return legacy;
  if(!env.ASSETS)return json({available:false,error:'assets_not_bound'},503);

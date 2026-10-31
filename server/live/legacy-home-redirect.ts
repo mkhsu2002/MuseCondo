@@ -1,7 +1,7 @@
 import { residents } from '../../src/residents.ts';
 /** Deployment-only old-home redirects. Never accepts a destination from a request. */
 const reserved = new Set([
-  'reception', 'admin', 'manage', 'login', 'api', 'home', 'move-in', 'neighbors', 'about', 'assets', 'community', 'tower',
+  'activities', 'reception', 'admin', 'manage', 'login', 'api', 'home', 'move-in', 'neighbors', 'about', 'assets', 'community', 'tower',
   'examples', 'prototype-assets', '入住', '選輯紀錄', '.well-known', ...residents.map(resident => resident.id),
 ]);
 function safePath(path: string): boolean {

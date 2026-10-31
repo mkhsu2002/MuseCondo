@@ -1,4 +1,5 @@
 import type { Database, Statement } from "./db.ts";
+import {createTowerActivities} from "./tower-activities.ts";
 import {createTowerVisits} from "./tower-visits.ts";
 import { validatePNG } from "./png.ts";
 import { sanitizePublicPNG } from "../framework/png-public.ts";
@@ -25,6 +26,7 @@ export interface TowerIntakeEnvironment {
     sourceURL: string,
   ) => Promise<boolean>;
   onChange?: (roomId: string) => Promise<void>;
+  operator?: (request: Request) => Promise<boolean>;
 }
 interface Residency {
   room_id: string;
@@ -821,6 +823,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       .replaceAll("./assets/condo.css", "/condo-template.css")
       .replace("</footer>",`<p><a href="/">回到 Muse Tower</a> · <a href="/neighbors">住戶門廊</a> · ${!privatePrefix && page !== "inside" ? `<a href="${base}/inside#tower-visits">留下來訪問候</a> · ` : ""}<a href="${r.source_url.replace(/condo\.json$/,"")}" target="_blank" rel="noopener noreferrer">原本的住所 ↗</a></p></footer>`);
   }
+  const activities=createTowerActivities({db,origin:env.origin,operator:env.operator,stamp,random,hash,fail,body,requestKey,revision,write,prior,receipt,audit,json});
   const visits=createTowerVisits({db,stamp,random,hash,fail,body,requestKey,revision,write,prior,receipt,audit,json});
   return {
     async fetch(req: Request): Promise<Response | null> {
@@ -830,16 +833,20 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           /^\/api\/v1\/(me|agent)\/tower-intake(?:\/(.*))?$/,
         ),
         home = path.match(/^\/home\/([a-f0-9]{16})(?:\/(inside|dreams))?$/),
+        publicActivities = path.match(/^\/api\/v1\/tower\/activities(?:\/([a-z0-9][a-z0-9-]{0,63}))?$/),
+        operatorActivities = path.match(/^\/api\/v1\/operator\/tower\/activities(?:\/([a-z0-9][a-z0-9-]{0,63}))?$/),
         publicVisits = path.match(/^\/api\/v1\/tower\/rooms\/([a-f0-9]{16})\/visits$/),
         pub = path.match(/^\/api\/v1\/tower\/rooms\/([a-f0-9]{16})$/),
         asset = path.match(
           /^\/api\/v1\/tower\/assets\/([a-f0-9]{16})\/([1-9][0-9]*)\/(home|dream)\.png$/,
         );
-      if (!owner && !home && !pub && !asset && !publicVisits) return null;
+      if (!owner && !home && !pub && !asset && !publicVisits && !publicActivities && !operatorActivities) return null;
       try {
         if (url.origin !== env.origin) fail(403, "host_rejected");
         if (!env.localTest && url.protocol !== "https:")
           fail(400, "https_required");
+        if(publicActivities)return await activities.public(req,publicActivities[1]);
+        if(operatorActivities)return await activities.operator(req,operatorActivities[1]);
         if(publicVisits)return await visits.publicList(req,publicVisits[1]);
         if (home || pub || asset) {
           if (!["GET", "HEAD"].includes(req.method))
@@ -931,6 +938,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           ),
           accountId = identity.accountId,
           r = await residency(accountId);
+        if(route==="activities"||route.startsWith("activities/"))return await activities.owner(req,route,identity);
         if(route==="visits"||route.startsWith("visits/"))return await visits.owner(req,route,identity);
         if (route === "" && req.method === "GET")
           return json({ intake: r ? safe(r) : null });

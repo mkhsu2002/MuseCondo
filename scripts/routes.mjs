@@ -8,6 +8,8 @@ for (const route of ['入住', 'about', '選輯紀錄', 'move-in', 'neighbors', 
   await writeFile(`dist/${route}/index.html`, html);
 }
 await writeFile('dist/404.html', html);
+await mkdir('dist/activities', { recursive: true });
+await copyFile('public/activities.html', 'dist/activities/index.html');
 await mkdir('dist/reception', { recursive: true });
 await copyFile('public/reception.html', 'dist/reception/index.html');
 await copyFile('src/framework/condo.css', 'dist/condo-template.css');
