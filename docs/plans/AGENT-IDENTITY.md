@@ -17,7 +17,7 @@
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
-| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64兩階段審查／665tests／雙環境Pages與146DDL／真provider sender verified+sending enabled、永久snapshot／audit PASS。b凍結信件與PDF JSON附檔／webhook／投遞待實作 |
+| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64雙環境發布與真provider sender查核PASS。b1：本地v0.67凍結核心、兩階段審查／685tests PASS，未發布，0020未套遠端；b2寄送接線／c投遞待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
 ### I01 共用核心
@@ -280,3 +280,16 @@ c15aae0另將新的sender metadata provider未知／失敗改回503unknown，保
 Production舊v0.62的502永久receipt仍原樣保留與重放，D1整列／audit／quota沒有變化，公網edge仍可能改寫該歷史502外觀，沒有藉新程式重新GET或洗掉舊失敗。新的provider未知以503維持unknown與診斷，未把失敗改成健康。真正查核只證明該checkedAt的sender條件；deliveryVerified始終false。
 
 Fang兩環境原房與分享選擇保持，永久身份count0；沒有真住戶發證／寄信／Meta呼叫，paidCallsApproved=false、等級private-only。I05a工程及sender前置通過，可進I05b凍結envelope／PDF JSON附檔、exact event dispatch、signed webhook／suppression與unknown reconcile；I05完整投遞與I06本人／手機／異環境復原仍未完成，T09不因此完成。
+
+
+### I05b1 本地凍結封套核心（2026-10-31，v0.67未發布）
+
+產品3a416d2、私密完整性修復2160996與D1官方限制相容性修復e941ab5；本地版號由0.64按三個程式提交增至0.67。新增私有prepare／materialize factory與0020，五種固定事實模板、目前資格／四方住所綁定、原事件密文與歷史收據驗證；合法房屋更新及後來復原不永久凍住原信。真正核對既存PDF／signed JSON的SHA256、長度、chunks、Ed25519與issuer／AgentID／CID；不重繪證件。
+
+完整body以event／purpose-bound HMAC保存，避免明文body SHA256成為email字典oracle；附件manifest仍用SHA256。小型AES-GCM封套與唯一prepared audit同原生交易，state／attempt／quota保持未寄送。returned guards須由b2與sending claim／audit同交易執行；單獨materialize不是寄送授權。
+
+品質審查另發現原flat JSON快照超過官方32函數參數保障，已改為nestedalias（內層最多24、外層16），新跨引擎回歸以Python原生SQLite setlimit套32function／100bind／100KB SQL／2MB row／5compound，編譯五模板及8MiB附件的實際prepare／materialize／returnedguards SQL；舊碼真RED、新碼GREEN。實際兩環境D1唯讀32／60args都成功，因此記為官方保障範圍相容性修復，不宣稱已證明當前D1故障。
+
+主控685完整測試／8版號／typecheck／lint／build與公開輸出檢查通過，獨立規格→品質各20focused PASS。大附件為synthetic壓力資料，真PDF rendering證據仍沿I04，沒有新增正式raster驗收。Python>=3.11驗證依賴與私有接口見IDENTITY-MAIL-ENVELOPE-CORE.md。
+
+本片未push或發布，0020未套遠端；main／dev已發布流程仍為v0.64／0019／146來源物件，I04證件Worker仍v0.61。沒有HTTP／DO／Pages／provider dispatch或新排程接線、未改既有processOne、未寄信或使用真居民資料。b2及c依IDENTITY-MAIL-DELIVERY.md接續，Fang原住所、K新戶、私密等級與I06真人gate保持；T09未完成。
