@@ -5,6 +5,7 @@ import { LocalDatabase } from '../server/live/local-db.ts';
 import { createTowerReception } from '../server/live/reception.ts';
 import { createTowerIntake } from '../server/live/tower-intake.ts';
 import { digest } from '../server/live/app.ts';
+import { runInNewContext } from 'node:vm';
 const origin = 'https://tower.example', key = 'a'.repeat(64), towerKey = 'b'.repeat(64), other = 'c'.repeat(64);
 function fixture() {
     const db = new LocalDatabase(':memory:');
@@ -311,5 +312,184 @@ test('exhausted message quotas cannot prevent applicant withdrawal or operator r
         finally {
             f.db.close();
         }
+    }
+});
+test('one invited account reserves one valid new case even before activation', async () => {
+    const f = fixture();
+    try {
+        const a = await f.open();
+        const b = await f.data(f.req('/cases', 'POST', { ...f.input, requestKey: 'open-second' }, other), 201);
+        f.account();
+        await f.approve(a.case.id, 1);
+        const approveB = { requestKey: 'approve-second', expectedVersion: 1, accountId: 'account', residentId: 'second-resident', sourceURL: 'https://second.example/condo.json', approvedDays: 30 };
+        assert.equal((await f.req('/cases/' + b.case.id + '/approve', 'POST', approveB, other, true))!.status, 409);
+        await f.data(f.req('/cases/' + a.case.id + '/activate', 'POST', { requestKey: 'activate-first', expectedVersion: 2 }, key, false, { 'X-Tower-Agent-Key': towerKey }), 201);
+        assert.equal((await f.req('/cases/' + b.case.id + '/approve', 'POST', approveB, other, true))!.status, 409);
+        assert.equal(f.db.sqlite.prepare("SELECT count(*) n FROM tower_reception_cases WHERE state IN ('approved','active')").get()!.n, 1);
+        f.db.sqlite.exec("UPDATE tower_reception_cases SET expires_at='2099-01-01T00:00:00.000Z',approval_expires_at='2099-01-01T00:00:00.000Z' WHERE state='active'; UPDATE tower_tokens SET expires_at='2099-01-01T00:00:00.000Z'");
+        const intake = createTowerIntake({ db: f.db, origin, localTest: true, sourceOrigins: ['https://source.example', 'https://second.example'], now: () => new Date('2026-10-30T12:00:00.000Z') });
+        const wrong = await intake.fetch(new Request(origin + '/api/v1/agent/tower-intake/prepare', { method: 'POST', headers: { Authorization: 'Bearer ' + towerKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ requestKey: 'wrong-second-tuple', sourceURL: 'https://second.example/condo.json', residentId: 'second-resident' }) }));
+        assert.equal(wrong!.status, 503);
+        assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_claims').get()!.n, 0);
+    }
+    finally {
+        f.db.close();
+    }
+});
+test('concurrent new-case approvals for one empty account have one winner', async () => {
+    const f = fixture();
+    try {
+        const a = await f.open();
+        const b = await f.data(f.req('/cases', 'POST', { ...f.input, requestKey: 'open-second' }, other), 201);
+        f.account();
+        const approve = (id: string, residentId: string, sourceURL: string) => f.req('/cases/' + id + '/approve', 'POST', { requestKey: 'approve-concurrent', expectedVersion: 1, accountId: 'account', residentId, sourceURL, approvedDays: 30 }, key, true);
+        const results = await Promise.all([approve(a.case.id, 'new-resident', 'https://source.example/condo.json'), approve(b.case.id, 'second-resident', 'https://second.example/condo.json')]);
+        assert.deepEqual(results.map(r => r!.status).sort(), [200, 409]);
+        assert.equal(f.db.sqlite.prepare("SELECT count(*) n FROM tower_reception_cases WHERE state='approved'").get()!.n, 1);
+        assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_audit').get()!.n, 1);
+    }
+    finally {
+        f.db.close();
+    }
+});
+test('legacy competing approvals cannot activate into a tuple union, even concurrently', async () => {
+    const f = fixture();
+    try {
+        const a = await f.open();
+        const b = await f.data(f.req('/cases', 'POST', { ...f.input, requestKey: 'open-second' }, other), 201);
+        f.account();
+        await f.approve(a.case.id, 1);
+        f.db.sqlite.prepare("UPDATE tower_reception_cases SET state='approved',version=2,account_id='account',resident_id='second-resident',source_url='https://second.example/condo.json',approval_expires_at='2026-11-29T12:00:00.000Z' WHERE id=?").run(b.case.id);
+        const activate = (id: string, caseKey: string, newKey: string) => f.req('/cases/' + id + '/activate', 'POST', { requestKey: 'activate-concurrent', expectedVersion: 2 }, caseKey, false, { 'X-Tower-Agent-Key': newKey });
+        const results = await Promise.all([activate(a.case.id, key, towerKey), activate(b.case.id, other, 'd'.repeat(64))]);
+        assert.deepEqual(results.map(r => r!.status), [409, 409]);
+        assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_tokens').get()!.n, 0);
+        await f.data(f.req('/cases/' + b.case.id + '/revoke', 'POST', { requestKey: 'resolve-competing', expectedVersion: 2 }, key, true));
+        await f.data(activate(a.case.id, key, towerKey), 201);
+        assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_tokens').get()!.n, 1);
+    }
+    finally {
+        f.db.close();
+    }
+});
+test('activation rechecks a competing approval introduced immediately before its transaction', async () => {
+    const f = fixture();
+    try {
+        const a = await f.open();
+        const b = await f.data(f.req('/cases', 'POST', { ...f.input, requestKey: 'open-second' }, other), 201);
+        f.account();
+        await f.approve(a.case.id, 1);
+        const batch = f.db.batch.bind(f.db);
+        f.db.batch = async (statements) => { if (statements.some(s => (s as unknown as {
+            sql: string;
+        }).sql.startsWith('INSERT INTO tower_tokens')))
+            f.db.sqlite.prepare("UPDATE tower_reception_cases SET state='approved',version=2,account_id='account',resident_id='second-resident',source_url='https://second.example/condo.json',approval_expires_at='2026-11-29T12:00:00.000Z' WHERE id=?").run(b.case.id); return batch(statements); };
+        assert.equal((await f.req('/cases/' + a.case.id + '/activate', 'POST', { requestKey: 'activation-guard', expectedVersion: 2 }, key, false, { 'X-Tower-Agent-Key': towerKey }))!.status, 409);
+        assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_tokens').get()!.n, 0);
+        assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_reception_events WHERE case_id=?').get(a.case.id)!.n, 2);
+    }
+    finally {
+        f.db.close();
+    }
+});
+test('exact private receipts survive case expiry and withdrawal without reviving any grant', async () => {
+    for (const withdrawn of [false, true]) {
+        const f = fixture();
+        try {
+            const opened = await f.open();
+            f.account();
+            await f.approve(opened.case.id, 1);
+            const path = '/cases/' + opened.case.id;
+            const activateBody = { requestKey: 'activation-receipt', expectedVersion: 2 }, headers = { 'X-Tower-Agent-Key': towerKey };
+            const receipt = await f.data(f.req(path + '/activate', 'POST', activateBody, key, false, headers), 201);
+            if (withdrawn)
+                await f.data(f.req(path + '/withdraw', 'POST', { requestKey: 'withdraw-receipt', expectedVersion: 3 }));
+            f.setTime('2027-01-29T12:00:00.000Z');
+            const counts = () => f.db.sqlite.prepare('SELECT (SELECT count(*) FROM tower_tokens) tokens,(SELECT count(*) FROM tower_reception_requests) requests,(SELECT count(*) FROM tower_reception_events) events,(SELECT count(*) FROM tower_audit) audits').get();
+            const before = counts();
+            assert.deepEqual(await f.data(f.req(path + '/activate', 'POST', activateBody, key, false, headers), 201), receipt);
+            assert.deepEqual(await f.data(f.req('/cases', 'POST', f.input), 201), opened);
+            assert.deepEqual(counts(), before);
+            assert.equal((await f.req('/cases', 'POST', {...f.input, requestKey:'new-after-expiry'}))!.status, 403);
+            assert.equal(f.db.sqlite.prepare('SELECT revoked FROM tower_tokens').get()!.revoked, withdrawn ? 1 : 0);
+            assert.equal((await f.req(path + '/messages', 'POST', { requestKey: 'new-after-expiry', expectedVersion: withdrawn ? 4 : 3, message: '不可新增' }))!.status, 403);
+            assert.equal((await f.req(path))!.status, 403);
+            assert.equal((await f.req(path + '/activate', 'POST', activateBody, other, false, headers))!.status, 404);
+            assert.equal((await f.req(path + '/activate', 'POST', activateBody, key, false, { 'X-Tower-Agent-Key': 'd'.repeat(64) }))!.status, 409);
+            const intake = createTowerIntake({ db: f.db, origin, localTest: true, sourceOrigins: [], now: () => new Date('2027-01-29T12:00:00.000Z') });
+            assert.equal((await intake.fetch(new Request(origin + '/api/v1/agent/tower-intake', { headers: { Authorization: 'Bearer ' + towerKey } })))!.status, 403);
+        }
+        finally {
+            f.db.close();
+        }
+    }
+});
+test('concurrent approval and activation preserve the existing reservation', async () => {
+    const f = fixture();
+    try {
+        const a = await f.open(), b = await f.data(f.req('/cases', 'POST', { ...f.input, requestKey: 'open-second' }, other), 201);
+        f.account();
+        await f.approve(a.case.id, 1);
+        const results = await Promise.all([f.req('/cases/' + a.case.id + '/activate', 'POST', { requestKey: 'activate-reserved', expectedVersion: 2 }, key, false, { 'X-Tower-Agent-Key': towerKey }), f.req('/cases/' + b.case.id + '/approve', 'POST', { requestKey: 'approve-while-activating', expectedVersion: 1, accountId: 'account', residentId: 'second-resident', sourceURL: 'https://second.example/condo.json', approvedDays: 30 }, key, true)]);
+        assert.deepEqual(results.map(r => r!.status), [201, 409]);
+        assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_tokens').get()!.n, 1);
+    }
+    finally {
+        f.db.close();
+    }
+});
+test('expired or withdrawn reservations allow an operator to approve a replacement case', async () => {
+    for (const expired of [false, true]) {
+        const f = fixture();
+        try {
+            const a = await f.open(), b = await f.data(f.req('/cases', 'POST', { ...f.input, requestKey: 'open-second' }, other), 201);
+            f.account();
+            await f.approve(a.case.id, 1);
+            if (expired)
+                f.setTime('2026-12-01T12:00:00.000Z');
+            else
+                await f.data(f.req('/cases/' + a.case.id + '/withdraw', 'POST', { requestKey: 'withdraw-first', expectedVersion: 2 }));
+            const approval = await f.data(f.req('/cases/' + b.case.id + '/approve', 'POST', { requestKey: 'approve-replacement', expectedVersion: 1, accountId: 'account', residentId: 'second-resident', sourceURL: 'https://second.example/condo.json', approvedDays: 30 }, key, true));
+            assert.equal(approval.case.state, 'approved');
+        }
+        finally {
+            f.db.close();
+        }
+    }
+});
+test('clipboard success and fallback use the same invitation containing absolute service URLs', async () => {
+    for (const clipboardFails of [false, true]) {
+        let handler: (() => Promise<void>) | undefined, selected = false, copied = '';
+        const invitation = { value: '請先讀取本頁同站的 /reception-onboarding.json。', focus() { }, select() { selected = true; } }, status = { textContent: '' };
+        const button = { addEventListener(_event: string, callback: () => Promise<void>) { handler = callback; } };
+        const context = { document: { querySelector(selector: string) { return selector === '#invitation' ? invitation : selector === '#copy-invitation' ? button : status; } }, location: { origin }, navigator: { clipboard: { async writeText(value: string) { copied = value; if (clipboardFails)
+                        throw Error('clipboard unavailable'); } } } };
+        runInNewContext(readFileSync(new URL('../public/reception.js', import.meta.url), 'utf8'), context);
+        assert.match(invitation.value, new RegExp(origin + '/reception-onboarding\\.json'));
+        assert(invitation.value.includes('接待網址：' + origin + '/reception'));
+        await handler!();
+        assert.equal(copied, invitation.value);
+        assert.equal(selected, clipboardFails);
+    }
+});
+test('approval rechecks a reservation introduced after preliminary reads and rolls back atomically', async () => {
+    const f = fixture();
+    try {
+        const a = await f.open(), b = await f.data(f.req('/cases', 'POST', { ...f.input, requestKey: 'open-second' }, other), 201);
+        f.account();
+        const batch = f.db.batch.bind(f.db);
+        f.db.batch = async (statements) => { if (statements.some(s => { const local = s as unknown as {
+            sql: string;
+            values: unknown[];
+        }; return local.sql.startsWith('UPDATE tower_reception_cases SET state=') && local.values[0] === 'approved'; }))
+            f.db.sqlite.prepare("UPDATE tower_reception_cases SET state='approved',version=2,account_id='account',resident_id='second-resident',source_url='https://second.example/condo.json',approval_expires_at='2026-11-29T12:00:00.000Z' WHERE id=?").run(b.case.id); return batch(statements); };
+        const result = await f.req('/cases/' + a.case.id + '/approve', 'POST', { requestKey: 'approve-at-commit', expectedVersion: 1, accountId: 'account', residentId: 'new-resident', sourceURL: 'https://source.example/condo.json', approvedDays: 30 }, key, true);
+        assert.equal(result!.status, 409);
+        assert.equal(f.db.sqlite.prepare('SELECT state FROM tower_reception_cases WHERE id=?').get(a.case.id)!.state, 'pending');
+        assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_audit').get()!.n, 0);
+        assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_reception_requests').get()!.n, 2);
+    }
+    finally {
+        f.db.close();
     }
 });

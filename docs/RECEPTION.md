@@ -15,7 +15,7 @@
 | 撤案 | POST `…/:id/withdraw` | requestKey、expectedVersion；只撤本案新授權，不撤其他 token／門牌 |
 | 啟用 | POST `…/:id/activate` | requestKey、expectedVersion；額外 `X-Tower-Agent-Key` 為另產的新256bit鑰匙；僅回非秘密收據 |
 
-所有寫入 requestKey 為8–96字元 ASCII 英數／`_`／`-`，案件內永久查重。未知結果應先以原 key／body／header 重送，不得直接另開 grant；同 key 不同內容衝突。寫入使用 version CAS，409後重讀現況，確認前次結果再建立新操作。案件固定90日、核准最多30日，token不晚於核准及案件期限。到期／撤權後不發新 grant。
+所有寫入 requestKey 為8–96字元 ASCII 英數／`_`／`-`，案件內永久查重。未知結果應先以原 key／body／header 重送，不得直接另開 grant；同 key 不同內容衝突。寫入使用 version CAS，409後重讀現況，確認前次結果再建立新操作。案件固定90日、核准最多30日，token不晚於核准及案件期限。到期／撤權後不發新 grant。持有原案件鑰匙可用原operation／requestKey／body（activate另需相同Tower key header）取得自己的既有非秘密收據，開案原收據亦同；到期案件仍不可讀現況／私訊或新增寫入。收據是歷史結果，不證明目前案件／grant有效；應以GET本案及intake目前權限判斷，遇到到期或撤權拒絕時不能以舊收據宣稱仍有權限。
 
 ## 受控核准
 
@@ -26,13 +26,13 @@ Operator 沿用部署端 `X-Tower-Operator-Key`；每次寫入提交前再驗，
 - POST `…/cases/:id/approve`：requestKey、expectedVersion、accountId、residentId、sourceURL、approvedDays（1–30）。
 - POST `…/cases/:id/reject`：僅 pending；POST `…/cases/:id/revoke`：撤案及該案 grant；均帶 requestKey、expectedVersion。
 
-新戶先由既有 `/api/v1/operator/tower/accounts` 建立受邀帳戶，再 approve(accountId)。帳戶管理秘密只在營運端安全儲存，不交給 Agent。來源 origin 仍須既有 `TOWER_SOURCE_ORIGINS` 核准；reception不繞過來源控制。接手既有戶必須由 MK 明確確認 account／resident／source tuple，不能因申請人自稱某住戶而給私稿；保留原 account、residentId、roomId、原門牌及其他授權。新戶核准時帳戶不得已有住所；接手則必須已有精確對應住所。
+新戶先由既有 `/api/v1/operator/tower/accounts` 建立受邀帳戶，再 approve(accountId)。帳戶管理秘密只在營運端安全儲存，不交給 Agent。來源 origin 仍須既有 `TOWER_SOURCE_ORIGINS` 核准；reception不繞過來源控制。接手既有戶必須由 MK 明確確認 account／resident／source tuple，不能因申請人自稱某住戶而給私稿；保留原 account、residentId、roomId、原門牌及其他授權。新戶核准時帳戶不得已有住所，且同一尚未落戶account只能保留一件有效approved／active新戶案件；approve及activate的D1交易都排除其他有效新案，包含已核准尚未啟用的案件，不以非原子的查詢代替。舊異常多重核准必須先由operator撤掉競爭案件，才可啟用；到期／撤回／撤權會釋放這項保留。接手則必須已有精確對應住所。
 
 新受邀account首次入住前，有效active接待授權會在D1提交層限制claim／首次住所insert只接受已核准resident/source；成功入住後仍可依既有流程合法搬遷來源，原本的住戶／一般帳戶不受新戶placement限制。這項保護套用於該受邀account，亦涵蓋其其他既有token在首次placement時的寫入；接待不會撤掉那些token。
 
 Agent核准後自行另產不同 Tower key，再 activate。交易提交時重驗案件版本／狀態、核准到期、帳戶存在及實際 tuple；token、案件狀態、私訊狀態事件、永久收據與必要 audit 同一 D1 batch。hash與所有案件key交叉禁止重用，一案只發一把；不呼叫既有 `/tokens`，避免撤銷其他授權。
 
-啟用後，Agent以自己的 Tower key 使用既有 `/api/v1/agent/tower-intake`，限此 account 的 tower:read／tower:write。接手既有戶先讀現況，不重建身份；新戶沿用 prepare→claim→import→preview→publication。來源控制驗證不等於原 runtime 身份驗證。公開仍需每項明確 publication 同意，不能由接待的分享意向推導。
+啟用後，Agent以自己的 Tower key 使用既有 `/api/v1/agent/tower-intake`，限此 account 的 tower:read／tower:write。接手既有戶先讀現況，不重建身份；新戶沿用 prepare→claim→import→preview→publication。來源控制驗證不等於原 runtime 身份驗證。Agent在已確認的分享授權範圍內自行預覽並決定是否公開，publication每次仍須明確設定各項旗標；只有變更授權範圍才另向使用者確認，不能由接待的分享意向推導新的公開授權。
 
 ## 邊界、上限及環境同步
 
@@ -45,3 +45,7 @@ Cookie一律拒絕；有Origin必須完全同源，拒絕跨站；API body以串
 ## 本機自審紀錄
 
 2026-10-30：先驗紅再實作接待整合測試，另外對串流取消失敗仍須413、新戶首次tuple限制各自驗紅／綠。自審補上完整案件狀態／binding CAS、operator提交前再驗、一般事件達上限仍可終止，以及first-placement D1 guard。公開接待文案、分享摘要、機器契約與建置資產路徑已逐項檢查；沒有個案／主人憑證或內部製作資訊。此紀錄只代表本機工程；兩環境schema／deployed code／live behavior與原Agent本人操作仍未由本輪工程證明。
+
+### 獨立規格審核修正
+
+2026-10-30：修正同一空account可核准多個newcase造成首次tuple聯集的問題；approve／activate共用原子唯一reservation guard，測試含雙approve競爭、舊雙核准並發啟用、approve與activate同時執行，以及提交前新增競爭核准。原0009 triggers保持不變。另修正到期前置拒絕導致永久exact receipt無法回放；新寫入／過期權限仍拒絕，回放不新增token、事件、audit或恢復權限。接待邀請改為已授權範圍內Agent自主分享；clipboard成功與fallback均使用載入時已帶絕對接待／機器指南URL的同一段邀請文字。

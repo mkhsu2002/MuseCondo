@@ -178,11 +178,11 @@ export function createTowerReception(env: Options) {
                     const v = object(await body(req), ['requestKey', 'name', 'requestKind', 'request', 'sourceURL', 'residentId', 'authorization', 'sharing', 'visitPlan']), rk = key(v.requestKey), inputHash = await digest(JSON.stringify(v));
                     const existing = await one<Case>('SELECT * FROM tower_reception_cases WHERE token_hash=?', hash);
                     if (existing) {
-                        if (existing.expires_at <= stamp() || ['withdrawn', 'revoked', 'rejected'].includes(existing.state))
-                            reject(403, 'case_unavailable');
                         const r = await replay(existing, rk, 'open', inputHash);
                         if (r)
                             return r;
+                        if (existing.expires_at <= stamp() || ['withdrawn', 'revoked', 'rejected'].includes(existing.state))
+                            reject(403, 'case_unavailable');
                         reject(409, 'case_key_already_used');
                     }
                     const name = text(v.name, 80), requestText = text(v.request, 1200);
@@ -204,9 +204,9 @@ export function createTowerReception(env: Options) {
                 if (!c)
                     reject(404, 'case_not_found');
                 const current = c!;
-                if (current.expires_at <= stamp())
-                    reject(403, 'case_expired');
                 if (!write) {
+                    if (current.expires_at <= stamp())
+                        reject(403, 'case_expired');
                     if (operation)
                         reject(404, 'not_found');
                     const after = url.searchParams.get('after') ?? '0';
@@ -236,6 +236,8 @@ export function createTowerReception(env: Options) {
                 const inputHash = await digest(JSON.stringify({ value: v, ...(towerHash ? { towerHash } : {}) })), previous = await replay(current, rk, operation, inputHash);
                 if (previous)
                     return previous;
+                if (current.expires_at <= stamp())
+                    reject(403, 'case_expired');
                 if (!Number.isInteger(v.expectedVersion) || v.expectedVersion !== current.version)
                     reject(409, 'case_version_conflict');
                 if (['withdrawn', 'rejected', 'revoked'].includes(current.state))
@@ -280,7 +282,7 @@ export function createTowerReception(env: Options) {
                         reject(409, 'approval_required');
                     next.state = 'active';
                     next.granted_token_id = crypto.randomUUID().replaceAll('-', '');
-                    next.next_action = '住所鑰匙已啟用，請依入住指南預覽並另行確認公開。';
+                    next.next_action = '住所鑰匙已啟用，請依已確認的分享範圍，自行預覽並決定是否公開。';
                     statements.push(guard("EXISTS(SELECT 1 FROM tower_reception_cases WHERE id=? AND state='approved' AND approval_expires_at>? AND granted_token_id IS NULL)", id, stamp()), ...bindingGuards(current), guard('NOT EXISTS(SELECT 1 FROM tower_reception_cases WHERE token_hash=?)', towerHash), stmt('INSERT INTO tower_tokens(id,account_id,token_hash,scopes,expires_at,created_at) VALUES(?,?,?,?,?,?)', next.granted_token_id, current.account_id, towerHash, '["tower:read","tower:write"]', current.approval_expires_at, stamp()), audit(next, 'reception-activated'));
                 }
                 else if (operation === 'withdraw' && !operator || operator && ['reject', 'revoke'].includes(operation)) {
@@ -303,6 +305,22 @@ export function createTowerReception(env: Options) {
                 return json({ error: 'case_update_conflict' }, 409);
             }
         } };
-    function bindingGuards(c: Case): Statement[] { return c.request_kind === 'takeover' ? [guard('EXISTS(SELECT 1 FROM tower_residencies WHERE account_id=? AND resident_id=? AND source_url=?)', c.account_id, c.resident_id, c.source_url)] : [guard('NOT EXISTS(SELECT 1 FROM tower_residencies WHERE account_id=? OR resident_id=? OR source_url=?) AND NOT EXISTS(SELECT 1 FROM rooms WHERE account_id=?)', c.account_id, c.resident_id, c.source_url, c.account_id)]; }
+    function bindingGuards(c: Case): Statement[] {
+        if (c.request_kind === 'takeover') {
+            return [guard('EXISTS(SELECT 1 FROM tower_residencies WHERE account_id=? AND resident_id=? AND source_url=?)', c.account_id, c.resident_id, c.source_url)];
+        }
+        return [
+            guard('NOT EXISTS(SELECT 1 FROM tower_residencies WHERE account_id=? OR resident_id=? OR source_url=?) AND NOT EXISTS(SELECT 1 FROM rooms WHERE account_id=?)', c.account_id, c.resident_id, c.source_url, c.account_id),
+            // Tower keys are account-scoped: reserve exactly one approved first placement.
+            // This guard runs inside both approval and activation transactions.
+            guard(
+                "NOT EXISTS(SELECT 1 FROM tower_reception_cases " +
+                "WHERE account_id=? AND id<>? AND request_kind='new' " +
+                "AND state IN ('approved','active') " +
+                "AND approval_expires_at>? AND expires_at>?)",
+                c.account_id, c.id, stamp(), stamp(),
+            ),
+        ];
+    }
     function audit(c: Case, action: string) { return stmt('INSERT INTO tower_audit(id,account_id,room_id,action,revision,detail_json,created_at) VALUES(?,?,NULL,?,NULL,?,?)', crypto.randomUUID(), c.account_id, action, JSON.stringify({ caseId: c.id, caseVersion: c.version }), stamp()); }
 }
