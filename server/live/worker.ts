@@ -1,3 +1,4 @@
+import {createIdentityRegistration} from './identity-registration.ts';
 import {createIdentityGuardian} from './identity-guardian.ts';
 import {createIdentityMail} from './identity-mail.ts';
 import {createAgentIdentity} from './identity.ts';
@@ -17,8 +18,8 @@ export interface PagesBindings {
  META_MANAGER_APPROVED?:string;META_MANAGER_BUDGET_MICRO?:string;META_MANAGER_DAILY_MICRO?:string;META_MANAGER_MONTHLY_MICRO?:string;
 }
 export interface RuntimeContext {waitUntil(promise:Promise<unknown>):void}
-const requiredTables=['accounts','sessions','rooms','private_profiles','generation_jobs','assets','asset_chunks','posts','interactions','agent_tokens','rate_limits','community_editions','community_current','consent_events','recovery_audit','provider_requests','onboarding_grants','framework_profiles','dream_consent','dreams','asset_reviews','tower_residencies','tower_snapshots','tower_asset_chunks','tower_claims','tower_tokens','tower_requests','tower_audit','manager_jobs','manager_events','tower_reception_cases','tower_reception_events','tower_reception_requests','tower_visits','tower_activities','tower_activity_participation','tower_activity_operator_requests','tower_activity_audit','agent_identities','identity_requests','identity_audit','identity_rate_attempts','identity_guardian_invites','guardian_invite_requests','guardian_invite_rate_attempts','identity_mail_events','identity_mail_audit'];
-const requiredTriggers=['tower_reception_first_claim','tower_reception_first_home','agent_identity_immutable_binding','identity_guardian_account_binding','identity_guardian_immutable_binding'];
+const requiredTables=['accounts','sessions','rooms','private_profiles','generation_jobs','assets','asset_chunks','posts','interactions','agent_tokens','rate_limits','community_editions','community_current','consent_events','recovery_audit','provider_requests','onboarding_grants','framework_profiles','dream_consent','dreams','asset_reviews','tower_residencies','tower_snapshots','tower_asset_chunks','tower_claims','tower_tokens','tower_requests','tower_audit','manager_jobs','manager_events','tower_reception_cases','tower_reception_events','tower_reception_requests','tower_visits','tower_activities','tower_activity_participation','tower_activity_operator_requests','tower_activity_audit','agent_identities','identity_requests','identity_audit','identity_rate_attempts','identity_guardian_invites','guardian_invite_requests','guardian_invite_rate_attempts','identity_mail_events','identity_mail_audit','identity_guardians','identity_guardian_passkeys','identity_offline_recovery_codes','identity_guardian_challenges','identity_registration_requests'];
+const requiredTriggers=['tower_reception_first_claim','tower_reception_first_home','agent_identity_immutable_binding','identity_guardian_account_binding','identity_guardian_immutable_binding','identity_guardian_credential_binding','identity_passkey_immutable_binding','identity_challenge_immutable_binding'];
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 function validOrigin(value:string|undefined){try{return !!value&&new URL(value).origin===value&&value.startsWith('https://');}catch{return false;}}
 const amount=(v:string|undefined)=>v&&/^\d{1,10}$/.test(v)?Number(v):0;
@@ -52,6 +53,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const identityMailEnv={db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,from:env.IDENTITY_MAIL_FROM};
   const identityMail=createIdentityMail(identityMailEnv);
   const guardianResponse=await createIdentityGuardian({...identityMailEnv,operator:async()=>operator(),onMailEvent:id=>{if(context)context.waitUntil(identityMail.processOne(id).catch(()=>{}));}}).fetch(request);if(guardianResponse)return guardianResponse;
+  const registrationResponse=await createIdentityRegistration({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY}).fetch(request);if(registrationResponse)return registrationResponse;
   const identityResponse=await createAgentIdentity({db,origin:env.PUBLIC_ORIGIN!}).fetch(request);if(identityResponse)return identityResponse;
   const reception=createTowerReception({db,origin:env.PUBLIC_ORIGIN!,operator:async()=>operator()});
   const receptionResponse=await reception.fetch(request);if(receptionResponse)return receptionResponse;

@@ -1,7 +1,7 @@
 import type {Database,Statement} from './db.ts';
 import {createAgentId,type IdentityRecord} from '../../src/identity/index.ts';
 interface Environment {db:Database;origin:string;now?:()=>Date}
-interface IdentityRow {agent_id:string;state:string;version:number;authority_epoch:number;resident_id:string;room_id:string;created_at:string;updated_at:string}
+interface IdentityRow {recovery_configured?:number;agent_id:string;state:string;version:number;authority_epoch:number;resident_id:string;room_id:string;created_at:string;updated_at:string}
 interface Residency {account_id:string;room_id:string;resident_id:string;revision:number}
 interface Authorization {accountId:string;guard:()=>Statement}
 class IdentityError extends Error {
@@ -11,7 +11,7 @@ class IdentityError extends Error {
 function fail(status:number,code:string):never{throw new IdentityError(status,code);}
 const json=(value:unknown,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 const hash=async(value:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),b=>b.toString(16).padStart(2,'0')).join('');
-function metadata(row:IdentityRow){return {agentId:row.agent_id,state:row.state,version:row.version,authorityEpoch:row.authority_epoch,residentId:row.resident_id,roomId:row.room_id,createdAt:row.created_at,updatedAt:row.updated_at,recoveryConfigured:false,issuanceReady:false};}
+function metadata(row:IdentityRow){return {agentId:row.agent_id,state:row.state,version:row.version,authorityEpoch:row.authority_epoch,residentId:row.resident_id,roomId:row.room_id,createdAt:row.created_at,updatedAt:row.updated_at,recoveryConfigured:row.state==='active'&&row.recovery_configured===1,issuanceReady:false};}
 async function input(request:Request){
  if(!/^application\/json(?:\s*;\s*charset\s*=\s*(?:utf-8|"utf-8"))?\s*$/i.test(request.headers.get('Content-Type')??''))fail(415,'json_required');
  const length=request.headers.get('Content-Length');if(length!==null&&(!/^\d+$/.test(length)||Number(length)>8192))fail(413,'body_too_large');
@@ -30,7 +30,7 @@ async function input(request:Request){
 export function createAgentIdentity(env:Environment){
  const db=env.db,stamp=()=> (env.now?.()??new Date()).toISOString();
  const one=<T>(sql:string,...values:unknown[])=>db.prepare(sql).bind(...values).first<T>();
- const row=(account:string)=>one<IdentityRow>('SELECT agent_id,state,version,authority_epoch,resident_id,room_id,created_at,updated_at FROM agent_identities WHERE account_id=?',account);
+ const row=(account:string)=>one<IdentityRow>(`SELECT i.*,CASE WHEN i.state='active' AND EXISTS(SELECT 1 FROM identity_guardians g JOIN identity_guardian_invites v ON v.id=g.invitation_id AND v.agent_id=g.agent_id AND v.state='registered' JOIN identity_guardian_passkeys p ON p.guardian_id=g.guardian_id AND p.agent_id=g.agent_id AND p.revoked_at IS NULL JOIN identity_offline_recovery_codes c ON c.agent_id=g.agent_id AND c.consumed_at IS NULL AND c.authority_epoch=i.authority_epoch AND c.identity_version=i.version WHERE g.agent_id=i.agent_id) THEN 1 ELSE 0 END recovery_configured FROM agent_identities i WHERE i.account_id=?`,account);
  const residence=(account:string)=>one<Residency>('SELECT t.account_id,t.room_id,t.resident_id,t.revision FROM tower_residencies t JOIN rooms r ON r.id=t.room_id AND r.account_id=t.account_id WHERE t.account_id=?',account);
  async function authorize(request:Request,scope:string):Promise<Authorization>{
   if(request.headers.has('Cookie'))fail(403,'separate_agent_authorization_required');

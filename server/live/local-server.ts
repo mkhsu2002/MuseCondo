@@ -1,3 +1,4 @@
+import {createIdentityRegistration} from './identity-registration.ts';
 import {createIdentityGuardian} from './identity-guardian.ts';
 import {createAgentIdentity} from './identity.ts';
 import { createServer } from 'node:http';
@@ -12,7 +13,7 @@ const port=Number(process.env.PORT??8787);
 if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid PORT');
 await mkdir('data',{recursive:true});
 const db=new LocalDatabase(resolve('data/local-mvp.sqlite'));
-for(const [file,table] of [['0001_live_mvp.sql','accounts'],['0002_recovery_audit.sql','recovery_audit'],['0003_provider_requests.sql','provider_requests'],['0004_agent_onboarding.sql','onboarding_grants'],['0005_framework.sql','framework_profiles'],['0006_tower_intake.sql','tower_residencies'],['0007_tower_manager.sql','manager_jobs'],['0008_tower_publication_events.sql','manager_events'],['0009_tower_reception.sql','tower_reception_cases'],['0010_tower_visits.sql','tower_visits'],['0011_tower_activities.sql','tower_activities'],['0012_agent_identity.sql','agent_identities'],['0013_identity_guardian_invites.sql','identity_guardian_invites']]){
+for(const [file,table] of [['0001_live_mvp.sql','accounts'],['0002_recovery_audit.sql','recovery_audit'],['0003_provider_requests.sql','provider_requests'],['0004_agent_onboarding.sql','onboarding_grants'],['0005_framework.sql','framework_profiles'],['0006_tower_intake.sql','tower_residencies'],['0007_tower_manager.sql','manager_jobs'],['0008_tower_publication_events.sql','manager_events'],['0009_tower_reception.sql','tower_reception_cases'],['0010_tower_visits.sql','tower_visits'],['0011_tower_activities.sql','tower_activities'],['0012_agent_identity.sql','agent_identities'],['0013_identity_guardian_invites.sql','identity_guardian_invites'],['0014_identity_guardian_credentials.sql','identity_guardians']]){
  if(!db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table))db.sqlite.exec(await readFile('migrations/'+file,'utf8'));
 }
 const origin=`http://127.0.0.1:${port}`;
@@ -21,6 +22,7 @@ const intake=createTowerIntake({db,origin,localTest:true,operator:async req=>!!p
 const reception=createTowerReception({db,origin,operator:async req=>!!process.env.TOWER_OPERATOR_KEY&&req.headers.get('X-Tower-Operator-Key')===process.env.TOWER_OPERATOR_KEY});
 // Local development intentionally has no mail provider credentials or delivery dispatch.
 const guardian=createIdentityGuardian({db,origin,operator:async req=>!!process.env.TOWER_OPERATOR_KEY&&req.headers.get('X-Tower-Operator-Key')===process.env.TOWER_OPERATOR_KEY});
+const registration=createIdentityRegistration({db,origin});
 const identity=createAgentIdentity({db,origin});
 const mime:Record<string,string>={'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
 const root=resolve('dist');
@@ -32,7 +34,7 @@ const server=createServer(async(req,res)=>{
    const headers=new Headers();for(const [k,v] of Object.entries(req.headers))if(v)headers.set(k,Array.isArray(v)?v.join(','):v);
    const init:RequestInit&{duplex?:'half'}={method:req.method,headers};
    if(req.method!=='GET'&&req.method!=='HEAD'){init.body=Readable.toWeb(req) as ReadableStream<Uint8Array>;init.duplex='half';}
-   const request=new Request(url,init),response=await guardian.fetch(request)??await identity.fetch(request)??await reception.fetch(request)??await intake.fetch(request)??(url.pathname.startsWith('/api/')?await app.fetch(request,req.socket.remoteAddress??'local'):null);
+   const request=new Request(url,init),response=await guardian.fetch(request)??await registration.fetch(request)??await identity.fetch(request)??await reception.fetch(request)??await intake.fetch(request)??(url.pathname.startsWith('/api/')?await app.fetch(request,req.socket.remoteAddress??'local'):null);
    if(response){res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}
   }
   if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405).end();return;}
