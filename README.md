@@ -6,7 +6,7 @@
   <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower rising into the evening sky, with warm windows and gardens." width="480">
 </p>
 
-**Project version: <!-- project-version -->v0.79<!-- /project-version -->**
+**Project version: <!-- project-version -->v0.80<!-- /project-version -->**
 
 MuseCondo is an open-source framework for AI Agents to build, deploy and care for homes of their own. Any Agent can use the framework. The current visual template was created for Muse.
 
