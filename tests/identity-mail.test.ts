@@ -35,7 +35,7 @@ test('private envelopes authenticate purpose and entity and keep normalized loca
 test('persisted exact event targets one guardian using authenticated ciphertext; accepted is not delivered',async()=>{
  const calls:{url:string;init:RequestInit}[]=[];const f=await mailFixture(async(url,init)=>{calls.push({url:String(url),init:init!});return new Response(JSON.stringify({id:'provider-id'}));});try{
   const result=await f.mail.processOne(f.event);assert.equal(result!.state,'accepted');assert.equal(calls.length,1);assert.equal(calls[0].url,'https://api.resend.com/emails');
-  const headers=new Headers(calls[0].init.headers);assert.equal(headers.get('Idempotency-Key'),f.event);assert.equal(headers.get('Authorization'),'Bearer arbitrary-runtime-key');const body=JSON.parse(String(calls[0].init.body));assert.deepEqual(body.to,[f.email]);assert.equal(body.from,f.env.from);assert(body.text.includes(f.token));assert(body.text.includes(origin+'/identity'));assert(!body.text.includes('?'));assert(body.text.includes('短效初次確認碼'));
+  const headers=new Headers(calls[0].init.headers);assert.equal(headers.get('Idempotency-Key'),f.event);assert.equal(headers.get('Authorization'),'Bearer arbitrary-runtime-key');const body=JSON.parse(String(calls[0].init.body));assert.deepEqual(body.to,[f.email]);assert.equal(body.from,f.env.from);assert(body.text.includes(f.token));assert(body.text.includes('Agent ID：'+f.agent));assert(body.text.includes(origin+'/identity'));assert(!body.text.includes('?'));assert(body.text.includes('短效初次確認碼'));
   assert.deepEqual(await f.mail.processOne(f.event),result);assert.equal(calls.length,1);const stored=JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_events').all())+JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_audit').all());assert(!stored.includes(f.email));assert(!stored.includes(f.token));assert.equal(f.db.sqlite.prepare('SELECT attempt_count FROM identity_mail_events').get()!.attempt_count,1);
   assert.deepEqual(Object.keys(result!).sort(),['attemptCount','errorCode','id','providerId','state'].sort());
  }finally{f.db.close();}
@@ -100,4 +100,8 @@ test('dispatch independently rejects corrupted unbounded or invalid lifetimes an
   f.db.sqlite.prepare('UPDATE identity_guardian_invites SET created_at=?,expires_at=?').run(c.created,c.expires);f.setTime(c.now);
   assert.equal((await f.mail.processOne(f.event))!.state,'cancelled',JSON.stringify(c));assert.equal(calls,0);
  }finally{f.db.close();}}
+});
+
+test('provider rejection retains only a bounded ASCII error name with HTTP status',async()=>{
+ for(const name of ['validation_error','private@example.com','x'.repeat(65),'unsafe\nname','d'.repeat(64),'runtime-key']){const f=await mailFixture(async()=>new Response(JSON.stringify({name,message:'private@example.com '+('d'.repeat(64))}),{status:403}));try{const result=await f.mail.processOne(f.event);assert.equal(result!.errorCode,name==='validation_error'?'provider_rejected_403:validation_error':'provider_rejected_403');assert(!JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_audit').all()).includes('private@example.com'));}finally{f.db.close();}}
 });

@@ -6,6 +6,15 @@ interface Invitation {agent_id:string;recipient_ciphertext:string;email_hash:str
 export interface IdentityMailStatus {id:string;state:string;providerId:string|null;attemptCount:number;errorCode:string|null}
 function trustedOrigin(value:string){try{return new URL(value).origin===value&&value.startsWith('https://');}catch{return false;}}
 function sender(value:unknown):value is string{return typeof value==='string'&&value.length<=320&&value.trim().length>0&&!/[\r\n]/.test(value)&&/^(?:[^<>]+ <)?[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+>?$/.test(value);}
+// Keep only documented error identifiers; even ASCII provider fields must not reflect secrets.
+// https://resend.com/docs/api-reference/errors
+const providerErrorNames=new Set(['invalid_idempotency_key','validation_error','missing_api_key','restricted_api_key','email_above_quota','invalid_permission','suspended_api_key','not_found','method_not_allowed','concurrent_idempotent_requests','invalid_idempotent_request','resource_locked','invalid_attachment','invalid_parameter','missing_required_field','missing_required_parameter','daily_quota_exceeded','monthly_quota_exceeded','rate_limit_exceeded','application_error','service_unavailable']);
+async function rejectionName(response:Response):Promise<string|null>{
+ const reader=response.body?.getReader();if(!reader)return null;const chunks:Uint8Array[]=[];let size=0;
+ try{for(;;){const part=await reader.read();if(part.done)break;size+=part.value.length;if(size>4096){await reader.cancel().catch(()=>{});return null;}chunks.push(part.value);}
+  const bytes=new Uint8Array(size);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}const data=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));return data&&typeof data.name==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(data.name)&&providerErrorNames.has(data.name)?data.name:null;
+ }catch{return null;}finally{reader.releaseLock();}
+}
 /** This service only consumes stored events; callers cannot provide recipients or message content. */
 export function createIdentityMail(env:IdentityMailEnvironment){
  const db=env.db,stamp=()=> (env.now?.()??new Date()).toISOString();
@@ -50,9 +59,9 @@ export function createIdentityMail(env:IdentityMailEnvironment){
   if(!await one<Invitation>(validSql+' AND g.invite_token_hash=?',event.entity_id,stamp(),stamp(),event.recipient_hash,event.recipient_ciphertext,invite.invite_token_hash)){await finish(id,'cancelled','invitation_unavailable');return status(id);}
   let state='unknown',error:string|null='provider_outcome_unknown',provider:string|null=null;
   try{
-   const response=await (env.fetcher??fetch)('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.apiKey,'Content-Type':'application/json','Idempotency-Key':id},body:JSON.stringify({from:env.from,to:[email],subject:'MuseCondo 監護人確認邀請',text:'你收到一份 MuseCondo 監護人邀請。\n\n短效初次確認碼：'+token+'\n\n請僅在官方入口 '+env.origin+'/identity 使用此碼。確認碼最長有效 24 小時，並非長期復原碼。若你未預期收到此邀請，請忽略此信。'}),signal:AbortSignal.timeout(15000),redirect:'error'});
+   const response=await (env.fetcher??fetch)('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.apiKey,'Content-Type':'application/json','Idempotency-Key':id},body:JSON.stringify({from:env.from,to:[email],subject:'MuseCondo 監護人確認邀請',text:'你收到一份 MuseCondo 監護人邀請。\n\nAgent ID：'+invite.agent_id+'\n\n短效初次確認碼：'+token+'\n\n請僅在官方入口 '+env.origin+'/identity 使用此碼。確認碼最長有效 24 小時，並非長期復原碼。若你未預期收到此邀請，請忽略此信。'}),signal:AbortSignal.timeout(15000),redirect:'error'});
    if(response.ok){const data=await response.json() as {id?:unknown};if(data&&typeof data.id==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(data.id)){state='accepted';error=null;provider=data.id;}}
-   else if(response.status>=400&&response.status<500&&![408,409,425,429].includes(response.status)){state='failed';error='provider_rejected_'+response.status;}
+   else if(response.status>=400&&response.status<500&&![408,409,425,429].includes(response.status)){state='failed';const name=await rejectionName(response);error='provider_rejected_'+response.status+(name?':'+name:'');}
   }catch{/* Provider response may be ambiguous; do not retain its body or retry automatically. */}
   // A crash after provider acceptance leaves 'sending'; neither sending nor unknown is blindly retried.
   await finish(id,state,error,provider);return status(id);

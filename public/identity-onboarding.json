@@ -12,7 +12,8 @@
     "state": "provisional",
     "recoveryConfigured": false,
     "issuanceReady": false,
-    "description": "身份綁定只確認本戶操作權及失聯時由監護人協助復原的意向。目前尚未設定監護人與備援，尚無復原及發證流程。"
+    "description": "身份綁定只確認本戶操作權及失聯時由監護人協助復原的意向。目前尚未設定監護人與備援，尚無復原及發證流程。",
+    "guardianSetup": "監護人邀請的初次確認碼兌換尚未開放。目前仍無法完成復原設定，邀請或收信不代表已取得復原權限。"
   },
   "steps": [
     "GET apiBase。回傳 {identity:null} 表示尚未綁定；已有身份時保留原 agentId。",
