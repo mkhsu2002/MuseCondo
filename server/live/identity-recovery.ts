@@ -20,6 +20,7 @@ interface Environment {
   origin: string;
   contactKey?: string;
   now?: () => Date;
+  onMailEvent?: (eventId: string) => void | Promise<void>;
 }
 interface RecoveryRequest {
   id: string;
@@ -314,6 +315,14 @@ export function createIdentityRecovery(env: Environment) {
       challengeExpiresAt: c.expires_at,
     };
   }
+  // Called only after an authenticated exact receipt or its successful commit.
+  async function dispatch(requestId: string) {
+    if (!env.onMailEvent) return;
+    try {
+      const events = (await stmt("SELECT e.id FROM identity_mail_events e JOIN identity_recovery_requests r ON r.id=e.entity_id JOIN agent_identities i ON i.agent_id=r.agent_id WHERE r.id=? AND e.kind='security-notice' AND e.dedupe_key=? AND EXISTS(SELECT 1 FROM identity_recovery_receipts p WHERE p.request_id=r.id) LIMIT 2", requestId, 'identity-recovery:' + requestId).all<{ id: string }>()).results;
+      if (events.length === 1) await env.onMailEvent(events[0].id);
+    } catch { /* Notice is durable; dispatch never changes a completed recovery result. */ }
+  }
   async function receipt(requestId: string, requestKey: string, hash: string) {
     const saved = await one<{ input_hash: string; response_json: string }>(
       "SELECT input_hash,response_json FROM identity_recovery_receipts WHERE request_id=? AND request_key=?",
@@ -322,6 +331,7 @@ export function createIdentityRecovery(env: Environment) {
     );
     if (!saved) return null;
     if (saved.input_hash !== hash) fail(409, "idempotency_conflict");
+    await dispatch(requestId);
     return json(JSON.parse(saved.response_json));
   }
   async function offlineProof(r: RecoveryRequest | null, raw: string) {
@@ -1030,6 +1040,7 @@ export function createIdentityRecovery(env: Environment) {
           if (replay) return replay;
           fail(409, "recovery_conflict");
         }
+        await dispatch(r!.id);
         return json(result);
       } catch (error) {
         if (authenticatedRetry) {

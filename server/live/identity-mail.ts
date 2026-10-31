@@ -1,73 +1,53 @@
 import type {Database} from './db.ts';
-import {decryptPrivate,hashPrivate,randomIdentityId,validContactKey,validateGuardianEmail} from './identity-private.ts';
-export interface IdentityMailEnvironment {db:Database;origin:string;contactKey?:string;apiKey?:string;from?:string;fetcher?:typeof fetch;now?:()=>Date}
-interface MailRow {id:string;kind:string;entity_id:string;recipient_ciphertext:string;recipient_hash:string;payload_ciphertext:string;state:string;provider_id:string|null;attempt_count:number;error_code:string|null}
-interface Invitation {agent_id:string;recipient_ciphertext:string;email_hash:string;invite_token_hash:string}
+import type {IdentityCardNamespace} from './identity-card-proxy.ts';
+import {validContactKey,validateGuardianEmail} from './identity-private.ts';
+import {senderDomain} from './identity-mail-readiness.ts';
+import {IDENTITY_MAIL_INTERNAL_PREFIX,identityMailSchemaReady,safeIdentityMailProviderError,type IdentityMailFinish} from './identity-mail-contract.ts';
+export interface IdentityMailEnvironment {db:Database;origin:string;contactKey?:string;apiKey?:string;from?:string;coordinator?:IdentityCardNamespace;deliveryEnabled?:string;fetcher?:typeof fetch;now?:()=>Date}
 export interface IdentityMailStatus {id:string;state:string;providerId:string|null;attemptCount:number;errorCode:string|null}
 function trustedOrigin(value:string){try{return new URL(value).origin===value&&value.startsWith('https://');}catch{return false;}}
-function sender(value:unknown):value is string{return typeof value==='string'&&value.length<=320&&value.trim().length>0&&!/[\r\n]/.test(value)&&/^(?:[^<>]+ <)?[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+>?$/.test(value);}
-// Keep only documented error identifiers; even ASCII provider fields must not reflect secrets.
-// https://resend.com/docs/api-reference/errors
-const providerErrorNames=new Set(['invalid_idempotency_key','validation_error','missing_api_key','restricted_api_key','email_above_quota','invalid_permission','suspended_api_key','not_found','method_not_allowed','concurrent_idempotent_requests','invalid_idempotent_request','resource_locked','invalid_attachment','invalid_parameter','missing_required_field','missing_required_parameter','daily_quota_exceeded','monthly_quota_exceeded','rate_limit_exceeded','application_error','service_unavailable']);
-async function rejectionName(response:Response):Promise<string|null>{
- const reader=response.body?.getReader();if(!reader)return null;const chunks:Uint8Array[]=[];let size=0;
- try{for(;;){const part=await reader.read();if(part.done)break;size+=part.value.length;if(size>4096){await reader.cancel().catch(()=>{});return null;}chunks.push(part.value);}
-  const bytes=new Uint8Array(size);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}const data=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));return data&&typeof data.name==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(data.name)&&providerErrorNames.has(data.name)?data.name:null;
- }catch{return null;}finally{reader.releaseLock();}
+/** Bound all control/provider reads. The claimed body is never consumed in Pages. */
+async function smallJson(response:Response):Promise<Record<string,unknown>>{
+ const reader=response.body?.getReader();if(!reader)throw Error('empty');let raw='',size=0;
+ try{const decoder=new TextDecoder('utf-8',{fatal:true});for(;;){const p=await reader.read();if(p.done)break;size+=p.value.length;if(size>8192){await reader.cancel();throw Error('size');}raw+=decoder.decode(p.value,{stream:true});}raw+=decoder.decode();}finally{reader.releaseLock();}
+ const v:unknown=JSON.parse(raw);if(!v||typeof v!=='object'||Array.isArray(v))throw Error('shape');return v as Record<string,unknown>;
 }
-/** This service only consumes stored events; callers cannot provide recipients or message content. */
+/** Pages dispatches persisted IDs only. Provider keys stay here, outside the private DO. */
 export function createIdentityMail(env:IdentityMailEnvironment){
- const db=env.db,stamp=()=> (env.now?.()??new Date()).toISOString();
- const configured=()=>validContactKey(env.contactKey)&&typeof env.apiKey==='string'&&env.apiKey.trim().length>0&&sender(env.from)&&trustedOrigin(env.origin);
- const one=<T>(sql:string,...values:unknown[])=>db.prepare(sql).bind(...values).first<T>();
- async function status(id:string):Promise<IdentityMailStatus|null>{const r=await one<MailRow>('SELECT id,state,provider_id,attempt_count,error_code FROM identity_mail_events WHERE id=?',id);return r?{id:r.id,state:r.state,providerId:r.provider_id,attemptCount:r.attempt_count,errorCode:r.error_code}:null;}
- // Both injected and native clocks are checked after any database queue delay.
- const validSql="SELECT g.agent_id,g.recipient_ciphertext,g.email_hash,g.invite_token_hash FROM identity_guardian_invites g JOIN agent_identities i ON i.agent_id=g.agent_id AND i.account_id=g.account_id JOIN tower_residencies t ON t.account_id=i.account_id AND t.room_id=i.room_id AND t.resident_id=i.resident_id JOIN rooms r ON r.id=i.room_id AND r.account_id=i.account_id WHERE g.id=? AND g.state='accepted' AND i.state='provisional' AND i.recovery_consent=1 AND i.version=g.identity_version AND i.authority_epoch=g.authority_epoch AND strftime('%Y-%m-%dT%H:%M:%fZ',g.created_at) IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ',g.created_at)=g.created_at AND strftime('%Y-%m-%dT%H:%M:%fZ',g.expires_at) IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ',g.expires_at)=g.expires_at AND strftime('%Y-%m-%dT%H:%M:%fZ',g.created_at,'+24 hours') IS NOT NULL AND g.expires_at>g.created_at AND g.expires_at<=strftime('%Y-%m-%dT%H:%M:%fZ',g.created_at,'+24 hours') AND g.created_at<=? AND g.created_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND g.expires_at>? AND g.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND g.email_hash=? AND g.recipient_ciphertext=?";
- async function finish(id:string,state:string,error:string|null,provider:string|null=null){
-  await db.batch([
-   db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM identity_mail_events WHERE id=? AND state='sending') THEN 1 ELSE json('mail-lease-changed') END").bind(id),
-   db.prepare("UPDATE identity_mail_events SET state=?,error_code=?,provider_id=?,updated_at=? WHERE id=? AND state='sending'").bind(state,error,provider,stamp(),id),
-   db.prepare('INSERT INTO identity_mail_audit(id,event_id,action,detail_json,created_at) VALUES(?,?,?, ?,?)').bind(randomIdentityId(),id,state,JSON.stringify(error?{code:error}:{}),stamp()),
-  ]);
- }
- async function cancelPending(id:string,code:string){
-  try{await db.batch([
-   db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM identity_mail_events WHERE id=? AND state='pending') THEN 1 ELSE json('mail-lease-changed') END").bind(id),
-   db.prepare("UPDATE identity_mail_events SET state='cancelled',error_code=?,updated_at=? WHERE id=? AND state='pending'").bind(code,stamp(),id),
-   db.prepare("INSERT INTO identity_mail_audit(id,event_id,action,detail_json,created_at) VALUES(?,?,'cancelled',?,?)").bind(randomIdentityId(),id,JSON.stringify({code}),stamp()),
-  ]);}catch{/* A competing worker owns the event; never send from this invocation. */}
- }
+ const db=env.db;
+ // This is an execution configuration switch, not delivery/webhook verification (I05c).
+ const configured=()=>env.deliveryEnabled==='true'&&!!env.coordinator&&typeof env.coordinator.idFromName==='function'&&typeof env.coordinator.get==='function'&&validContactKey(env.contactKey)&&typeof env.apiKey==='string'&&env.apiKey.trim().length>0&&!!senderDomain(env.from)&&trustedOrigin(env.origin);
+ async function status(id:string):Promise<IdentityMailStatus|null>{if(!/^[a-f0-9]{32}$/.test(id))return null;const r=await db.prepare('SELECT id,state,provider_id,attempt_count,error_code FROM identity_mail_events WHERE id=?').bind(id).first<{id:string;state:string;provider_id:string|null;attempt_count:number;error_code:string|null}>();return r?{id:r.id,state:r.state,providerId:r.provider_id,attemptCount:r.attempt_count,errorCode:r.error_code}:null;}
+ const rpc=(action:string,payload:unknown,eventId:string)=>env.coordinator!.get(env.coordinator!.idFromName('mail:'+eventId.slice(0,2))).fetch(new Request(env.origin+IDENTITY_MAIL_INTERNAL_PREFIX+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}));
  return {configured,status,async processOne(id:string):Promise<IdentityMailStatus|null>{
-  if(!/^[a-f0-9]{32}$/.test(id))return null;
-  const event=await one<MailRow>('SELECT * FROM identity_mail_events WHERE id=?',id);if(!event)return null;
-  if(event.state!=='pending'||!configured())return status(id);
-  // Reserved I05 templates stay pending; pending never means notification delivered.
-  if(event.kind==='security-notice'||event.kind==='identity-card')return status(id);
-  if(event.kind!=='guardian-invitation'){await cancelPending(id,'unsupported_event');return status(id);}
-  const invite=await one<Invitation>(validSql,event.entity_id,stamp(),stamp(),event.recipient_hash,event.recipient_ciphertext);
-  if(!invite){await cancelPending(id,'invitation_unavailable');return status(id);}
-  let email:string,token:string;
+  const current=await status(id);if(!current||current.state!=='pending'||current.attemptCount!==0||!configured())return current;
   try{
-   email=validateGuardianEmail(await decryptPrivate(env.contactKey!,'guardian-recipient',invite.agent_id,event.recipient_ciphertext));
-   const payload=JSON.parse(await decryptPrivate(env.contactKey!,'mail-payload',id,event.payload_ciphertext));
-   if(!payload||Object.keys(payload).length!==1||typeof payload.token!=='string'||!/^[a-f0-9]{64}$/.test(payload.token))throw new Error('payload');token=payload.token;
-   if(await hashPrivate(env.contactKey!,'guardian-email',email)!==event.recipient_hash||await hashPrivate(env.contactKey!,'guardian-confirmation:'+event.entity_id,token)!==invite.invite_token_hash)throw new Error('contact');
-  }catch{await cancelPending(id,'private_payload_unavailable');return status(id);}
-  try{await db.batch([
-   db.prepare("SELECT CASE WHEN EXISTS("+validSql+" AND g.invite_token_hash=?) AND EXISTS(SELECT 1 FROM identity_mail_events WHERE id=? AND state='pending' AND payload_ciphertext=? AND recipient_hash=? AND recipient_ciphertext=? AND kind='guardian-invitation' AND entity_id=?) THEN 1 ELSE json('mail-lease-changed') END").bind(event.entity_id,stamp(),stamp(),event.recipient_hash,event.recipient_ciphertext,invite.invite_token_hash,id,event.payload_ciphertext,event.recipient_hash,event.recipient_ciphertext,event.entity_id),
-   db.prepare("UPDATE identity_mail_events SET state='sending',attempt_count=attempt_count+1,lease_started_at=?,updated_at=? WHERE id=? AND state='pending'").bind(stamp(),stamp(),id),
-   db.prepare("INSERT INTO identity_mail_audit(id,event_id,action,detail_json,created_at) VALUES(?,?,'sending','{}',?)").bind(randomIdentityId(),id,stamp()),
-  ]);}catch{if(!await one<Invitation>(validSql+' AND g.invite_token_hash=?',event.entity_id,stamp(),stamp(),event.recipient_hash,event.recipient_ciphertext,invite.invite_token_hash))await cancelPending(id,'invitation_unavailable');return status(id);}
-  if(!await one<Invitation>(validSql+' AND g.invite_token_hash=?',event.entity_id,stamp(),stamp(),event.recipient_hash,event.recipient_ciphertext,invite.invite_token_hash)){await finish(id,'cancelled','invitation_unavailable');return status(id);}
-  let state='unknown',error:string|null='provider_outcome_unknown',provider:string|null=null;
-  try{
-   const response=await (env.fetcher??fetch)('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.apiKey,'Content-Type':'application/json','Idempotency-Key':id},body:JSON.stringify({from:env.from,to:[email],subject:'MuseCondo 監護人確認邀請',text:'你收到一份 MuseCondo 監護人邀請。\n\nAgent ID：'+invite.agent_id+'\n\n邀請識別碼：'+event.entity_id+'\n\n短效初次確認碼：'+token+'\n\n請僅在官方入口 '+env.origin+'/identity 分別貼上以上兩組代碼。確認碼最長有效 24 小時，並非長期復原碼。若你未預期收到此邀請，請忽略此信。'}),signal:AbortSignal.timeout(15000),redirect:'manual'});
-   // A redirect is ambiguous, not acceptance; never forward credentials or retry it.
-   if(response.status>=300&&response.status<400)throw new Error('provider redirect rejected');
-   if(response.ok){const data=await response.json() as {id?:unknown};if(data&&typeof data.id==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(data.id)){state='accepted';error=null;provider=data.id;}}
-   else if(response.status>=400&&response.status<500&&![408,409,425,429].includes(response.status)){state='failed';const name=await rejectionName(response);error='provider_rejected_'+response.status+(name?':'+name:'');}
-  }catch{/* Provider response may be ambiguous; do not retain its body or retry automatically. */}
-  // A crash after provider acceptance leaves 'sending'; neither sending nor unknown is blindly retried.
-  await finish(id,state,error,provider);return status(id);
+   if(!await identityMailSchemaReady(db))return current;
+   const prepared=await rpc('prepare',{eventId:id},id);if(!prepared.ok)return status(id);
+   const m=await smallJson(prepared),d=m.descriptor as Record<string,unknown>|undefined;
+   if(!d||d.eventId!==id||typeof d.bodyDigest!=='string'||!/^[a-f0-9]{64}$/.test(d.bodyDigest)||!Number.isSafeInteger(d.bodyLength)||(d.bodyLength as number)<1||(d.bodyLength as number)>12582912||typeof m.recipient!=='string'||validateGuardianEmail(m.recipient)!==m.recipient||!senderDomain(m.from))return status(id);
+   const response=await (env.fetcher??fetch)('https://api.resend.com/suppressions/'+encodeURIComponent(m.recipient),{method:'GET',headers:{Authorization:'Bearer '+env.apiKey},signal:AbortSignal.timeout(15000),redirect:'manual'});
+   if(response.status===200){
+    const suppression=await smallJson(response);
+    // Resend uses origin (bounce/complaint/manual), not a marketing subscription state.
+    if(suppression.object==='suppression'&&typeof suppression.id==='string'&&suppression.id.length>0&&suppression.id.length<=128&&typeof suppression.email==='string'&&validateGuardianEmail(suppression.email).toLowerCase()===m.recipient.toLowerCase()&&['bounce','complaint','manual'].includes(String(suppression.origin))&&(suppression.source_id===null||typeof suppression.source_id==='string')&&typeof suppression.created_at==='string'&&Number.isFinite(Date.parse(suppression.created_at))){await rpc('suppress',{eventId:id,bodyDigest:d.bodyDigest,reason:suppression.origin},id);}
+    return status(id);
+   }
+   if(response.status!==404)return status(id);
+   const claimed=await rpc('claim',{eventId:id,bodyDigest:d.bodyDigest},id);
+   if(!claimed.ok)return status(id);
+   const leaseId=claimed.headers.get('X-Identity-Mail-Lease');if(!leaseId||!/^[a-f0-9]{32}$/.test(leaseId)||!claimed.body){await claimed.body?.cancel();return status(id);}
+   const result:IdentityMailFinish={eventId:id,leaseId,state:'unknown',providerId:null,errorCode:'provider_outcome_unknown'};
+   try{
+    const init:RequestInit&{duplex?:'half'}={method:'POST',headers:{Authorization:'Bearer '+env.apiKey,'Content-Type':'application/json','Idempotency-Key':id},body:claimed.body,signal:AbortSignal.timeout(15000),redirect:'manual',duplex:'half'};
+    const sent=await (env.fetcher??fetch)('https://api.resend.com/emails',init);
+    if(sent.ok){const v=await smallJson(sent);if(typeof v.id==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v.id)){result.state='accepted';result.providerId=v.id;result.errorCode=null;}}
+    else if(sent.status>=400&&sent.status<500&&![408,409,425,429].includes(sent.status)){
+     result.state='failed';result.errorCode='provider_rejected_'+sent.status;
+     try{const v=await smallJson(sent);if(safeIdentityMailProviderError(v.name))result.errorCode+=':'+v.name;}catch{/* Never retain raw provider errors. */}
+    }
+   }catch{/* Ambiguous result remains unknown. There is no automatic second POST. */}
+   await rpc('finish',result,id);return status(id);
+  }catch{/* Pre-claim leaves pending; lost claim ack leaves sending; lost finish ack never reclaims. */return status(id);}
  }};
 }

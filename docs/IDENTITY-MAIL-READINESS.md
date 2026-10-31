@@ -1,5 +1,7 @@
 # I05a 寄件網域診斷
 
+2026-10-31 本地後續：b2a 私有 dispatch／Pages 串流核心見 [技術契約](IDENTITY-MAIL-DISPATCH.md)。尚未部署、未啟用投遞；下文原切片狀態為歷史範圍，不可據此沿用舊直寄路徑。
+
 這個切片只提供部署端、operator 專用的 Resend 寄件網域 metadata 查核，不寄信、不建 webhook、不改 DNS。它不代表 I05 附件郵寄或收件驗收完成。`identity-card` 與 `security-notice` 事件仍沿原契約保持 pending；guardian 的既有寄送行為不變。無新增前台或排程，排程新增觸發數與空跑數皆為零。
 
 ## 私有入口

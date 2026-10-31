@@ -2,7 +2,8 @@ import {isIdentityCardPath,proxyIdentityCard,type IdentityCardNamespace} from '.
 import {createIdentityRecovery} from './identity-recovery.ts';
 import {createIdentityRegistration} from './identity-registration.ts';
 import {createIdentityGuardian} from './identity-guardian.ts';
-import {createIdentityMail} from './identity-mail.ts';
+import {IDENTITY_MAIL_INTERNAL_PREFIX} from './identity-mail-contract.ts';
+import {dispatchIdentityCardResult,identityMailEventDispatcher} from './identity-mail-events.ts';
 import {createIdentityMailReadiness} from './identity-mail-readiness.ts';
 import {createAgentIdentity} from './identity.ts';
 import {createTowerReception} from './reception.ts';
@@ -17,7 +18,7 @@ export interface PagesBindings {
  IDENTITY_CARDS?:IdentityCardNamespace;
  DB?:Database;ASSETS?:{fetch(request:Request):Promise<Response>};PUBLIC_ORIGIN?:string;
  REGISTRATION_ENABLED?:string;META_PAID_CALLS_APPROVED?:string;meta_muse_api?:string;
- IDENTITY_CONTACT_KEY?:string;IDENTITY_MAIL_API_KEY?:string;IDENTITY_MAIL_FROM?:string;
+ IDENTITY_MAIL_DELIVERY_ENABLED?:string; IDENTITY_CONTACT_KEY?:string;IDENTITY_MAIL_API_KEY?:string;IDENTITY_MAIL_FROM?:string;
  TOWER_SOURCE_ORIGINS?:string;TOWER_OPERATOR_KEY?:string;LEGACY_HOME_REDIRECTS?:string;
  META_MANAGER_APPROVED?:string;META_MANAGER_BUDGET_MICRO?:string;META_MANAGER_DAILY_MICRO?:string;META_MANAGER_MONTHLY_MICRO?:string;
 }
@@ -32,10 +33,13 @@ function sourceOrigins(v:string|undefined):string[]{try{const a=JSON.parse(v??'[
 /** Same-origin Pages runtime. Secrets remain in deployment storage; status only reports gates. */
 export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeContext):Promise<Response>{
  const url=new URL(request.url),api=url.pathname==='/api'||url.pathname.startsWith('/api/'),home=/^\/home\/[a-f0-9]{16}(\/(inside|dreams))?\/?$/.test(url.pathname);
+ if(url.pathname.startsWith(IDENTITY_MAIL_INTERNAL_PREFIX))return json({error:'not_found'},404);
  if(api||(home&&env.DB)){
   if(!validOrigin(env.PUBLIC_ORIGIN))return json({available:false,error:'public_origin_not_configured'},503);
   if(url.origin!==env.PUBLIC_ORIGIN)return json({available:false,error:'host_rejected'},403);
-  if(isIdentityCardPath(url.pathname))return proxyIdentityCard(request,env.IDENTITY_CARDS);
+  const identityMailEnv=env.DB?{db:env.DB,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,from:env.IDENTITY_MAIL_FROM,coordinator:env.IDENTITY_CARDS,deliveryEnabled:env.IDENTITY_MAIL_DELIVERY_ENABLED}:undefined;
+  const onMailEvent=identityMailEnv?identityMailEventDispatcher(identityMailEnv,context):async()=>{};
+  if(isIdentityCardPath(url.pathname)){const response=await proxyIdentityCard(request,env.IDENTITY_CARDS);await dispatchIdentityCardResult(request,response,env.DB,onMailEvent);return response;}
   const metaSecretConfigured=typeof env.meta_muse_api==='string'&&env.meta_muse_api.trim().length>0,paidCallsApproved=env.META_PAID_CALLS_APPROVED==='true';
   const safe={metaSecretConfigured,paidCallsApproved,registrationEnabled:env.REGISTRATION_ENABLED==='true'};
   const db=env.DB;if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')return json({available:false,error:'database_not_bound',runtime:safe},503);
@@ -57,10 +61,8 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    const current=await app.editBuilding(true);await manager.enqueue({events:current.events,residentIds:current.events.map(e=>e.residentId),sourceDigest:current.edition.sourceDigest,asOf:current.edition.asOf});
    if(pending.length)await db!.batch(pending.map(e=>db!.prepare('UPDATE manager_events SET dispatched_at=? WHERE id=? AND dispatched_at IS NULL').bind(new Date().toISOString(),e.id)));
   }
-  const identityMailEnv={db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,from:env.IDENTITY_MAIL_FROM};
-  const identityMail=createIdentityMail(identityMailEnv);
-  const guardianResponse=await createIdentityGuardian({...identityMailEnv,operator:async()=>operator(),onMailEvent:id=>{if(context)context.waitUntil(identityMail.processOne(id).catch(()=>{}));}}).fetch(request);if(guardianResponse)return guardianResponse;
-  const recoveryResponse=await createIdentityRecovery({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY}).fetch(request);if(recoveryResponse)return recoveryResponse;
+  const guardianResponse=await createIdentityGuardian({...identityMailEnv!,operator:async()=>operator(),onMailEvent}).fetch(request);if(guardianResponse)return guardianResponse;
+  const recoveryResponse=await createIdentityRecovery({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,onMailEvent}).fetch(request);if(recoveryResponse)return recoveryResponse;
   const registrationResponse=await createIdentityRegistration({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY}).fetch(request);if(registrationResponse)return registrationResponse;
   const identityResponse=await createAgentIdentity({db,origin:env.PUBLIC_ORIGIN!}).fetch(request);if(identityResponse)return identityResponse;
   const reception=createTowerReception({db,origin:env.PUBLIC_ORIGIN!,operator:async()=>operator()});

@@ -4,6 +4,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { LocalDatabase } from '../server/live/local-db.ts';
 import type { Statement } from '../server/live/db.ts';
 import { hashIdentityInput } from '../server/live/identity-private.ts';
+import {createIdentityMailCoordinator} from '../server/live/identity-mail-coordinator.ts';
 import runtime from '../server/live/worker.ts';
 const origin = 'https://identity.example', time = '2026-10-31T00:00:00.000Z', contactKey = '9'.repeat(64), base = '/api/v1/agent/identity/guardian-invitations', operatorBase = '/api/v1/operator/identity/guardian-invitations';
 const nativeDates = new LocalDatabase(':memory:');
@@ -24,7 +25,8 @@ async function fixture() {
     let now = new Date(time), operatorEnabled = true;
     db.sqlite.function('strftime', { varargs: true }, (...args) => args[1] === 'now' ? now.toISOString() : nativeDates.sqlite.prepare('SELECT strftime(' + args.map(() => '?').join(',') + ') value').get(...args)!.value);
     const dispatched: string[] = [], providerCalls: RequestInit[] = [];
-    const env = { db, origin, contactKey, apiKey: 'runtime-key', from: 'MuseCondo <identity@example.com>', now: () => now, operator: async (r: Request) => operatorEnabled && r.headers.get('X-Tower-Operator-Key') === 'operator-key', onMailEvent: (id: string) => { dispatched.push(id); }, fetcher: async (_url: unknown, init?: RequestInit) => { providerCalls.push(init!); return new Response(JSON.stringify({ id: 'provider-one' })); } };
+    const coordinator={idFromName:(n:string)=>n,get:()=>({fetch:(request:Request)=>createIdentityMailCoordinator({db,origin,contactKey,from:'MuseCondo <identity@example.com>',trustedKeys:new Map(),now:()=>now}).fetch(request)})};
+    const env = { db, origin, contactKey, coordinator,deliveryEnabled:'true', apiKey: 'runtime-key', from: 'MuseCondo <identity@example.com>', now: () => now, operator: async (r: Request) => operatorEnabled && r.headers.get('X-Tower-Operator-Key') === 'operator-key', onMailEvent: (id: string) => { dispatched.push(id); }, fetcher: async (_url: unknown, init?: RequestInit) => { if(String(_url).includes('/suppressions/'))return new Response(null,{status:404});providerCalls.push({...init,body:await new Response(init!.body).text()}); return new Response(JSON.stringify({ id: 'provider-one' })); } };
     assert(existsSync(new URL('../server/live/identity-guardian.ts', import.meta.url)), 'guardian invitation handler is implemented');
     const { createIdentityGuardian } = await import('../server/live/identity-guardian.ts');
     let handler = createIdentityGuardian(env);
@@ -80,7 +82,7 @@ test('both parties consent before one encrypted mail event; identity remains pro
         f.db.close();
     }
 });
-test('permanent exact receipts replay without another version, charge, dispatch, audit or provider attempt', async () => {
+test('permanent exact receipts redispatch the original event without another version, charge, audit or provider attempt', async () => {
     const f = await fixture();
     try {
         const first = (await f.propose())!, p = await first.json();
@@ -89,7 +91,7 @@ test('permanent exact receipts replay without another version, charge, dispatch,
         const accept = (await f.accept(p.invitation.id))!, a = await accept.json();
         assert.deepEqual(await (await f.accept(p.invitation.id))!.json(), a);
         assert.equal((await f.accept(p.invitation.id, { requestKey: 'accept-0001', expectedVersion: 2, guardianConsent: true }))!.status, 409);
-        assert.equal(f.dispatched.length, 1);
+        assert.equal(f.dispatched.length, 2);
         assert.equal(f.count('guardian_invite_requests'), 2);
         assert.equal(f.count('guardian_invite_rate_attempts'), 2);
         assert.equal(f.count('identity_audit'), 2);
@@ -211,7 +213,7 @@ test('competing requests cannot partially designate or enqueue twice', async () 
             assert.equal(f.count('identity_guardian_invites'), 1);
             assert.equal(f.count('identity_mail_events'), 1);
             assert.equal(f.count('guardian_invite_requests'), 2);
-            assert.equal(f.dispatched.length, 1);
+            assert.equal(f.dispatched.length, same ? 2 : 1);
         }
         finally {
             f.db.close();
@@ -377,7 +379,7 @@ test('proposal and acceptance use permanent per-input reservations and exact rep
         assert.equal((await f.accept(p.id))!.status, 200);
         assert.equal((await f.propose({ ...f.input, requestKey: 'new-rate-key', expectedVersion: 3 }))!.status, 429);
         assert.equal(f.count('guardian_invite_rate_attempts'), 2);
-        assert.equal(f.dispatched.length, 1);
+        assert.equal(f.dispatched.length, 2);
     }
     finally {
         f.db.close();
@@ -413,11 +415,11 @@ test('protected mail processing only consumes its persisted event and returns no
 test('Pages dispatch persists before waitUntil sends the exact event, and unreleased confirmation routes remain closed', async () => {
     const f = await fixture(), original = globalThis.fetch, pending: Promise<unknown>[] = [];
     let calls = 0;
-    globalThis.fetch = async (_url, init) => { calls++; assert.equal(f.count('identity_mail_events'), 1); assert.equal(f.count('guardian_invite_requests'), 2); assert.deepEqual(JSON.parse(String(init!.body)).to, ['Guardian.Local@example.com']); return new Response(JSON.stringify({ id: 'runtime-provider' })); };
+    globalThis.fetch = async (_url, init) => { if(String(_url).includes('/suppressions/'))return new Response(null,{status:404});calls++; assert.equal(f.count('identity_mail_events'), 1); assert.equal(f.count('guardian_invite_requests'), 2); assert.deepEqual(JSON.parse(await new Response(init!.body).text()).to, ['Guardian.Local@example.com']); return new Response(JSON.stringify({ id: 'runtime-provider' })); };
     try {
         f.db.sqlite.function('strftime', { varargs: true }, (...args) => nativeDates.sqlite.prepare('SELECT strftime(' + args.map(() => '?').join(',') + ') value').get(...args)!.value);
         f.db.sqlite.prepare("UPDATE tower_tokens SET expires_at='2099-01-01T00:00:00.000Z'").run();
-        const env = { DB: f.db, PUBLIC_ORIGIN: origin, TOWER_OPERATOR_KEY: 'operator-key', IDENTITY_CONTACT_KEY: contactKey, IDENTITY_MAIL_API_KEY: 'runtime-key', IDENTITY_MAIL_FROM: 'MuseCondo <identity@example.com>' };
+        const env = { DB: f.db, PUBLIC_ORIGIN: origin, TOWER_OPERATOR_KEY: 'operator-key', IDENTITY_CONTACT_KEY: contactKey, IDENTITY_MAIL_API_KEY: 'runtime-key', IDENTITY_MAIL_FROM: 'MuseCondo <identity@example.com>',IDENTITY_CARDS:{idFromName:(n:string)=>n,get:()=>({fetch:(request:Request)=>createIdentityMailCoordinator({db:f.db,origin,contactKey,from:f.env.from,trustedKeys:new Map()}).fetch(request)})},IDENTITY_MAIL_DELIVERY_ENABLED:'true' };
         const req = (path: string, method = 'GET', body?: unknown, operator = false) => new Request(origin + path, { method, headers: { ...(operator ? { 'X-Tower-Operator-Key': 'operator-key' } : { Authorization: 'Bearer ' + 'a'.repeat(64) }), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
         const proposal = await runtime.fetch(req(operatorBase, 'POST', f.input, true), env);
         assert.equal(proposal.status, 201);
@@ -429,6 +431,7 @@ test('Pages dispatch persists before waitUntil sends the exact event, and unrele
         assert.equal(pending.length, 1);
         await Promise.all(pending);
         assert.equal(calls, 1);
+        const replay = await runtime.fetch(req(base + '/' + p.invitation.id + '/accept', 'POST', {requestKey:'accept-runtime',expectedVersion:1,guardianConsent:true}), env);assert.deepEqual(await replay.json(),accepted);assert.equal(calls,1);
         const status = await runtime.fetch(req('/api/v1/operator/identity/mail/' + accepted.mailEvent.id, 'GET', undefined, true), env);
         assert.equal((await status.json()).state, 'accepted');
         assert.equal((await runtime.fetch(req(base + '/confirm', 'POST', {}), env)).status, 404);
@@ -516,5 +519,17 @@ test('queued proposal CAS and failed cancellation audit never create partial aut
     }
 });
 test('JSON property order cannot change an otherwise identical permanent request', async () => {
- const f=await fixture();try{const p=await proposed(f);const reordered={email:f.input.email,attestGuardianDesignated:true,expectedVersion:1,agentId:f.input.agentId,requestKey:f.input.requestKey};assert.equal((await f.propose(reordered))!.status,201);await f.accept(p.id);assert.equal((await f.accept(p.id,{guardianConsent:true,expectedVersion:1,requestKey:'accept-0001'}))!.status,200);assert.equal(f.count('identity_guardian_invites'),1);assert.equal(f.count('guardian_invite_requests'),2);assert.equal(f.dispatched.length,1);}finally{f.db.close();}
+ const f=await fixture();try{const p=await proposed(f);const reordered={email:f.input.email,attestGuardianDesignated:true,expectedVersion:1,agentId:f.input.agentId,requestKey:f.input.requestKey};assert.equal((await f.propose(reordered))!.status,201);await f.accept(p.id);assert.equal((await f.accept(p.id,{guardianConsent:true,expectedVersion:1,requestKey:'accept-0001'}))!.status,200);assert.equal(f.count('identity_guardian_invites'),1);assert.equal(f.count('guardian_invite_requests'),2);assert.equal(f.dispatched.length,2);}finally{f.db.close();}
+});
+
+for(const lostAck of [false,true]) test((lostAck?'lost-ack ':'new-commit ')+'guardian dispatch awaits callback after commit; historical receipt uses the same event despite callback failure', async () => {
+ const f=await fixture();try {
+ const p=await proposed(f),seen:string[]=[];
+ f.reconfigure({onMailEvent:async id=>{await Promise.resolve();assert.equal(f.count('guardian_invite_requests'),2);assert.equal(f.db.sqlite.prepare('SELECT entity_id FROM identity_mail_events WHERE id=?').get(id)!.entity_id,p.id);seen.push(id);throw Error('private callback failure');}});
+ const batch=f.db.batch.bind(f.db);let lost=false;
+ f.db.batch=async statements=>{const r=await batch(statements);if(lostAck&&!lost&&statements.some(s=>(s as unknown as {sql:string}).sql.startsWith('INSERT INTO identity_mail_events'))){lost=true;throw Error('lost commit ack');}return r;};
+ const r=(await f.accept(p.id))!;assert.equal(r.status,200);const value=await r.json();assert.deepEqual(seen,[value.mailEvent.id]);
+ assert.deepEqual(await (await f.accept(p.id))!.json(),value);assert.deepEqual(seen,[value.mailEvent.id,value.mailEvent.id]);
+ assert.equal((await f.accept(p.id,undefined,'b'))!.status,404);assert.equal(seen.length,2);assert.equal(f.count('identity_mail_events'),1);assert.equal(f.count('guardian_invite_requests'),2);
+ }finally{f.db.close();}
 });
