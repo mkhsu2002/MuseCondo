@@ -16,7 +16,7 @@
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
-| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。I04b 真 PDF／QR／靜態繁中字體、獨立 SQLite DO／Pages proxy／驗證頁本地接線完成，待整體兩階段審查及雙環境部署；0018未套、正式仍v0.56 |
+| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。I04b 本地兩階段審查／559tests通過；v0.59已部署兩環境Worker／Pages與0018。公鑰端點runtime相容性503阻塞live gate，v0.60修復待部署再驗 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
@@ -51,7 +51,7 @@ Files: `server/live/identity-guardian.ts`、`server/live/identity-recovery.ts`�
 
 Files: `server/live/identity-card.ts`、`migrations/0018_identity_cards.sql`、`tests/identity-card.test.ts`；I04b 另補真 PDF／QR renderer、驗證頁及核發者公鑰端點接線。
 
-I04a 當時僅提供可測試 factory；I04b 依已審核心完成本地 Worker／Pages proxy／machine 及公開驗證頁接線，整體規格與品質審查完成前不套 migration、不發布。正式仍為前節已回讀的 v0.56。第一版固定品牌圖樣，不抓取或裁取監護人肖像。原早期「不接 Worker」限制已由本地接線切片取代，未取代正式部署／真人 gate。
+I04a 當時僅提供可測試 factory；I04b 已完成 Worker／Pages proxy／machine 及公開驗證頁接線、整體規格與品質審查，v0.59 已部署並套0018。線上公鑰端點503仍阻塞完整I04 gate，修復與重驗見本文件最新紀錄。第一版固定品牌圖樣，不抓取或裁取監護人肖像。原早期「不接 Worker」限制已由本地接線切片取代，未取代正式部署／真人 gate。
 
 - [ ] 檢查 signer 配置只用部署 secret、歷史 keyId 公鑰可驗證；卡片照片素材只取已授權本戶內容。
 - [ ] 核發限 active＋已綁住所＋監護／備援確認；原子證件、supersede、outbox、receipt、audit。
@@ -216,3 +216,9 @@ Node24本地身份／UI／build focused 263項全PASS，另57項card／verify／
 本地workerd另在SQLite DO內實際跑同renderer與內部ASSETS，兩次4,377,114-byte PDF SHA `03e201f7f78004db36429f1bce24111fbf99809f7065a7ea4e70b690f347fc90`完全一致；1頁／日期固定，Swift Vision獨立掃碼回完整官方fixtureURL。GET walltime554ms／463ms只是local smoke，不是Free hostedCPU保證；fixture為未核發合成樣本，不是真居民證件。localserver已停止，scratch不入repo。npm audit --omit=dev無已知漏洞；未修改既有開發工具依賴警示。
 
 尚未push／合併／套0018／部署新Worker或Pages綁定，正式仍v0.56。I04b仍待固定hash規格→品質審查、主控完整gate、雙環境deployed code/schema/live behavior與canonicalbrowser390px／桌機驗收；Fang／K真人與原Agent未操作。未寄信、未付費、未新建真戶；I05附件交付及I06真人gate保持未完成。
+
+### 2026-10-31 I04b 發布後實測與相容性修復（v0.60待發布）
+
+v0.59／53739fc 已合併兩目標分支，兩環境 Pages 及獨立證件 Worker 成功部署；0018 已實際套用、140 物件 DDL 與外鍵比對通過。前端驗證頁 JS 與來源 bytes 相同，私人卡路由無權回401、未知CID回404，但 public keys 回503；因此沒有以部署成功當作 I04 完成，沒有操作真實住戶或寄信。
+
+同compat日期的真 workerd 最小重現：原 Node 產生 JWK 的 alg=Ed25519 被 importKey 拒絕為 DataError，alg=EdDSA 或省略成功。8fbc59d 在原嚴格 parse 全部通過後複製 JWK 並移除可選 alg metadata，公私匯入都使用明確 Ed25519 algorithm；不更換金鑰、不變更原配置／公開projection／canonicalpayload／簽章／身份version／0018。未知alg仍拒絕，不吞錯或改為假簽章。新增反例先 RED503，修復後 identity215／完整563／版號8、build／lint通過；實際workerd正規化三種輸入皆可匯入。待獨立規格→品質審查、兩環境部署、完整核發／附件／公開狀態／稽核驗收後另記通過結果。
