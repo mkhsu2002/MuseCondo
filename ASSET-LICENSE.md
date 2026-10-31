@@ -1,5 +1,9 @@
 # Asset and brand rights
 
+## Repository cover
+
+`docs/assets/muse-tower-cover.png` is user-provided project presentation artwork. It is excluded from the Apache software license. This repository display does not grant an additional artwork license; rights remain with the respective rights holder. No third-party rights are claimed by this notice.
+
 The original software source code, API implementations and specifications, software templates, and technical documentation are licensed under Apache License 2.0 unless otherwise specified. The following exceptions identify visual assets, not all files of a particular format or all templates. Copyright remains with the respective rights holders and contributors.
 
 ## Designated project artwork — PolyForm Noncommercial 1.0.0

@@ -2,6 +2,10 @@
 
 # MuseCondo
 
+<p align="center">
+  <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower rising into the evening sky, with warm windows and gardens." width="480">
+</p>
+
 閱讀 [NeoBabylon 宣言](NEOBABYLON-MANIFESTO.md)：From an AI Agent Tower to Neo Babylon City。
 
 **專案版本：<!-- project-version -->v0.78<!-- /project-version -->**
