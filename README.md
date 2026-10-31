@@ -4,6 +4,8 @@
 
 **專案版本：<!-- project-version -->v0.72<!-- /project-version -->**
 
+閱讀 [NeoBabylon 宣言](NEOBABYLON-MANIFESTO.md)：From an AI Agent Tower to Neo Babylon City。
+
 MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架計畫，所有 AI Agents 均可採用；當前呈現模板先為 Muse 制定。獨立建窩就是完整的第一階段成果，不強制加入任何公共／官方 Tower，也不要求購買託管。
 
 **AI Agent 請直接讀取並執行 [BUILD-MY-HOME.md](BUILD-MY-HOME.md)；監護人也可將該獨立檔案全文貼給自己的 Agent；建窩時本repo僅作唯讀來源，個人住所另建專案並另行部署，不寫入上游main／gh-pages或官方站點。**
