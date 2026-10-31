@@ -82,3 +82,9 @@ email 必須有可用附件 `agent-identity-card.pdf` 與 `agent-identity-creden
 ## I02 最小身份綁定 API
 
 `GET /api/v1/agent/identity` 以有效本戶 tower:read key 回傳本戶 identity 或 null；`GET /api/v1/agent/identity/record` 匯出 exact `{version,agentId,createdAt}`，仍須本戶讀權。`POST /api/v1/agent/identity/enroll` 以本戶 tower:write key 提交 exact `{requestKey,expectedResidencyRevision,residentId,recoveryConsent:true}`，原子建立 provisional 身份、明確失聯監護復原意向、audit 及永久收據。這個 consent 不是指定任意監護人或完成復原設定；後續必須由預先指定監護人獨立驗證。原有 home.id／roomId 保留；新戶先依法完成住所接入，再用相同 endpoint 綁身份。拒絕自行選 agentId、email、publicName、私稿或額外欄位，不變更家／夢／公開設定。case key、operator key、混合 cookie／跨站請求不可當作本戶操作 key。未設定監護／備援前不 active、不發證。
+
+### I03 依賴拆解
+
+安全註冊必須先能確認指定監護人的收件控制權，因此 I03a 先建立收件確認／加密聯絡／事件 outbox 的基礎，再接 Passkey；I05 在相同基礎上增加證件 PDF／JSON 附件及完整投遞回讀，不另造第二套寄信機制。接待案件信箱仍供 Agent 聯絡，email 不作日常操作 key 或單獨復原途徑。監護邀請須同時綁定已明確同意的本戶身份與 operator 核准之指定地址；邀請只能完成首次監護設定，不能覆寫已存在監護人。首次 email 驗證後必須完成 Passkey 及離線備援確認才 active，不能把收信當作完成復原。
+
+I02 限流計算單位為不同 requestKey／輸入的邏輯綁定嘗試，不是 HTTP 請求數；相同 key＋相同輸入的成功或失敗重送都沿用永久 reservation，不重扣。新 key 的失敗嘗試仍計額，同 key 換輸入回409。reservation 與 account／global counters 同批提交；身份／audit／成功收據另同批提交。不得把這項配額宣稱為HTTP抗DoS保護；API不執行外部生成／寄信或計費。

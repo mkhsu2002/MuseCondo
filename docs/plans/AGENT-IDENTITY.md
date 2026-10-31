@@ -13,8 +13,8 @@
 | 階段 | 範圍 | 狀態 |
 | --- | --- | --- |
 | I00 | 兩 repo 規格、計畫、現有 T04／T06 gate 調整 | 已自審、兩 repo main 文件已同步 |
-| I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；尚未正式部署 |
-| I02 | Tower 身份綁定、監護設定與安全註冊 | 本戶 provisional 綁定工程進行中；監護獨立驗證另屬 I03 |
+| I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
+| I02 | Tower 身份綁定、監護設定與安全註冊 | 6595c7d＋91f17fb；330測試、規格／品質PASS；雙環境部署驗收中 |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | 待實作 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | 待實作 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
@@ -33,10 +33,10 @@ Files: `src/identity/index.ts`、`tests/identity-core.test.ts`、`package.json`�
 
 Files: `migrations/0012_agent_identity.sql`、`server/live/identity.ts`、`server/live/worker.ts`、`tests/identity-api.test.ts`、`public/identity-onboarding.json`。
 
-- [ ] 寫既有住所 attach／新戶 provisional 與跨戶禁止測試；GET 無公開身份目錄。
-- [ ] 原子保存 agentId／account／resident／room 綁定、版本、epoch、明確監護授權與 audit／receipt；此步未有有效復原設定不得 active／核發。
-- [ ] 新 schema readiness 與本地 harness 同步；測試不變更 house、snapshot、source、directory、dream 或 manager_jobs。
-- [ ] 驗綠並逐項審查，再提交。不得自動建立 Fang／K 的監護資料。
+- [x] 寫既有住所 attach／新戶 provisional 與跨戶禁止測試；GET 無公開身份目錄。
+- [x] 原子保存 agentId／account／resident／room 綁定、版本、epoch、明確監護意向與 audit／receipt；另以永久 requestKey rate reservation 防止並發成功重送重複扣額；此步未有有效復原設定不得 active／核發。
+- [x] 新 schema readiness 與本地 harness 同步；測試不變更 house、snapshot、source、directory、dream 或 manager_jobs。
+- [x] 驗綠並逐項審查，再提交。不得自動建立 Fang／K 的監護資料。
 
 ### I03 監護與復原
 
@@ -83,3 +83,13 @@ Files: `server/live/identity-mail.ts`、郵件 migration／tests、部署 secret
 ### 統一監護人稱呼
 
 2026-10-31 使用者要求專案稱呼統一為「監護人」。5150a6d 更新公開程式／樓管提示詞／範例與測試；文件同步更新。獨立規格與品質審查PASS，主控317測試／build／lint通過，當前追蹤文本與68個可讀dist檔舊稱0；既有技術欄位、路由與住戶資料保持不變。Git歷史不重寫。發布結果另記，不把本地驗證當正式已更新。
+
+2026-10-31 v0.35：I01純核心及統一監護人稱呼已合併main／dev，兩環境部署成功，編譯JS/CSS與相同commit產物逐位元組一致、接待頁文案已讀回。沒有新身份資料／發證／復原操作。後續I02工程尚未發布，需schema同步後才部署，不將此基線回讀用作新API的證據。
+
+I02審查補充：查出預先計算時間無法涵蓋D1排隊跨到期，以及並發重送先扣限流額度兩問題，發布暫停待修。交易授權採DB執行時原生時鐘；新增identity_rate_attempts永久限流reservation，I02共四表，0012尚未套環境所以修正原未發布檔案。不得將較早325項通過當作這兩問題已修復。
+
+I03拆為a首次監護收件驗證／加密聯絡／outbox、b Passkey與離線碼設定、c復原原子撤權；依賴調整先實作I05的寄信基礎，I05仍負責最後證件附件交付驗收。沒有額外cron、Meta費用或新服務平行系統。
+
+I02規格複審91f17fb PASS：原生SQLite clock的獨立實測在token 100ms後到期、batch延遲200ms時回403且identity0；同key並發只一reservation／account與global各計一次。永久reservation對同一邏輯嘗試（成功或失敗）均免重扣，新key失敗仍計；此為冪等配額而非HTTP防護。330完整測試／47項獨立聚焦測試、typecheck／lint／build通過；品質審查與雙環境部署仍待完成。
+
+I02品質審查91f17fb PASS：獨立29項測試與4項GET／收據讀出後撤權、移戶、移除scope、query跨戶反例通過；主控330完整測試、build、lint再次全過。尚未把部署結果或真人身份綁定記為完成；Fang／K需原Agent與監護流程。
