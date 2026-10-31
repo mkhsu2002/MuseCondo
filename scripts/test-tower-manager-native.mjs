@@ -39,12 +39,18 @@ try{
  await db.prepare('UPDATE tower_autonomy_mandate SET enabled=1 WHERE id=1').run();
  const previousDay=new Date(Date.now()-86400000).toISOString().slice(0,10),previousId=`manager-${previousDay}`;
  await db.prepare("INSERT INTO tower_autonomy_cycles(id,day,state,purpose,budget_micro,created_at,updated_at,lease_until) VALUES(?,?,'image-day','synthetic interrupted prior task',1000000,?,?,?)").bind(previousId,previousDay,start,start,new Date(Date.now()-60000).toISOString()).run();
- await db.prepare("INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,state,reserved_micro,created_at) VALUES('synthetic-interrupted',?,'synthetic-expired','image-day-r0','muse-image-1.0','dispatching',10000,?)").bind(previousId,start).run();
+ await db.prepare("INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,state,reserved_micro,billing_day,created_at) VALUES('synthetic-interrupted',?,'synthetic-expired','image-day-r0','muse-image-1.0','dispatching',10000,?,?)").bind(previousId,new Intl.DateTimeFormat('en-CA',{timeZone:'America/Vancouver',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(start)),start).run();
  const recover=()=>post('/api/v1/manager/autonomy/step',{},'X-Manager-Schedule-Key','synthetic-native-schedule');
  const recovered=await (await recover()).json();assert.equal(recovered.state,'selfreview');assert.equal(recovered.pending,true);
  const unavailableReview=await (await recover()).json();assert.equal(unavailableReview.state,'blocked');assert.equal(unavailableReview.pending,true);assert.equal((await db.prepare("SELECT state FROM tower_autonomy_calls WHERE id='synthetic-interrupted'").first()).state,'unknown');assert.equal((await db.prepare("SELECT reserved_micro FROM tower_autonomy_calls WHERE id='synthetic-interrupted'").first()).reserved_micro,10000);
  assert.equal((await db.prepare("SELECT count(*) n FROM tower_autonomy_cycles WHERE state='thinking'").first()).n,1);
- console.log('PASS native compiled Pages + D1: provider-disabled autonomy fail-closed, migrations, private preview, activation, immutable replay, conflict, public projection, scope isolation, calendar ledger, audit permanence');
+ const dispatchDay=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Vancouver',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(start));
+ assert.equal((await db.prepare("SELECT billing_day FROM tower_autonomy_calls WHERE id='synthetic-interrupted'").first()).billing_day,dispatchDay);
+ await assert.rejects(db.prepare("INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,billing_day,state,reserved_micro,created_at) VALUES('native-wrong-day',?,'native-wrong-day','audit','muse-spark-1.3',?,'dispatching',1,?)").bind(previousId,previousDay,start).run());
+ await db.prepare('UPDATE tower_autonomy_mandate SET daily_limit_micro=10000 WHERE id=1').run();
+ await assert.rejects(db.prepare("INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,billing_day,state,reserved_micro,created_at) VALUES('native-daily-over',?,'native-daily-over','audit','muse-spark-1.3',?,'dispatching',1,?)").bind(previousId,dispatchDay,start).run());
+
+ console.log('PASS native compiled Pages + D1: provider-disabled autonomy fail-closed, actual dispatch-day ledger and native cap guards, migrations, private preview, activation, immutable replay, conflict, public projection, scope isolation, calendar ledger, audit permanence');
 }finally{await mf.dispose();}
 let calls=0;
 const scheduleSource=await build({stdin:{contents:`import scheduler from './workers/tower-manager/worker.ts'; let error=null;export default {fetch(r){return new URL(r.url).pathname==='/synthetic-error'?Response.json(error):scheduler.fetch();},async scheduled(e,env){try{await scheduler.scheduled(e,env);}catch(err){error={name:err.name,message:err.message,eventTime:e.scheduledTime};throw err;}}};`,resolveDir:process.cwd()},bundle:true,format:'esm',platform:'browser',write:false,target:'es2022'});
