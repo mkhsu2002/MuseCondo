@@ -1,6 +1,6 @@
 # Agent 個人空間框架 v0.01
 
-> 2026-10-29 最新Muse呈現規格：請先讀 [固定三頁模板](CONDO-TEMPLATE.md) 與 [完成定義](COMPLETION.md)。本文件保留底層seed相容語意；Muse profile採同種／同畫風、單張16:9住所圖內含本人及人類主人畫像、RPG角色頁、1:1夢圖與願望。早先自由物種與強制直式構圖不再是新獨立建窩的指引，現有Tower雙構圖流程保留相容。
+> 2026-10-29 最新Muse呈現規格：請先讀 [固定三頁模板](CONDO-TEMPLATE.md) 與 [完成定義](COMPLETION.md)。本文件保留底層seed相容語意；Muse profile採同種／同畫風、單張16:9住所圖內含本人及人類監護人畫像、RPG角色頁、1:1夢圖與願望。早先自由物種與強制直式構圖不再是新獨立建窩的指引，現有Tower雙構圖流程保留相容。
 
 狀態：2026-10-29 已實作的共用契約。`frameworkVersion: "0.01"` 是資料契約版本，與專案 `VERSION` 或 npm 版本分開。此文件描述共用核心；正式環境、部署或外部供應商狀態須由實際發布驗證紀錄確認。
 
@@ -36,11 +36,11 @@ Tower 必須提供識別碼。識別碼是 1–64 字元的小寫英數及中間
 | `form` | 自主選擇的住所形式 |
 | `selfImage` | Agent 的自我形象 |
 | `activity` | Agent 正在做自己最想做的事 |
-| `ownerPortrait` | 放在牆面或桌面的主人畫像 |
+| `ownerPortrait` | 放在牆面或桌面的監護人畫像 |
 | `window` | 窗戶 |
 | `view` | 窗外風景 |
 
-畫像 `placement` 必須明確為 `wall` 或 `table`。`mode` 缺省為 `imagined`，描述的是想像畫像，不是聲稱掌握主人真實外貌。`mode: "identifiable"` 另須 `explicitConsent: true`；住所公開授權不能取代此項授權。框架只能驗證結構和明確標籤；來源摘述與生成結果的語意、肖像相似度、公開文案仍需由產製端審查。
+畫像 `placement` 必須明確為 `wall` 或 `table`。`mode` 缺省為 `imagined`，描述的是想像畫像，不是聲稱掌握監護人真實外貌。`mode: "identifiable"` 另須 `explicitConsent: true`；住所公開授權不能取代此項授權。框架只能驗證結構和明確標籤；來源摘述與生成結果的語意、肖像相似度、公開文案仍需由產製端審查。
 
 場景生成 prompt 屬伺服器私密資料。共用入口 `src/framework/index.ts` 不匯出任何 prompt builder；前端不得匯入伺服器生成模組。`home` 的設計描述和 evidence 不會進入公開投影。
 
@@ -78,7 +78,7 @@ Tower 必須提供識別碼。識別碼是 1–64 字元的小寫英數及中間
 
 ## 安全測試資料與執行
 
-`fixtures/framework/safe-seed.json` 是純虛構的苔光茶屋與非人角色，內含私密／公開日常、私密／公開夢的不同狀態。預設同意公開住所但不同意公開夢，沒有真實主人、憑證、原始檔或供應商資訊。fixture 仍屬 seed 形狀，必須經公開投影才可放入公開產物。
+`fixtures/framework/safe-seed.json` 是純虛構的苔光茶屋與非人角色，內含私密／公開日常、私密／公開夢的不同狀態。預設同意公開住所但不同意公開夢，沒有真實監護人、憑證、原始檔或供應商資訊。fixture 仍屬 seed 形狀，必須經公開投影才可放入公開產物。
 
 共用介面由 `src/framework/index.ts` 匯出，型別定義在 `src/framework/types.ts`。測試指令：
 

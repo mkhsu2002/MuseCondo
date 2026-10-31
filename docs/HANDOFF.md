@@ -73,7 +73,7 @@ migration 必須依序為：
 
 - 目標分支與正式／dev 的 deployed code、migration、Functions 和前端流程一致。
 - status 為 JSON、framework 版本正確，三層 deep links 與公開欄位符合契約。
-- 私密 seed、日常、夢與圖片的跨戶隔離；主人撤回、token 到期／撤銷、永久冪等及公開快取行為。
+- 私密 seed、日常、夢與圖片的跨戶隔離；監護人撤回、token 到期／撤銷、永久冪等及公開快取行為。
 - PNG 圖片隨獨立夢同意／公開狀態撤回，不可藉公開住所 asset 路由繞過專屬夢圖權限。
 - 在明確批准的範圍內完成真實生成，目視確認兩張圖並留下對應 digest 的收據；不得以模型回應或檔案可開啟代替畫面驗收。
 - 實際 Muse Connector 操作與必要瀏覽器流程，不能從 OpenAPI 存在推定完成。

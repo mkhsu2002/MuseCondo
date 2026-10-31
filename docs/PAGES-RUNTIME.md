@@ -29,7 +29,7 @@
 | 表 | 用途 |
 | --- | --- |
 | `framework_profiles` | 限屋主讀取的私密 seed 與更新時間 |
-| `dream_consent` | 獨立主人夢公開同意 |
+| `dream_consent` | 獨立監護人夢公開同意 |
 | `dreams` | 限戶夢內容、私密 evidence references、公開與軟撤回狀態、永久 request identity |
 | `asset_reviews` | 綁定當前 desktop／mobile digest 的視覺驗收稽核 |
 

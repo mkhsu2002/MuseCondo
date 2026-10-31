@@ -12,9 +12,9 @@
 
 | 階段 | 範圍 | 狀態 |
 | --- | --- | --- |
-| I00 | 兩 repo 規格、計畫、現有 T04／T06 gate 調整 | 文件建立；待自審提交 |
-| I01 | 可攜永久身份及簽署憑證核心 | 待實作 |
-| I02 | Tower 身份綁定、監護設定與安全註冊 | 待實作 |
+| I00 | 兩 repo 規格、計畫、現有 T04／T06 gate 調整 | 已自審、兩 repo main 文件已同步 |
+| I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；尚未正式部署 |
+| I02 | Tower 身份綁定、監護設定與安全註冊 | 本戶 provisional 綁定工程進行中；監護獨立驗證另屬 I03 |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | 待實作 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | 待實作 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
@@ -24,10 +24,10 @@
 
 Files: `src/identity/index.ts`、`tests/identity-core.test.ts`、`package.json`。
 
-- [ ] 寫反例測試：篡改、未知欄位、錯 issuer／key、錯誤 ID／日期、秘密欄位、同 email 不決定身份。
-- [ ] 執行 `node --experimental-strip-types --test tests/identity-core.test.ts` 確認反例對缺少核心失敗。
-- [ ] 提供 `createAgentId()`、`validateIdentityRecord()`、`validateCredentialPayload()`、`signCredential()`、`verifyCredential()`；canonical JSON 與信任錨不接受任意 payload 公鑰。
-- [ ] 同命令驗綠；`npm run typecheck`；獨立規格審查→品質審查→修正→提交。
+- [x] 寫反例測試：篡改、未知欄位、錯 issuer／key、錯誤 ID／日期、秘密欄位、同 email 不決定身份。
+- [x] 執行 `node --experimental-strip-types --test tests/identity-core.test.ts` 確認反例對缺少核心失敗。
+- [x] 提供 `createAgentId()`、`validateIdentityRecord()`、`validateCredentialPayload()`、`signCredential()`、`verifyCredential()`；canonical JSON 與信任錨不接受任意 payload 公鑰。
+- [x] 同命令驗綠；`npm run typecheck`；獨立規格審查→品質審查→修正→提交。
 
 ### I02 身份綁定
 
@@ -63,7 +63,7 @@ Files: `server/live/identity-mail.ts`、郵件 migration／tests、部署 secret
 - [ ] 先按 newsletter-worker-standard 盤點現有部署端 provider secret、寄件網域、收件驗證。缺授權則保留配置 gate，其他免費工程繼續。
 - [ ] 收件地址加密、一次性確認；outbox 同事件立即 dispatch、永久 dedupe、unknown reconcile、經簽章 webhook；無分鐘 cron。
 - [ ] 測單一明確授權收件人、PDF／JSON 附件可用、重送無新信、退信／抑制／撤證／timeout audit；正式收件人不從舊 email 猜測。
-- [ ] 綠→兩階段審查→提交；實際 delivered／主人取得未驗前不記完成。
+- [ ] 綠→兩階段審查→提交；實際 delivered／監護人取得未驗前不記完成。
 
 ### I06 發布與住戶
 
@@ -75,3 +75,11 @@ Files: `server/live/identity-mail.ts`、郵件 migration／tests、部署 secret
 ## 每步紀錄
 
 記錄程式 commit、反例／正例、規格／品質問題與修正、dev／正式部署 ID、migration hash、deployed schema／code／live audit。只有實際重新查核才填查核日期；設計核准日期不能冒充外部狀態更新。私密資料留官方私密 repo 或安全儲存；公開 repo 只留通用契約與去識別化證據。
+
+### I01 自審與修正
+
+2026-10-31：純核心不含持久化／API或身份操作授權。獨立品質審查發現 JavaScript Proxy 可在驗證後更換讀值，使簽署與檢查不一致；已先新增兩個真實 Ed25519 反例驗紅，7edcd36 改為 exact data-descriptor snapshot，只對同一普通 snapshot 驗證及簽驗。規格／品質複審均 PASS，主控再次執行14項測試全過。未據此宣稱發證／復原已上線。
+
+### 統一監護人稱呼
+
+2026-10-31 使用者要求專案稱呼統一為「監護人」。5150a6d 更新公開程式／樓管提示詞／範例與測試；文件同步更新。獨立規格與品質審查PASS，主控317測試／build／lint通過，當前追蹤文本與68個可讀dist檔舊稱0；既有技術欄位、路由與住戶資料保持不變。Git歷史不重寫。發布結果另記，不把本地驗證當正式已更新。

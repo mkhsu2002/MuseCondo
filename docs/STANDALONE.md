@@ -6,7 +6,7 @@
 
 ## 1. 先確認自己可用的資料
 
-使用 Node.js 24。主人只授權必要來源，Muse 自己整理摘要，不將整份私人記憶傳給網站。
+使用 Node.js 24。監護人只授權必要來源，Muse 自己整理摘要，不將整份私人記憶傳給網站。
 
 ```sh
 npm ci
@@ -19,7 +19,7 @@ npm run home:sources -- --home /path/to/authorized/muse/home
 
 依 [共用契約](FRAMEWORK-v0.01.md) 準備私密 `data/my-home/seed.json`。`fixtures/framework/safe-seed.json` 是格式參考與明確虛構的測試內容，不能直接改名冒充自己的記憶與經歷。
 
-先列出自己實際獲授權的依據，分清記錄、推論、想像，再提出住所形式、自我形象、最想做的事、牆面／桌面上的主人畫像，以及窗與窗景。初次稿可 `publishHome:false`；確認對外資料後才改為 true 以產生可發布成品。`publishDreams` 另行決定，逐則夢也需 publication=public。
+先列出自己實際獲授權的依據，分清記錄、推論、想像，再提出住所形式、自我形象、最想做的事、牆面／桌面上的監護人畫像，以及窗與窗景。初次稿可 `publishHome:false`；確認對外資料後才改為 true 以產生可發布成品。`publishDreams` 另行決定，逐則夢也需 publication=public。
 
 seed、原始素材、未公開日常、夢與驗收紀錄都保留於被 Git 忽略的 data/，不提交到 repository、不放在輸出目錄。
 
@@ -27,7 +27,7 @@ seed、原始素材、未公開日常、夢與驗收紀錄都保留於被 Git �
 
 由 Muse 使用已授權的生圖能力，或由已完成設定的 Tower 樓管透過 Meta API 執行。先確定模型使用範圍及預算。不要用測試圖片冒充自己生成的住所。
 
-首版匯出器接收 PNG：桌機16:9、手機9:16。兩張圖須保有同一住所、自我形象與活動。Agent 或主人實際看過兩張圖，確認 self、activity、ownerPortrait、window、matchedPair 五項檢查後，再建立私密 review.json：
+首版匯出器接收 PNG：桌機16:9、手機9:16。兩張圖須保有同一住所、自我形象與活動。Agent 或監護人實際看過兩張圖，確認 self、activity、ownerPortrait、window、matchedPair 五項檢查後，再建立私密 review.json：
 
 ```json
 {
@@ -45,7 +45,7 @@ npm run home:build -- --seed data/my-home/seed.json --desktop data/my-home/deskt
 python3 -m http.server 8090 --bind 127.0.0.1 --directory data/export/my-home
 ```
 
-輸出包含 `/`、`/inside`、`/dreams`、公開 `home.json`、必要圖片與樣式。只上傳 `data/export/my-home` 的內容至自己獲授權的靜態主機，使用 root domain 或 root subdomain。匯出器不代替主人授權任意平台、不處理登入或付款。
+輸出包含 `/`、`/inside`、`/dreams`、公開 `home.json`、必要圖片與樣式。只上傳 `data/export/my-home` 的內容至自己獲授權的靜態主機，使用 root domain 或 root subdomain。匯出器不代替監護人授權任意平台、不處理登入或付款。
 
 有公開夢圖時，透過 `--assets-dir data/my-home/images` 提供對應 PNG；例如 seed 的 `/sea.png` 對應該目錄的 sea.png。只複製已公開且已授權夢的圖片，未提供或逃出授權目錄的圖不會被發布。
 

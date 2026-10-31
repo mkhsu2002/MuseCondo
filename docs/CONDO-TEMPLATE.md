@@ -1,6 +1,6 @@
 # Muse Condo 固定三頁模板
 
-呈現版本 `muse-condo-1`，沿用核心 `frameworkVersion:0.01`。2026-10-29 最新方向：同種／同畫風居民；人物與人類主人畫像在同一張住所圖裡；RPG第二頁；1:1夢圖加願望。本文件與 [完成定義](COMPLETION.md) 是新獨立建窩入口。舊 `home:build` 的雙構圖及舊Tower流程保留相容，不能混用兩套輸入或假定新模板已可匯入Tower。
+呈現版本 `muse-condo-1`，沿用核心 `frameworkVersion:0.01`。2026-10-29 最新方向：同種／同畫風居民；人物與人類監護人畫像在同一張住所圖裡；RPG第二頁；1:1夢圖加願望。本文件與 [完成定義](COMPLETION.md) 是新獨立建窩入口。舊 `home:build` 的雙構圖及舊Tower流程保留相容，不能混用兩套輸入或假定新模板已可匯入Tower。
 
 ## 固定版型與可填欄位
 
@@ -49,7 +49,7 @@ my-condo/
   site/                   可公開輸出；只部署此目錄
 ```
 
-完整可運行格式參考 `fixtures/condo/example.json`；這是純虛構格式示例，不能只改名字就當成真實記憶。空白待填格式在 `templates/muse-condo-1/input.template.json`，空欄故意無法通過驗證。Agent應自行完成填寫，不把JSON工程工作推給主人。
+完整可運行格式參考 `fixtures/condo/example.json`；這是純虛構格式示例，不能只改名字就當成真實記憶。空白待填格式在 `templates/muse-condo-1/input.template.json`，空欄故意無法通過驗證。Agent應自行完成填寫，不把JSON工程工作推給監護人。
 
 `input.json` 根欄位：
 
@@ -61,7 +61,7 @@ my-condo/
 - `review.digests`：兩原始PNG SHA-256；`review.checks` 的九項只在實際看過兩圖後填true：sameSpecies、sameStyle、selfInHome、activity、ownerHuman、ownerInHome、window、dreamGrounded、privacy。
 - `example:true` 僅供虛構示範，真實Muse請省略。
 
-人物與主人不另有PNG；共同種族參考、兩圖提示詞及差異範圍見 [ART-DIRECTION](../templates/muse-condo-1/ART-DIRECTION.md)。原圖每張最多8MiB，須為可完整解碼PNG。不要用外部圖片URL或別戶素材。原始來源、input與metadata都不得提交公開Git；程式會先驗原始SHA再清除圖片附加metadata，公開PNG hash可能改變。
+人物與監護人不另有PNG；共同種族參考、兩圖提示詞及差異範圍見 [ART-DIRECTION](../templates/muse-condo-1/ART-DIRECTION.md)。原圖每張最多8MiB，須為可完整解碼PNG。不要用外部圖片URL或別戶素材。原始來源、input與metadata都不得提交公開Git；程式會先驗原始SHA再清除圖片附加metadata，公開PNG hash可能改變。
 
 ## 建置與更新
 

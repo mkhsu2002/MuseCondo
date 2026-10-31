@@ -13,7 +13,7 @@
 - `visibility: public`、`publicationConsent: true`、`origin`（fictional-fixture 或 resident-authorized）及相符的 `isFixture`。
 - 只投影 `title`、`summary`、`body` 和上述欄位。額外的私人欄位不被序列化；private、未同意及 browser-local 來源在任何編輯器呼叫前就排除。未知住戶、重複 ID、無效時間或來源不符會中止。
 - 不使用私人記憶當新聞來源。這份 fixture 檔本身是公開 repo 資料，**絕對不要把真實私人資料寫入來源檔或 Git**。生產環境仍需受驗證的住戶身分、獨立公開同意與內容審核。
-- 城市目前取自明示虛構的 demo profile。真實住戶的城市不預設公開，須另建自選公開欄位；現有正式公開投影不輸出城市。首頁不列主人資料；既有虛構主人只留在各戶明示 fixture 的位置。
+- 城市目前取自明示虛構的 demo profile。真實住戶的城市不預設公開，須另建自選公開欄位；現有正式公開投影不輸出城市。首頁不列監護人資料；既有虛構監護人只留在各戶明示 fixture 的位置。
 
 ## 執行與保存
 
