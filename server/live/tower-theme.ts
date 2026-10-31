@@ -1,3 +1,4 @@
+import {acceptedThemeBuild} from './tower-theme-build-review.ts';
 import {LOBBY_RENDERER_BUILD_HASH} from '../../src/shared/lobby-base-css.ts';
 import type {Database,Statement} from './db.ts';
 import type {AssetBucket} from './tower-autonomy.ts';
@@ -25,9 +26,9 @@ const themeObjects=['tower_autonomy_extensions','tower_theme_artifacts','tower_t
 export async function themeSchemaReady(db:Database){const rows=(await db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger')").all<{name:string}>()).results;return themeObjects.every(n=>rows.some(r=>r.name===n));}
 export async function themePresentation(db:Database,generation:string,appearanceRevision:number,now:()=>Date=()=>new Date()){
  if(!await themeSchemaReady(db))return undefined;
- const at=now().toISOString();const row=await db.prepare(`SELECT a.manifest_json,a.sha256,a.renderer_build_hash,p.revision,p.ends_at FROM tower_theme_current p JOIN tower_theme_artifacts a ON a.id=p.artifact_id JOIN tower_autonomy_extensions e ON e.id=p.extension_id JOIN tower_autonomy_current i ON i.generation_id=p.generation_id AND i.revision=p.appearance_revision WHERE p.id=1 AND p.generation_id=? AND p.appearance_revision=? AND p.starts_at<=? AND p.ends_at>? AND json_extract(e.audit_json,'$.verdict')='PASS' AND json_extract(e.audit_json,'$.manifestHash')=a.sha256`).bind(generation,appearanceRevision,at,at).first<{manifest_json:string;sha256:string;renderer_build_hash:string;revision:number;ends_at:string}>();
+ const at=now().toISOString();const row=await db.prepare(`SELECT a.id AS artifact_id,a.manifest_json,a.sha256,a.renderer_build_hash,p.revision,p.ends_at FROM tower_theme_current p JOIN tower_theme_artifacts a ON a.id=p.artifact_id JOIN tower_autonomy_extensions e ON e.id=p.extension_id JOIN tower_autonomy_current i ON i.generation_id=p.generation_id AND i.revision=p.appearance_revision WHERE p.id=1 AND p.generation_id=? AND p.appearance_revision=? AND p.starts_at<=? AND p.ends_at>? AND json_extract(e.audit_json,'$.verdict')='PASS' AND json_extract(e.audit_json,'$.manifestHash')=a.sha256`).bind(generation,appearanceRevision,at,at).first<{artifact_id:string;manifest_json:string;sha256:string;renderer_build_hash:string;revision:number;ends_at:string}>();
  if(!row||row.ends_at<=now().toISOString())return undefined;
- if(row.renderer_build_hash!==LOBBY_RENDERER_BUILD_HASH)throw Error('theme_renderer_build_mismatch');
+ if(row.renderer_build_hash!==LOBBY_RENDERER_BUILD_HASH&&!await acceptedThemeBuild(db,row.artifact_id,LOBBY_RENDERER_BUILD_HASH))throw Error('theme_renderer_build_mismatch');
  const manifest=validateLobbyTheme(JSON.parse(row.manifest_json));if(await hashManifest(manifest)!==row.sha256||row.ends_at<=now().toISOString())throw Error('theme_projection_invalid');
  return {version:1 as const,id:row.sha256,revision:row.revision,manifest};
 }
