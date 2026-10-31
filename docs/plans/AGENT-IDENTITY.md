@@ -14,8 +14,8 @@
 | --- | --- | --- |
 | I00 | 兩 repo 規格、計畫、現有 T04／T06 gate 調整 | 已自審、兩 repo main 文件已同步 |
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
-| I02 | Tower 身份綁定、監護設定與安全註冊 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
-| I03 | Passkey／離線碼復原與舊授權全面失效 | a與b後端審核通過、b頁面審核修正中；c未實作，整體尚未發布 |
+| I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
+| I03 | Passkey／離線碼復原與舊授權全面失效 | a與b後端及頁面已兩階段審核通過；c的Passkey後端已兩階段審核PASS、離線重建實作中；整體尚未發布 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | 待實作 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
@@ -42,7 +42,7 @@ Files: `migrations/0012_agent_identity.sql`、`server/live/identity.ts`、`serve
 
 Files: `server/live/identity-guardian.ts`、`server/live/identity-recovery.ts`、`public/identity.html`、`public/identity.js`、`public/identity.css`、新增 migration、對應整合測試。
 
-- [ ] 從官方 verifier 契約驗證 Passkey 與 edge 支援；固定依賴，註冊需被授權 bootstrap，瀏覽器 user verification required。
+- [x] 從官方 verifier 契約驗證 Passkey 與 local workerd 支援；固定依賴，註冊需被授權 bootstrap，瀏覽器 user verification required。正式／真人另驗。
 - [ ] 一次性 operation-bound challenge、RP／origin／counter／UV、監護版本、期限與 epoch 提交時重驗；離線碼 hash-only、下載確認與消耗換新。
 - [ ] 復原 complete 同批撤銷舊 tokens／grants／sessions，停用舊帳戶 credential 發權及舊 reception 啟用；新 token 僅本戶、限時，不覆寫公開內容。
 - [ ] 測雙復原、跨戶、過期／撤銷競爭、舊收據、全途徑失效；綠→兩階段審查→提交。
@@ -111,3 +111,9 @@ I03a工程79bae08／bf4832a／6cc7ebd已規格與品質兩階段PASS（370項當
 - 通知與audit在同批持久化，不含raw code／key／assertion／email；I05開通固定安全通知模板前保持待送，不把unsupported事件錯誤清除，不能把pending當成已通知。無新增排程或付費生成。
 
 本地edge相容性補驗：固定3c68e5b的核心／WebAuthn碼以Wrangler4.156.0、compat2026-10-29在local workerd實際執行，真P-256 none-attestation註冊驗證、錯origin拒絕、Ed25519簽驗與篡改拒絕皆true；無新增compat flag、無provider／部署secret／真人憑證。此為本地workerd crypto驗證，非正式部署SQL流程或真人硬體UV證據。25項runtime依賴原license／notice全文與實際安裝檔逐一核對，無缺漏。
+
+I03b頁面9fd6209修正後規格與品質複審PASS：畸形options與native parser錯誤皆原body/key重試；邀請信補足persisted invitationId並同步UI/machine。419項當時完整測試PASS，品質獨立43項UI/mail/Pages/build及97項identity測試、隔離固定hash建置通過（測試有重疊，不相加）。I03c第一切片進入Passkey後端及舊發權隔離實作，離線驗證器修復與復原UI仍未完成，維持不發布。
+
+歷史GitHub Pages稱呼補正：6fa1a7a僅修legacy compiled JS六個稱呼、更新內容雜湊檔名與25個HTML引用，其他52個共同blob及Fang四個轉址／manifest保持相同；規格與品質審核、JS語法皆PASS。官方Pages build讀回built／同commit，公開首頁、新JS及Fang四個舊路徑HTTP200且與commit逐位元組一致。這是legacy gh-pages生成物修復，不改main／dev的身份發布基線或Git歷史。
+
+I03c第一切片90bb85e／0f65506：Passkey復原、全面撤舊權與history保留完成，規格及品質複審PASS。主控審核發現browser clientDataJSON過度exact會拒Chromium合法額外欄位，已先真簽章驗紅後只移除此限制，平台外層及所有授權檢查維持。432項當時完整測試（另有8項版本測試）、品質獨立144項相關測試PASS；新並行測試含A／B定序及finally釋放。固定0f65506以local workerd實際驗P-256註冊／含browser extra的assertion、錯origin／sig／過舊counter拒絕皆true，仍非正式SQL流程或真人UV驗收。0015尚未套環境，離線Passkey重建與復原頁面未完，整體不發布。

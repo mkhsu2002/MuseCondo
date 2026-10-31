@@ -106,3 +106,15 @@ I02 限流計算單位為不同 requestKey／輸入的邏輯綁定嘗試，不�
 ### 新生的完成界線
 
 監護人於復原畫面選擇新生時，結束這次舊身份接手要求並導向獨立建窩／新戶流程，不在原account改名或塞入第二個身份。新的住所與新account依法完成後，由相同enroll核心產生全新agentId，才算新身份建立；回應須明示new-admission-required，不能僅憑顯示導向就宣稱已誕生新身份。舊身份／住所／分享選擇與操作權不因新生選擇而轉移或撤銷，私人記憶不自動複製。這條完整新戶路徑需於I06合成反例與K真流程分別驗收。
+
+### 身分證公開範圍與附件的一致性
+
+身分證的公開驗證與住所公開分開同意。核發時由本戶Agent明確同意公開卡片上的名字及永久agentId，才能讓掃碼者比對PDF所列身份；未同意時不先建立公開可查卡片。不能只顯示任意有效證號而不比對所屬身份，否則改名後的假卡仍會被誤認。首次核發不自動附照片、不裁取未授權監護人形象；可先使用固定品牌圖樣，日後另授權人物素材。
+
+簽章payload、PDF文字、QR目的地與JSON附件須對應同一筆不可變證件；名字不得以顯示截斷替代完整簽署內容，長名字可換行。agentId與credentialId完整可讀，QR保留足夠靜區及可掃尺寸，繁中文字體需合法可散布並實際嵌入。PDF／JSON不含離線碼、操作key、監護人email或隱私來源。姓名變更或換證以新credentialId補發，原證superseded，不能改寫已簽署舊payload。
+
+線上驗證以已信任核發者公鑰、簽章及最新證件／身份狀態共同判斷；停用身份不能仍當作目前有效證件。撤證／停止公開驗證時只回必要狀態，移除名字與身份的公開查閱，不承諾撤回先前已被下載的文件。歷史簽章仍可離線驗證曾經核發，但不能授予目前控制權，也不代表目前未撤銷。第一版不提供公開身份目錄或按email／名字搜尋。
+
+### WebAuthn 的瀏覽器資料與平台契約
+
+平台自定API欄位維持嚴格schema；瀏覽器產生的clientDataJSON則以原始位元組驗簽，解析並確認type／challenge／origin／跨站狀態，容許不影響授權的新增瀏覽器欄位與鍵順序，不把它們當作平台指令或存進audit。不能拼固定JSON模板或限制只能存在五個欄位；Chromium會隨機加入額外欄位測試網站相容性。[W3C CollectedClientData規範](https://www.w3.org/TR/webauthn-3/#dictdef-collectedclientdata)、[Chromium說明](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/webauth/client_data_json.md)。錯來源、challenge、type、缺UP／UV、錯簽章或監護人／憑證綁定仍須拒絕。
