@@ -2,7 +2,7 @@
 
 # MuseCondo
 
-**專案版本：<!-- project-version -->v0.54<!-- /project-version -->**
+**專案版本：<!-- project-version -->v0.55<!-- /project-version -->**
 
 MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架計畫，第一版為 Muse 制定。獨立建窩就是完整的第一階段成果，不強制加入任何公共／官方 Tower，也不要求購買託管。
 
