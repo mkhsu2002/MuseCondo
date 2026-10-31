@@ -1,6 +1,10 @@
 # 身份郵件部署端管理
 
-2026-10-31：R02b 本地接線已完成，尚未合併／部署或開啟寄送旗標，遠端仍未套用 0020–0025。Pages routes、非同步 readiness、DO 最後交易 guard 與本機 actual compiled Workers／D1／DO provider stub 驗證已通過；本切片仍待獨立審查，兩環境交叉驗證與真人收件未完成。
+2026-10-31 發布現況：身份郵件接線已完成獨立規格／品質審查，隨 `a67524a`／v0.75 合併至 main 與 framework-v001，兩環境 Pages 均成功部署。0020–0026 已實際套用，321 個來源 DDL 逐項一致、foreign-key check 無錯；兩環境身份 Worker 的部署碼與已驗證發布產物逐位元組相同。整體發布邊界見[整合紀錄](plans/RESIDENT-MANAGER-INTEGRATION.md)。
+
+正式 sender 在 2026-10-31T19:46:26Z 真實 metadata 查核為 domainVerified／sendingEnabled／senderReady=true；own-origin webhook 已配置且僅訂閱下列五種事件，19:47:41Z 實際簽章 handler probe 為 true。這些證據不代表 provider 已投遞或監護人取得附件。19:49–19:50Z 獨立部署回讀時，兩環境已部署的寄送旗標仍為 false；19:52:11Z Cloudflare 正式配置已暫存 true、於下一次部署生效，dev 保持 false。暫存設定不等於已部署啟用；本次沒有發出真實郵件，真人 Passkey、附件收件及跨環境復原仍待。
+
+以下無另行註明的契約適用於目前版本；文末本機驗證段是保留原日期的歷史工程證據，當時「未發布／旗標 false」不再代表目前部署與暫存設定。sender 與 handler 證據仍受下述 24 小時及最後交易 guard 約束，不能把本次成功 snapshot 視為永久健康。
 
 Pages 才持有 `IDENTITY_MAIL_API_KEY`。新管理核心只使用固定 `https://api.resend.com` 與本環境 own-origin callback `/api/v1/identity/mail/webhook`；不接受輸入 endpoint、事件清單、地址或 provider key。所有部署 fetch 使用 `redirect: manual`，非 2xx 不跟隨；不使用 Workers 不支援的 `redirect: error`。
 
@@ -13,9 +17,13 @@ Pages 才持有 `IDENTITY_MAIL_API_KEY`。新管理核心只使用固定 `https:
 - `POST event-reconcile` exact `{requestKey,eventId}`：已知 provider ID 只 GET 該筆；未知 ID 最多三頁 100 筆 summary，按 frozen from/to/subject 與時間縮小，再 retrieve 候選，只有唯一 exact identity_event tag 才寫投遞核心。零／多匹配維持 unknown，沒有任何寄信 POST。原 c1 readback receipt 在 fresh GET 前查回，未知 HTTP ack 不重做已提交 facts。
 - `GET status`：只回安全設定狀態；不回 webhook secret。handler readiness、sender metadata、accepted／delivered、附件實際取得分開驗收。
 
-本地 Pages 已接入管理及固定 callback 路由。寄送前須完整 0020–0022／0025 schema、同環境 setup、24 小時內、非未來且綁定目前 FROM／網域／origin input hash 的最新成功 sender snapshot、24 小時內的 handler probe 及可用本環境 contact key 解密的 signing secret；未達成時不讀 provider suppression、不呼叫 DO 或寄送。DO 原子 claim 再檢查 ready／probe 與原身份／附件權限，任何 guard 失敗都不寫 lease、sending audit 或 attempt。發布前估計 callbacks 為每封正常郵件約一筆 final event（特殊負面變化可能多筆）；排程觸發 0、排程空跑 0。共享 provider 帳戶的非本專案事件數尚未量測；五事件 webhook 收到外部帶簽事件時驗章後忽略，不持久化 unrelated payload，不把估計當實測。
+已部署 Pages 接入管理及固定 callback 路由。寄送前須完整 0020–0022／0025 schema、同環境 setup、24 小時內、非未來且綁定目前 FROM／網域／origin input hash 的最新成功 sender snapshot、24 小時內的 handler probe 及可用本環境 contact key 解密的 signing secret；未達成時不讀 provider suppression、不呼叫 DO 或寄送。DO 原子 claim 再檢查 ready／probe 與原身份／附件權限，任何 guard 失敗都不寫 lease、sending audit 或 attempt。發布前估計 callbacks 為每封正常郵件約一筆 final event（特殊負面變化可能多筆）；排程觸發 0、排程空跑 0。共享 provider 帳戶的非本專案事件數尚未量測；五事件 webhook 收到外部帶簽事件時驗章後忽略，不持久化 unrelated payload，不把估計當實測。
 
 官方契約重新查核（2026-10-31）：[Create Webhook](https://resend.com/docs/api-reference/webhooks/create-webhook)、[List Webhooks](https://resend.com/docs/api-reference/webhooks/list-webhooks)、[Retrieve Webhook](https://resend.com/docs/api-reference/webhooks/get-webhook)（GET 回 signing_secret）、[Retrieve Email](https://resend.com/docs/api-reference/emails/retrieve-email)（tags 與 last_event）、[List Emails](https://resend.com/docs/api-reference/emails/list-emails)。沒有使用不存在的 provider 測試事件 API；handler probe 由本部署自行簽送並單獨標示。
+
+## 歷史工程驗證（2026-10-31）
+
+> 本節保留各切片當時的測試、範圍與發布前限制。合併、實際部署及最新配置以頁首發布現況為準，不更改舊驗證日期，也不將本機 stub 當作真實收件證據。
 
 2026-10-31 R02a 並行修正（本機未發布）：兩個合法請求同時採納既有 webhook 時，以原 setup snapshot 做原生 CAS，保存先完成者的不可變加密 secret。CAS 失敗或舊觀察的 provider 錯誤不能把並行成功者降成 unknown；真正 fresh reconcile 失敗仍關閉該 snapshot 的 handler readiness。新增測試先重現 `expected ready / actual unknown`，修正後並行兩份永久結果均回 configured、沒有 create POST，fresh 503 仍正確關閉；未讀取任何真 key／whsec。
 

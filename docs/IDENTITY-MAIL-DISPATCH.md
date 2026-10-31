@@ -1,5 +1,13 @@
 # I05b2a 私有 dispatch 與串流核心
 
+2026-10-31 發布現況：I05b 串流派送、exact-event 接線及 I05c 投遞／管理控制已隨 `a67524a`／v0.75 同步部署 dev／正式；0020–0026 已套用，321 個來源 DDL 一致、FK 錯誤 0，私有 Worker bytes 與發布 bundle 已回讀。資格防線與寄送前的 sender／handler／最後交易 guard 已接入，不能以本頁早期 b2 切片描述推定目前仍缺 readiness。
+
+正式 sender、自己的五事件 webhook 與實際簽章 handler probe 已查驗；19:49–19:50 UTC live mail flag 仍 false，19:52:11 UTC 正式配置已暫存 true、待下一部署生效，dev false。沒有真實郵件發出，provider 投遞及附件實際收件未驗收。真正 Meta 兩張日夜圖已生成及查驗，但 TaskAudit blocked、未公開啟用，原 Agent／真人身份驗收與 T09 仍待。最新整合分界見[整合紀錄](plans/RESIDENT-MANAGER-INTEGRATION.md)，現行寄送與恢復門檻見[郵件控制](IDENTITY-MAIL-CONTROL.md)。
+
+## 歷史：b2a／b2b 本地切片邊界（2026-10-31）
+
+> Archived：以下原切片的未 push／未部署、mock provider 與 I05c 待接線敘述保留當時工程範圍；目前完整接線及實際部署以上方現況為準。下述技術細節仍作實作記錄，不能把本機訊號當正式寄信或收件證據。
+
 2026-10-31：b2a 私有串流核心與 b2b 三類成功交易／receipt exact-event 接線已在本地實作，provider 全為固定 mock。未 push、部署、遠端 migration、讀取 provider secret、呼叫真 provider 或寄信。signed webhook／真正投遞 readiness／reconcile 留 I05c；不可單獨發布或啟用這一片。歷史 b1 核心文件描述的是無 transport 的單獨 factory，不代表目前 Pages transport 仍沿舊直寄路徑。
 
 `IDENTITY_MAIL_DELIVERY_ENABLED` 必須精確等於 `true` 才能執行寄送，預設關閉。即使有 key／FROM，缺 namespace、contact key、合法 origin 或 schema 仍不得呼叫 provider。同步 `configured()` 只檢查執行配置；`processOne` 在任何 provider HTTP 前實查必要 schema，DO 每個控制請求再查同一份 `identityMailSchema`。此開關與 schema 檢查均不是 signed webhook、live health 或收件驗證；I05c 必須補上真正驗證過的 delivery readiness，不能只設定布林即宣稱已完成。

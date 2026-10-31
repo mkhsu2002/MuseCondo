@@ -1,5 +1,13 @@
 # I05c1 私有投遞事實核心
 
+2026-10-31 發布現況：本投遞核心與 I05c2 Pages／私有 Worker 管理路由已隨 `a67524a`／v0.75 同步部署 dev／正式；0020–0026 已實際套用，321 個來源 DDL 一致、FK 錯誤 0，資格與最後交易防線均已整合。正式 sender、自己的五事件 webhook 及實際簽章 handler probe 已查驗，並非目前仍 dormant 或未接 router。
+
+19:49–19:50 UTC 的 live mail flag 仍 false；19:52:11 UTC 正式配置已暫存 true，待下一部署生效，dev false。沒有真實郵件發出，provider delivered、附件實際取得及監護／復原真人驗收未完成。真正 Meta 已生成並查驗兩張日夜圖，但 TaskAudit blocked、尚未公開，不完成 I06／T09。最新分界見[整合紀錄](plans/RESIDENT-MANAGER-INTEGRATION.md)，目前管理 API、24 小時 readiness 與恢復流程見[郵件控制](IDENTITY-MAIL-CONTROL.md)。
+
+## 歷史：c1 dormant core 切片範圍（2026-10-31）
+
+> Archived：以下 c1 的未接路由／未部署、0020–0022 待套及 c2 待實作敘述，保留當時工程與測試邊界，不代表目前整合版本。原簽章／收據／投遞事實契約繼續保留，不將任何本機合成訊號擴張為實際投遞或收件。
+
 2026-10-31：本地 dormant core。新增 `0022_identity_mail_delivery.sql` 與私有 factory；沒有接 Pages／Worker router，沒有 provider 管理 API、provider key、真 webhook secret、寄送、排程或遠端 migration。既有 delivery 開關不變，此片不能獨立發布或啟用寄送。0020–0022 均須在後續完整雙環境發布時與 Pages／DO／真正 readiness 一起驗證。
 
 ## 私有介面與 c2 邊界

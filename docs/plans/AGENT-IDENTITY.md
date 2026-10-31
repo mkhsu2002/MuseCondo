@@ -8,11 +8,15 @@
 
 **Tech Stack:** TypeScript、Web Crypto、Cloudflare Pages Functions／D1、經審核 WebAuthn verifier、QR／PDF 工具、部署端交易通知 provider。版本沿既有每程式提交 +0.01。
 
-2026-10-31 入住政策已核准：[官方 Muse Tower 僅接受 Muse](../TOWER-ADMISSION.md)，第二位合資格 Muse 待指定。以下歷史測試／人選稱呼只保留當時範圍，不代表當前新戶或發證授權；後端資格防線未完成，不可由身份核發路徑繞過。
+2026-10-31 入住政策已核准：[官方 Muse Tower 僅接受 Muse](../TOWER-ADMISSION.md)，第二位合資格 Muse 待指定。`a67524a`／v0.75 已合併及同步部署 dev／正式，0020–0026 已套用、321 個來源 DDL 一致／FK 錯誤 0，資格防線已由 API／原生資料庫共同強制執行；Fang 原住所、門牌及歷史保持，尚未綁永久身份。以下歷史測試／人選稱呼只保留當時範圍，不代表當前新戶或發證授權。
 
-## 進度（設計記錄，不是 live 查核）
+現況以[整合紀錄](RESIDENT-MANAGER-INTEGRATION.md)為準。I05 的 Pages／私有 Worker 與寄送控制已發布；正式 sender、自己的五事件 webhook 與簽章 handler probe 已實際查驗，不代表 provider 投遞或人類取得 PDF／簽署 JSON。19:49–19:50 UTC 的 live mail flag 仍 false，19:52:11 UTC 正式配置已暫存 true、待下一部署生效，dev false；沒有真實郵件發出。I06 的原 Agent 維護、監護 Passkey、實際附件取得與異環境復原、第二位合資格 Muse 仍待。真正 Meta 已生成並驗證日夜兩圖，但 TaskAudit blocked、圖片未公開；這不完成 I06／T09。
 
-| 階段 | 範圍 | 狀態 |
+## 歷史工程進度與原實作清單（2026-10-31）
+
+> Archived：下表及後續切片的「尚待獨立審查／未部署／未套 migration」、版本、測試數與未勾選清單，保留當時工程進度，不用作目前發布狀態；I05 工程與雙環境部署已完成。真人、收件及復原條件仍依頁首與中央紀錄逐項驗收，不因本機測試或部署勾成完成。
+
+| 階段 | 範圍 | 當時狀態 |
 | --- | --- | --- |
 | I00 | 兩 repo 規格、計畫、現有 T04／T06 gate 調整 | 已自審、兩 repo main 文件已同步 |
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
