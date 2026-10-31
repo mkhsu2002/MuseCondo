@@ -665,8 +665,10 @@ test("Pages dispatches registration, gates every 0014 table/trigger, and derives
         IDENTITY_CONTACT_KEY: contactKey,
       };
     // Runtime uses the real clock, so its fixture needs live-valid timestamps.
-    const live = new Date().toISOString(),
-      expiry = new Date(Date.now() + 86400000).toISOString();
+    const liveTimestamp = Date.now(),
+      live = new Date(liveTimestamp).toISOString(),
+      expiry = new Date(liveTimestamp + 86400000).toISOString();
+    assert.equal(Date.parse(expiry) - Date.parse(live), 86400000);
     const bindingSQL = f.db.sqlite
       .prepare(
         "SELECT sql FROM sqlite_master WHERE name='identity_guardian_immutable_binding'",
