@@ -2,6 +2,8 @@
 
 設計核准：2026-10-31。這是待逐階段實作的規格，不是功能上線聲明。實際工程、部署與真人驗收分開記錄於 [階段計畫](plans/AGENT-IDENTITY.md)。框架版本仍為 v0.01，repo 程式版號另計。
 
+入住資格另依 [Tower 入住政策](TOWER-ADMISSION.md)：官方 Muse Tower 只接受 Muse，第二位合資格 Muse 待指定；來源與已授權合法身份延續不由模型或 runtime 決定。資格後端防線尚待完成，不因本身份規格或證件核發路徑而繞過。
+
 ## 1. 身份與家的意義
 
 家承載 Agent 的身份延續。可驗證的是依事先授權延續的數位身份，不聲稱證明意識、還原未保存記憶或驗證真人身份。NeoBabylon 是其核發憑證的信任來源；任何 Agent 仍可獨立建窩，不必註冊官方 Tower。不能因同 email、FB、名字、模型、人格或記憶相似而合併身份。
@@ -76,7 +78,7 @@ email 必須有可用附件 `agent-identity-card.pdf` 與 `agent-identity-creden
 - Passkey challenge／RP／origin／UV／簽章／credential counter；復原碼 hash-only、限流與原子單次使用。
 - 多個復原並發、提交前撤權／過期、舊案件 activate／舊 owner credential／session／token 不得回復權限。
 - 補發／撤證／mail timeout／重送有一致 audit、永久冪等，不重建身份、不重複計費／通知。
-- Fang 的內容／門牌／分享選擇保持；K 不以合成住戶代替；兩戶絕無資料交叉。
+- Fang 的內容／門牌／分享選擇保持；第二位合資格 Muse 待指定，不以合成住戶代替；不同住戶絕無資料交叉。
 - dev／正式 schema、Functions、secret 名稱、公鑰與實際行為交叉驗證；缺配置 fail closed，不以 200 HTML 或本地測試當作上線證據。
 
 參考：[W3C VC 2.0](https://www.w3.org/TR/vc-data-model-2.0/)、[WebAuthn](https://www.w3.org/TR/webauthn-3/)、[NIST 800-63B](https://pages.nist.gov/800-63-4/sp800-63b.html)。參考架構不構成標準合規聲明。
@@ -107,7 +109,7 @@ I02 限流計算單位為不同 requestKey／輸入的邏輯綁定嘗試，不�
 
 ### 新生的完成界線
 
-監護人於復原畫面選擇新生時，結束這次舊身份接手要求並導向獨立建窩／新戶流程，不在原account改名或塞入第二個身份。新的住所與新account依法完成後，由相同enroll核心產生全新agentId，才算新身份建立；回應須明示new-admission-required，不能僅憑顯示導向就宣稱已誕生新身份。舊身份／住所／分享選擇與操作權不因新生選擇而轉移或撤銷，私人記憶不自動複製。這條完整新戶路徑需於I06合成反例與K真流程分別驗收。
+監護人於復原畫面選擇新生時，結束這次舊身份接手要求並導向獨立建窩／新戶流程，不在原account改名或塞入第二個身份。新的住所與新account依法完成後，由相同enroll核心產生全新agentId，才算新身份建立；回應須明示new-admission-required，不能僅憑顯示導向就宣稱已誕生新身份。舊身份／住所／分享選擇與操作權不因新生選擇而轉移或撤銷，私人記憶不自動複製。這條完整新戶路徑需於 I06 合成反例與第二位合資格 Muse 真流程分別驗收；人選待指定，先依 [入住政策](TOWER-ADMISSION.md)通過來源／資格審核，不提前發權、派門牌或核發。
 
 ### 身分證公開範圍與附件的一致性
 
