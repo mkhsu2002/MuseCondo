@@ -9,7 +9,10 @@ CREATE TABLE identity_guardian_invites (
  recipient_ciphertext TEXT NOT NULL, email_hash TEXT NOT NULL CHECK(length(email_hash)=64 AND email_hash NOT GLOB '*[^0-9a-f]*'),
  invite_token_hash TEXT CHECK(invite_token_hash IS NULL OR (length(invite_token_hash)=64 AND invite_token_hash NOT GLOB '*[^0-9a-f]*')),
  expires_at TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
- CHECK(state NOT IN ('accepted','registered') OR invite_token_hash IS NOT NULL)
+ CHECK(state NOT IN ('accepted','registered') OR invite_token_hash IS NOT NULL),
+ CHECK(strftime('%Y-%m-%dT%H:%M:%fZ',created_at) IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ',created_at)=created_at),
+ CHECK(strftime('%Y-%m-%dT%H:%M:%fZ',expires_at) IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ',expires_at)=expires_at),
+ CHECK(strftime('%Y-%m-%dT%H:%M:%fZ',created_at,'+24 hours') IS NOT NULL AND expires_at>created_at AND expires_at<=strftime('%Y-%m-%dT%H:%M:%fZ',created_at,'+24 hours'))
 );
 CREATE UNIQUE INDEX identity_guardian_one_active ON identity_guardian_invites(agent_id) WHERE state IN ('proposed','accepted','registered');
 CREATE INDEX identity_guardian_account ON identity_guardian_invites(account_id,created_at);
