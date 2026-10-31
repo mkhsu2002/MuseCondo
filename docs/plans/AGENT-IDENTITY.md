@@ -17,7 +17,7 @@
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
-| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：sender-only診斷974dc2c本地623tests／規格審查PASS，品質審查與兩環境0019／Pages／實際provider待驗；b附件／webhook／投遞待實作 |
+| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.62已兩階段審查／623tests／兩環境0019及Pages部署，但actual provider GET被unsupported redirect阻擋；v0.64修復665tests待審查／發布重驗。b附件／webhook／投遞待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
 ### I01 共用核心
@@ -260,3 +260,13 @@ I04工程可續I05。Fang兩環境原小窩／門牌／分享設定與永久身�
 0019兩表四triggers共6物件，獨立check/audit不冒造globalaccount；hash-only requestKey與FROM／origin input、原子quota10/hour與intent先於provider，結果與completed audit同批；same-key永久歷史snapshot不是refresh，checking／unknown不假健康。完整contract見[readiness文件](../IDENTITY-MAIL-READINESS.md)。
 
 新59項先RED後GREEN，主控623完整測試／8版號、build／lint PASS，規格獨立審查PASS（重新查官方List／Retrieve／OpenAPI／Errors）。品質審查、0019兩庫實際套用、Pages發佈與live provider／audit仍待；I04獨立Worker輸入未改，預期保留原相同code。沒有取得本機provider key或真provider呼叫，dev刻意不配置mailkey／FROM。I05a不等於完整郵寄／收件驗收。
+
+### I05a v0.62 發布後實際阻塞與修復（2026-10-31；v0.64待發布）
+
+974dc2c／ef63635已兩階段審查、主控623全測／8版號／build／lint／Pages compile通過，兩目標分支合併、兩環境Pages部署success；0019已實際套用兩庫，6新物件與全146來源DDL逐一比對／FK0。未修改I04獨立Worker、真住戶或既有綁定。
+
+Dev無mailkey／FROM，真端點503unknown／sender_not_configured及永久重放、intent/completed audit與quota1皆符合。Production兩次新metadata check皆在D1保存provider_unavailable／http=null，未取得Resend回應；公網502另被edge替換成ProblemJSON，ray/timestamp變化使HTTP重放無法直接等同原結果，D1永久紀錄本身一致。未以API key名稱存在當健康，不把這個失敗歸咎key或自動輪換／取回本機key。
+
+Root真workerd同compat日期精確重現：redirect:error在network之前TypeError，manual可連到原Resend host並取得未授權控制probe的401（probe沒有任何真key）。官方Request文件與workerd來源確認error模式不支援。d49b5fc修正4個相同確定缺陷的server adapters，manual且在header/body解析前拒絕3xx，不轉送憑證、不follow／自動重試；寄信未知、generation journal、付費approval與原額度均保持。沒有實際Meta或寄信呼叫。
+
+c15aae0另將新的sender metadata provider未知／失敗改回503unknown，保留真正providerHttpStatus/errorName及deliveryVerified=false，避免該zone對502的Error Page替換；不是200健康。既有0019已允許503，不改schema；舊502收據必依原status及內容重放、不重寫audit或藉新程式再次GET。區域設定不為測試而更動、不升級方案。新反例先RED，最終665完整測試、65readiness、build/type／lint通過；兩階段獨立審查與兩環境Pages更新／真正provider查核仍待完成。完整I05附件／webhook／交付及I06真人均未完成。

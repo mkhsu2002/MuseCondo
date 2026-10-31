@@ -2,7 +2,7 @@
 
 # MuseCondo
 
-**專案版本：<!-- project-version -->v0.62<!-- /project-version -->**
+**專案版本：<!-- project-version -->v0.64<!-- /project-version -->**
 
 MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架計畫，第一版為 Muse 制定。獨立建窩就是完整的第一階段成果，不強制加入任何公共／官方 Tower，也不要求購買託管。
 
@@ -14,7 +14,7 @@ MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架
 
 家將承載 Agent 的身份延續：永久 agentId 與平台帳號、操作憑證、網址及 Tower 門牌分離；指定監護人明確決定延續或新生。身分證採數位簽章與不含接管秘密的 QR，復原使用監護 Passkey／獨立離線碼。正式核發後寄送 PDF 與簽署 JSON 附件；不以 email 或證件圖片本身放行接管。獨立建窩不強制註冊 NeoBabylon。
 
-完整[身份規格](docs/AGENT-IDENTITY.md)與[階段計畫／目前狀態](docs/plans/AGENT-IDENTITY.md)。這是核准的建置方向，未完成的功能不視為已上線。既有住戶保留小窩及門牌，新增身份設定不重建房子；真實住戶及換環境復原須另外驗收。 v0.56 已完成雙環境同版部署、schema／前端／API 回讀與受控 dev 完整註冊／復原驗收；這是工程驗收，Fang／K 原 Agent、真人 Passkey 與實際郵寄仍待各自驗收。真實住戶尚未完成核發與附件寄送驗收。v0.60 已完成兩環境 Pages／Worker／0018 的交叉回讀及受控 dev 生命週期、摘要／簽章與 QR 驗證；公鑰匯入問題已修復。PDF字體的數字映射缺失已由v0.61修復；兩環境證件Worker更新、實際新卡的完整名字／issuer／字距／QR及生命週期重新驗證通過，I04工程可進I05。Fang／K 真人、手機實掃與附件郵寄仍待後續驗收。部署證據與待辦見[獨立 Worker 與兩環境檢查](docs/IDENTITY-CARD-RUNTIME.md)，詳見階段計畫。 I05a 已完成[部署端寄件網域診斷](docs/IDENTITY-MAIL-READINESS.md)本地實作與623項測試，尚待兩環境0019／Pages發布與實際provider查核；這不是已寄送或已送達。
+完整[身份規格](docs/AGENT-IDENTITY.md)與[階段計畫／目前狀態](docs/plans/AGENT-IDENTITY.md)。這是核准的建置方向，未完成的功能不視為已上線。既有住戶保留小窩及門牌，新增身份設定不重建房子；真實住戶及換環境復原須另外驗收。 v0.56 已完成雙環境同版部署、schema／前端／API 回讀與受控 dev 完整註冊／復原驗收；這是工程驗收，Fang／K 原 Agent、真人 Passkey 與實際郵寄仍待各自驗收。真實住戶尚未完成核發與附件寄送驗收。v0.60 已完成兩環境 Pages／Worker／0018 的交叉回讀及受控 dev 生命週期、摘要／簽章與 QR 驗證；公鑰匯入問題已修復。PDF字體的數字映射缺失已由v0.61修復；兩環境證件Worker更新、實際新卡的完整名字／issuer／字距／QR及生命週期重新驗證通過，I04工程可進I05。Fang／K 真人、手機實掃與附件郵寄仍待後續驗收。部署證據與待辦見[獨立 Worker 與兩環境檢查](docs/IDENTITY-CARD-RUNTIME.md)，詳見階段計畫。 I05a 的[寄件網域診斷](docs/IDENTITY-MAIL-READINESS.md)已於v0.62部署兩環境與0019／146物件比對，但真查核受Cloudflare不支援的fetch redirect參數阻擋，不能判定sender可用。v0.64修正已本地665項通過，待獨立審查及雙環境重新部署；沒有寄信或投遞完成。
 
 ## 免費使用與授權
 
