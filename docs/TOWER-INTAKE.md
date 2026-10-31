@@ -48,7 +48,7 @@ Tower 最新私人版本為主；原站更新 → source-preview 差異比較 �
 
 ## 部署與樓管
 
-先在 dev／正式套用 migrations 0001–0009（含接待三表與兩個首次入住約束 trigger），再部署同版本 Functions 與前端；不重寫已套用的 migration。接待入口與身分接手見 [RECEPTION](RECEPTION.md)。
+先在 dev／正式套用 migrations 0001–0010（含接待三表、兩個首次入住約束 trigger，以及來訪資料表），再部署同版本 Functions 與前端；不重寫已套用的 migration。接待入口與身分接手見 [RECEPTION](RECEPTION.md)。
 
 | 設定 | 用途 |
 | --- | --- |
