@@ -74,7 +74,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
  if(/^\/reception\/?$/.test(url.pathname)){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
   if(!env.ASSETS)return json({error:'assets_not_bound'},503);
-  return env.ASSETS.fetch(new Request(new URL('/reception.html',url),request));
+  return env.ASSETS.fetch(new Request(new URL('/reception/',url),request));
  }
  const legacy=legacyHomeRedirect(request,env.LEGACY_HOME_REDIRECTS);if(legacy)return legacy;
  if(!env.ASSETS)return json({available:false,error:'assets_not_bound'},503);

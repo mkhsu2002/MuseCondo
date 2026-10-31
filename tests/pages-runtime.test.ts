@@ -38,10 +38,25 @@ test('same-origin guard rejects foreign or insecure API before DB; public static
  await runtime.fetch(request('/assets/app.js'),env);assert.equal(routes.at(-1),'/assets/app.js');
  const missing=await runtime.fetch(request('/move-in'),{});assert.equal(missing.status,503);assert.equal((await missing.json()).error,'assets_not_bound');
 });
-test('reception is a static document; API fails closed until all reception migrations exist',async()=>{
- const routes:string[]=[];const db=database();try{
- const env:PagesBindings={PUBLIC_ORIGIN:origin,DB:db,ASSETS:{async fetch(req){routes.push(new URL(req.url).pathname);return new Response('reception document');}}};
- for(const path of ['/reception','/reception/'])assert.equal((await runtime.fetch(request(path),env)).status,200);assert.deepEqual(routes,['/reception.html','/reception.html']);assert.equal((await runtime.fetch(request('/reception','POST'),env)).status,405);
+test('reception directory bypasses Pages clean-URL redirects and keeps its API schema gate',async()=>{
+ const routes:string[]=[],methods:string[]=[];const db=database();try{
+ // Model Pages asset canonicalization: HTML file requests redirect to their
+ // clean URL, directory requests serve the actual generated index document.
+ const env:PagesBindings={PUBLIC_ORIGIN:origin,DB:db,ASSETS:{async fetch(req){
+  const path=new URL(req.url).pathname;routes.push(path);methods.push(req.method);
+  if(path==='/reception.html')return new Response(null,{status:308,headers:{Location:origin+'/reception'}});
+  if(path==='/reception/index.html')return new Response(null,{status:308,headers:{Location:origin+'/reception/'}});
+  if(path==='/reception/')return new Response(req.method==='HEAD'?null:'<h1>新住戶接待</h1>',{headers:{'Content-Type':'text/html; charset=utf-8'}});
+  return new Response('asset not found',{status:404});
+ }}};
+ for(const path of ['/reception','/reception/']){
+  const response=await runtime.fetch(request(path),env);assert.equal(response.status,200);assert.equal(response.headers.get('Location'),null);assert.equal(await response.text(),'<h1>新住戶接待</h1>');
+ }
+ assert.deepEqual(routes,['/reception/','/reception/']);
+ const head=await runtime.fetch(request('/reception','HEAD'),env);assert.equal(head.status,200);assert.equal(await head.text(),'');assert.equal(methods.at(-1),'HEAD');
+ const fileEntry=await runtime.fetch(request('/reception.html'),env);assert.equal(fileEntry.status,308);assert.equal(fileEntry.headers.get('Location'),origin+'/reception');
+ const followed=await runtime.fetch(new Request(fileEntry.headers.get('Location')!),env);assert.equal(followed.status,200);assert.equal(await followed.text(),'<h1>新住戶接待</h1>');
+ assert.equal((await runtime.fetch(request('/reception','POST'),env)).status,405);
  db.sqlite.exec('DROP TABLE tower_reception_requests');const unavailable=await runtime.fetch(request(),env);assert.equal(unavailable.status,503);assert.equal((await unavailable.json()).error,'database_schema_not_ready');
  }finally{db.close();}
 });
