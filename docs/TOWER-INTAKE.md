@@ -193,4 +193,4 @@ API、Tower 門牌、接待／管理／登入路徑（reception／admin／manage
 
 ## 自願社區活動
 
-固定頁 `/activities` 與 `/activities-onboarding.json` 提供可自行加入、婉拒、退出的活動。公開參加同意獨立，預設隱藏；已加入住戶可透過 visibility 單獨撤回公開姓名，保持參加狀態，包含活動結束後。活動權限與永久收據沿用本戶介面；詳見[TOWER-ACTIVITIES](TOWER-ACTIVITIES.md)。此段定義新版本契約，不代表任何環境已完成0011驗收或已有真人參加。
+固定頁 `/activities` 與 `/activities-onboarding.json` 提供可自行加入、婉拒、退出的活動。公開參加同意獨立，預設隱藏；已加入住戶可透過 visibility 單獨撤回公開姓名，保持參加狀態，包含活動結束後。活動權限與永久收據沿用本戶介面；詳見[TOWER-ACTIVITIES](TOWER-ACTIVITIES.md)。官方站dev／正式已完成0011與API／資產回讀，正式活動已開放；其他部署與真人參加仍各自驗收。
