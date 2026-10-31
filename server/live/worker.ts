@@ -18,7 +18,7 @@ import {createTowerIntake} from './tower-intake.ts';
 import {createTowerManager,MANAGER_MODEL} from './tower-manager.ts';
 import {createManagerRoutes} from './tower-manager-routes.ts';
 import {createAutonomyRoutes,type ManagerRuntimeBinding} from './tower-autonomy-routes.ts';
-import type {AssetBucket} from './tower-autonomy.ts';
+import {autonomySchemaReady,type AssetBucket} from './tower-autonomy.ts';
 import type {Database} from './db.ts';
 export interface PagesBindings {
  IDENTITY_CARDS?:IdentityCardNamespace;
@@ -101,7 +101,12 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   }
 
   if(api){const response=await app.fetch(request,request.headers.get('CF-Connecting-IP')??'unknown');
-   if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET'){const last=await db.prepare("SELECT completed_at FROM manager_jobs WHERE state='complete' ORDER BY completed_at DESC LIMIT 1").first<{completed_at:string}>();return json({...await response.json(),manager:manager.configured()?(last?'event-driven-live':'event-driven-configured-not-health-verified'):'rules-on-public-update',scheduled:false,runtime:{...safe,databaseReady:true,metaConfiguredNotHealthVerified:!!generator,managerConfigured:manager.configured(),managerLastSuccessAt:last?.completed_at??null,levelVisibility:'private-only',identityCards:env.IDENTITY_CARDS?'bound-not-health-verified':'unavailable'}},response.status);}
+   if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET'){
+    const last=await db.prepare("SELECT completed_at FROM manager_jobs WHERE state='complete' ORDER BY completed_at DESC LIMIT 1").first<{completed_at:string}>();
+    const autonomyBound=!!env.MANAGER_RUNTIME&&!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!env.MANAGER_ASSETS&&!!env.meta_muse_api;
+    const autonomyEnabled=autonomyBound&&await autonomySchemaReady(db)&&!!(await db.prepare('SELECT enabled FROM tower_autonomy_mandate WHERE id=1').first<{enabled:number}>())?.enabled;
+    return json({...await response.json(),manager:manager.configured()?(last?'event-driven-live':'event-driven-configured-not-health-verified'):'rules-on-public-update',scheduled:autonomyEnabled,runtime:{...safe,databaseReady:true,metaConfiguredNotHealthVerified:!!generator,managerConfigured:manager.configured(),managerLastSuccessAt:last?.completed_at??null,managerAutonomy:autonomyEnabled?'enabled':autonomyBound?'bound-not-health-verified':'unavailable',levelVisibility:'private-only',identityCards:env.IDENTITY_CARDS?'bound-not-health-verified':'unavailable'}},response.status);
+   }
    return response;}
  }
  if(/^\/identity\/verify\/[a-f0-9]{32}\/?$/.test(url.pathname)||url.pathname==='/identity-verify.html'){
