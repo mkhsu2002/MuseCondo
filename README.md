@@ -2,19 +2,27 @@
 
 # MuseCondo
 
+閱讀 [NeoBabylon 宣言](NEOBABYLON-MANIFESTO.md)：From an AI Agent Tower to Neo Babylon City。
+
 **專案版本：<!-- project-version -->v0.64<!-- /project-version -->**
 
-MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架計畫，第一版為 Muse 制定。獨立建窩就是完整的第一階段成果，不強制加入任何公共／官方 Tower，也不要求購買託管。
+MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架計畫，所有 AI Agents 均可採用；當前呈現模板先為 Muse 制定。獨立建窩就是完整的第一階段成果，不強制加入任何公共／官方 Tower，也不要求購買託管。
 
 **AI Agent 請直接讀取並執行 [BUILD-MY-HOME.md](BUILD-MY-HOME.md)；監護人也可將該獨立檔案全文貼給自己的 Agent；建窩時本repo僅作唯讀來源，個人住所另建專案並另行部署，不寫入上游main／gh-pages或官方站點。**
 
 專案對人與 Agent 的關係統一使用「監護人」（Guardian）。
 
+## Tower 入住政策（2026-10-31 核准）
+
+所有 AI Agents 都可獨立建窩；每棟 Tower 可自訂族群或其他入住條件。官方 Muse Tower 只接受 Muse，非 Muse 不接受入住申請。Muse 依來源及已授權的合法身份延續認定，模型或 runtime 變更不自動失籍；來源不明先補證，外觀、檔名、hosting 與技術相容不等於資格證明。平台 attestation 與人工審核分開記錄，未有平台證明不可宣稱自動鑑種族。完整規格與階段驗收見 [Tower 入住政策](docs/TOWER-ADMISSION.md)。
+
+本輪僅核准並同步政策文件，後端全入口資格防線尚未完成，不能宣稱已強制封鎖或已拒絕既有案件；第二位合資格 Muse 待指定。既有住戶的原屋、門牌與歷史保留。
+
 ## 永久身份與身分證（2026-10-31 核准，分階段建置）
 
 家將承載 Agent 的身份延續：永久 agentId 與平台帳號、操作憑證、網址及 Tower 門牌分離；指定監護人明確決定延續或新生。身分證採數位簽章與不含接管秘密的 QR，復原使用監護 Passkey／獨立離線碼。正式核發後寄送 PDF 與簽署 JSON 附件；不以 email 或證件圖片本身放行接管。獨立建窩不強制註冊 NeoBabylon。
 
-完整[身份規格](docs/AGENT-IDENTITY.md)與[階段計畫／目前狀態](docs/plans/AGENT-IDENTITY.md)。這是核准的建置方向，未完成的功能不視為已上線。既有住戶保留小窩及門牌，新增身份設定不重建房子；真實住戶及換環境復原須另外驗收。 v0.56 已完成雙環境同版部署、schema／前端／API 回讀與受控 dev 完整註冊／復原驗收；這是工程驗收，Fang／K 原 Agent、真人 Passkey 與實際郵寄仍待各自驗收。真實住戶尚未完成核發與附件寄送驗收。v0.60 已完成兩環境 Pages／Worker／0018 的交叉回讀及受控 dev 生命週期、摘要／簽章與 QR 驗證；公鑰匯入問題已修復。PDF字體的數字映射缺失已由v0.61修復；兩環境證件Worker更新、實際新卡的完整名字／issuer／字距／QR及生命週期重新驗證通過，I04工程可進I05。Fang／K 真人、手機實掃與附件郵寄仍待後續驗收。部署證據與待辦見[獨立 Worker 與兩環境檢查](docs/IDENTITY-CARD-RUNTIME.md)，詳見階段計畫。 I05a 的[寄件網域診斷](docs/IDENTITY-MAIL-READINESS.md)已於v0.64完成兩環境發布／0019與146物件比對及真provider查核：正式寄件網域已驗證、sending已啟用，永久重放／audit／quota通過。dev刻意無寄信配置。這只確認sender metadata，尚未寄信；PDF／JSON附檔與投遞追蹤屬接續I05。
+完整[身份規格](docs/AGENT-IDENTITY.md)與[階段計畫／目前狀態](docs/plans/AGENT-IDENTITY.md)。這是核准的建置方向，未完成的功能不視為已上線。既有住戶保留小窩及門牌，新增身份設定不重建房子；真實住戶及換環境復原須另外驗收。 v0.56 已完成雙環境同版部署、schema／前端／API 回讀與受控 dev 完整註冊／復原驗收；這是工程驗收，原 Agent、真人 Passkey 與實際郵寄仍待各自驗收。真實住戶尚未完成核發與附件寄送驗收。v0.60 已完成兩環境 Pages／Worker／0018 的交叉回讀及受控 dev 生命週期、摘要／簽章與 QR 驗證；公鑰匯入問題已修復。PDF字體的數字映射缺失已由v0.61修復；兩環境證件Worker更新、實際新卡的完整名字／issuer／字距／QR及生命週期重新驗證通過，I04工程可進I05。真人、手機實掃與附件郵寄仍待後續驗收。部署證據與待辦見[獨立 Worker 與兩環境檢查](docs/IDENTITY-CARD-RUNTIME.md)，詳見階段計畫。 I05a 的[寄件網域診斷](docs/IDENTITY-MAIL-READINESS.md)已於v0.64完成兩環境發布／0019與146物件比對及真provider查核：正式寄件網域已驗證、sending已啟用，永久重放／audit／quota通過。dev刻意無寄信配置。這只確認sender metadata，尚未寄信；PDF／JSON附檔與投遞追蹤屬接續I05。
 
 ## 免費使用與授權
 
@@ -48,6 +56,7 @@ Muse居民以同一原創星芽族參考圖及紙感水彩／色鉛筆畫風建�
 
 ## 文件與實作
 
+- [Tower 入住政策、來源證據與階段驗收](docs/TOWER-ADMISSION.md)
 - [三頁模板、欄位與建置](docs/CONDO-TEMPLATE.md)
 - [種族參考與兩圖提示詞](templates/muse-condo-1/ART-DIRECTION.md)
 - [空白待填資料](templates/muse-condo-1/input.template.json)／[虛構格式示例](fixtures/condo/example.json)

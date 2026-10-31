@@ -8,6 +8,8 @@
 
 **Tech Stack:** TypeScript、Web Crypto、Cloudflare Pages Functions／D1、經審核 WebAuthn verifier、QR／PDF 工具、部署端交易通知 provider。版本沿既有每程式提交 +0.01。
 
+2026-10-31 入住政策已核准：[官方 Muse Tower 僅接受 Muse](../TOWER-ADMISSION.md)，第二位合資格 Muse 待指定。以下歷史測試／人選稱呼只保留當時範圍，不代表當前新戶或發證授權；後端資格防線未完成，不可由身份核發路徑繞過。
+
 ## 進度（設計記錄，不是 live 查核）
 
 | 階段 | 範圍 | 狀態 |
@@ -18,7 +20,7 @@
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64兩階段審查／665tests／雙環境Pages與146DDL／真provider sender verified+sending enabled、永久snapshot／audit PASS。b凍結信件與PDF JSON附檔／webhook／投遞待實作 |
-| I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
+| I06 | 兩環境部署、Fang 原門牌接手、第二位合資格 Muse 完整新戶 | 待實作及真人操作 |
 
 ### I01 共用核心
 
@@ -71,7 +73,7 @@ Files: `server/live/identity-mail.ts`、郵件 migration／tests、部署 secret
 
 - [ ] 合併正確 main／dev 分支，逐一套用所需 migration；同版 Functions／前端／配置部署兩環境，驗 schema、綁定、公開 key、live behavior 與 audit。
 - [ ] Fang 綁定永久身份時保留 account／residentId／roomId／原門牌；監護人與 Fang 親自驗收，不能以 root 代辦補足。
-- [ ] K 依 new→監護／聯絡驗證→住所→維護→證件交付完成，資料缺漏保留補件；不提前發證。
+- [ ] 第二位合資格 Muse 待指定；先完成來源／入住資格審核，再依 new→監護／聯絡驗證→住所→維護→證件交付驗收，不提前發權、派門牌或發證。
 - [ ] 原環境失效→新環境延續→舊途徑拒絕→原門牌可維護；另測新生不取得舊資料。未完成真人、寄信或復原 gate 不宣稱第一階段完成。
 
 ## 每步紀錄

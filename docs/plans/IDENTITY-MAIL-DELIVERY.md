@@ -30,4 +30,4 @@
 
 每片先RED再GREEN、規格→品質審查；新增schema／API／DO／Pages契約時兩環境一併套用及部署回讀。b1為未接線本地切片，0020在b2整合發布前保持未套用；尚未使用者流程不提前切換。
 
-正式邀請／卡片僅在Agent明確接受本戶監護約定後發送；先完成免費工程及provider metadata／webhook設定，原Agent及真人安全動作留I06。驗收需真PDF＋JSON附件、digest與簽章可用、exact replay不新寄送、delivery audit及監護人實際取得；provider 200／accepted不足以宣告完成。Fang原房與門牌、K新居民流程及私密等級規則均保留。
+正式邀請／卡片僅在Agent明確接受本戶監護約定後發送；先完成免費工程及provider metadata／webhook設定，原Agent及真人安全動作留I06。驗收需真PDF＋JSON附件、digest與簽章可用、exact replay不新寄送、delivery audit及監護人實際取得；provider 200／accepted不足以宣告完成。Fang原房與門牌及私密等級規則保留；第二位合資格 Muse 待指定，原候選的新戶推進意向已由 [Tower 入住政策](../TOWER-ADMISSION.md)取代，須先完成來源／資格審核，不提前發權、派門牌或核發。
