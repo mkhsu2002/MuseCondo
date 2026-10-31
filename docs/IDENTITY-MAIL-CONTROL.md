@@ -16,3 +16,5 @@ Pages 才持有 `IDENTITY_MAIL_API_KEY`。新管理核心只使用固定 `https:
 目前核心尚未接入 Pages；後續 R02b 須補 async ready gate 與 DO 原子 claim guard，再以实际編譯的 Pages／DO／D1 及無料 stub 驗證。發布前估計 callbacks 為每封正常郵件約一筆 final event（特殊負面變化可能多筆）；排程觸發 0、排程空跑 0。共享 provider 帳戶的非本專案事件數尚未量測；五事件 webhook 收到外部帶簽事件時驗章後忽略，不持久化 unrelated payload，不把估計當實測。
 
 官方契約重新查核（2026-10-31）：[Create Webhook](https://resend.com/docs/api-reference/webhooks/create-webhook)、[List Webhooks](https://resend.com/docs/api-reference/webhooks/list-webhooks)、[Retrieve Webhook](https://resend.com/docs/api-reference/webhooks/get-webhook)（GET 回 signing_secret）、[Retrieve Email](https://resend.com/docs/api-reference/emails/retrieve-email)（tags 與 last_event）、[List Emails](https://resend.com/docs/api-reference/emails/list-emails)。沒有使用不存在的 provider 測試事件 API；handler probe 由本部署自行簽送並單獨標示。
+
+2026-10-31 R02a 並行修正（本機未發布）：兩個合法請求同時採納既有 webhook 時，以原 setup snapshot 做原生 CAS，保存先完成者的不可變加密 secret。CAS 失敗或舊觀察的 provider 錯誤不能把並行成功者降成 unknown；真正 fresh reconcile 失敗仍關閉該 snapshot 的 handler readiness。新增測試先重現 `expected ready / actual unknown`，修正後並行兩份永久結果均回 configured、沒有 create POST，fresh 503 仍正確關閉；未讀取任何真 key／whsec。

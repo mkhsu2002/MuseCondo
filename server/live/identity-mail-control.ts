@@ -41,10 +41,13 @@ export function createIdentityMailControl(env:Environment){
     if(listed){if(!safeId(listed.id))throw Error('invalid_id');hook=await requestProvider('/webhooks/'+encodeURIComponent(listed.id));}
     else if(s.state==='intent'&&s.setup_request_key===key&&operation==='setup'){
      if(!await env.operator(req))fail(401,'operator_required');
-     try{await db.batch([stmt("SELECT CASE WHEN EXISTS(SELECT 1 FROM identity_mail_webhook_setups WHERE origin=? AND state='intent' AND setup_request_key=? AND lease_id=?) THEN 1 ELSE json('setup-lease-changed') END",env.origin,key,s.lease_id),stmt("UPDATE identity_mail_webhook_setups SET state='creating',updated_at=? WHERE origin=? AND state='intent' AND setup_request_key=? AND lease_id=?",stamp(),env.origin,key,s.lease_id),stmt('INSERT INTO identity_mail_control_audit VALUES(?,?,?,?,?)',randomIdentityId(),key,'create-leased','{}',stamp())]);}catch{return safeSetup(await current());}
+     const creatingAt=stamp();
+     try{await db.batch([stmt("SELECT CASE WHEN EXISTS(SELECT 1 FROM identity_mail_webhook_setups WHERE origin=? AND state='intent' AND setup_request_key=? AND lease_id=?) THEN 1 ELSE json('setup-lease-changed') END",env.origin,key,s.lease_id),stmt("UPDATE identity_mail_webhook_setups SET state='creating',updated_at=? WHERE origin=? AND state='intent' AND setup_request_key=? AND lease_id=?",creatingAt,env.origin,key,s.lease_id),stmt('INSERT INTO identity_mail_control_audit VALUES(?,?,?,?,?)',randomIdentityId(),key,'create-leased','{}',stamp())]);}catch{return safeSetup(await current());}
+     s={...s,state:'creating',updated_at:creatingAt};
      const created=await requestProvider('/webhooks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint,events:IDENTITY_MAIL_WEBHOOK_EVENTS})});
      if(!safeId(created.id))throw Error('invalid_create');
-     await stmt('UPDATE identity_mail_webhook_setups SET provider_id=?,updated_at=? WHERE origin=? AND lease_id=? AND provider_id IS NULL',created.id,stamp(),env.origin,s.lease_id).run();
+     const providerAt=stamp(),bound=await stmt('UPDATE identity_mail_webhook_setups SET provider_id=?,updated_at=? WHERE origin=? AND lease_id=? AND provider_id IS NULL',created.id,providerAt,env.origin,s.lease_id).run();
+     if(bound.meta.changes===1)s={...s,provider_id:created.id as string,updated_at:providerAt};
      hook=await requestProvider('/webhooks/'+encodeURIComponent(created.id));
     }
    }
@@ -53,8 +56,10 @@ export function createIdentityMailControl(env:Environment){
    s=(await current())!;if(s.provider_id&&s.provider_id!==hook.id)throw Error('hook_id_mismatch');
    const ciphertext=s.secret_ciphertext??await encryptPrivate(env.contactKey!,'mail-webhook-secret',env.origin,hook.signing_secret as string);
    if(s.secret_ciphertext&&await decryptPrivate(env.contactKey!,'mail-webhook-secret',env.origin,s.secret_ciphertext)!==hook.signing_secret)throw Error('hook_secret_changed');
-   await db.batch([stmt("UPDATE identity_mail_webhook_setups SET state='ready',provider_id=?,secret_ciphertext=?,error_code=NULL,updated_at=? WHERE origin=? AND lease_id=? AND (provider_id IS NULL OR provider_id=?)",hook.id,ciphertext,stamp(),env.origin,s.lease_id,hook.id),stmt('INSERT INTO identity_mail_control_audit VALUES(?,?,?,?,?)',randomIdentityId(),key,'webhook-configured',JSON.stringify({providerId:hook.id}),stamp())]);
-  }catch(error){if(error instanceof ControlError)throw error;await stmt("UPDATE identity_mail_webhook_setups SET state='unknown',handler_probe_at=NULL,error_code=?,updated_at=? WHERE origin=?",error instanceof Error&&/^provider_http_[0-9]{3}$/.test(error.message)?error.message:'setup_outcome_unknown',stamp(),env.origin).run();}
+   // Adopt only the setup snapshot that was decrypted/validated. A concurrent winner
+   // owns its immutable ciphertext; losing this CAS must not demote that winner.
+   await db.batch([stmt("SELECT CASE WHEN EXISTS(SELECT 1 FROM identity_mail_webhook_setups WHERE origin=? AND lease_id=? AND state=? AND provider_id IS ? AND secret_ciphertext IS ? AND handler_probe_at IS ? AND updated_at=?) THEN 1 ELSE json('setup-adoption-changed') END",env.origin,s.lease_id,s.state,s.provider_id,s.secret_ciphertext,s.handler_probe_at,s.updated_at),stmt("UPDATE identity_mail_webhook_setups SET state='ready',provider_id=?,secret_ciphertext=?,error_code=NULL,updated_at=? WHERE origin=? AND lease_id=?",hook.id,ciphertext,stamp(),env.origin,s.lease_id),stmt('INSERT INTO identity_mail_control_audit VALUES(?,?,?,?,?)',randomIdentityId(),key,'webhook-configured',JSON.stringify({providerId:hook.id}),stamp())]);
+  }catch(error){if(error instanceof ControlError)throw error;await stmt("UPDATE identity_mail_webhook_setups SET state='unknown',handler_probe_at=NULL,error_code=?,updated_at=? WHERE origin=? AND lease_id=? AND state=? AND provider_id IS ? AND secret_ciphertext IS ? AND handler_probe_at IS ? AND updated_at=?",error instanceof Error&&/^provider_http_[0-9]{3}$/.test(error.message)?error.message:'setup_outcome_unknown',stamp(),env.origin,s.lease_id,s.state,s.provider_id,s.secret_ciphertext,s.handler_probe_at,s.updated_at).run();}
   return safeSetup(await current());
  }
  async function reconcileEvent(key:string,id:string){
