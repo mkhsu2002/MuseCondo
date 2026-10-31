@@ -16,7 +16,7 @@
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
-| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | 待實作 |
+| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 本地生命週期核心與 0018／反例測試完成，待兩階段審查；未接 Worker／readiness／公開機器契約、未套 schema 或部署。I04b 真 PDF／QR／字體／驗證頁接線未完成 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
@@ -49,7 +49,9 @@ Files: `server/live/identity-guardian.ts`、`server/live/identity-recovery.ts`�
 
 ### I04 證件
 
-Files: `server/live/identity-card.ts`、證件 migration／tests、驗證頁、核發者公鑰端點。
+Files: `server/live/identity-card.ts`、`migrations/0018_identity_cards.sql`、`tests/identity-card.test.ts`；I04b 另補真 PDF／QR renderer、驗證頁及核發者公鑰端點接線。
+
+I04a 在 `feat/agent-permanent-identity` 僅提供可直接測試的 factory；I04 整體完成規格與品質審查前，不接 Worker／readiness／machine、不套 migration、不發布。正式仍為前節已回讀的 v0.56。第一版使用固定品牌圖樣，不抓取或裁取監護人肖像。
 
 - [ ] 檢查 signer 配置只用部署 secret、歷史 keyId 公鑰可驗證；卡片照片素材只取已授權本戶內容。
 - [ ] 核發限 active＋已綁住所＋監護／備援確認；原子證件、supersede、outbox、receipt、audit。
@@ -167,3 +169,24 @@ f8f1d6f／b3d7648 完成時間修正，規格與品質均PASS；主控516完整�
 透過已部署dev公開HTTPS入口，以非公開test-only合成戶完成：註冊及原body/key重送；真P-256合成驗證器的Passkey延續；所有Passkey撤銷後以離線碼重建並延續；消耗舊碼拒絕新案；離線new維持原Agent操作權；較晚修復後仍可讀原歷史收據。3成功收據、2權限instance、3Passkeys且最後僅1有效；3安全通知持久化pending，未呼叫寄信provider。舊Tower／legacy／onboard／登入credential／session均失效，新key限原戶；住所、門牌與分享設定保持，audit／receipt無raw秘密。
 
 最後停權合成身份、撤所有測試key／Passkey，取消其3筆未送通知並保留取消audit，收據與身份歷史不刪。這不是Fang／K本人、真人Passkey／硬體UV、真正監護邀請收件、證件核發或郵件交付驗收。I03工程可進I04，I06真人gate與第一階段T09仍未完成；不新增Meta／圖片呼叫。
+
+
+### 2026-10-31 I04a 本地核心（未接線／未部署，待獨立審查）
+
+新增 dormant `createIdentityCard(env).fetch` 與 0018 五表：不可變憑證、獨立單調 head、48KiB raw 分塊附件、永久成功收據及固定候選 logical attempts。證件 issue/reissue/revoke 不更新 `agent_identities.version`，因此現 epoch/version 已確認未消耗離線碼仍有效；復原後同一永久 ID 的既有 valid 卡不因 authority 換代被撤銷。
+
+核發須現有效本戶 write、active、registered 監護人、至少一未撤 Passkey、現版本／epoch 已確認備援及住所四方綁定。撤卡屬隱私撤回，僅要求現本戶 write、原身份版本／epoch、住所及 head CAS／現 CID，不要求 active 或完整驗證器；缺已驗證聯絡仍撤卡並記 `notification-not-enqueued-no-verified-contact`，不猜收件人或宣稱通知成功。所有私人讀取及永久收據回覆前重驗本戶 auth，原生 SQL clock 檢查涵蓋 DB queue 延遲。
+
+每個 account/requestKey/operation/input 固定唯一持久 signed candidate，失敗／unknown 原 key 可在不同 runtime 續取同 CID 的純 renderer 成果；不換 CID、重簽、重扣 logical quota或產生第二張卡／通知。暫時 renderer／提交失敗回503，已有成功收據優先讀回；同 key 換輸入409，競爭版本只一個交易勝出。首次並發預約可產生未持久化臨時簽署候選，只有預約勝者會交 renderer／公開或保存為證件。純 renderer 以 CID 冪等，必須只接收深凍結 public signed clone，不可持 private contacts／寄信或付費生成能力。
+
+logical issue/revoke 共用每戶每小時10、全域1000的不同輸入配額，永久 reservation 只扣一次；另每個有效本戶30 mutation HTTP／60秒（含重送）防止 adapter outage 無限重試，與 logical quota 分離。此為有界 API 防護，不是分散式 DoS 保證。JSON 直接由核心真正 `signCredential` 結果固定序列化；PDF 上限8MiB、JSON 16KiB；48KiB raw chunk以12個一組（每個bound JSON小於0.8MiB）寫入，每row最多64KiB base64，4,376,506-byte合成檔已驗持久化／完整下載；此為大小及交易驗證，非真PDF驗收。I04b 需按真字體／附件實驗調整常數及未發布 migration，不能直接拿合成小 PDF 當正式字體、QR 或附件驗收。
+
+附件 bytes／SHA256／length／chunks 與 head、supersede/revoke、mail pending event、audit、成功收據同批提交。outbox 僅加密保存 CID／兩附件 digest／template references，收件 ciphertext/hash 沿已驗證監護邀請；僅取消舊 `pending` 卡信並記 audit，不變更 `sending`／`unknown`。I05 模板未開通，未呼叫 provider。撤證／停止公開驗證不承諾收回已下載文件。
+
+核發者 trust ring 只讀 env，拒私鑰或額外欄位及非 canonical JWK bytes；目前 signer 必須與 trusted public key 匹配。公開有效查驗實驗 Ed25519 簽章／issuer/key/CID/永久ID 並在 crypto 後重讀最新狀態；revoked/superseded/suspended/withdrawn 僅回 CID/status。公鑰白名單只有 kty/crv/x；無名錄／姓名／email 查詢，所有回覆 no-store/noindex。
+
+已依 newsletter-worker-standard 核對：沿既有交易事件outbox，無新增secret／provider呼叫／排程，投遞仍留I05。
+
+Node24 本地身份測試198／198（其中新增card25組）、typecheck及全repo lint PASS；本切片未執行build／改dist，由主控接續完整gate與獨立規格→品質審查。測試先 RED 再 GREEN，含原請求跨 runtime 恢復、lost commit ack、公開篡改／最後停權競爭、私人最後讀取撤權、兩戶同 email 隔離、renderer mutation／大小／配置拒絕、獨立 revision／備援保持、補發／撤卡 audit、全交易回滾與 pending-only 取消。真正 PDF／繁中字體／QR／品牌版面、HTTP 驗證頁、DO／Worker 接線、雙環境 deployed schema/code/live behavior、寄信交付與真人 gate 均未完成；不得視為 I04 發布或 I05 交付。
+
+D1容量邊界參照2026-10-31實際讀取的[官方limits](https://developers.cloudflare.com/d1/platform/limits/)：單string／BLOB／row 2,000,000 bytes、SQL100KB／100bound params；db.batch整批僅計一次invocation query。原有部署尚未驗0018／大附件交易，這些本地容量檢查不能替代deployed D1回讀。
