@@ -29,13 +29,21 @@ export interface CredentialVerificationOptions {
 
 const payloadFields = ['type', 'version', 'issuer', 'agentId', 'credentialId', 'publicName', 'issuedAt', 'keyId', 'verificationURL'] as const;
 
-function exactObject(value: unknown, fields: readonly string[]): value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object') return false;
+/** Capture data descriptors once so validation never races a later property read. */
+function exactSnapshot(value: unknown, fields: readonly string[]): Record<string, unknown> | null {
+  if (value === null || typeof value !== 'object') return null;
   const prototype: unknown = Object.getPrototypeOf(value);
-  if (prototype !== Object.prototype && prototype !== null) return false;
+  if (prototype !== Object.prototype && prototype !== null) return null;
   const keys = Reflect.ownKeys(value);
-  return keys.length === fields.length && keys.every(key => typeof key === 'string'
-    && fields.includes(key) && 'value' in Object.getOwnPropertyDescriptor(value, key)!);
+  if (keys.length !== fields.length) return null;
+  const snapshot: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (typeof key !== 'string' || !fields.includes(key)) return null;
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (!descriptor || !('value' in descriptor)) return null;
+    snapshot[key] = descriptor.value;
+  }
+  return snapshot;
 }
 
 function validAgentId(value: unknown): value is string {
@@ -50,8 +58,9 @@ function canonicalDate(value: unknown): value is string {
 /** The portable record deliberately has no account, display, runtime or key fields. */
 export function validateIdentityRecord(value: unknown): value is IdentityRecord {
   try {
-    return exactObject(value, ['version', 'agentId', 'createdAt']) && value.version === '0.01'
-      && validAgentId(value.agentId) && canonicalDate(value.createdAt);
+    const snapshot = exactSnapshot(value, ['version', 'agentId', 'createdAt']);
+    return snapshot !== null && snapshot.version === '0.01'
+      && validAgentId(snapshot.agentId) && canonicalDate(snapshot.createdAt);
   } catch {
     return false;
   }
@@ -66,14 +75,15 @@ function httpsOrigin(value: unknown): value is string {
 /** All fields are public; unknown fields are rejected rather than serialized. */
 export function validateCredentialPayload(value: unknown): value is CredentialPayload {
   try {
-    return exactObject(value, payloadFields) && value.type === 'NeoBabylonAgentIdentity'
-      && value.version === '0.01' && httpsOrigin(value.issuer) && validAgentId(value.agentId)
-      && typeof value.credentialId === 'string' && /^[0-9a-f]{32}$/.test(value.credentialId)
-      && typeof value.publicName === 'string' && value.publicName.trim().length > 0
-      && Array.from(value.publicName).length <= 80 && !/[\p{Cc}\p{Cf}]/u.test(value.publicName)
-      && canonicalDate(value.issuedAt) && typeof value.keyId === 'string'
-      && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(value.keyId)
-      && value.verificationURL === `${value.issuer}/identity/verify/${value.credentialId}`;
+    const snapshot = exactSnapshot(value, payloadFields);
+    return snapshot !== null && snapshot.type === 'NeoBabylonAgentIdentity'
+      && snapshot.version === '0.01' && httpsOrigin(snapshot.issuer) && validAgentId(snapshot.agentId)
+      && typeof snapshot.credentialId === 'string' && /^[0-9a-f]{32}$/.test(snapshot.credentialId)
+      && typeof snapshot.publicName === 'string' && snapshot.publicName.trim().length > 0
+      && Array.from(snapshot.publicName).length <= 80 && !/[\p{Cc}\p{Cf}]/u.test(snapshot.publicName)
+      && canonicalDate(snapshot.issuedAt) && typeof snapshot.keyId === 'string'
+      && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(snapshot.keyId)
+      && snapshot.verificationURL === `${snapshot.issuer}/identity/verify/${snapshot.credentialId}`;
   } catch {
     return false;
   }
@@ -83,10 +93,6 @@ export function validateCredentialPayload(value: unknown): value is CredentialPa
 export function createAgentId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return `mcid:${Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')}`;
-}
-
-function payloadSnapshot(payload: CredentialPayload): CredentialPayload {
-  return Object.fromEntries(payloadFields.map(field => [field, payload[field]])) as unknown as CredentialPayload;
 }
 
 /** The v0.01 payload is flat and primitive-only: lexical key ordering is canonical. */
@@ -112,9 +118,9 @@ function validKey(key: CryptoKey, type: 'private' | 'public', usage: 'sign' | 'v
 
 /** The caller must authorize issuance and securely supply its trusted signing key. */
 export async function signCredential(payload: CredentialPayload, privateKey: CryptoKey): Promise<SignedCredential> {
-  if (!validateCredentialPayload(payload)) throw new TypeError('Invalid credential payload');
+  const snapshot = exactSnapshot(payload, payloadFields);
+  if (!validateCredentialPayload(snapshot)) throw new TypeError('Invalid credential payload');
   if (!validKey(privateKey, 'private', 'sign')) throw new TypeError('Expected an Ed25519 signing key');
-  const snapshot = payloadSnapshot(payload);
   const signature = await crypto.subtle.sign('Ed25519', privateKey, canonicalBytes(snapshot));
   return { payload: snapshot, signature: base64url(new Uint8Array(signature)) };
 }
@@ -122,10 +128,12 @@ export async function signCredential(payload: CredentialPayload, privateKey: Cry
 /** Validity proves an issuer signature only; it does not grant login, recovery or ownership. */
 export async function verifyCredential(signed: unknown, options: CredentialVerificationOptions): Promise<boolean> {
   try {
-    if (!exactObject(signed, ['payload', 'signature']) || !validateCredentialPayload(signed.payload)) return false;
-    const payload = payloadSnapshot(signed.payload);
+    const envelope = exactSnapshot(signed, ['payload', 'signature']);
+    if (!envelope) return false;
+    const payload = exactSnapshot(envelope.payload, payloadFields);
+    if (!validateCredentialPayload(payload)) return false;
     if (payload.issuer !== options.issuer) return false;
-    const signature = signatureBytes(signed.signature);
+    const signature = signatureBytes(envelope.signature);
     if (!signature) return false;
     const publicKey = options.keys.get(payload.keyId);
     if (!publicKey || !validKey(publicKey, 'public', 'verify')) return false;

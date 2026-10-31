@@ -163,3 +163,36 @@ test('signing rejects malformed contracts, public keys and non-Ed25519 keys', as
   await assert.rejects(() => identity.signCredential(payload, pair.publicKey));
   await assert.rejects(() => identity.signCredential(payload, hmac));
 });
+
+test('signing validates the same snapshot it signs when a Proxy changes field reads', async () => {
+  const pair = await keyPair();
+  let reads = 0;
+  const changingPayload = new Proxy({ ...payload, publicName: 'Safe' }, {
+    get(target, property, receiver) {
+      if (property === 'publicName') return ++reads <= 4 ? 'Safe' : '';
+      return Reflect.get(target, property, receiver);
+    },
+  });
+  const signed = await identity.signCredential(changingPayload, pair.privateKey);
+  assert.equal(identity.validateCredentialPayload(signed.payload), true);
+  assert.equal(await identity.verifyCredential(signed, { issuer, keys: new Map([[payload.keyId, pair.publicKey]]) }), true);
+});
+
+test('verification cannot substitute an invalid signed payload after validating another payload', async () => {
+  const pair = await keyPair();
+  const invalidPayload = { ...payload, publicName: '' };
+  const sorted = Object.fromEntries(Object.entries(invalidPayload).sort(([a], [b]) => a.localeCompare(b)));
+  const signature = Buffer.from(await crypto.subtle.sign('Ed25519', pair.privateKey,
+    new TextEncoder().encode(JSON.stringify(sorted)))).toString('base64url');
+  const signed = { payload: invalidPayload, signature };
+  const options = { issuer, keys: new Map([[payload.keyId, pair.publicKey]]) };
+  assert.equal(await identity.verifyCredential(signed, options), false);
+  let reads = 0;
+  const changingEnvelope = new Proxy(signed, {
+    get(target, property, receiver) {
+      if (property === 'payload') return ++reads === 1 ? payload : invalidPayload;
+      return Reflect.get(target, property, receiver);
+    },
+  });
+  assert.equal(await identity.verifyCredential(changingEnvelope, options), false);
+});
