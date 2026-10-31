@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync,readFileSync,readdirSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import {LocalDatabase} from '../server/live/local-db.ts';
 import {encryptPrivate,hashPrivate,hashIdentityInput,decryptPrivate} from '../server/live/identity-private.ts';
 import {signCredential} from '../src/identity/index.ts';
@@ -234,5 +235,46 @@ test('body integrity is keyed and event/purpose-bound, never a DB-only plaintext
   assert.notEqual(expected,await hashPrivate(key,'mail-body:'+'0'.repeat(32),r.body));assert.notEqual(expected,await hashPrivate(key,'mail-payload:'+f.event,r.body));assert.notEqual(expected,await hashPrivate('8'.repeat(64),'mail-body:'+f.event,r.body));
   const stored=String(f.db.sqlite.prepare('SELECT body_digest FROM identity_mail_envelopes WHERE event_id=?').get(f.event)!.body_digest),audit=String(f.db.sqlite.prepare("SELECT detail_json FROM identity_mail_audit WHERE event_id=? AND action='prepared'").get(f.event)!.detail_json);assert.equal(stored,expected);assert.equal(JSON.parse(audit).bodyDigest,expected);assert(!audit.includes(plain));
   f.db.sqlite.exec('DROP TRIGGER identity_mail_envelope_immutable');f.db.sqlite.prepare('UPDATE identity_mail_envelopes SET body_digest=? WHERE event_id=?').run(plain,f.event);await assert.rejects(s.materialize(f.event),{code:'envelope_digest_mismatch'});
+ }finally{f.close();}}
+});
+test('all five templates and max-size card compile prepare, materialize and returned guards with native SQLite function arity limited to D1 32',async()=>{
+ const {createIdentityMailEnvelope}=await factory();
+ for(const scenario of ['guardian-invitation','identity-card-v1','identity-card-revoked-v1','identity-recovery-continued-v1','identity-guardian-repaired-v1','identity-card-v1-max']){const template=scenario.replace(/-max$/,''),f=await fixture(scenario.endsWith('-max')?8388608:64);try{
+  if(template==='guardian-invitation')await f.invitation();else if(template!=='identity-card-v1')await f.security(template);
+  const queries:string[]=[],prepare=f.db.prepare.bind(f.db);f.db.prepare=sql=>{queries.push(sql);return prepare(sql);};
+  const s=createIdentityMailEnvelope(f.env);await s.prepare(f.event);const r=await s.materialize(f.event);await f.db.batch(r.guards());
+  // Compile actual captured SQL against the complete synthetic database in a
+  // second native engine. setlimit applies to every function, not snapshot text.
+  const result=spawnSync('python3',['-c',String.raw`
+import base64,json,re,sqlite3,sys
+data=json.load(sys.stdin)
+db=sqlite3.connect(':memory:')
+db.deserialize(base64.b64decode(data['database']))
+db.setlimit(sqlite3.SQLITE_LIMIT_FUNCTION_ARG,32)
+db.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER,100)
+db.setlimit(sqlite3.SQLITE_LIMIT_SQL_LENGTH,100000)
+db.setlimit(sqlite3.SQLITE_LIMIT_LENGTH,2000000)
+db.setlimit(sqlite3.SQLITE_LIMIT_COMPOUND_SELECT,5)
+assert db.getlimit(sqlite3.SQLITE_LIMIT_FUNCTION_ARG)==32
+# Prove the engine accepts 32 and rejects 34 real arguments, independently of
+# how the application builds SQL or how many nested commas/string commas exist.
+db.execute('SELECT json_object('+','.join(["'k%d',%d"%(i,i) for i in range(16)])+')')
+try:
+ db.execute('SELECT json_object('+','.join(["'k%d',%d"%(i,i) for i in range(17)])+')')
+ raise AssertionError('function limit not enforced')
+except sqlite3.OperationalError as error:
+ assert 'too many arguments' in str(error)
+for sql in data['queries']:
+ try:
+  db.execute('EXPLAIN '+sql)
+ except sqlite3.ProgrammingError as error:
+  # EXPLAIN compiles before checking bindings. Repeat with the engine-reported
+  # binding count, never by counting '?' or parsing application SQL ourselves.
+  count=re.search(r'uses (\d+)',str(error))
+  if count is None: raise
+  db.execute('EXPLAIN '+sql,[None]*int(count.group(1)))
+print(json.dumps({'compiled':len(data['queries'])}))
+`],{input:JSON.stringify({database:Buffer.from(f.db.sqlite.serialize()).toString('base64'),queries:[...new Set(queries)]}),encoding:'utf8',maxBuffer:1024*1024});
+  assert.equal(result.status,0,template+': '+result.stderr);assert(JSON.parse(result.stdout).compiled>5);
  }finally{f.close();}}
 });

@@ -34,7 +34,13 @@ const identityFields=['agent_id','account_id','room_id','resident_id','version',
 const inviteFields=['id','agent_id','account_id','version','identity_version','authority_epoch','state','recipient_ciphertext','email_hash','invite_token_hash','expires_at','created_at'];
 const guardianFields=['guardian_id','agent_id','invitation_id','version','email_verified_at'];
 const cardFields=['credential_id','agent_id','account_id','revision','state','pdf_digest','json_digest','pdf_length','json_length','pdf_chunks','json_chunks','issued_at'];
-function snapshot(groups:[string,string[]][]){return 'json_object('+groups.flatMap(([alias,columns])=>columns.flatMap(c=>["'"+alias+'.'+c+"'",alias+'.'+c])).join(',')+')';}
+function snapshot(groups:[string,string[]][]){
+ // D1 guarantees at most 32 arguments per SQL function. Namespace each group
+ // instead of flattening up to 50 pairs into one json_object. Current groups
+ // have <=12 pairs and the outer object <=8; fail closed on future expansion.
+ if(groups.length>16||groups.some(([,columns])=>columns.length>16))fail('envelope_context_unavailable');
+ return 'json_object('+groups.flatMap(([alias,columns])=>["'"+alias+"'",'json_object('+columns.flatMap(c=>["'"+c+"'",alias+'.'+c]).join(',')+')']).join(',')+')';
+}
 const baseJoin=' JOIN tower_residencies t ON t.account_id=i.account_id AND t.room_id=i.room_id AND t.resident_id=i.resident_id JOIN rooms r ON r.id=i.room_id AND r.account_id=i.account_id';
 const currentGuardian=' JOIN identity_guardians g ON g.agent_id=i.agent_id JOIN identity_guardian_invites v ON v.id=g.invitation_id AND v.agent_id=g.agent_id AND v.account_id=i.account_id AND v.state=\'registered\' AND v.recipient_ciphertext=e.recipient_ciphertext AND v.email_hash=e.recipient_hash';
 const commonGroups:[string,string[]][]=[['e',eventFields],['i',identityFields],['t',['revision']],['r',['id','account_id']]];
