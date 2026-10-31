@@ -1,4 +1,9 @@
 import test from "node:test";
+import {
+  isoBase64URL,
+  isoCBOR,
+  decodeCredentialPublicKey,
+} from "@simplewebauthn/server/helpers";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { LocalDatabase } from "../server/live/local-db.ts";
@@ -126,9 +131,8 @@ async function fixture() {
     existsSync(new URL("../server/live/identity-recovery.ts", import.meta.url)),
     "Passkey recovery handler must exist",
   );
-  const { createIdentityRecovery } = await import(
-    "../server/live/identity-recovery.ts"
-  );
+  const { createIdentityRecovery } =
+    await import("../server/live/identity-recovery.ts");
   const handler = createIdentityRecovery({
     db,
     origin,
@@ -850,9 +854,8 @@ test("owner token and onboarding-grant mints begun with old session cannot survi
 test("reserved security-notice and identity-card mail events remain pending with no delivery attempt", async () => {
   const f = await fixture();
   try {
-    const { createIdentityMail } = await import(
-      "../server/live/identity-mail.ts"
-    );
+    const { createIdentityMail } =
+      await import("../server/live/identity-mail.ts");
     const start = await f.begin();
     assert.equal(
       (await f.send("guardian/recovery/complete", await f.body(start))).status,
@@ -891,9 +894,8 @@ test("legacy reception approval and pre-existing approval activation cannot bypa
   for (const state of ["pending", "approved"]) {
     const f = await fixture();
     try {
-      const { createTowerReception } = await import(
-          "../server/live/reception.ts"
-        ),
+      const { createTowerReception } =
+          await import("../server/live/reception.ts"),
         caseId = "b".repeat(32),
         caseKey = "7".repeat(64);
       f.db.sqlite
@@ -1326,9 +1328,8 @@ test("ordered races allow either request to win while the delayed transaction ro
 test("inflight Tower owner rotation cannot revoke the new recovery token or mint another token", async () => {
   const f = await fixture();
   try {
-    const { createTowerIntake } = await import(
-        "../server/live/tower-intake.ts"
-      ),
+    const { createTowerIntake } =
+        await import("../server/live/tower-intake.ts"),
       raw = "6".repeat(64);
     f.db.sqlite
       .prepare(
@@ -1620,5 +1621,1120 @@ test("signed browser clientDataJSON tolerates extra members and key order for co
         f.db.close();
       }
     }
+  }
+});
+
+async function offlineStart(
+  f: Awaited<ReturnType<typeof fixture>>,
+  decision = "continue",
+  candidateKey = candidate,
+  suffix = "offline-1",
+) {
+  const created = await f.create(
+    { requestKey: "candidate-" + suffix, agentId },
+    candidateKey,
+  );
+  assert.equal(created.status, 201, await created.clone().text());
+  const request = await created.json();
+  const optionsBody = {
+    requestKey: "options-" + suffix,
+    requestId: request.requestId,
+    decision,
+    currentOfflineRecoveryCode: "e".repeat(64),
+  };
+  const options = await f.send(
+    "guardian/recovery/offline/options",
+    optionsBody,
+  );
+  assert(options, "offline recovery endpoint must exist");
+  assert.equal(options.status, 200, await options.clone().text());
+  const start = await options.json();
+  const auth = await identityAuthenticator();
+  const body = {
+    requestKey: "complete-" + suffix,
+    requestId: request.requestId,
+    challengeId: start.challengeId,
+    currentOfflineRecoveryCode: "e".repeat(64),
+    response: await auth.registration(start.options, origin, {
+      client: { browserExtension: "allowed" },
+    }),
+    offlineRecoveryCode: "f".repeat(64),
+    backupConfirmed: true,
+  };
+  return { start, auth, body, optionsBody };
+}
+test("offline continue repairs the same guardian Passkey and backup while preserving the permanent home", async () => {
+  const f = await fixture();
+  try {
+    f.db.sqlite
+      .prepare("UPDATE identity_guardian_passkeys SET revoked_at=?")
+      .run(time);
+    const home = f.db.sqlite.prepare("SELECT * FROM rooms").all();
+    const s = await offlineStart(f);
+    assert.equal(s.start.method, "offline");
+    assert.equal(s.start.options.attestation, "none");
+    assert.deepEqual(s.start.options.pubKeyCredParams, [
+      { alg: -7, type: "public-key" },
+    ]);
+    assert.equal(
+      s.start.options.authenticatorSelection.userVerification,
+      "required",
+    );
+    assert(!JSON.stringify(s.start).includes("synthetic@example.com"));
+    const response = await f.send("guardian/recovery/offline/complete", s.body);
+    assert.equal(response.status, 200, await response.clone().text());
+    const result = await response.json();
+    assert.equal(result.state, "continued");
+    assert.equal(result.agentId, agentId);
+    assert.equal(f.count("identity_guardians"), 1);
+    assert.equal(f.count("identity_guardian_passkeys"), 2);
+    assert.equal(
+      f.db.sqlite
+        .prepare(
+          "SELECT count(*) n FROM identity_guardian_passkeys WHERE revoked_at IS NULL",
+        )
+        .get()!.n,
+      1,
+    );
+    assert.equal(
+      f.db.sqlite
+        .prepare(
+          "SELECT webauthn_user_id FROM identity_guardian_passkeys WHERE revoked_at IS NULL",
+        )
+        .get()!.webauthn_user_id,
+      s.start.options.user.id,
+    );
+    assert.equal(
+      f.db.sqlite
+        .prepare("SELECT version,authority_epoch FROM agent_identities")
+        .get()!.version,
+      5,
+    );
+    assert.equal(result.authorityEpoch, 2);
+    assert.equal(
+      f.db.sqlite.prepare("SELECT version FROM identity_guardians").get()!
+        .version,
+      2,
+    );
+    assert.deepEqual(f.db.sqlite.prepare("SELECT * FROM rooms").all(), home);
+    assert.equal(f.count("identity_recovery_instances"), 1);
+    assert.equal(f.count("identity_recovery_receipts"), 1);
+    assert.equal(
+      f.db.sqlite.prepare("SELECT state FROM identity_mail_events").get()!
+        .state,
+      "pending",
+    );
+    assert.deepEqual(
+      await (await f.send("guardian/recovery/offline/complete", s.body)).json(),
+      result,
+    );
+    assert.equal(f.count("identity_guardian_passkeys"), 2);
+    const wrong = { ...s.body, currentOfflineRecoveryCode: "7".repeat(64) };
+    assert.equal(
+      (await f.send("guardian/recovery/offline/complete", wrong)).status,
+      403,
+    );
+    assert.equal(
+      (
+        await f.send("guardian/recovery/offline/complete", {
+          ...s.body,
+          offlineRecoveryCode: "6".repeat(64),
+        })
+      ).status,
+      409,
+    );
+    assert.equal(
+      (
+        await f.send("guardian/recovery/offline/complete", {
+          ...s.body,
+          requestKey: "fresh-after-consumed",
+        })
+      ).status,
+      409,
+    );
+    const next = await f.begin(
+      "continue",
+      "6".repeat(64),
+      "next-after-offline",
+    );
+    const assertion = await s.auth.assertion(
+      next.options,
+      origin,
+      s.start.options.user.id,
+    );
+    const completed = await f.send("guardian/recovery/complete", {
+      requestKey: "new-passkey-assertion",
+      requestId: next.requestId,
+      challengeId: next.challengeId,
+      response: assertion,
+      offlineRecoveryCode: "8".repeat(64),
+      backupConfirmed: true,
+    });
+    assert.equal(completed.status, 200, await completed.clone().text());
+  } finally {
+    f.db.close();
+  }
+});
+test("offline new repairs guardian capability but preserves all Agent authority and home", async () => {
+  const f = await fixture();
+  try {
+    f.db.sqlite
+      .prepare(
+        "INSERT INTO tower_tokens(id,account_id,token_hash,scopes,created_at,expires_at) VALUES('old',?,?, '[\"tower:read\"]',?,'2026-11-20T00:00:00.000Z')",
+      )
+      .run(account, await hashIdentityInput("2".repeat(64)), time);
+    f.db.sqlite
+      .prepare(
+        "INSERT INTO sessions(token_hash,account_id,csrf,expires_at) VALUES(?,?,'csrf',?)",
+      )
+      .run(
+        await hashIdentityInput("3".repeat(64)),
+        account,
+        "2026-11-20T00:00:00.000Z",
+      );
+    f.db.sqlite
+      .prepare(
+        "INSERT INTO agent_tokens(id,room_id,token_hash,scopes,created_at,expires_at) VALUES('legacy',?,?, '[\"posts:write\"]',?,'2026-11-20T00:00:00.000Z')",
+      )
+      .run(account, await hashIdentityInput("4".repeat(64)), time);
+    f.db.sqlite
+      .prepare(
+        "INSERT INTO onboarding_grants(id,account_id,token_hash,scopes,created_at,expires_at) VALUES('onboard',?,?, '[\"home:read\"]',?,'2026-11-20T00:00:00.000Z')",
+      )
+      .run(account, await hashIdentityInput("5".repeat(64)), time);
+    f.db.sqlite
+      .prepare(
+        "INSERT INTO tower_reception_cases(id,token_hash,state,name,request_kind,request_text,source_url,resident_id,account_id,approval_expires_at,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at) VALUES(?,?,'active','Synthetic','takeover','Help','https://source.example/a/condo.json',?,?,?,'{}','{}','{}','Wait',?,?,?)",
+      )
+      .run(
+        "b".repeat(32),
+        await hashIdentityInput("7".repeat(64)),
+        account,
+        account,
+        "2026-11-01T00:00:00.000Z",
+        "2026-11-01T00:00:00.000Z",
+        time,
+        time,
+      );
+    const before = Object.fromEntries(
+      [
+        "accounts",
+        "rooms",
+        "tower_residencies",
+        "tower_tokens",
+        "sessions",
+        "agent_tokens",
+        "onboarding_grants",
+        "tower_reception_cases",
+        "tower_reception_events",
+      ].map((t) => [t, f.db.sqlite.prepare("SELECT * FROM " + t).all()]),
+    );
+    const s = await offlineStart(f, "new");
+    const response = await f.send("guardian/recovery/offline/complete", s.body);
+    assert.equal(response.status, 200, await response.clone().text());
+    assert.equal((await response.json()).state, "new-admission-required");
+    for (const [t, rows] of Object.entries(before))
+      assert.deepEqual(
+        f.db.sqlite.prepare("SELECT * FROM " + t).all(),
+        rows,
+        t,
+      );
+    assert.equal(f.count("identity_recovery_instances"), 0);
+    assert.equal(
+      f.db.sqlite
+        .prepare("SELECT version,authority_epoch FROM agent_identities")
+        .get()!.version,
+      5,
+    );
+    assert.equal(
+      f.db.sqlite.prepare("SELECT authority_epoch FROM agent_identities").get()!
+        .authority_epoch,
+      1,
+    );
+    assert.equal(f.count("identity_guardian_passkeys"), 2);
+    assert.equal(
+      f.db.sqlite
+        .prepare(
+          "SELECT count(*) n FROM identity_offline_recovery_codes WHERE consumed_at IS NULL",
+        )
+        .get()!.n,
+      1,
+    );
+  } finally {
+    f.db.close();
+  }
+});
+
+test("offline registration rejects invalid security metadata before consuming the recovery proof", async () => {
+  const f = await fixture();
+  try {
+    const s = await offlineStart(f);
+    for (const mutation of [
+      "attachment",
+      "extension",
+      "response-private",
+      "outer-private",
+    ]) {
+      const body = structuredClone(s.body) as typeof s.body & {
+        private?: string;
+      };
+      if (mutation === "attachment")
+        body.response.authenticatorAttachment = "invalid" as "platform";
+      if (mutation === "extension")
+        body.response.clientExtensionResults = { private: "secret" } as object;
+      if (mutation === "response-private")
+        Object.assign(body.response.response, { private: "secret" });
+      if (mutation === "outer-private") body.private = "secret";
+      const r = await f.send("guardian/recovery/offline/complete", body);
+      assert.equal(
+        r.status,
+        mutation === "outer-private" ? 400 : 403,
+        mutation + ": " + (await r.clone().text()),
+      );
+      assert.equal(f.count("identity_recovery_receipts"), 0);
+    }
+  } finally {
+    f.db.close();
+  }
+});
+
+test("offline wrong or other-household proofs cannot read victim receipts, disclose conflicts or charge challenge quota", async () => {
+  const f = await fixture();
+  try {
+    const s = await offlineStart(f);
+    assert.equal(
+      (await f.send("guardian/recovery/offline/complete", s.body)).status,
+      200,
+    );
+    const prepare = f.db.prepare.bind(f.db);
+    let scopedReads = 0;
+    f.db.prepare = (sql) => {
+      if (
+        sql.includes("identity_recovery_receipts") ||
+        sql.startsWith("SELECT * FROM identity_offline_recovery_challenges") ||
+        sql.startsWith("SELECT i.*")
+      )
+        scopedReads++;
+      return prepare(sql);
+    };
+    for (const requestKey of [s.body.requestKey, "unknown-key-same-scope"]) {
+      const wrong = {
+        ...s.body,
+        requestKey,
+        currentOfflineRecoveryCode: "7".repeat(64),
+      };
+      assert.equal(
+        (await f.send("guardian/recovery/offline/complete", wrong)).status,
+        403,
+      );
+      assert.equal(
+        (
+          await f.send("guardian/recovery/offline/options", {
+            ...s.optionsBody,
+            requestKey,
+            currentOfflineRecoveryCode: "7".repeat(64),
+          })
+        ).status,
+        403,
+      );
+    }
+    assert.equal(
+      (
+        await f.send("guardian/recovery/offline/options", {
+          ...s.optionsBody,
+          requestId: "9".repeat(32),
+          currentOfflineRecoveryCode: "7".repeat(64),
+        })
+      ).status,
+      403,
+    );
+    assert.equal(scopedReads, 0);
+    const other = "mcid:" + "b".repeat(64);
+    f.db.sqlite
+      .prepare("INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)")
+      .run("b".repeat(16), await hashIdentityInput("b".repeat(64)), time);
+    f.db.sqlite
+      .prepare(
+        "INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Other','','resident','external-ready',?)",
+      )
+      .run("b".repeat(16), "b".repeat(16), time);
+    f.db.sqlite
+      .prepare(
+        "INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,created_at,updated_at) VALUES(?,?,?,'https://source.example/b/condo.json','challenge',?,?)",
+      )
+      .run("b".repeat(16), "b".repeat(16), "b".repeat(16), time, time);
+    f.db.sqlite
+      .prepare(
+        "INSERT INTO agent_identities(agent_id,account_id,room_id,resident_id,recovery_consent,created_at,updated_at) VALUES(?,?,?,?,1,?,?)",
+      )
+      .run(other, "b".repeat(16), "b".repeat(16), "b".repeat(16), time, time);
+    const foreignCode = "8".repeat(64);
+    f.db.sqlite
+      .prepare(
+        "INSERT INTO identity_offline_recovery_codes(agent_id,code_hash,authority_epoch,identity_version,created_at,confirmed_at) VALUES(?,?,1,1,?,?)",
+      )
+      .run(
+        other,
+        await hashPrivate(contactKey, "identity-offline-recovery", foreignCode),
+        time,
+        time,
+      );
+    assert.equal(
+      (
+        await f.send("guardian/recovery/offline/complete", {
+          ...s.body,
+          currentOfflineRecoveryCode: foreignCode,
+        })
+      ).status,
+      403,
+    );
+    assert.equal(scopedReads, 0);
+    assert.equal(f.count("identity_offline_recovery_challenges"), 1);
+    assert.equal(
+      f.db.sqlite
+        .prepare(
+          "SELECT count FROM rate_limits WHERE key='recovery:global:challenges'",
+        )
+        .get()!.count,
+      1,
+    );
+  } finally {
+    f.db.close();
+  }
+});
+test("offline rejects reused credentials, semantic historical public keys and every old secret/code generation", async () => {
+  const f = await fixture();
+  try {
+    const s = await offlineStart(f);
+    const old = f.db.sqlite
+      .prepare("SELECT * FROM identity_guardian_passkeys")
+      .get()!;
+    const oldKey = decodeCredentialPublicKey(
+      isoBase64URL.toBuffer(String(old.public_key)),
+    ) as unknown as Map<number, unknown>;
+    const reordered = isoCBOR.encode(
+      new Map([...oldKey.entries()].reverse()) as Parameters<
+        typeof isoCBOR.encode
+      >[0],
+    );
+    for (const response of [
+      await f.auth.registration(s.start.options, origin),
+      await s.auth.registration(s.start.options, origin, {
+        credentialId: isoBase64URL.toBuffer(String(old.credential_id)),
+      }),
+      await s.auth.registration(s.start.options, origin, {
+        publicKey: reordered,
+      }),
+    ]) {
+      const r = await f.send("guardian/recovery/offline/complete", {
+        ...s.body,
+        response,
+      });
+      assert.equal(r.status, 409, await r.clone().text());
+    }
+    for (const raw of ["e".repeat(64), candidate, "a".repeat(64)])
+      assert.equal(
+        (
+          await f.send("guardian/recovery/offline/complete", {
+            ...s.body,
+            offlineRecoveryCode: raw,
+          })
+        ).status,
+        409,
+      );
+    assert.equal(f.count("identity_guardian_passkeys"), 1);
+    assert.equal(f.count("identity_recovery_receipts"), 0);
+    assert.equal(
+      (await f.send("guardian/recovery/offline/complete", s.body)).status,
+      200,
+    );
+    const nextCreated = await f.create(
+      { requestKey: "candidate-offline-generation-two", agentId },
+      "6".repeat(64),
+    );
+    const request = await nextCreated.json();
+    const options = await (
+      await f.send("guardian/recovery/offline/options", {
+        requestKey: "options-second-generation",
+        requestId: request.requestId,
+        decision: "continue",
+        currentOfflineRecoveryCode: "f".repeat(64),
+      })
+    ).json();
+    const newer = await identityAuthenticator();
+    const body = {
+      requestKey: "complete-second-generation",
+      requestId: request.requestId,
+      challengeId: options.challengeId,
+      currentOfflineRecoveryCode: "f".repeat(64),
+      response: await newer.registration(options.options, origin),
+      offlineRecoveryCode: "e".repeat(64),
+      backupConfirmed: true,
+    };
+    assert.equal(
+      (await f.send("guardian/recovery/offline/complete", body)).status,
+      409,
+    );
+    assert.equal(
+      (
+        await f.send("guardian/recovery/offline/complete", {
+          ...body,
+          offlineRecoveryCode: "8".repeat(64),
+        })
+      ).status,
+      200,
+    );
+    assert.equal(f.count("identity_guardian_passkeys"), 3);
+    assert.equal(f.count("identity_offline_recovery_codes"), 3);
+  } finally {
+    f.db.close();
+  }
+});
+test("offline official verifier enforces original challenge RP origin client type and UP/UV without persisting browser members", async () => {
+  const f = await fixture();
+  try {
+    const s = await offlineStart(f);
+    for (const override of [
+      { origin: "https://evil.example" },
+      { rpID: "evil.example" },
+      { challenge: "wrong" },
+      { flags: 0x41 },
+      { flags: 0x44 },
+      { client: { type: "webauthn.get" } },
+      { client: { crossOrigin: true } },
+      { client: { topOrigin: "https://evil.example" } },
+    ]) {
+      const response = await s.auth.registration(
+        s.start.options,
+        origin,
+        override,
+      );
+      assert.equal(
+        (
+          await f.send("guardian/recovery/offline/complete", {
+            ...s.body,
+            response,
+          })
+        ).status,
+        403,
+        JSON.stringify(override),
+      );
+    }
+    assert.equal(
+      (
+        await f.send("guardian/recovery/offline/complete", {
+          ...s.body,
+          backupConfirmed: false,
+        })
+      ).status,
+      400,
+    );
+    const changedDecision = await f.send("guardian/recovery/offline/options", {
+      ...s.optionsBody,
+      decision: "new",
+    });
+    assert.equal(changedDecision.status, 409);
+    assert.equal(
+      (await f.send("guardian/recovery/offline/complete", s.body)).status,
+      200,
+    );
+    for (const table of [
+      "identity_recovery_receipts",
+      "identity_audit",
+      "identity_mail_audit",
+      "tower_audit",
+      "identity_offline_recovery_challenges",
+    ]) {
+      const stored = JSON.stringify(
+        f.db.sqlite.prepare("SELECT * FROM " + table).all(),
+      );
+      for (const raw of [
+        "e".repeat(64),
+        "f".repeat(64),
+        candidate,
+        "browserExtension",
+        "synthetic@example.com",
+        s.body.response.response.attestationObject,
+      ])
+        assert(!stored.includes(raw), table + " leaks " + raw.slice(0, 20));
+    }
+  } finally {
+    f.db.close();
+  }
+});
+test("offline queued expiry, changed guardian/code/identity/tuple and post-options collisions roll back the entire transaction", async () => {
+  for (const mutation of [
+    "native-challenge-expiry",
+    "app-challenge-expiry",
+    "request-expiry",
+    "guardian",
+    "identity-version",
+    "epoch",
+    "suspended",
+    "retired",
+    "consent",
+    "binding",
+    "code-consumed",
+    "candidate-collision",
+    "backup-collision",
+    "audit-failure",
+  ]) {
+    const f = await fixture();
+    try {
+      const s = await offlineStart(f);
+      const batch = f.db.batch.bind(f.db);
+      let changed = false;
+      if (mutation === "app-challenge-expiry")
+        f.setTime("2026-10-31T00:05:00.000Z", time);
+      f.db.batch = async (rows) => {
+        if (
+          !changed &&
+          rows.some(
+            (x) =>
+              "sql" in x &&
+              String(x.sql).startsWith(
+                "INSERT INTO identity_recovery_receipts",
+              ),
+          )
+        ) {
+          changed = true;
+          if (mutation === "native-challenge-expiry")
+            f.setTime(time, "2026-10-31T00:05:00.000Z");
+
+          if (mutation === "request-expiry")
+            f.setTime(time, "2026-10-31T01:00:00.000Z");
+          if (mutation === "guardian")
+            f.db.sqlite.exec("UPDATE identity_guardians SET version=version+1");
+          if (mutation === "identity-version")
+            f.db.sqlite.exec("UPDATE agent_identities SET version=version+1");
+          if (mutation === "epoch")
+            f.db.sqlite.exec(
+              "UPDATE agent_identities SET authority_epoch=authority_epoch+1",
+            );
+          if (mutation === "suspended" || mutation === "retired")
+            f.db.sqlite
+              .prepare("UPDATE agent_identities SET state=?")
+              .run(mutation);
+          if (mutation === "consent")
+            f.db.sqlite.exec("UPDATE agent_identities SET recovery_consent=0");
+          if (mutation === "binding")
+            f.db.sqlite.exec(
+              "UPDATE tower_residencies SET resident_id='bbbbbbbbbbbbbbbb'",
+            );
+          if (mutation === "code-consumed")
+            f.db.sqlite
+              .prepare(
+                "UPDATE identity_offline_recovery_codes SET consumed_at=?",
+              )
+              .run(time);
+          if (
+            mutation === "candidate-collision" ||
+            mutation === "backup-collision"
+          )
+            f.db.sqlite
+              .prepare(
+                "INSERT INTO sessions(token_hash,account_id,csrf,expires_at) VALUES(?,?,'csrf','2026-11-20T00:00:00.000Z')",
+              )
+              .run(
+                await hashIdentityInput(
+                  mutation === "candidate-collision"
+                    ? candidate
+                    : "f".repeat(64),
+                ),
+                account,
+              );
+          if (mutation === "audit-failure")
+            f.db.sqlite.exec(
+              "CREATE TRIGGER reject_offline_audit BEFORE INSERT ON identity_audit BEGIN SELECT RAISE(ABORT,'test-audit-failure'); END",
+            );
+        }
+        return batch(rows);
+      };
+      const response = await f.send(
+        "guardian/recovery/offline/complete",
+        s.body,
+      );
+      assert.equal(
+        response.status,
+        409,
+        mutation + ": " + (await response.clone().text()),
+      );
+      assert(changed, mutation);
+      assert.equal(f.count("identity_recovery_receipts"), 0, mutation);
+      assert.equal(f.count("identity_recovery_instances"), 0, mutation);
+      assert.equal(f.count("tower_tokens"), 0, mutation);
+      assert.equal(f.count("identity_guardian_passkeys"), 1, mutation);
+      assert.equal(f.count("identity_offline_recovery_codes"), 1, mutation);
+      assert.equal(f.count("identity_mail_events"), 0, mutation);
+      assert.equal(
+        f.db.sqlite
+          .prepare(
+            "SELECT consumed_at FROM identity_offline_recovery_challenges",
+          )
+          .get()!.consumed_at,
+        null,
+        mutation,
+      );
+    } finally {
+      f.db.close();
+    }
+  }
+});
+
+test("offline and Passkey competing continuations allow either winner with exactly one atomic grant", async () => {
+  for (const pair of ["offline-offline", "offline-passkey"])
+    for (const delayedIndex of [0, 1]) {
+      const f = await fixture();
+      let release = () => {};
+      try {
+        const a = await offlineStart(f);
+        const b =
+          pair === "offline-offline"
+            ? await offlineStart(f, "continue", "2".repeat(64), "offline-two")
+            : await f.begin("continue", "2".repeat(64), "passkey-two");
+        const bodies = [
+          a.body,
+          pair === "offline-offline"
+            ? { ...b.body, offlineRecoveryCode: "7".repeat(64) }
+            : await f.body(b, {
+                requestKey: "mixed-passkey-complete",
+                offlineRecoveryCode: "7".repeat(64),
+              }),
+        ];
+        const paths = [
+          "guardian/recovery/offline/complete",
+          pair === "offline-offline"
+            ? "guardian/recovery/offline/complete"
+            : "guardian/recovery/complete",
+        ];
+        const batch = f.db.batch.bind(f.db);
+        let entered = () => {};
+        const waiting = new Promise<void>((r) => {
+            entered = r;
+          }),
+          gate = new Promise<void>((r) => {
+            release = r;
+          });
+        let paused = false;
+        f.db.batch = async (rows) => {
+          if (
+            !paused &&
+            rows.some(
+              (x) =>
+                "sql" in x &&
+                String(x.sql).startsWith(
+                  "INSERT INTO identity_recovery_receipts",
+                ),
+            )
+          ) {
+            paused = true;
+            entered();
+            await gate;
+          }
+          return batch(rows);
+        };
+        const delayed = f.send(paths[delayedIndex], bodies[delayedIndex]);
+        await waiting;
+        try {
+          const winner = await f.send(
+            paths[1 - delayedIndex],
+            bodies[1 - delayedIndex],
+          );
+          assert.equal(
+            winner.status,
+            200,
+            pair + (await winner.clone().text()),
+          );
+        } finally {
+          release();
+        }
+        assert.equal((await delayed).status, 409, pair);
+        assert.equal(f.count("identity_recovery_receipts"), 1, pair);
+        assert.equal(f.count("identity_recovery_instances"), 1, pair);
+        assert.equal(f.count("tower_tokens"), 1, pair);
+        assert.equal(f.count("identity_offline_recovery_codes"), 2, pair);
+        assert.equal(
+          f.count("identity_guardian_passkeys"),
+          pair === "offline-passkey" && delayedIndex === 0 ? 1 : 2,
+          pair,
+        );
+        assert.equal(
+          f.db.sqlite
+            .prepare("SELECT version,authority_epoch FROM agent_identities")
+            .get()!.version,
+          5,
+        );
+        assert.equal(
+          f.db.sqlite
+            .prepare("SELECT authority_epoch FROM agent_identities")
+            .get()!.authority_epoch,
+          2,
+        );
+      } finally {
+        release();
+        f.db.close();
+      }
+    }
+});
+test("offline identical completion races replay exactly once for both delayed execution orders", async () => {
+  for (const delayedIndex of [0, 1]) {
+    const f = await fixture();
+    let release = () => {};
+    try {
+      const s = await offlineStart(f);
+      const batch = f.db.batch.bind(f.db);
+      let entered = () => {};
+      const waiting = new Promise<void>((r) => {
+          entered = r;
+        }),
+        gate = new Promise<void>((r) => {
+          release = r;
+        });
+      let paused = false;
+      f.db.batch = async (rows) => {
+        if (
+          !paused &&
+          rows.some(
+            (x) =>
+              "sql" in x &&
+              String(x.sql).startsWith(
+                "INSERT INTO identity_recovery_receipts",
+              ),
+          )
+        ) {
+          paused = true;
+          entered();
+          await gate;
+        }
+        return batch(rows);
+      };
+      const copies = [structuredClone(s.body), structuredClone(s.body)];
+      const delayed = f.send(
+        "guardian/recovery/offline/complete",
+        copies[delayedIndex],
+      );
+      await waiting;
+      let winner: Response;
+      try {
+        winner = await f.send(
+          "guardian/recovery/offline/complete",
+          copies[1 - delayedIndex],
+        );
+        assert.equal(winner.status, 200);
+      } finally {
+        release();
+      }
+      const replay = await delayed;
+      assert.equal(replay.status, 200);
+      assert.deepEqual(await replay.json(), await winner!.json());
+      assert.equal(f.count("identity_guardian_passkeys"), 2);
+      assert.equal(f.count("identity_offline_recovery_codes"), 2);
+      assert.equal(f.count("identity_recovery_instances"), 1);
+      assert.equal(f.count("identity_recovery_receipts"), 1);
+      f.setTime("2026-12-01T00:00:00.000Z");
+      assert.equal(
+        (await f.send("guardian/recovery/offline/complete", s.body)).status,
+        200,
+      );
+      assert.equal(
+        (
+          await f.send("guardian/recovery/offline/complete", {
+            ...s.body,
+            requestKey: "old-proof-fresh-key",
+          })
+        ).status,
+        409,
+      );
+      assert.equal(
+        (
+          await f.send("guardian/recovery/offline/options", {
+            ...s.optionsBody,
+            requestKey: "old-code-fresh-options",
+          })
+        ).status,
+        409,
+      );
+    } finally {
+      release();
+      f.db.close();
+    }
+  }
+});
+test("offline options require explicit decisions and share HTTP and permanent challenge quotas with Passkey", async () => {
+  const f = await fixture();
+  try {
+    const created = await (await f.create()).json();
+    const options = {
+      requestKey: "offline-quota-options",
+      requestId: created.requestId,
+      decision: "continue",
+      currentOfflineRecoveryCode: "e".repeat(64),
+    };
+    for (const decision of [undefined, "", false, "default"]) {
+      const r = await f.send("guardian/recovery/offline/options", {
+        ...options,
+        decision,
+      });
+      assert.equal(r.status, 400);
+    }
+    const [a, b] = await Promise.all([
+      f.send("guardian/recovery/offline/options", options),
+      f.send("guardian/recovery/offline/options", options),
+    ]);
+    assert.equal(a.status, 200);
+    assert.equal(b.status, 200);
+    assert.deepEqual(await a.json(), await b.json());
+    assert.equal(f.count("identity_offline_recovery_challenges"), 1);
+    assert.equal(
+      f.db.sqlite
+        .prepare(
+          "SELECT count FROM rate_limits WHERE key='recovery:global:challenges'",
+        )
+        .get()!.count,
+      1,
+    );
+    f.db.sqlite
+      .prepare(
+        "UPDATE rate_limits SET count=1000 WHERE key='recovery:global:challenges'",
+      )
+      .run();
+    assert.equal(
+      (
+        await f.send("guardian/recovery/offline/options", {
+          ...options,
+          requestKey: "over-global-quota",
+        })
+      ).status,
+      429,
+    );
+    const passkey = await f.send("guardian/recovery/options", {
+      requestKey: "passkey-global-cap",
+      requestId: created.requestId,
+      decision: "continue",
+      method: "passkey",
+    });
+    assert.equal(passkey.status, 429);
+    f.db.sqlite
+      .prepare(
+        "UPDATE rate_limits SET count=1 WHERE key='recovery:global:challenges'",
+      )
+      .run();
+    // Both methods share the same permanent cap, including retained consumed challenges.
+    const columns = f.db.sqlite
+      .prepare("PRAGMA table_info(identity_offline_recovery_challenges)")
+      .all()
+      .map((c) => String(c.name));
+    const values = columns.map((c) =>
+      c === "challenge_id"
+        ? "printf('%032x',n)"
+        : c === "request_key"
+          ? "'cap-entry-'||n"
+          : "c." + c,
+    );
+    f.db.sqlite.exec(
+      "WITH RECURSIVE nums(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM nums WHERE n<9999) INSERT INTO identity_offline_recovery_challenges(" +
+        columns.join(",") +
+        ") SELECT " +
+        values.join(",") +
+        " FROM nums CROSS JOIN (SELECT * FROM identity_offline_recovery_challenges LIMIT 1) c",
+    );
+    assert.equal(f.count("identity_offline_recovery_challenges"), 10000);
+    assert.equal(
+      (
+        await f.send("guardian/recovery/offline/options", {
+          ...options,
+          requestKey: "offline-permanent-cap",
+        })
+      ).status,
+      429,
+    );
+    assert.equal(
+      (
+        await f.send("guardian/recovery/options", {
+          requestKey: "passkey-permanent-cap",
+          requestId: created.requestId,
+          decision: "continue",
+          method: "passkey",
+        })
+      ).status,
+      429,
+    );
+    assert.equal(
+      f.db.sqlite
+        .prepare(
+          "SELECT count FROM rate_limits WHERE key='recovery:global:challenges'",
+        )
+        .get()!.count,
+      1,
+    );
+    for (let n = 0; n < 30; n++)
+      assert.equal(
+        (
+          await f.send(
+            n % 2
+              ? "guardian/recovery/offline/complete"
+              : "guardian/recovery/offline/options",
+            { ...options, currentOfflineRecoveryCode: "8".repeat(64) },
+            { "CF-Connecting-IP": "203.0.113.99" },
+          )
+        ).status,
+        n % 2 ? 400 : 403,
+      );
+    const limited = await f.handler.fetch(
+      new Request(origin + "/api/v1/identity/guardian/recovery/options", {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain",
+          "CF-Connecting-IP": "203.0.113.99",
+        },
+        body: "invalid",
+      }),
+    );
+    assert.equal(limited!.status, 429);
+    const stored = JSON.stringify(
+      f.db.sqlite.prepare("SELECT * FROM rate_limits").all(),
+    );
+    assert(!stored.includes("203.0.113.99"));
+  } finally {
+    f.db.close();
+  }
+});
+test("0016 storage bindings and Pages readiness require immutable retained offline challenges and Passkey history", async () => {
+  const f = await fixture();
+  try {
+    const s = await offlineStart(f);
+    for (const sql of [
+      "UPDATE identity_offline_recovery_challenges SET decision='new'",
+      "UPDATE identity_offline_recovery_challenges SET code_hash='" +
+        "0".repeat(64) +
+        "'",
+      "UPDATE identity_offline_recovery_challenges SET options_json='{}'",
+      "UPDATE identity_offline_recovery_challenges SET candidate_hash='" +
+        "0".repeat(64) +
+        "'",
+      "DELETE FROM identity_offline_recovery_challenges",
+      "DELETE FROM identity_guardian_passkeys",
+    ]) {
+      assert.throws(() => f.db.sqlite.exec(sql), sql);
+    }
+    assert.equal(
+      (await f.send("guardian/recovery/offline/complete", s.body)).status,
+      200,
+    );
+    assert.throws(() =>
+      f.db.sqlite.exec(
+        "UPDATE identity_offline_recovery_challenges SET consumed_at=NULL",
+      ),
+    );
+    const worker = (await import("../server/live/worker.ts")).default;
+    const objects = [
+      ["table", "identity_offline_recovery_challenges"],
+      ["trigger", "identity_offline_recovery_challenge_binding"],
+      ["trigger", "identity_offline_recovery_challenge_immutable"],
+      ["trigger", "identity_offline_recovery_challenge_permanent"],
+      ["trigger", "identity_passkey_permanent"],
+    ];
+    for (const [type, name] of objects) {
+      f.db.sqlite.exec("SAVEPOINT missing_offline_object");
+      try {
+        f.db.sqlite.exec("DROP " + type + " " + name);
+        const response = await worker.fetch(
+          new Request(origin + "/api/v1/status"),
+          { DB: f.db, PUBLIC_ORIGIN: origin },
+        );
+        assert.equal(response.status, 503, name);
+        assert.equal(
+          (await response.json()).error,
+          "database_schema_not_ready",
+          name,
+        );
+      } finally {
+        f.db.sqlite.exec(
+          "ROLLBACK TO missing_offline_object; RELEASE missing_offline_object",
+        );
+      }
+    }
+    const capability = JSON.parse(
+      readFileSync(
+        new URL("../public/identity-onboarding.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    assert.equal(capability.recovery.recoveryAvailable, false);
+    assert.equal(capability.recovery.uiAvailable, false);
+    assert.equal(capability.recovery.offlineBackendImplemented, true);
+    assert(capability.recovery.backendMethods.includes("offline"));
+    assert.deepEqual(
+      capability.recovery.guardian.offline.optionsFields,
+      Object.keys(s.optionsBody),
+    );
+    assert.deepEqual(
+      capability.recovery.guardian.offline.completeFields,
+      Object.keys(s.body),
+    );
+  } finally {
+    f.db.close();
+  }
+});
+
+test("offline challenges cannot be substituted between candidate requests and user handles remain globally unique", async () => {
+  const f = await fixture();
+  try {
+    const a = await offlineStart(f);
+    const b = await offlineStart(
+      f,
+      "new",
+      "2".repeat(64),
+      "offline-other-candidate",
+    );
+    assert.equal(
+      (
+        await f.send("guardian/recovery/offline/complete", {
+          ...a.body,
+          requestId: b.body.requestId,
+        })
+      ).status,
+      403,
+    );
+    assert.equal(
+      (
+        await f.send("guardian/recovery/offline/complete", {
+          ...a.body,
+          challengeId: b.body.challengeId,
+        })
+      ).status,
+      403,
+    );
+    const old = f.db.sqlite
+      .prepare("SELECT * FROM identity_guardian_passkeys")
+      .get()!;
+    f.db.sqlite
+      .prepare(
+        "INSERT INTO identity_guardian_passkeys(credential_id,guardian_id,agent_id,webauthn_user_id,public_key,counter,device_type,backed_up,transports_json,aaguid,created_at) VALUES(?,?,?,?,?,0,'singleDevice',0,'[]',?,?)",
+      )
+      .run(
+        "other-credential",
+        old.guardian_id,
+        agentId,
+        a.start.options.user.id,
+        old.public_key,
+        old.aaguid,
+        time,
+      );
+    const response = await f.send("guardian/recovery/offline/complete", a.body);
+    assert.equal(response.status, 409, await response.clone().text());
+    assert.equal(f.count("identity_recovery_receipts"), 0);
+    assert.equal(f.count("identity_offline_recovery_codes"), 1);
+    assert.equal(
+      f.db.sqlite
+        .prepare(
+          "SELECT count(*) n FROM identity_guardian_passkeys WHERE revoked_at IS NULL",
+        )
+        .get()!.n,
+      2,
+    );
+    assert.equal(f.count("tower_tokens"), 0);
+  } finally {
+    f.db.close();
   }
 });

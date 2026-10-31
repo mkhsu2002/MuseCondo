@@ -1,6 +1,9 @@
 import type { Database, Statement } from "./db.ts";
 import {
   authenticationOptions,
+  registrationOptions,
+  verifyGuardianRegistration,
+  guardianPublicKeyFingerprint,
   verifyGuardianAssertion,
 } from "./identity-webauthn.ts";
 import {
@@ -43,6 +46,7 @@ interface Ready {
   code_hash: string;
 }
 interface Challenge {
+  code_hash?: string;
   challenge_id: string;
   operation: string;
   request_id: string;
@@ -164,7 +168,7 @@ async function input(request: Request) {
   if (!record(value)) fail(400, "invalid_recovery_request");
   return value as Record<string, unknown>;
 }
-/** Passkey-only backend slice. No offline verifier reset, UI, card issuance or delivery dispatch. */
+/** Guardian-authorized recovery backend. UI, card issuance and delivery dispatch remain gated. */
 export function createIdentityRecovery(env: Environment) {
   const db = env.db,
     stamp = () => (env.now?.() ?? new Date()).toISOString();
@@ -190,7 +194,7 @@ export function createIdentityRecovery(env: Environment) {
       requestId,
     );
   const readySQL =
-    "SELECT i.*,g.guardian_id,g.version guardian_version,g.invitation_id,v.recipient_ciphertext,v.email_hash,c.code_hash FROM agent_identities i JOIN tower_residencies t ON t.account_id=i.account_id AND t.room_id=i.room_id AND t.resident_id=i.resident_id JOIN rooms room ON room.id=i.room_id AND room.account_id=i.account_id JOIN identity_guardians g ON g.agent_id=i.agent_id JOIN identity_guardian_invites v ON v.id=g.invitation_id AND v.agent_id=g.agent_id AND v.account_id=i.account_id AND v.state='registered' JOIN identity_offline_recovery_codes c ON c.agent_id=i.agent_id AND c.identity_version=i.version AND c.authority_epoch=i.authority_epoch AND c.consumed_at IS NULL AND c.confirmed_at IS NOT NULL WHERE i.agent_id=? AND i.state='active' AND i.recovery_consent=1 AND EXISTS(SELECT 1 FROM identity_guardian_passkeys p WHERE p.guardian_id=g.guardian_id AND p.agent_id=i.agent_id AND p.revoked_at IS NULL)";
+    "SELECT i.*,g.guardian_id,g.version guardian_version,g.invitation_id,v.recipient_ciphertext,v.email_hash,c.code_hash FROM agent_identities i JOIN tower_residencies t ON t.account_id=i.account_id AND t.room_id=i.room_id AND t.resident_id=i.resident_id JOIN rooms room ON room.id=i.room_id AND room.account_id=i.account_id JOIN identity_guardians g ON g.agent_id=i.agent_id JOIN identity_guardian_invites v ON v.id=g.invitation_id AND v.agent_id=g.agent_id AND v.account_id=i.account_id AND v.state='registered' JOIN identity_offline_recovery_codes c ON c.agent_id=i.agent_id AND c.identity_version=i.version AND c.authority_epoch=i.authority_epoch AND c.consumed_at IS NULL AND c.confirmed_at IS NOT NULL WHERE i.agent_id=? AND i.state='active' AND i.recovery_consent=1";
   function readyGuard(i: Ready) {
     return guard(
       "EXISTS(" +
@@ -230,9 +234,19 @@ export function createIdentityRecovery(env: Environment) {
       expires,
     );
   }
+  function challengeTable(offline: boolean) {
+    return offline
+      ? "identity_offline_recovery_challenges"
+      : "identity_recovery_challenges";
+  }
   function challengeGuard(c: Challenge) {
     return guard(
-      "EXISTS(SELECT 1 FROM identity_recovery_challenges WHERE challenge_id=? AND request_id=? AND candidate_hash=? AND agent_id=? AND guardian_id=? AND guardian_version=? AND identity_version=? AND authority_epoch=? AND decision=? AND rp_id=? AND origin=? AND options_json=? AND consumed_at IS NULL AND created_at<=? AND created_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND expires_at>? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+      "EXISTS(SELECT 1 FROM " +
+        challengeTable(c.operation === "recovery-offline") +
+        " WHERE " +
+        (c.operation === "recovery-offline" ? "code_hash=? AND " : "") +
+        "challenge_id=? AND request_id=? AND candidate_hash=? AND agent_id=? AND guardian_id=? AND guardian_version=? AND identity_version=? AND authority_epoch=? AND decision=? AND rp_id=? AND origin=? AND options_json=? AND consumed_at IS NULL AND created_at<=? AND created_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND expires_at>? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+      ...(c.operation === "recovery-offline" ? [c.code_hash] : []),
       c.challenge_id,
       c.request_id,
       c.candidate_hash,
@@ -294,7 +308,7 @@ export function createIdentityRecovery(env: Environment) {
       ...context(r),
       challengeId: c.challenge_id,
       decision: c.decision,
-      method: "passkey",
+      method: c.operation === "recovery-offline" ? "offline" : "passkey",
       options: JSON.parse(c.options_json),
       challengeExpiresAt: c.expires_at,
     };
@@ -308,6 +322,23 @@ export function createIdentityRecovery(env: Environment) {
     if (!saved) return null;
     if (saved.input_hash !== hash) fail(409, "idempotency_conflict");
     return json(JSON.parse(saved.response_json));
+  }
+  async function offlineProof(r: RecoveryRequest | null, raw: string) {
+    const hash = await hashPrivate(
+      env.contactKey!,
+      "identity-offline-recovery",
+      raw,
+    );
+    if (
+      !r ||
+      !(await one(
+        "SELECT 1 FROM identity_offline_recovery_codes WHERE agent_id=? AND code_hash=? AND confirmed_at IS NOT NULL",
+        r.agent_id,
+        hash,
+      ))
+    )
+      fail(403, "recovery_proof_rejected");
+    return hash;
   }
   async function throttle(request: Request) {
     const supplied = request.headers.get("CF-Connecting-IP"),
@@ -340,7 +371,11 @@ export function createIdentityRecovery(env: Environment) {
           (kind === "requests"
             ? "identity_recovery_requests"
             : "identity_recovery_challenges") +
-          ")<10000",
+          ")" +
+          (kind === "requests"
+            ? ""
+            : "+(SELECT COUNT(*) FROM identity_offline_recovery_challenges)") +
+          "<10000",
       ),
     ];
   }
@@ -352,7 +387,11 @@ export function createIdentityRecovery(env: Environment) {
     return !!(await one(
       "SELECT 1 WHERE EXISTS(SELECT 1 FROM rate_limits WHERE key=? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND count>=1000) OR (SELECT COUNT(*) FROM " +
         table +
-        ")>=10000",
+        ")" +
+        (kind === "requests"
+          ? ""
+          : "+(SELECT COUNT(*) FROM identity_offline_recovery_challenges)") +
+        ">=10000",
       "recovery:global:" + kind,
     ));
   }
@@ -364,13 +403,14 @@ export function createIdentityRecovery(env: Environment) {
           /^\/api\/v1\/identity\/recovery\/requests\/([a-f0-9]{32})$/,
         ),
         create = path === "/api/v1/identity/recovery/requests",
+        offline = path.includes("/guardian/recovery/offline/"),
         action = path.match(
-          /^\/api\/v1\/identity\/guardian\/recovery\/(context|options|complete)$/,
+          /^\/api\/v1\/identity\/guardian\/recovery\/(?:offline\/)?(context|options|complete)$/,
         )?.[1];
-      if (!get && !create && !action) return null;
+      if ((!get && !create && !action) || (offline && action === "context"))
+        return null;
       let authenticatedRetry:
-        | { id: string; key: string; hash: string }
-        | undefined;
+        { id: string; key: string; hash: string } | undefined;
       try {
         if (url.origin !== env.origin) fail(403, "host_rejected");
         if (url.search) fail(400, "query_not_allowed");
@@ -478,21 +518,42 @@ export function createIdentityRecovery(env: Environment) {
           return json(context(r!));
         }
         if (action === "options") {
-          exact(v, ["requestKey", "requestId", "decision", "method"]);
+          exact(v, [
+            "requestKey",
+            "requestId",
+            "decision",
+            offline ? "currentOfflineRecoveryCode" : "method",
+          ]);
           key(v.requestKey);
           id(v.requestId);
           if (
             !["continue", "new"].includes(String(v.decision)) ||
-            v.method !== "passkey"
+            (!offline && v.method !== "passkey")
           )
             fail(400, "explicit_recovery_decision_required");
           const r = await requestRow(v.requestId as string);
           if (!r) fail(403, "recovery_rejected");
-          const hash = await digest({ operation: "recovery-options", ...v }),
+          let currentHash: string | undefined;
+          if (offline) {
+            currentHash = await offlineProof(
+              r!,
+              secret(v.currentOfflineRecoveryCode),
+            );
+          }
+          const hash = await digest({
+              operation: offline
+                ? "recovery-offline-options"
+                : "recovery-options",
+              ...v,
+            }),
             i = await ready(r!.agent_id);
+          if (offline && i.code_hash !== currentHash)
+            fail(409, "recovery_conflict");
           const previous = async () => {
             const c = await one<Challenge>(
-              "SELECT * FROM identity_recovery_challenges WHERE request_id=? AND request_key=?",
+              "SELECT * FROM " +
+                challengeTable(offline) +
+                " WHERE request_id=? AND request_key=?",
               r!.id,
               v.requestKey,
             );
@@ -506,14 +567,17 @@ export function createIdentityRecovery(env: Environment) {
           const prior = await previous();
           if (prior) return prior;
           await check(requestGuard(r!));
-          const options = await authenticationOptions(env.origin),
+          const options = offline
+              ? await registrationOptions(env.origin, r!.agent_id, "MuseCondo")
+              : await authenticationOptions(env.origin),
             created = stamp(),
             expires = new Date(
               Math.min(Date.parse(created) + 300000, Date.parse(r!.expires_at)),
             ).toISOString();
           const c: Challenge = {
             challenge_id: randomIdentityId(),
-            operation: "recovery-passkey",
+            operation: offline ? "recovery-offline" : "recovery-passkey",
+            ...(offline ? { code_hash: currentHash } : {}),
             request_id: r!.id,
             candidate_hash: r!.candidate_hash,
             agent_id: r!.agent_id,
@@ -538,7 +602,13 @@ export function createIdentityRecovery(env: Environment) {
               lifetime(created, expires),
               ...quota("challenges"),
               stmt(
-                "INSERT INTO identity_recovery_challenges(challenge_id,operation,request_id,candidate_hash,agent_id,guardian_id,guardian_version,identity_version,authority_epoch,decision,rp_id,origin,options_json,request_key,input_hash,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO " +
+                  challengeTable(offline) +
+                  "(challenge_id,operation,request_id,candidate_hash,agent_id,guardian_id,guardian_version,identity_version,authority_epoch,decision,rp_id,origin,options_json,request_key,input_hash,created_at,expires_at" +
+                  (offline ? ",code_hash" : "") +
+                  ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?" +
+                  (offline ? ",?" : "") +
+                  ")",
                 c.challenge_id,
                 c.operation,
                 c.request_id,
@@ -556,6 +626,7 @@ export function createIdentityRecovery(env: Environment) {
                 c.input_hash,
                 c.created_at,
                 c.expires_at,
+                ...(offline ? [currentHash] : []),
               ),
             ]);
           } catch {
@@ -571,11 +642,14 @@ export function createIdentityRecovery(env: Environment) {
         key(v.requestKey);
         id(v.requestId);
         id(v.challengeId);
-        const r = await requestRow(v.requestId as string),
-          c = await one<Challenge>(
-            "SELECT * FROM identity_recovery_challenges WHERE challenge_id=?",
-            v.challengeId,
-          );
+        const r = await requestRow(v.requestId as string);
+        const currentHash = offline
+          ? await offlineProof(r, secret(v.currentOfflineRecoveryCode))
+          : undefined;
+        const c = await one<Challenge>(
+          "SELECT * FROM " + challengeTable(offline) + " WHERE challenge_id=?",
+          v.challengeId,
+        );
         if (
           !r ||
           !c ||
@@ -593,61 +667,106 @@ export function createIdentityRecovery(env: Environment) {
           "requestId",
           "challengeId",
           "response",
-          ...(c!.decision === "continue"
+          ...(offline ? ["currentOfflineRecoveryCode"] : []),
+          ...(c!.decision === "continue" || offline
             ? ["offlineRecoveryCode", "backupConfirmed"]
             : []),
         ]);
-        if (c!.decision === "continue") {
+        if (c!.decision === "continue" || offline) {
           secret(v.offlineRecoveryCode);
           if (v.backupConfirmed !== true)
             fail(400, "backup_confirmation_required");
         }
-        const p = await one<Passkey>(
-          "SELECT * FROM identity_guardian_passkeys WHERE credential_id=? AND guardian_id=? AND agent_id=?",
-          (v.response as Record<string, unknown>).id,
-          c!.guardian_id,
-          c!.agent_id,
-        );
-        if (!p) fail(403, "recovery_proof_rejected");
+        const p = offline
+          ? null
+          : await one<Passkey>(
+              "SELECT * FROM identity_guardian_passkeys WHERE credential_id=? AND guardian_id=? AND agent_id=?",
+              (v.response as Record<string, unknown>).id,
+              c!.guardian_id,
+              c!.agent_id,
+            );
         const expected = (JSON.parse(c!.options_json) as { challenge: string })
           .challenge;
-        try {
-          await verifyGuardianAssertion(
-            v.response,
-            expected,
-            env.origin,
-            c!.rp_id,
-            { ...p!, counter: 0 },
-          );
-        } catch {
-          fail(403, "recovery_proof_rejected");
+        if (!offline) {
+          if (!p) fail(403, "recovery_proof_rejected");
+          try {
+            await verifyGuardianAssertion(
+              v.response,
+              expected,
+              env.origin,
+              c!.rp_id,
+              { ...p!, counter: 0 },
+            );
+          } catch {
+            fail(403, "recovery_proof_rejected");
+          }
         }
-        const hash = await digest({ operation: "recovery-complete", ...v });
+        // A consumed code authorizes only its own challenge's historical receipt, never a fresh write.
+        if (offline && c!.code_hash !== currentHash)
+          fail(403, "recovery_proof_rejected");
+        const hash = await digest({
+          operation: offline
+            ? "recovery-offline-complete"
+            : "recovery-complete",
+          ...v,
+        });
         authenticatedRetry = { id: r!.id, key: v.requestKey as string, hash };
         const saved = await receipt(r!.id, v.requestKey as string, hash);
         if (saved) return saved;
         const i = await ready(r!.agent_id);
         if (
-          p!.revoked_at !== null ||
+          (!offline && p!.revoked_at !== null) ||
+          (offline && i.code_hash !== currentHash) ||
           c!.guardian_id !== i.guardian_id ||
           c!.guardian_version !== i.guardian_version ||
           c!.identity_version !== i.version ||
           c!.authority_epoch !== i.authority_epoch
         )
           fail(409, "recovery_conflict");
-        let verification: Awaited<ReturnType<typeof verifyGuardianAssertion>>;
-        try {
-          verification = await verifyGuardianAssertion(
-            v.response,
-            expected,
-            env.origin,
-            c!.rp_id,
-            p!,
-          );
-          if (verification.credentialDeviceType !== p!.device_type)
-            throw new Error("device-type");
-        } catch {
-          fail(403, "recovery_proof_rejected");
+        let verification:
+          Awaited<ReturnType<typeof verifyGuardianAssertion>> | undefined;
+        let registration:
+          Awaited<ReturnType<typeof verifyGuardianRegistration>> | undefined;
+        if (offline) {
+          try {
+            registration = await verifyGuardianRegistration(
+              v.response,
+              expected,
+              env.origin,
+              c!.rp_id,
+            );
+            const fingerprint = guardianPublicKeyFingerprint(
+              registration.publicKey,
+            );
+            const historical = await stmt(
+              "SELECT public_key FROM identity_guardian_passkeys WHERE guardian_id=?",
+              i.guardian_id,
+            ).all<{ public_key: string }>();
+            if (
+              historical.results.some(
+                (k) =>
+                  guardianPublicKeyFingerprint(k.public_key) === fingerprint,
+              )
+            )
+              fail(409, "new_guardian_verifier_required");
+          } catch (error) {
+            if (error instanceof Rejection) throw error;
+            fail(403, "recovery_proof_rejected");
+          }
+        } else {
+          try {
+            verification = await verifyGuardianAssertion(
+              v.response,
+              expected,
+              env.origin,
+              c!.rp_id,
+              p!,
+            );
+            if (verification.credentialDeviceType !== p!.device_type)
+              throw new Error("device-type");
+          } catch {
+            fail(403, "recovery_proof_rejected");
+          }
         }
         const created = stamp(),
           continuing = c!.decision === "continue",
@@ -671,17 +790,21 @@ export function createIdentityRecovery(env: Environment) {
           requestGuard(r!),
           readyGuard(i),
           challengeGuard(c!),
-          guard(
-            "EXISTS(SELECT 1 FROM identity_guardian_passkeys WHERE credential_id=? AND guardian_id=? AND agent_id=? AND counter=? AND public_key=? AND webauthn_user_id=? AND revoked_at IS NULL)",
-            p!.credential_id,
-            p!.guardian_id,
-            p!.agent_id,
-            p!.counter,
-            p!.public_key,
-            p!.webauthn_user_id,
-          ),
+          ...(!offline
+            ? [
+                guard(
+                  "EXISTS(SELECT 1 FROM identity_guardian_passkeys WHERE credential_id=? AND guardian_id=? AND agent_id=? AND counter=? AND public_key=? AND webauthn_user_id=? AND revoked_at IS NULL)",
+                  p!.credential_id,
+                  p!.guardian_id,
+                  p!.agent_id,
+                  p!.counter,
+                  p!.public_key,
+                  p!.webauthn_user_id,
+                ),
+              ]
+            : []),
         ];
-        if (continuing) {
+        if (continuing || offline) {
           const offlineHash = await hashPrivate(
               env.contactKey!,
               "identity-offline-recovery",
@@ -709,13 +832,14 @@ export function createIdentityRecovery(env: Environment) {
               "INSERT INTO identity_offline_recovery_codes(agent_id,code_hash,authority_epoch,identity_version,created_at,confirmed_at) VALUES(?,?,?,?,?,?)",
               i.agent_id,
               offlineHash,
-              i.authority_epoch + 1,
+              i.authority_epoch + (continuing ? 1 : 0),
               i.version + 1,
               created,
               created,
             ),
             stmt(
-              "UPDATE agent_identities SET version=version+1,authority_epoch=authority_epoch+1,updated_at=? WHERE agent_id=?",
+              "UPDATE agent_identities SET version=version+1,authority_epoch=authority_epoch+?,updated_at=? WHERE agent_id=?",
+              continuing ? 1 : 0,
               created,
               i.agent_id,
             ),
@@ -723,51 +847,78 @@ export function createIdentityRecovery(env: Environment) {
               "UPDATE identity_guardians SET version=version+1 WHERE guardian_id=?",
               i.guardian_id,
             ),
-            stmt(
-              "UPDATE tower_tokens SET revoked=1 WHERE account_id=?",
-              i.account_id,
-            ),
-            stmt(
-              "UPDATE agent_tokens SET revoked=1 WHERE room_id=?",
-              i.room_id,
-            ),
-            stmt(
-              "UPDATE onboarding_grants SET revoked=1 WHERE account_id=?",
-              i.account_id,
-            ),
-            stmt("DELETE FROM sessions WHERE account_id=?", i.account_id),
-            stmt(
-              "UPDATE accounts SET login_hash=? WHERE id=?",
-              loginHash,
-              i.account_id,
-            ),
-            stmt(
-              "INSERT INTO tower_reception_events(case_id,sequence,actor,kind,message,created_at) SELECT c.id,COALESCE((SELECT MAX(sequence) FROM tower_reception_events WHERE case_id=c.id),0)+1,'system','identity-recovery','本案已結束。',? FROM tower_reception_cases c WHERE c.account_id=? AND c.state IN ('approved','active')",
-              created,
-              i.account_id,
-            ),
-            stmt(
-              "UPDATE tower_reception_cases SET state='revoked',version=version+1,next_action='本案已結束。',updated_at=? WHERE account_id=? AND state IN ('approved','active')",
-              created,
-              i.account_id,
-            ),
-            stmt(
-              'INSERT INTO tower_tokens(id,account_id,token_hash,scopes,expires_at,created_at) VALUES(?,?,?,\'["tower:read","tower:write"]\',?,?)',
-              tokenId,
-              i.account_id,
-              r!.candidate_hash,
-              expires,
-              created,
-            ),
-            stmt(
-              "INSERT INTO identity_recovery_instances(instance_id,agent_id,authority_epoch,token_id,request_id,created_at) VALUES(?,?,?,?,?,?)",
-              instanceId,
-              i.agent_id,
-              i.authority_epoch + 1,
-              tokenId,
-              r!.id,
-              created,
-            ),
+          );
+          if (offline)
+            rows.push(
+              stmt(
+                "UPDATE identity_guardian_passkeys SET revoked_at=? WHERE guardian_id=? AND revoked_at IS NULL",
+                created,
+                i.guardian_id,
+              ),
+              stmt(
+                "INSERT INTO identity_guardian_passkeys(credential_id,guardian_id,agent_id,webauthn_user_id,public_key,counter,device_type,backed_up,transports_json,aaguid,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                registration!.credentialId,
+                i.guardian_id,
+                i.agent_id,
+                JSON.parse(c!.options_json).user.id,
+                registration!.publicKey,
+                registration!.counter,
+                registration!.deviceType,
+                registration!.backedUp ? 1 : 0,
+                JSON.stringify(registration!.transports),
+                registration!.aaguid,
+                created,
+              ),
+            );
+          if (continuing)
+            rows.push(
+              stmt(
+                "UPDATE tower_tokens SET revoked=1 WHERE account_id=?",
+                i.account_id,
+              ),
+              stmt(
+                "UPDATE agent_tokens SET revoked=1 WHERE room_id=?",
+                i.room_id,
+              ),
+              stmt(
+                "UPDATE onboarding_grants SET revoked=1 WHERE account_id=?",
+                i.account_id,
+              ),
+              stmt("DELETE FROM sessions WHERE account_id=?", i.account_id),
+              stmt(
+                "UPDATE accounts SET login_hash=? WHERE id=?",
+                loginHash,
+                i.account_id,
+              ),
+              stmt(
+                "INSERT INTO tower_reception_events(case_id,sequence,actor,kind,message,created_at) SELECT c.id,COALESCE((SELECT MAX(sequence) FROM tower_reception_events WHERE case_id=c.id),0)+1,'system','identity-recovery','本案已結束。',? FROM tower_reception_cases c WHERE c.account_id=? AND c.state IN ('approved','active')",
+                created,
+                i.account_id,
+              ),
+              stmt(
+                "UPDATE tower_reception_cases SET state='revoked',version=version+1,next_action='本案已結束。',updated_at=? WHERE account_id=? AND state IN ('approved','active')",
+                created,
+                i.account_id,
+              ),
+              stmt(
+                'INSERT INTO tower_tokens(id,account_id,token_hash,scopes,expires_at,created_at) VALUES(?,?,?,\'["tower:read","tower:write"]\',?,?)',
+                tokenId,
+                i.account_id,
+                r!.candidate_hash,
+                expires,
+                created,
+              ),
+              stmt(
+                "INSERT INTO identity_recovery_instances(instance_id,agent_id,authority_epoch,token_id,request_id,created_at) VALUES(?,?,?,?,?,?)",
+                instanceId,
+                i.agent_id,
+                i.authority_epoch + 1,
+                tokenId,
+                r!.id,
+                created,
+              ),
+            );
+          rows.push(
             stmt(
               "INSERT INTO identity_mail_events(id,kind,entity_id,dedupe_key,recipient_ciphertext,recipient_hash,payload_ciphertext,created_at,updated_at) VALUES(?,'security-notice',?,?,?,?,?,?,?)",
               mailId,
@@ -780,10 +931,12 @@ export function createIdentityRecovery(env: Environment) {
                 "mail-payload",
                 mailId,
                 JSON.stringify({
-                  template: "identity-recovery-continued-v1",
+                  template: continuing
+                    ? "identity-recovery-continued-v1"
+                    : "identity-guardian-repaired-v1",
                   agentId: i.agent_id,
                   requestId: r!.id,
-                  authorityEpoch: i.authority_epoch + 1,
+                  authorityEpoch: i.authority_epoch + (continuing ? 1 : 0),
                 }),
               ),
               created,
@@ -795,29 +948,38 @@ export function createIdentityRecovery(env: Environment) {
               mailId,
               created,
             ),
-            stmt(
-              "INSERT INTO tower_audit(id,account_id,room_id,action,revision,detail_json,created_at) VALUES(?,?,?,'identity-recovered',NULL,?,?)",
-              randomIdentityId(),
-              i.account_id,
-              i.room_id,
-              JSON.stringify({
-                requestId: r!.id,
-                authorityEpoch: i.authority_epoch + 1,
-                instanceId,
-              }),
-              created,
-            ),
           );
+          if (continuing)
+            rows.push(
+              stmt(
+                "INSERT INTO tower_audit(id,account_id,room_id,action,revision,detail_json,created_at) VALUES(?,?,?,'identity-recovered',NULL,?,?)",
+                randomIdentityId(),
+                i.account_id,
+                i.room_id,
+                JSON.stringify({
+                  requestId: r!.id,
+                  authorityEpoch: i.authority_epoch + 1,
+                  instanceId,
+                }),
+                created,
+              ),
+            );
         }
         rows.push(
+          ...(!offline
+            ? [
+                stmt(
+                  "UPDATE identity_guardian_passkeys SET counter=?,backed_up=? WHERE credential_id=?",
+                  verification!.newCounter,
+                  verification!.credentialBackedUp ? 1 : 0,
+                  p!.credential_id,
+                ),
+              ]
+            : []),
           stmt(
-            "UPDATE identity_guardian_passkeys SET counter=?,backed_up=? WHERE credential_id=?",
-            verification.newCounter,
-            verification.credentialBackedUp ? 1 : 0,
-            p!.credential_id,
-          ),
-          stmt(
-            "UPDATE identity_recovery_challenges SET consumed_at=? WHERE challenge_id=?",
+            "UPDATE " +
+              challengeTable(offline) +
+              " SET consumed_at=? WHERE challenge_id=?",
             created,
             c!.challenge_id,
           ),

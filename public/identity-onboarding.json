@@ -90,7 +90,8 @@
   "recovery": {
     "recoveryAvailable": false,
     "backendMethods": [
-      "passkey"
+      "passkey",
+      "offline"
     ],
     "offlineCodeResetAvailable": false,
     "uiAvailable": false,
@@ -181,7 +182,43 @@
         "method",
         "options",
         "challengeExpiresAt"
-      ]
+      ],
+      "offline": {
+        "options": "POST /api/v1/identity/guardian/recovery/offline/options",
+        "optionsFields": [
+          "requestKey",
+          "requestId",
+          "decision",
+          "currentOfflineRecoveryCode"
+        ],
+        "complete": "POST /api/v1/identity/guardian/recovery/offline/complete",
+        "completeFields": [
+          "requestKey",
+          "requestId",
+          "challengeId",
+          "currentOfflineRecoveryCode",
+          "response",
+          "offlineRecoveryCode",
+          "backupConfirmed"
+        ],
+        "backupConfirmed": true,
+        "optionsResultFields": [
+          "requestId",
+          "agentId",
+          "state",
+          "expiresAt",
+          "candidateFingerprint",
+          "challengeId",
+          "decision",
+          "method",
+          "options",
+          "challengeExpiresAt"
+        ],
+        "method": "offline",
+        "newPasskeyRequired": true,
+        "newOfflineCodeRequired": true,
+        "historicalRetry": "The original code authenticates only its original challenge and exact historical receipt. A consumed code cannot authorize a fresh operation."
+      }
     },
     "requestRules": {
       "contentType": "application/json; charset=utf-8",
@@ -196,7 +233,8 @@
       "permanentRequestCap": 10000,
       "permanentChallengeCap": 10000
     },
-    "retry": "Reuse the exact original requestKey, challengeId and signed response. Historical success receipts require the original valid Passkey proof and never create authority again.",
-    "newAdmission": "new-admission-required requires the ordinary new-account, new-home and identity enrollment process; no new identity is issued by recovery."
+    "retry": "Reuse the exact original requestKey, challengeId and complete body. Historical success receipts require the original valid Passkey proof or the original offline code bound to that challenge, and never create authority again.",
+    "newAdmission": "new-admission-required requires the ordinary new-account, new-home and identity enrollment process; no new identity is issued by recovery.",
+    "offlineBackendImplemented": true
   }
 }

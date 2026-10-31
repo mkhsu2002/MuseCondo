@@ -72,6 +72,21 @@ export async function verifyGuardianRegistration(
     !record(value.clientExtensionResults)
   )
     throw new Error("invalid_webauthn_response");
+  if (
+    (value.authenticatorAttachment !== undefined &&
+      !["platform", "cross-platform"].includes(
+        String(value.authenticatorAttachment),
+      )) ||
+    Object.keys(value.clientExtensionResults).some((k) => k !== "credProps") ||
+    (value.clientExtensionResults.credProps !== undefined &&
+      (!record(value.clientExtensionResults.credProps) ||
+        Object.keys(value.clientExtensionResults.credProps).some(
+          (k) => k !== "rk",
+        ) ||
+        (value.clientExtensionResults.credProps.rk !== undefined &&
+          typeof value.clientExtensionResults.credProps.rk !== "boolean")))
+  )
+    throw new Error("invalid_webauthn_response");
   canonical(value.id, 1364);
   canonical(value.rawId, 1364);
   const response = value.response;
@@ -178,9 +193,8 @@ export async function authenticationOptions(origin: string) {
   const url = new URL(origin);
   if (url.origin !== origin || url.protocol !== "https:")
     throw new Error("invalid_webauthn_origin");
-  const { generateAuthenticationOptions } = await import(
-    "@simplewebauthn/server"
-  );
+  const { generateAuthenticationOptions } =
+    await import("@simplewebauthn/server");
   return generateAuthenticationOptions({
     rpID: url.hostname,
     timeout: 300000,
@@ -265,9 +279,8 @@ export async function verifyGuardianAssertion(
   canonical(response.authenticatorData, 2048);
   canonical(response.signature, 256);
   canonical(response.userHandle, 64);
-  const { verifyAuthenticationResponse } = await import(
-    "@simplewebauthn/server"
-  );
+  const { verifyAuthenticationResponse } =
+    await import("@simplewebauthn/server");
   const result = await verifyAuthenticationResponse({
     response:
       value as unknown as import("@simplewebauthn/server").AuthenticationResponseJSON,
@@ -292,4 +305,28 @@ export async function verifyGuardianAssertion(
   )
     throw new Error("invalid_webauthn_response");
   return result.authenticationInfo;
+}
+
+/** Semantic EC point identity ignores equivalent COSE map ordering. Public material only. */
+export function guardianPublicKeyFingerprint(publicKey: string) {
+  const key = decodeCredentialPublicKey(
+    isoBase64URL.toBuffer(publicKey),
+  ) as unknown as Map<number, unknown>;
+  const x = key.get(-2),
+    y = key.get(-3);
+  if (
+    key.get(1) !== 2 ||
+    key.get(3) !== -7 ||
+    key.get(-1) !== 1 ||
+    !(x instanceof Uint8Array) ||
+    !(y instanceof Uint8Array) ||
+    x.length !== 32 ||
+    y.length !== 32
+  )
+    throw new Error("invalid_guardian_public_key");
+  return (
+    isoBase64URL.fromBuffer(new Uint8Array(x)) +
+    "." +
+    isoBase64URL.fromBuffer(new Uint8Array(y))
+  );
 }
