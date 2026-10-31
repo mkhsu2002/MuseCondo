@@ -1324,3 +1324,136 @@ test("options authenticate the confirmation before disclosing whether a request 
     f.db.close();
   }
 });
+
+test("complete rejects wrong confirmation identically for existing and new keys after officially verified synthetic registration", async () => {
+  const f = await fixture();
+  try {
+    const start = await f.begin(),
+      { body, response } = await f.complete(start);
+    assert.equal(response.status, 200);
+    const tables = [
+      "agent_identities",
+      "identity_guardian_invites",
+      "identity_guardians",
+      "identity_guardian_passkeys",
+      "identity_offline_recovery_codes",
+      "identity_guardian_challenges",
+      "identity_registration_requests",
+      "identity_audit",
+      "tower_tokens",
+      "sessions",
+    ];
+    const before = tables.map((t) =>
+      f.db.sqlite.prepare("SELECT * FROM " + t).all(),
+    );
+    const wrong = { ...body, confirmationCode: "f".repeat(64) };
+    const existing = await f.send("/complete", wrong),
+      fresh = await f.send("/complete", {
+        ...wrong,
+        requestKey: "new-wrong-confirmation",
+      });
+    assert.equal(existing.status, 403);
+    assert.equal(fresh.status, 403);
+    assert.deepEqual(await existing.json(), await fresh.json());
+    for (const [n, t] of tables.entries())
+      assert.deepEqual(
+        f.db.sqlite.prepare("SELECT * FROM " + t).all(),
+        before[n],
+        t,
+      );
+  } finally {
+    f.db.close();
+  }
+});
+
+test("complete error handling never consults or retries receipt storage before confirmation proof passes", async () => {
+  const f = await fixture();
+  try {
+    const start = await f.begin(),
+      { body, response } = await f.complete(start);
+    assert.equal(response.status, 200);
+    const prepare = f.db.prepare.bind(f.db);
+    let reads = 0;
+    f.db.prepare = (sql: string) => {
+      if (
+        sql.startsWith(
+          "SELECT input_hash,response_json FROM identity_registration_requests",
+        )
+      ) {
+        reads++;
+        if (reads === 1) throw new Error("synthetic receipt read failure");
+      }
+      return prepare(sql);
+    };
+    const denied = await f.send("/complete", {
+      ...body,
+      confirmationCode: "f".repeat(64),
+    });
+    assert.equal(denied.status, 403);
+    assert.equal(reads, 0);
+    assert.deepEqual(await denied.json(), { error: "confirmation_rejected" });
+    assert.equal(f.count("identity_audit"), 1);
+  } finally {
+    f.db.close();
+  }
+});
+
+test("correct confirmation authenticates an exact historical completion receipt after registration and expiry without new authority", async () => {
+  const f = await fixture();
+  try {
+    const start = await f.begin(),
+      { body, response } = await f.complete(start);
+    assert.equal(response.status, 200);
+    const saved = await response.json();
+    f.setTime("2026-11-03T00:00:00.000Z");
+    assert.equal(
+      f.db.sqlite
+        .prepare("SELECT state FROM identity_guardian_invites WHERE id=?")
+        .get(f.input.invitationId)!.state,
+      "registered",
+    );
+    const repeated = await f.send("/complete", body);
+    assert.equal(repeated.status, 200);
+    assert.deepEqual(await repeated.json(), saved);
+    assert.equal(
+      (await f.send("/complete", { ...body, requestKey: "new-after-expiry" }))
+        .status,
+      409,
+    );
+    assert.equal(f.count("identity_guardians"), 1);
+    assert.equal(f.count("identity_guardian_passkeys"), 1);
+    assert.equal(f.count("identity_offline_recovery_codes"), 1);
+    assert.equal(f.count("identity_audit"), 1);
+    assert.equal(f.count("identity_registration_requests"), 1);
+    assert.equal(f.count("tower_tokens"), 0);
+    assert.equal(f.count("sessions"), 0);
+  } finally {
+    f.db.close();
+  }
+});
+
+test("correct historical confirmation still receives changed-input conflict while incorrect proof always receives rejection", async () => {
+  const f = await fixture();
+  try {
+    const start = await f.begin(),
+      { body, response } = await f.complete(start);
+    assert.equal(response.status, 200);
+    f.setTime("2026-11-03T00:00:00.000Z");
+    const changed = { ...body, offlineRecoveryCode: "f".repeat(64) },
+      conflict = await f.send("/complete", changed);
+    assert.equal(conflict.status, 409);
+    assert.deepEqual(await conflict.json(), { error: "idempotency_conflict" });
+    const denied = await f.send("/complete", {
+      ...changed,
+      confirmationCode: "f".repeat(64),
+    });
+    assert.equal(denied.status, 403);
+    assert.deepEqual(await denied.json(), { error: "confirmation_rejected" });
+    const exact = await f.send("/complete", body);
+    assert.equal(exact.status, 200);
+    assert.equal(f.count("identity_audit"), 1);
+    assert.equal(f.count("identity_registration_requests"), 1);
+  } finally {
+    f.db.close();
+  }
+});

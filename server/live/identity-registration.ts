@@ -358,11 +358,6 @@ export function createIdentityRegistration(env: Environment) {
               : "registration-options",
             ...v,
           });
-        if (complete) {
-          retry = { id: v.invitationId, key: v.requestKey, hash };
-          const replay = await receipt(v.invitationId, v.requestKey, hash);
-          if (replay) return replay;
-        }
         const tokenHash = await hashPrivate(
             env.contactKey,
             "guardian-confirmation:" + v.invitationId,
@@ -374,8 +369,14 @@ export function createIdentityRegistration(env: Environment) {
           );
         if (!g || g.invite_token_hash !== tokenHash)
           fail(403, "confirmation_rejected");
-        // Only an authenticated confirmation scope may inspect its logical request key.
-        if (!complete) {
+        // Confirmation possession authenticates historical receipts even after registration or
+        // expiry. Fresh authority still requires the accepted/current/unexpired guards below.
+        // Set the retry scope only after proof passes so error handling cannot probe wrong-proof keys.
+        if (complete) {
+          retry = { id: v.invitationId, key: v.requestKey, hash };
+          const replay = await receipt(v.invitationId, v.requestKey, hash);
+          if (replay) return replay;
+        } else {
           const existing = await one<{ input_hash: string }>(
             "SELECT input_hash FROM identity_guardian_challenges WHERE invitation_id=? AND request_key=?",
             v.invitationId,
