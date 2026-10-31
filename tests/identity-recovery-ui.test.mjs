@@ -827,3 +827,94 @@ test("successful steps focus the next enabled action for keyboard users", async 
   await h.verify();
   assert.equal(h.elements["download-recovery"].focused, true);
 });
+
+for (const cause of ["known-409", "local-expiry"])
+  test(`${cause}: directly loading a different request requires fresh fingerprint acknowledgment and decision`, async () => {
+    const nextContext = {
+      ...context,
+      requestId: "1".repeat(32),
+      agentId: "mcid:" + "2".repeat(64),
+      candidateFingerprint: "3".repeat(64),
+      expiresAt: "2026-10-31T02:00:00.000Z",
+    };
+    const h = await harness({
+      method: "offline",
+      fetcher: (c) => {
+        if (c.path.endsWith("/context"))
+          return response(
+            c.body.requestId === requestId ? context : nextContext,
+          );
+        if (c.path.endsWith("/options"))
+          return response(
+            c.body.requestId === requestId
+              ? options("offline")
+              : {
+                  ...options(),
+                  ...nextContext,
+                  challengeExpiresAt: "2026-10-31T00:10:00.000Z",
+                },
+          );
+        return response({ error: "PRIVATE_CONFLICT" }, 409);
+      },
+    });
+    await h.ready();
+    await h.download();
+    await h.ack();
+    if (cause === "local-expiry") h.setTime("2026-10-31T00:05:00.000Z");
+    await h.finish();
+    assert.match(h.elements["recovery-status"].textContent, /到期|變更/);
+    assert.equal(h.elements["current-offline-code"].value, "");
+    assert.equal(h.elements["backup-confirmed"].checked, false);
+    assert.equal(h.elements["download-recovery"].disabled, true);
+    h.elements["request-id"].value = nextContext.requestId;
+    await h.load();
+    assert.equal(h.elements["agent-id"].textContent, nextContext.agentId);
+    assert.equal(
+      h.elements["candidate-fingerprint"].textContent,
+      nextContext.candidateFingerprint,
+    );
+    assert.equal(h.elements["fingerprint-confirmed"].checked, false);
+    assert.equal(h.elements["decision-continue"].checked, false);
+    assert.equal(h.elements["decision-new"].checked, false);
+    assert.equal(h.elements["prepare-recovery"].disabled, true);
+    const count = h.calls.length;
+    await h.elements["prepare-recovery"].fire("click", true);
+    assert.equal(h.calls.length, count);
+    await h.change("fingerprint-confirmed");
+    await h.elements["prepare-recovery"].fire("click", true);
+    assert.equal(h.calls.length, count);
+    await h.change("decision-new");
+    assert.equal(h.elements["prepare-recovery"].disabled, false);
+  });
+
+test("a rejected subject response cannot carry consent into a replacement context", async () => {
+  let contextAttempts = 0;
+  const h = await harness({
+    fetcher: (c) => {
+      if (c.path.endsWith("/context")) {
+        return response(
+          ++contextAttempts === 1
+            ? context
+            : {
+                ...context,
+                agentId: "mcid:" + "8".repeat(64),
+                candidateFingerprint: "9".repeat(64),
+              },
+        );
+      }
+      return response({ error: "PRIVATE_REJECTED" }, 403);
+    },
+  });
+  await h.load();
+  await h.select();
+  await h.prepare();
+  await h.load();
+  assert.equal(h.elements["agent-id"].textContent, "mcid:" + "8".repeat(64));
+  assert.equal(h.elements["candidate-fingerprint"].textContent, "9".repeat(64));
+  assert.equal(h.elements["fingerprint-confirmed"].checked, false);
+  assert.equal(h.elements["decision-continue"].checked, false);
+  assert.equal(h.elements["decision-new"].checked, false);
+  const count = h.calls.length;
+  await h.elements["prepare-recovery"].fire("click", true);
+  assert.equal(h.calls.length, count);
+});

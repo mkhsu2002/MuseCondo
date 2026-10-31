@@ -130,6 +130,8 @@
   }
   function clearOperation() {
     clearPrepared();
+    fingerprintAck.checked = false;
+    continueChoice.checked = newChoice.checked = false;
     current = null;
     optionsRequest = null;
     optionsBody = null;
@@ -398,6 +400,7 @@
       const data = await api("/context", contextBody);
       if (closed) return;
       if (!validContext(data)) throw { unknown: true };
+      clearOperation();
       context = data;
       $("agent-id").textContent = data.agentId;
       $("context-request-id").textContent = data.requestId;
