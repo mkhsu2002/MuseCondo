@@ -33,6 +33,7 @@ export default {async fetch(request,env){
  const url=new URL(request.url),path=url.pathname;
  if(path==='/seed'){await manager.enable();for(let i=0;i<14;i++)await manager.step();original={cycle:await raw.prepare('SELECT * FROM tower_autonomy_cycles').first(),calls:(await raw.prepare('SELECT * FROM tower_autonomy_calls ORDER BY rowid').all()).results,assets:(await raw.prepare('SELECT * FROM tower_autonomy_assets ORDER BY scene').all()).results};return Response.json({state:original.cycle.state,images});}
  if(path==='/enable')return Response.json(await theme.enable());
+ if(path==='/ensure')return Response.json(await theme.ensureDue());
  if(path==='/step')return Response.json(await theme.step());
  if(path==='/claim'){try{const claim=await theme.claimRender(url.searchParams.get('id'));return Response.json({receiptId:claim.receiptId,manifestHash:claim.manifestHash});}catch{return Response.json({rejected:true},{status:409});}}
  if(path==='/disable'){await manager.disable();return Response.json({themePending:await theme.pending(),managerPending:await manager.pending()});}
@@ -44,7 +45,7 @@ async function migrate(db){
  await db.exec('CREATE TABLE synthetic_native_clock(instant TEXT NOT NULL)');await db.prepare('INSERT INTO synthetic_native_clock VALUES(?)').bind(at).run();
  for(const file of (await readdir('migrations')).filter(f=>f.endsWith('.sql')).sort()){
   const sql=await readFile('migrations/'+file,'utf8');const statements=JSON.parse(execFileSync('python3',['-c',"import sys,sqlite3,json\ns='';r=[]\nfor c in sys.stdin.read():\n s+=c\n if c==';' and sqlite3.complete_statement(s):r.append(s);s=''\nif s.strip() and not s.strip().startswith('--'):raise ValueError('Incomplete migration')\nprint(json.dumps(r))"],{input:sql,encoding:'utf8'}));
-  await db.batch(statements.map(s=>db.prepare(['0026_tower_manager_autonomy.sql','0027_tower_lobby_theme.sql'].includes(file)?substituteClock(s):s)));
+  await db.batch(statements.map(s=>db.prepare(['0026_tower_manager_autonomy.sql','0027_tower_lobby_theme.sql','0028_tower_theme_zero_dispatch_recovery.sql'].includes(file)?substituteClock(s):s)));
  }
 }
 const mutations={
@@ -105,4 +106,21 @@ for(const scenario of ['window','disabled','budget','revision']){
   await preservedR2(mf,result);
   console.log('PASS native disable: both pending lanes stop, no paid dispatch, no original-account mutation');
  }finally{await mf.dispose();}
+}
+
+// 0028 known-zero recovery is tested against real workerd D1, including mutations after its permanent receipt.
+for(const scenario of ['concurrent','window','disabled','budget','task-cap','revision','claimed','unknown']){
+ const f=await fixture(),{mf,db}=f;let held;
+ try{
+  await mf.dispatchFetch(origin+'/enable');await mf.dispatchFetch(origin+'/step');held=await holdRender(f);
+  if(scenario==='claimed')assert.equal((await mf.dispatchFetch(origin+'/claim?id='+held.id)).status,200);
+  if(scenario==='unknown')held.resolve(new Response(null,{status:502,headers:{'X-Lobby-Render-Dispatched':'true'}}));else finish(held);
+  await held.render;await mf.dispatchFetch(origin+'/step');const before=await report(mf);assert.equal(before.theme.extensions[0].state,'blocked');
+  if(['window','disabled','budget','task-cap','revision'].includes(scenario))await db.prepare(`CREATE TRIGGER synthetic_recovery_race AFTER INSERT ON tower_autonomy_events WHEN NEW.kind='lobby-theme-zero-dispatch-recovery' BEGIN ${scenario==='task-cap'?'UPDATE tower_autonomy_mandate SET task_limit_micro=1 WHERE id=1;':mutations[scenario]} END;`).run();
+  const results=await Promise.all([mf.dispatchFetch(origin+'/ensure'),mf.dispatchFetch(origin+'/ensure'),mf.dispatchFetch(origin+'/ensure')]);const values=await Promise.all(results.map(r=>r.json()));const after=await report(mf);preserved(after);assert.deepEqual(after.calls,before.calls,'all previous paid/zero receipts must remain unchanged');assert.equal(after.rendererAttempts,1);await preservedR2(mf,after);
+  const receipts=after.events.filter(e=>e.kind==='lobby-theme-zero-dispatch-recovery');
+  if(scenario==='concurrent'){assert.equal(values.filter(v=>v.theme==='known-undispatched-resumed').length,1);assert.equal(receipts.length,1);assert.equal(after.theme.extensions[0].state,'render-0');assert.equal(after.theme.extensions[0].step_seq,before.theme.extensions[0].step_seq+1);assert.equal(after.theme.extensions[0].review_json,before.theme.extensions[0].review_json);assert.equal(after.theme.extensions[0].artifact_id,before.theme.extensions[0].artifact_id);assert.equal(after.theme.extensions[0].repair,0);}
+  else{assert.equal(receipts.length,0);assert.deepEqual(after.theme.extensions,before.theme.extensions);assert.deepEqual(after.clock,before.clock);assert.deepEqual(after.mandate,before.mandate);}
+  console.log('PASS native zero-dispatch recovery '+scenario+': one immutable recovery receipt or full rollback; no new paid call, unchanged original budget/images/memory/receipts');
+ }finally{if(held){finish(held);await held.render.catch(()=>{});}await mf.dispose();}
 }

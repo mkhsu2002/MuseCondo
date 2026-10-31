@@ -123,3 +123,9 @@ Meta tool契約小修：私密submit_lobby_theme parameters與planning manifestC
 ### 私密零派送診斷（2026-10-31）
 
 `GET /api/v1/operator/manager/autonomy?diagnoseThemeReceipt=<uuid>` 只接受 operator 授權，經既有 `MANAGER_RUNTIME` 的 `/theme/diagnose`，以相同固定 origin 回呼既有 `theme-render-claim` 路由的 `{receiptId, diagnostic:true}` 讀取模式。此模式只讀已知 `rejected / actual_micro=0` 的 Browser receipt、原 extension／artifact／原圖雜湊與 claim 是否存在；不寫帳本、event 或 lease，不 claim、不喚醒、不呼叫 Browser／Meta。回傳只含受限階段、布林檢查、HTTP status、content type、CF ray 與安全錯誤碼；HTML、原始 body、圖片與內部內容不回傳。此診斷不構成續跑授權，也不改寫舊 receipt。正常 render 流程與 renderer build digest 不變。
+
+### 原生一次零派送續跑（0028）
+
+若 `style-public-lobby-v1` 第一次 `render-0` 在 Browser 呼叫前已確定拒絕（唯一 renderer receipt 為 `rejected/actual_micro=0`，從未有 dispatch claim、截圖或 activation），且已保存真實的失敗反省，0028 可授權一次同 extension／原 artifact 的傳輸層續跑。它只接受原 blocked／seq 3／repair 0 個案：原已完成 image task、兩張圖、原 budget、generation、pointer revision、舊 receipts／費用與反省全部保留。永久 deterministic recovery event、狀態 CAS 與最後的原生日界／窗口、mandate、權限和累計帳本檢查在同一 D1 batch；須保留 2.1M microUSD 的原 task 與實際當日餘額，並尊重目前 task/daily caps。未知或已派送、已審核、過期、修改 pointer、第二次拒絕／續跑均不符合資格。
+
+部署順序：先以零付費診斷證明固定同源回呼可用，再同步兩環境 0028、Worker 配置與 Pages，最後用既有 enable／原生 service wake 讓 manager 的 `ensureDue` 自行接回 `render-0`。不重新 plan、不重生圖片、不重設 repair 或成本戶；後續仍必須完成四圖 deterministic 驗證、獨立視覺 TaskAudit、activate 和另一次私密反省。舊 schema 不會開啟此新恢復能力。Worker 的固定公開 origin 回呼使用官方 `global_fetch_strictly_public` compatibility flag；它不代表可以任意 fetch 外部 URL。正式 A/B 與真正 Browser／Meta 成功仍需發布端另行回讀，不以本地 fixtures 代替。
