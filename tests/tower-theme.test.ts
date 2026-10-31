@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync,readdirSync} from 'node:fs';
+import {LocalDatabase} from '../server/live/local-db.ts';
+const migrations=new URL('../migrations/',import.meta.url);
+function database(){const db=new LocalDatabase(':memory:');for(const file of readdirSync(migrations).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL(file,migrations),'utf8'));return db;}
+test('theme extension schema exists without rewriting immutable original task or granting a second cost account',()=>{const db=database();try{assert.equal(db.sqlite.prepare("SELECT count(*) n FROM sqlite_master WHERE type='table' AND name IN ('tower_autonomy_extensions','tower_theme_artifacts','tower_theme_current')").get()!.n,3);}finally{db.close();}});
+import {validateLobbyTheme,lobbyThemeCSS} from '../src/shared/lobby-theme.ts';
+export const themeFixture={version:1,day:{canvas:'#fffaf0',surface:'#ffffff',surfaceAlt:'#f0e4d1',ink:'#241827',muted:'#4e334f',accent:'#6c263d',onAccent:'#ffffff',border:'#806c80',decor:'#b94d28'},night:{canvas:'#160f20',surface:'#22172c',surfaceAlt:'#362038',ink:'#fff4de',muted:'#dcc9dc',accent:'#e0a780',onAccent:'#22172c',border:'#baa6ba',decor:'#efab69'},layout:{hero:'split',cards:'grid',density:'relaxed'},decoration:{pattern:'waves',corners:'arcs',shape:'bevel',weight:2,scale:24,opacity:.07}};
+test('manifest only accepts bounded language-neutral tokens and enforces actual palette contrast',()=>{const value=validateLobbyTheme(themeFixture);assert.equal(value.day.canvas,'#fffaf0');for(const bad of [{...themeFixture,css:'body{display:none}'},{...themeFixture,day:{...themeFixture.day,canvas:'url(https://bad)'}},{...themeFixture,day:{...themeFixture.day,ink:'#ffffff'}},{...themeFixture,decoration:{...themeFixture.decoration,opacity:1}},{...themeFixture,layout:{...themeFixture.layout,html:'<script>'}}])assert.throws(()=>validateLobbyTheme(bad));const css=lobbyThemeCSS(value,'night');assert.match(css,/data-tower-lobby/);assert.match(css,/#160f20/);assert.doesNotMatch(css,/:root|body\{|url\(|@import|javascript|Halloween/i);});
