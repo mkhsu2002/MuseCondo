@@ -14,8 +14,8 @@
 | --- | --- | --- |
 | I00 | 兩 repo 規格、計畫、現有 T04／T06 gate 調整 | 已自審、兩 repo main 文件已同步 |
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
-| I02 | Tower 身份綁定、監護設定與安全註冊 | 6595c7d＋91f17fb；330測試、規格／品質PASS；雙環境部署驗收中 |
-| I03 | Passkey／離線碼復原與舊授權全面失效 | 待實作 |
+| I02 | Tower 身份綁定、監護設定與安全註冊 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
+| I03 | Passkey／離線碼復原與舊授權全面失效 | a與b後端審核通過、b頁面審核修正中；c未實作，整體尚未發布 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | 待實作 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
@@ -93,3 +93,21 @@ I03拆為a首次監護收件驗證／加密聯絡／outbox、b Passkey與離線�
 I02規格複審91f17fb PASS：原生SQLite clock的獨立實測在token 100ms後到期、batch延遲200ms時回403且identity0；同key並發只一reservation／account與global各計一次。永久reservation對同一邏輯嘗試（成功或失敗）均免重扣，新key失敗仍計；此為冪等配額而非HTTP防護。330完整測試／47項獨立聚焦測試、typecheck／lint／build通過；品質審查與雙環境部署仍待完成。
 
 I02品質審查91f17fb PASS：獨立29項測試與4項GET／收據讀出後撤權、移戶、移除scope、query跨戶反例通過；主控330完整測試、build、lint再次全過。尚未把部署結果或真人身份綁定記為完成；Fang／K需原Agent與監護流程。
+
+2026-10-31 I02正式回讀：0012四表與兩個其他schema物件兩環境逐一比對、FK空、同版60c4a06 API／machine JSON同步；dev合成戶驗過enroll／record／重送／第二身份拒絕／跨站混cookie／撤權，最後suspended並保留收據audit。正式只做未授權與既有住戶identity:null安全回讀，沒有建立真住戶身份或改房。監護設定／發證／換環境復原仍未完成；不能拿這個代測補Fang／K真人gate。
+
+I03a工程79bae08／bf4832a／6cc7ebd已規格與品質兩階段PASS（370項當時完整測試）。I03b後端9b7962d／d009fe8／a0472e0／3c68e5b的確認授權順序與雙方並發重送測試皆已修正，401項完整測試、規格與品質複審PASS。2691913頁面進入規格審查，抓到畸形options 200無法原請求重試及信件缺必填邀請碼，尚待修正。I03a／b維持未發布，直到c復原功能與頁面一起可用，避免先宣稱已具備實際尚不可用的復原能力。固定d009fe8的Pages Functions以Wrangler4.156.0／compat2026-10-29無新增flag編譯成功，此只證bundle相容，不代替Workerd／正式crypto行為驗證。新依賴原授權已在public/licenses複製保留。
+
+### I03c 實作切片與驗收契約（設計，尚未實作）
+
+先完成復原後端與舊發權路徑隔離並兩階段審查，再完成監護復原頁面、離線驗證器重建與跨環境整合；未全部通過前不發布I03a／b或宣告復原可用。
+
+- 新環境本地產生獨立256-bit操作鑰匙，以專用header證明持有；server只存SHA-256，候選值不得與任何舊帳戶、Tower／legacy／onboarding／case／session憑證或既有候選／備援重用。建立請求需agentId，不憑名字或email合併。請求最長1小時，維持永久冪等及本環境持有者私密查回；未證監護前不回私稿、門牌或信箱。
+- 監護人取得新環境提供的請求識別碼，先看agentId、候選鑰匙完整SHA-256指紋與期限，再無預選地決定continue或new。WebAuthn challenge綁定該請求、候選hash、決策、監護版本、身份版本／epoch及確定RP／origin；5分鐘且不超過請求期限，一次性使用。官方verifier驗assertion簽章／UP／UV／counter／userHandle，公開options不列居民credential IDs。
+- continue必須提交新離線碼及已下載確認。既有Passkey途徑驗assertion並CAS更新counter；離線途徑先驗既有碼、以綁定案件的registration challenge註冊新Passkey，完成時撤銷舊Passkeys。兩者同批消耗舊碼、保存新碼hash、新增本戶限期Tower token與instance、遞增identity.version與authorityEpoch，保留同一監護人及已驗證聯絡。
+- 同批撤銷該account全部舊tower_tokens、該room的agent_tokens、onboarding_grants、sessions；替換accounts.login_hash為無法取回的隨機值，關閉其舊接待approved／active發權。approve與activate各自以執行時原子guard阻止已有有效監護身份的舊接手，不因同一operator特許繞過。歷史收據查回不重發權。提交時以原生DB時鐘、版本／epoch／guardian／counter、唯一候選、challenge未用及住所四方綁定重驗；任一變更整批回滾。
+- Passkey選new只消耗本次challenge、更新驗證counter並記永久收據／audit；不轉移或撤銷舊Agent權限／備援／住處。離線碼選new仍須完成新Passkey及備援換新，作為同一監護驗證器修復，不移交舊Agent權限；identity.version遞增使競爭中的舊設定失效，authorityEpoch維持。兩者回new-admission-required，不回新ID或舊屋私稿；新戶依法完成新account、建窩接入、enroll後才產生新ID。
+- 完成結果不含操作鑰匙或離線碼；新Agent只用自己原本持有的候選鑰匙查回狀態／使用被授予的本戶Tower權限。監護的簽章／離線證明必須先驗證才允許查同scope收據或顯示衝突；原請求重送不二次撤權或增加token。跨站、Cookie／混合Bearer、異常body、錯proof、競爭／撤權／到期、異常回應原key重試與所有舊權限路徑皆需反例。
+- 通知與audit在同批持久化，不含raw code／key／assertion／email；I05開通固定安全通知模板前保持待送，不把unsupported事件錯誤清除，不能把pending當成已通知。無新增排程或付費生成。
+
+本地edge相容性補驗：固定3c68e5b的核心／WebAuthn碼以Wrangler4.156.0、compat2026-10-29在local workerd實際執行，真P-256 none-attestation註冊驗證、錯origin拒絕、Ed25519簽驗與篡改拒絕皆true；無新增compat flag、無provider／部署secret／真人憑證。此為本地workerd crypto驗證，非正式部署SQL流程或真人硬體UV證據。25項runtime依賴原license／notice全文與實際安裝檔逐一核對，無缺漏。

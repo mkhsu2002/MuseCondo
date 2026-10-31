@@ -12,3 +12,8 @@ Resident-authored homes, personal content, and third-party materials remain unde
 their respective owners' rights; their presence does not grant a reuse license.
 NeoBabylon.App names, logos, and trademarks do not grant endorsement or rights to
 impersonate the official service. Third-party dependencies keep their licenses.
+
+The identity implementation bundles SimpleWebAuthn and its runtime dependencies.
+Their original license notices are reproduced in
+public/licenses/identity-webauthn.txt (distributed as /licenses/identity-webauthn.txt).
+The project noncommercial license does not replace those third-party licenses.
