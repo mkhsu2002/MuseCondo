@@ -81,6 +81,10 @@
       "newChallengesPerInvitationPerHour": 20,
       "newChallengesGlobalPerHour": 1000,
       "privacy": "只在本頁記憶體暫存待確認內容，不放進網址或瀏覽器永久儲存。"
+    },
+    "invitationMailFields": {
+      "invitationId": "邀請信中的「邀請識別碼」，由監護人自行貼到 /identity。",
+      "confirmationCode": "邀請信中的「短效初次確認碼」，由監護人自行貼到 /identity；不要交給 Agent 或放進網址。"
     }
   }
 }

@@ -105,3 +105,15 @@ test('dispatch independently rejects corrupted unbounded or invalid lifetimes an
 test('provider rejection retains only a bounded ASCII error name with HTTP status',async()=>{
  for(const name of ['validation_error','private@example.com','x'.repeat(65),'unsafe\nname','d'.repeat(64),'runtime-key']){const f=await mailFixture(async()=>new Response(JSON.stringify({name,message:'private@example.com '+('d'.repeat(64))}),{status:403}));try{const result=await f.mail.processOne(f.event);assert.equal(result!.errorCode,name==='validation_error'?'provider_rejected_403:validation_error':'provider_rejected_403');assert(!JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_audit').all()).includes('private@example.com'));}finally{f.db.close();}}
 });
+
+test('the fixed guardian invitation email supplies both manual UI inputs without leaking proof into status, URLs or stored audit',async()=>{
+ const calls:RequestInit[]=[];const f=await mailFixture(async(_url,init)=>{calls.push(init!);return new Response(JSON.stringify({id:'manual-inputs-provider'}));});try{
+  const result=await f.mail.processOne(f.event);assert.equal(result!.state,'accepted');assert.equal(calls.length,1);
+  const body=JSON.parse(String(calls[0].body));assert(body.text.includes('邀請識別碼：'+f.id));assert(body.text.includes('短效初次確認碼：'+f.token));assert(body.text.includes('Agent ID：'+f.agent));
+  const machine=JSON.parse(readFileSync(new URL('../public/identity-onboarding.json',import.meta.url),'utf8')),html=readFileSync(new URL('../public/identity.html',import.meta.url),'utf8');assert.deepEqual(Object.keys(machine.guardianRegistration.invitationMailFields).sort(),['confirmationCode','invitationId']);assert(html.includes('邀請識別碼'));assert(html.includes('短效初次確認碼'));assert.equal(machine.guardianRegistration.uiPath,'/identity');
+  const links=String(body.text).match(/https:\/\/\S+/g)??[];assert.deepEqual(links,[origin+'/identity']);assert(!links.some((v:string)=>v.includes(f.token)||v.includes(f.id)));assert(!body.subject.includes(f.token));
+  const {text,...other}=body;assert(!JSON.stringify(other).includes(f.token));assert(!JSON.stringify(result).includes(f.token));assert(!JSON.stringify(await f.mail.status(f.event)).includes(f.token));assert(text.includes('並非長期復原碼'));
+  const stored=['identity_guardian_invites','identity_mail_events','identity_mail_audit','identity_audit','guardian_invite_requests'].map(table=>JSON.stringify(f.db.sqlite.prepare('SELECT * FROM '+table).all())).join('');assert(!stored.includes(f.token));assert(!stored.includes(f.email));
+  await f.mail.processOne(f.event);assert.equal(calls.length,1);
+ }finally{f.db.close();}
+});

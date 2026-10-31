@@ -107,6 +107,56 @@
     const binary = atob(value.replaceAll("-", "+").replaceAll("_", "/"));
     return Uint8Array.from(binary, (c) => c.charCodeAt(0)).buffer;
   }
+  function optionRecord(value) {
+    return !!value && typeof value === "object" && !Array.isArray(value);
+  }
+  function optionBytes(value, maximum) {
+    const bytes = decode(value);
+    return (
+      bytes.byteLength > 0 &&
+      bytes.byteLength <= maximum &&
+      encode(bytes) === value
+    );
+  }
+  function validCreationOptions(value) {
+    try {
+      return (
+        optionRecord(value) &&
+        optionBytes(value.challenge, 1024) &&
+        optionRecord(value.rp) &&
+        value.rp.id === location.hostname &&
+        typeof value.rp.name === "string" &&
+        value.rp.name.length > 0 &&
+        optionRecord(value.user) &&
+        optionBytes(value.user.id, 64) &&
+        typeof value.user.name === "string" &&
+        value.user.name.length > 0 &&
+        typeof value.user.displayName === "string" &&
+        Array.isArray(value.pubKeyCredParams) &&
+        value.pubKeyCredParams.length === 1 &&
+        optionRecord(value.pubKeyCredParams[0]) &&
+        value.pubKeyCredParams[0].type === "public-key" &&
+        value.pubKeyCredParams[0].alg === -7 &&
+        optionRecord(value.authenticatorSelection) &&
+        value.authenticatorSelection.residentKey === "required" &&
+        value.authenticatorSelection.userVerification === "required" &&
+        value.attestation === "none" &&
+        (value.timeout === undefined ||
+          (Number.isFinite(value.timeout) && value.timeout > 0)) &&
+        (value.excludeCredentials === undefined ||
+          (Array.isArray(value.excludeCredentials) &&
+            value.excludeCredentials.every(
+              (item) =>
+                optionRecord(item) &&
+                item.type === "public-key" &&
+                optionBytes(item.id, 1023),
+            ))) &&
+        (value.extensions === undefined || optionRecord(value.extensions))
+      );
+    } catch {
+      return false;
+    }
+  }
   function creationOptions(value) {
     if (typeof PublicKeyCredential.parseCreationOptionsFromJSON === "function")
       return PublicKeyCredential.parseCreationOptionsFromJSON(value);
@@ -252,8 +302,7 @@
         !/^mcid:[a-f0-9]{64}$/.test(data.agentId) ||
         !/^[a-f0-9]{32}$/.test(data.challengeId) ||
         !Number.isFinite(Date.parse(data.expiresAt)) ||
-        !data.options ||
-        typeof data.options !== "object"
+        !validCreationOptions(data.options)
       )
         throw { unknown: true };
       current = data;
@@ -275,13 +324,21 @@
       localExpiry();
       return;
     }
+    let publicKey;
+    try {
+      publicKey = creationOptions(current.options);
+    } catch {
+      clearPrepared();
+      current = null;
+      known({ unknown: true }, "options");
+      render();
+      return;
+    }
     busy = true;
     render();
     say("請依瀏覽器提示建立 Passkey。");
     try {
-      const value = await navigator.credentials.create({
-        publicKey: creationOptions(current.options),
-      });
+      const value = await navigator.credentials.create({ publicKey });
       if (!value) throw { name: "NotAllowedError" };
       credential = project(value);
       offline = recoveryCode();

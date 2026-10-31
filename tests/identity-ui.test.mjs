@@ -72,6 +72,7 @@ class Element {
 }
 async function harness({
   nativeJSON = false,
+  nativeParseFailure = false,
   supported = true,
   createError = null,
   downloadError = false,
@@ -147,11 +148,13 @@ async function harness({
     }
   };
   const nativeClass = class {};
+  let parseFailures = nativeParseFailure ? 1 : 0;
   if (nativeJSON)
-    nativeClass.parseCreationOptionsFromJSON = (v) => ({
-      nativeParsed: true,
-      ...v,
-    });
+    nativeClass.parseCreationOptionsFromJSON = (v) => {
+      if (parseFailures-- > 0)
+        throw new Error("private native options parse failure");
+      return { nativeParsed: true, ...v };
+    };
   const crypto = {
     randomUUID: () => `synthetic-key-${++sequence}`,
     getRandomValues(bytes) {
@@ -179,7 +182,7 @@ async function harness({
     },
     PublicKeyCredential: supported ? nativeClass : undefined,
     isSecureContext: true,
-    location: { origin, protocol: "https:" },
+    location: { origin, hostname: "identity.example", protocol: "https:" },
     crypto,
     Date: ClockDate,
     Uint8Array,
@@ -697,4 +700,68 @@ test("an unknown completion keeps its historical replay even after the displayed
   assert.equal(h.calls[1].init.body, h.calls[2].init.body);
   assert.match(h.elements["identity-status"].textContent, /設定完成/);
   assert.equal(h.elements["confirmation-code"].value, "");
+});
+
+test("malformed WebAuthn options in a 200 response stay pending and retry the identical logical request", async () => {
+  const malformed = [
+    {},
+    { ...options.options, challenge: "!" },
+    { ...options.options, user: { ...options.options.user, id: "" } },
+    { ...options.options, rp: {} },
+    { ...options.options, pubKeyCredParams: [] },
+  ];
+  for (const value of malformed) {
+    let requests = 0;
+    const h = await harness({
+      fetcher: (call) =>
+        response(
+          call.path.endsWith("/complete")
+            ? completed
+            : ++requests === 1
+              ? { ...options, options: value }
+              : options,
+        ),
+    });
+    await h.start();
+    assert.match(h.elements["identity-status"].textContent, /結果尚未確認/);
+    assert.doesNotMatch(
+      h.elements["identity-status"].textContent,
+      /裝置.*無法|不支援/,
+    );
+    assert.equal(h.elements["create-passkey"].disabled, true);
+    assert.equal(h.elements["restart-registration"].disabled, true);
+    await h.create();
+    assert.equal(h.creates.length, 0);
+    await h.start();
+    assert.equal(h.calls.length, 2);
+    assert.equal(h.calls[0].init.body, h.calls[1].init.body);
+    assert.equal(h.calls[0].body.requestKey, h.calls[1].body.requestKey);
+    await h.create();
+    assert.equal(h.creates.length, 1);
+    await h.download();
+    await h.confirm();
+    await h.finish();
+    assert.match(h.elements["identity-status"].textContent, /設定完成/);
+  }
+});
+
+test("native options parser failure returns to the same options retry instead of blaming the device", async () => {
+  const h = await harness({ nativeJSON: true, nativeParseFailure: true });
+  await h.start();
+  await h.create();
+  assert.equal(h.creates.length, 0);
+  assert.match(h.elements["identity-status"].textContent, /結果尚未確認/);
+  assert.doesNotMatch(
+    h.elements["identity-status"].textContent,
+    /裝置.*無法|不支援/,
+  );
+  await h.start();
+  assert.equal(h.calls.length, 2);
+  assert.equal(h.calls[0].init.body, h.calls[1].init.body);
+  await h.create();
+  assert.equal(h.creates.length, 1);
+  await h.download();
+  await h.confirm();
+  await h.finish();
+  assert.match(h.elements["identity-status"].textContent, /設定完成/);
 });
