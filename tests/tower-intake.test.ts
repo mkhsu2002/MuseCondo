@@ -2,7 +2,8 @@ import {createLiveApp} from '../server/live/app.ts';
 import runtime from '../server/live/worker.ts';
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
+import { openSyntheticTower } from "./helpers/tower-admission-fixture.ts";
 import { deflateSync } from "node:zlib";
 import { CONDO_PROFILE_FIELDS } from "../src/framework/condo.ts";
 import { sanitizePublicPNG } from "../server/framework/png-public.ts";
@@ -56,7 +57,7 @@ function png(w: number, h: number, noise = false) {
     chunk("IEND", new Uint8Array()),
   ]);
 }
-async function fixture() {
+async function fixture(pagesRuntime = false) {
   const db = new LocalDatabase(":memory:");
   for (const file of [
     "0001_live_mvp.sql",
@@ -80,6 +81,16 @@ async function fixture() {
     if ((e as { code?: string }).code !== "ENOENT") throw e;
   }
   db.sqlite.exec(await readFile(new URL('../migrations/0008_tower_publication_events.sql',import.meta.url),'utf8'));
+  if (pagesRuntime) {
+    // This integration crosses the Pages schema gate; load every remaining migration.
+    const remaining = (await readdir(new URL('../migrations/', import.meta.url)))
+      .filter(file => file.endsWith('.sql') && (file.startsWith('0007_') || Number(file.slice(0, 4)) >= 9))
+      .sort();
+    for (const file of remaining)
+      db.sqlite.exec(await readFile(new URL('../migrations/' + file, import.meta.url), 'utf8'));
+    // Independent synthetic Tower: this fixture does not establish Muse eligibility.
+    openSyntheticTower(db);
+  }
   const dream = {
     id: "synthetic-dream", title: "合成窗邊夢", body: "一個完全虛構的測試夢。",
     wish: "願測試順利。", occurredAt: "2026-10-30T00:00:00Z",
@@ -938,17 +949,7 @@ test("dream snapshot image requires an exactly square PNG", async () => {
 
 
 test('publication epoch prevents revoked editions from reappearing, identical publication is a no-op, and durable events reconcile',async()=>{
- const f=await fixture();try{
-  f.db.sqlite.exec(await readFile(new URL('../migrations/0007_tower_manager.sql',import.meta.url),'utf8'));
- f.db.sqlite.exec(await readFile(new URL('../migrations/0009_tower_reception.sql',import.meta.url),'utf8'));
- f.db.sqlite.exec(await readFile(new URL('../migrations/0010_tower_visits.sql',import.meta.url),'utf8'));
- f.db.sqlite.exec(await readFile(new URL('../migrations/0011_tower_activities.sql',import.meta.url),'utf8'));
- f.db.sqlite.exec(await readFile(new URL('../migrations/0012_agent_identity.sql',import.meta.url),'utf8'));
- f.db.sqlite.exec(await readFile(new URL('../migrations/0013_identity_guardian_invites.sql',import.meta.url),'utf8'));
- f.db.sqlite.exec(await readFile(new URL('../migrations/0014_identity_guardian_credentials.sql',import.meta.url),'utf8'));
- f.db.sqlite.exec(await readFile(new URL('../migrations/0015_identity_recovery.sql',import.meta.url),'utf8'));
- f.db.sqlite.exec(await readFile(new URL('../migrations/0016_identity_offline_recovery.sql',import.meta.url),'utf8'));
- f.db.sqlite.exec(await readFile(new URL('../migrations/0017_identity_recovery_retention.sql',import.meta.url),'utf8'));
+ const f=await fixture(true);try{
   await f.importHome();const payload={expectedRevision:1,published:true,directoryConsent:true,announcementConsent:true,dreamConsent:false,snapshotConsent:true};
   await f.data(f.req('/publication','POST',payload));
   const app=createLiveApp({db:f.db,origin,localTest:true,registrationEnabled:false,towerEnabled:true,now:()=>new Date('2026-10-30T01:00:00.000Z')});
@@ -960,7 +961,7 @@ test('publication epoch prevents revoked editions from reappearing, identical pu
   // Publication events survive even without a successful callback/enqueue. Protected
   // reconcile rebuilds the current authorized snapshot, not a revoked historical one.
   assert.ok(Number(f.db.sqlite.prepare('SELECT COUNT(*) n FROM manager_events WHERE dispatched_at IS NULL').get()!.n)>0);
-  const response=await runtime.fetch(new Request(origin+'/api/v1/operator/manager/process',{method:'POST',headers:{'X-Tower-Operator-Key':'operator-test'}}),{DB:f.db,PUBLIC_ORIGIN:origin,TOWER_OPERATOR_KEY:'operator-test'});assert.equal(response.status,200);
+  const response=await runtime.fetch(new Request(origin+'/api/v1/operator/manager/process',{method:'POST',headers:{'X-Tower-Operator-Key':'operator-test'}}),{DB:f.db,PUBLIC_ORIGIN:origin,TOWER_OPERATOR_KEY:'operator-test'});assert.equal(response.status,200,await response.clone().text());
   assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM manager_events WHERE dispatched_at IS NULL').get()!.n,0);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM manager_jobs WHERE state=\'pending\'').get()!.n,1);
  }finally{f.db.close();}
 });
