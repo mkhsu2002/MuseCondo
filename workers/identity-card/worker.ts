@@ -1,3 +1,4 @@
+import {TOWER_ADMISSION_SCHEMA} from '../../server/live/tower-admission.ts';
 import {createIdentityMailCoordinator} from '../../server/live/identity-mail-coordinator.ts';
 import {IDENTITY_MAIL_INTERNAL_PREFIX} from '../../server/live/identity-mail-contract.ts';
 import {createIdentityCard,identityCardTrust} from '../../server/live/identity-card.ts';
@@ -35,8 +36,8 @@ export class IdentityCardCoordinator {
     return await createIdentityMailCoordinator({db:this.env.DB,origin:this.env.PUBLIC_ORIGIN,contactKey:this.env.IDENTITY_CONTACT_KEY,from:this.env.IDENTITY_MAIL_FROM,trustedKeys:trusted.keys}).fetch(request);
    }
    if(url.pathname!=='/api/v1/identity/keys'){
-    const rows=(await this.env.DB.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger','index')").all<{name:string}>()).results;
-    if(!schema.every(name=>rows.some(row=>row.name===name)))return json('identity_card_schema_not_ready',503);
+    const rows=(await this.env.DB.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger','index','view')").all<{name:string}>()).results;
+    if(![...schema,...TOWER_ADMISSION_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json('identity_card_schema_not_ready',503);
    }
    return await this.service.fetch(request)??json('not_found',404);
   }catch{return json('card_operation_unavailable',503);}

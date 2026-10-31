@@ -5,7 +5,7 @@
 | 切片 | 可審核成果 | 狀態 |
 | --- | --- | --- |
 | R00 | 整合 0020–0022、保留 Apache／宣言與正式版本基線 | 本地整合；210 focused tests 通過 |
-| R01a | 0024 政策／私密來源決策與全入口原生原子防線、合成反例 | 建置中 |
+| R01a | 0024 政策／私密來源決策與全入口原生原子防線、合成反例 | 本地核心完成；8 focused、441 回歸與 typecheck／lint 通過，待獨立審核 |
 | R01b | 受保護政策／決策管理契約與精確既有戶認定流程 | 待實作及獨立審核 |
 | R02a | 0025 setup intent／lease、部署端 webhook secret、五事件路由與 ready gate | 待實作及獨立審核 |
 | R02b | 已知／未知 provider 結果唯讀 reconcile、compiled Workers／D1 stub 驗證 | 待實作及獨立審核 |

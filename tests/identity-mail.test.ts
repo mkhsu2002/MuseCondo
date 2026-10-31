@@ -1,3 +1,4 @@
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync,readFileSync,readdirSync} from 'node:fs';
@@ -13,6 +14,7 @@ export async function mailFixture(fetcher:typeof fetch=async()=>new Response(JSO
  const p=await privateModule();assert(existsSync(new URL('../server/live/identity-mail.ts',import.meta.url)),'persistent identity mail is implemented');
  const {createIdentityMail}=await import('../server/live/identity-mail.ts');
  const db=new LocalDatabase(':memory:');for(const f of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8'));
+ openSyntheticTower(db);
  const account='a'.repeat(16),agent='mcid:'+'a'.repeat(64),id='b'.repeat(32),event='c'.repeat(32),email='Guardian.Local@example.com',token='d'.repeat(64),expiry='2026-11-01T00:00:00.000Z';
  db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(account,'mail-login',time);
  db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Test','Test','resident','external-ready',?)").run(account,account,time);
@@ -67,7 +69,7 @@ test('native SQLite clock rejects expiry even when injected application clock is
  let calls=0;const f=await mailFixture(async()=>{calls++;return new Response('{}');});try{
   // Replace the fixture connection with one that uses SQLite's actual native clock.
   const native=new LocalDatabase(':memory:');const snapshot=f.db.sqlite.prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END").all();
-  for(const row of snapshot)native.sqlite.exec(String(row.sql));
+  for(const row of snapshot)native.sqlite.exec(String(row.sql));openSyntheticTower(native);
   for(const table of ['accounts','rooms','tower_residencies','agent_identities','identity_guardian_invites','identity_mail_events']){const rows=f.db.sqlite.prepare('SELECT * FROM '+table).all();for(const row of rows){const cols=Object.keys(row);native.sqlite.prepare('INSERT INTO '+table+'('+cols.join(',')+') VALUES('+cols.map(()=>'?').join(',')+')').run(...Object.values(row));}}
   native.sqlite.exec('DROP TRIGGER identity_guardian_immutable_binding');native.sqlite.prepare("UPDATE identity_guardian_invites SET created_at='2000-01-01T00:00:00.000Z',expires_at='2000-01-02T00:00:00.000Z'").run();
   const {createIdentityMail}=await import('../server/live/identity-mail.ts');const mail=createIdentityMail({...f.env,db:native,coordinator:{idFromName:(n:string)=>n,get:()=>({fetch:(request:Request)=>createIdentityMailCoordinator({db:native,origin,contactKey:key,from:f.env.from,trustedKeys:new Map(),now:()=>new Date('2000-01-01T00:00:00.000Z')}).fetch(request)})},now:()=>new Date('2000-01-01T00:00:00.000Z')});

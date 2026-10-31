@@ -1,3 +1,4 @@
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from "node:test";
 import {
   isoBase64URL,
@@ -32,6 +33,7 @@ async function fixture(onMailEvent?: (id: string) => void | Promise<void>) {
     db.sqlite.exec(
       readFileSync(new URL("../migrations/" + name, import.meta.url), "utf8"),
     );
+  openSyntheticTower(db);
   let appNow = time,
     dbNow = time;
   db.sqlite.function("strftime", { varargs: true }, (...args) =>

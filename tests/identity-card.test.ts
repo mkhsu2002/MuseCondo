@@ -1,3 +1,4 @@
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -13,6 +14,7 @@ async function fixture(adapter?: Adapter) {
     const db = new LocalDatabase(':memory:');
     for (const f of readdirSync(new URL('../migrations/', import.meta.url)).filter(f => f.endsWith('.sql')).sort())
         db.sqlite.exec(readFileSync(new URL('../migrations/' + f, import.meta.url), 'utf8'));
+ openSyntheticTower(db);
     let native = time, app = time, renders = 0;
     const real = new LocalDatabase(':memory:');
     db.sqlite.function('strftime', { varargs: true }, (...args) => args[1] === 'now' ? native : real.sqlite.prepare('SELECT strftime(' + args.map(() => '?').join(',') + ') v').get(...args)!.v);

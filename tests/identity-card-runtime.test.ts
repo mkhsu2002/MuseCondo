@@ -1,3 +1,4 @@
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -30,7 +31,7 @@ test('coordinator schema gate protects lifecycle; public keys need no signer/con
  const db=new LocalDatabase(':memory:');try{
  const key=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);const publicKey=await crypto.subtle.exportKey('jwk',key.publicKey);const env={DB:db,PUBLIC_ORIGIN:origin,IDENTITY_PUBLIC_KEYS:JSON.stringify({test:publicKey})};const coordinator=new IdentityCardCoordinator({},env);
  const keys=await coordinator.fetch(req('/api/v1/identity/keys'));assert.equal(keys.status,200);assert.deepEqual((await keys.json()).keys.test,{kty:'OKP',crv:'Ed25519',x:publicKey.x});assert.equal((await coordinator.fetch(req(base))).status,503);
- for(const file of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql','0006_tower_intake.sql','0007_tower_manager.sql','0008_tower_publication_events.sql','0009_tower_reception.sql','0010_tower_visits.sql','0011_tower_activities.sql','0012_agent_identity.sql','0013_identity_guardian_invites.sql','0014_identity_guardian_credentials.sql','0015_identity_recovery.sql','0016_identity_offline_recovery.sql','0017_identity_recovery_retention.sql','0018_identity_cards.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+ for(const file of (await import('node:fs')).readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));openSyntheticTower(db);
  assert.equal((await coordinator.fetch(req(base))).status,401);assert.equal((await coordinator.fetch(req('/api/v1/identity/verify/'+cid))).status,404);
  db.sqlite.exec('DROP INDEX identity_card_one_issued');assert.equal((await coordinator.fetch(req(base))).status,503);assert.equal((await coordinator.fetch(req('/api/v1/identity/keys'))).status,200);
  db.sqlite.exec("CREATE UNIQUE INDEX identity_card_one_issued ON identity_credentials(account_id) WHERE state='issued'");
@@ -40,6 +41,7 @@ test('coordinator schema gate protects lifecycle; public keys need no signer/con
 test('Pages to real coordinator persists actual PDF chunks, automatically dispatches frozen attachments and receipt survives object recreation',async t=>{
  const db=new LocalDatabase(':memory:');try{
  const {readdirSync}=await import('node:fs');for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+ openSyntheticTower(db);
  const {hashIdentityInput,encryptPrivate,hashPrivate}=await import('../server/live/identity-private.ts');const {verifyCredential}=await import('../src/identity/index.ts');
  const account='a'.repeat(16),agent='mcid:'+'a'.repeat(64),invite='a'.repeat(32),contact='9'.repeat(64),now=new Date().toISOString(),expiry=new Date(Date.parse(now)+86400000).toISOString();
  db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(account,await hashIdentityInput('synthetic-login'),now);

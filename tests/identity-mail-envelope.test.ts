@@ -1,3 +1,4 @@
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync,readFileSync,readdirSync} from 'node:fs';
@@ -10,6 +11,7 @@ async function factory(){assert(existsSync(new URL('../server/live/identity-mail
 async function fixture(size=64){
  const db=new LocalDatabase(':memory:'),native=new LocalDatabase(':memory:');
  for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+ openSyntheticTower(db);
  let clock=time,nativeClock=time;
  db.sqlite.function('strftime',{varargs:true},(...args)=>args[1]==='now'?nativeClock:native.sqlite.prepare('SELECT strftime('+args.map(()=>'?').join(',')+') v').get(...args)!.v);
  const pair=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);

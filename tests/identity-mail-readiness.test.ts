@@ -1,3 +1,4 @@
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync, readFileSync, readdirSync} from 'node:fs';
@@ -18,6 +19,7 @@ async function fixture(t:test.TestContext,options:Options={}){
  const {createIdentityMailReadiness}=await import('../server/live/identity-mail-readiness.ts');
  const db=new LocalDatabase(':memory:');t.after(()=>db.close());
  for(const f of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')&&(!options.oldSchema||!f.startsWith('0019'))).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8'));
+ openSyntheticTower(db);
  options.before?.(db);let calls=0;const urls:string[]=[],signals:AbortSignal[]=[];
  const fetcher:typeof fetch=workerdFetch(async(request,_index,init)=>{const input=request.url;calls++;const url=String(input);urls.push(url);assert.equal(init?.method,'GET');assert.equal(init?.redirect,'manual');assert.equal(new URL(url).origin,'https://api.resend.com');assert.match(new URL(url).pathname,/^\/domains(?:\/[A-Za-z0-9_-]+)?$/);assert.equal(new Headers(init?.headers).get('Authorization'),'Bearer '+(options.apiKey??key));assert(init?.signal);signals.push(init.signal);return options.fetcher?options.fetcher(input,init):url.includes('/domains/')?reply({object:'domain',...target}):page();}).fetcher;
  const env={db:options.db?.(db)??db,origin:options.origin??origin,from:Object.hasOwn(options,'from')?options.from:sender,apiKey:Object.hasOwn(options,'apiKey')?options.apiKey:key,fetcher,now:()=>new Date('2026-11-01T00:00:00.000Z'),operator:async(request:Request)=>request.headers.get('X-Tower-Operator-Key')==='synthetic-operator'};
