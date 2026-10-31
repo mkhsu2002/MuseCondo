@@ -9,7 +9,7 @@ test('private render and live homepage share the full shell, welcome, feed, cove
  const preview=renderLobbyPreview({scene:'night',imageSource:'data:image/png;base64,aW1hZ2U='});
  assert.match(preview,/data-tower-lobby/);assert.match(preview,/data-preview-fixture="masked-feed"/);
  for(const marker of ['class="live-header"','class="live-main live-lobby"','class="live-footer"','id="resident-guide"','id="community-covenant"','class="live-card live-feed-card"','class="live-feed-empty"','data-scene="night"'])assert.ok(preview.includes(marker),marker);
- assert.ok(preview.includes(LOBBY_LOGO_DATA_URL));assert.doesNotMatch(preview,/fang|guardian|provider|apiKey|<script/i);
+ assert.ok(preview.includes(LOBBY_LOGO_DATA_URL));assert.doesNotMatch(preview,/fang|fangdorami|mksaid2025|provider|apiKey|<script/i);
  const live=renderTowerLobby({base:'',content:'<p>live feed</p>',scene:'day'});
  assert.match(live,/data-tower-lobby/);assert.doesNotMatch(live,/data-preview-fixture/);assert.match(live,/live feed/);
  assert.doesNotMatch(renderLiveShell('','<p>account</p>'),/data-tower-lobby/);

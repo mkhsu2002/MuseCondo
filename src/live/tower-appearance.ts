@@ -1,6 +1,8 @@
 const appearanceStorageKey='musecondo.tower-decoration',sceneStorageKey='musecondo.tower-scene';
 import {lobbyThemeCSS,validateLobbyTheme,type LobbyThemeManifest} from '../shared/lobby-theme.ts';
 import {towerScenes,type TowerScene} from '../shared/tower-scenes.ts';
+import {lobbyMessages} from '../shared/lobby-messages.ts';
+const messages=lobbyMessages();
 export {towerScenes,appearanceControls,type TowerScene} from '../shared/tower-scenes.ts';
 const bindings=new WeakMap<HTMLElement,()=>void>();
 export function disposeTowerAppearance(root:HTMLElement){bindings.get(root)?.();}
@@ -47,7 +49,7 @@ export async function bindTowerAppearance(root:HTMLElement,base:string,fetcher:t
  const scene=():TowerScene=>panorama.dataset.scene==='night'?'night':'day';
  const original=(value:TowerScene)=>`${base}/tower/muse-tower-${value}-v2.webp`;
  const source=(value:TowerScene)=>active&&enabled&&active.endsAt>clock()?`${base}${active.images[value]}`:original(value);
- function controls(show:boolean){panorama!.dataset.theme=show?'halloween':'standard';button!.hidden=!active||active.endsAt<=clock();button!.textContent=show?'一般外觀':'顯示節慶外觀';}
+ function controls(show:boolean){panorama!.dataset.theme=show?'halloween':'standard';button!.hidden=!active||active.endsAt<=clock();button!.textContent=show?messages.scene.standard:messages.scene.seasonal;}
  function clearPresentation(){
   style?.remove();style=undefined;
   if(lobby){delete lobby.dataset.presentation;delete lobby.dataset.presentationScene;}
@@ -62,14 +64,14 @@ export async function bindTowerAppearance(root:HTMLElement,base:string,fetcher:t
   // No await separates the preloaded image and its validated whole-page presentation.
   applyPresentation(value,src!==original(value));
   image!.src=src;image!.alt=towerScenes[value].alt;panorama!.dataset.scene=value;
-  if(caption)caption.textContent=`Muse Tower 外觀想像 · ${towerScenes[value].label}`;
+  if(caption)caption.textContent=messages.scene.caption(towerScenes[value].label);
   for(const control of sceneButtons)control.setAttribute('aria-pressed',String(control.dataset.towerScene===value));
-  if(status)status.textContent=announce?`已切換為${towerScenes[value].label}。`:'';
+  if(status)status.textContent=announce?messages.scene.changed(towerScenes[value].label):'';
   controls(src!==original(value));
  }
  function fallback(){active=null;selection++;if(timer)clearTimeout(timer);commit(scene(),original(scene()),false);}
  async function show(value:TowerScene,announce=false){
-  const current=++selection,src=source(value);if(status&&announce)status.textContent=`正在換成${towerScenes[value].label}…`;
+  const current=++selection,src=source(value);if(status&&announce)status.textContent=messages.scene.loading(towerScenes[value].label);
   try{
    await preload(src);if(current!==selection||disposed||!panorama!.isConnected)return;
    // The mandate can expire while the image is loading.
@@ -79,7 +81,7 @@ export async function bindTowerAppearance(root:HTMLElement,base:string,fetcher:t
   }catch{
    if(current!==selection||disposed)return;
    if(src!==original(value)){fallback();return;}
-   if(status)status.textContent='景色暫時無法載入，請再試一次。';
+   if(status)status.textContent=messages.scene.unavailable;
   }
  }
  const sceneListeners=sceneButtons.map(control=>{const listener=()=>show(control.dataset.towerScene==='night'?'night':'day',true);control.addEventListener('click',listener);return {control,listener};});

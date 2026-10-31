@@ -13,7 +13,8 @@ test('activated day/night artifacts are actual img sources; native mobile button
  const f=fixture(),clock=()=>Date.parse('2026-10-31T20:00:00Z');let url='';const loaded:string[]=[];
  const cleanup=await bindTowerAppearance(f.root,'',async input=>{url=String(input);return Response.json(projection());},clock,async src=>{loaded.push(src);});
  assert.equal(url,'/api/v1/tower/appearance');assert.equal(f.image.src,projection().images.day);assert.equal(f.panorama.dataset.theme,'halloween');assert.equal(f.button.hidden,false);
- await f.night.events.click();assert.equal(f.image.src,projection().images.night);assert.equal(f.panorama.dataset.scene,'night');assert.equal(f.night.attributes['aria-pressed'],'true');assert.equal(f.day.attributes['aria-pressed'],'false');
+ assert.equal(f.button.textContent,'Standard appearance');
+ await f.night.events.click();assert.equal(f.image.src,projection().images.night);assert.equal(f.panorama.dataset.scene,'night');assert.equal(f.night.attributes['aria-pressed'],'true');assert.equal(f.day.attributes['aria-pressed'],'false');assert.equal(f.status.textContent,'Night view selected.');assert.equal(f.caption.textContent,'An imagined Muse Tower · Night');
  await f.button.events.click();assert.equal(f.image.src,'/tower/muse-tower-night-v2.webp');assert.equal(f.panorama.dataset.theme,'standard');await f.day.events.click();assert.equal(f.image.src,'/tower/muse-tower-day-v2.webp');await f.button.events.click();assert.equal(f.image.src,projection().images.day);assert.ok(loaded.includes(projection().images.day)&&loaded.includes(projection().images.night));cleanup();
 });
 test('untrusted projection paths, service failure and either artifact failure keep both scenes on originals',async()=>{

@@ -1,3 +1,4 @@
+import {lobbyMessages} from './shared/lobby-messages.ts';
 import { towerWelcome, residentGuide, bindTowerWelcome, licenseAttribution } from './live/tower-welcome';
 import { isLiveRoute, renderLive, cancelLiveRender, renderLiveTower } from './live';
 import './style.css';
@@ -9,6 +10,7 @@ import notices from './community/notices.json';
 import { loadCommunity } from './community/client';
 import { sourcePath, type Community, type Pick, type PublicEvent, type Section } from './community/schema';
 
+const m=lobbyMessages();
 let community: Community | undefined;
 let communityLoading = false;
 let communityError = '';
@@ -22,48 +24,48 @@ const badge = '<span class="demo-tag">歷史示範住戶</span>';
 let activeResident: Resident | undefined;
 let interactionKind: InteractionKind = 'message';
 
-function header(current: string) {
-  return `<header class="site-header"><div class="header-inner">${link('', `<img class="brand-logo" src="${href('neobabylon-logo-v0.1.png')}" alt="NeoBabylon" width="2172" height="724"><span class="tower-wordmark">Muse Tower<small>星芽族的世界公寓</small></span>`, 'brand')}<nav aria-label="主要導覽">${link('', '公寓大廳', current === 'tower' ? 'active' : '')}${link('#residents', '認識鄰居')}${link('about', '關於這棟樓', 'nav-entry')}${link('move-in', '我的住家', 'nav-entry')}<a href="${href('reception')}" class="nav-entry">新住戶接待</a><a href="${href('activities')}">社區活動</a></nav></div></header>`;
+function header(current:string){
+ return `<header class="site-header" lang="en"><div class="header-inner">${link('',`<img class="brand-logo" src="${href('neobabylon-logo-v0.1.png')}" alt="NeoBabylon" width="2172" height="724"><span class="tower-wordmark">Muse Tower<small>${m.demo.tagline}</small></span>`,'brand')}<nav aria-label="${m.nav.label}">${link('', 'Lobby',current==='tower'?'active':'')}${link('#resident-guide',m.nav.guide)}${link('#community-covenant',m.nav.covenant)}${link('neighbors',m.nav.neighbors)}${link('move-in',m.nav.home,'nav-entry')}<a href="${href('reception')}" class="nav-entry">${m.nav.reception}</a><a href="${href('activities')}">${m.nav.activities}</a></nav></div></header>`;
 }
-function footer() {
-  return `<footer class="site-footer"><span class="footer-word">A little room. A whole world.</span><p>10 位住戶、監護人、城市設定與日常皆為虛構示範；互動僅保存在你的瀏覽器。</p><nav class="footer-links" aria-label="品牌與專案連結"><a href="https://neobabylon.app" target="_blank" rel="noopener noreferrer">NeoBabylon ↗</a><a href="https://mkhsu.icareu.tw" target="_blank" rel="noopener noreferrer">© 2026 M.K. ↗</a><a href="https://github.com/mkhsu2002/MuseCondo" target="_blank" rel="noopener noreferrer">MuseCondo 原始碼 ↗</a></nav><p>這些是歷史示範住戶；正式住戶的公開生活可從住戶門廊查看。</p>${licenseAttribution(base)}<p class="affiliation-note">本專案並非 Meta 官方服務，亦不表示 Meta 的合作或背書。</p></footer>`;
+function footer(){
+ return `<footer class="site-footer" lang="en"><span class="footer-word">A little room. A whole world.</span><p>${m.demo.disclosure}</p><nav class="footer-links" aria-label="${m.demo.brandLinks}"><a href="https://neobabylon.app" target="_blank" rel="noopener noreferrer">NeoBabylon ↗</a><a href="https://mkhsu.icareu.tw" target="_blank" rel="noopener noreferrer">© 2026 M.K. ↗</a><a href="https://github.com/mkhsu2002/MuseCondo" target="_blank" rel="noopener noreferrer">${m.demo.source} ↗</a></nav><p>${m.demo.history}</p>${licenseAttribution(base)}<p class="affiliation-note">${m.demo.affiliation}</p></footer>`;
 }
-function room(resident: Resident, mini = false) {
+function room(resident: Resident, mini = false, english = false) {
   const art = homeArtwork[resident.id];
-  if (art) return `<div class="room-stage has-art ${mini ? 'room-mini' : ''}" style="--room:${resident.color};--room-ink:${resident.ink}"><picture>${mini ? '' : `<source media="(max-width: 700px)" srcset="${href(prototypeArtPath(art.mobile))}">`}<img src="${href(prototypeArtPath(art.desktop))}" alt="${art.description}；虛構示範住家" ${mini ? 'loading="lazy"' : 'fetchpriority="high"'} decoding="async" width="1672" height="941"></picture><span class="asset-note">示範住家</span></div>`;
-  return `<div class="room-stage ${mini ? 'room-mini' : ''}" style="--room:${resident.color};--room-ink:${resident.ink}"><span class="room-stamp">${mini ? resident.floor : 'A HOME FOR ' + resident.roman}</span><div class="room-lettering" aria-hidden="true">${resident.roman}<span>${resident.motto}</span></div><div class="asset-note">住家圖待生成 · 純色佔位</div></div>`;
+  if (art) return `<div class="room-stage has-art ${mini ? 'room-mini' : ''}" style="--room:${resident.color};--room-ink:${resident.ink}"><picture>${mini ? '' : `<source media="(max-width: 700px)" srcset="${href(prototypeArtPath(art.mobile))}">`}<img src="${href(prototypeArtPath(art.desktop))}" alt="${art.description} · ${english?m.demoArt.home:'虛構示範住家'}" ${mini ? 'loading="lazy"' : 'fetchpriority="high"'} decoding="async" width="1672" height="941"></picture><span class="asset-note">${english?m.demoArt.home:'示範住家'}</span></div>`;
+  return `<div class="room-stage ${mini ? 'room-mini' : ''}" style="--room:${resident.color};--room-ink:${resident.ink}"><span class="room-stamp">${mini ? resident.floor : 'A HOME FOR ' + resident.roman}</span><div class="room-lettering" aria-hidden="true">${resident.roman}<span>${resident.motto}</span></div><div class="asset-note">${english?m.demoArt.pending:'住家圖待生成 · 純色佔位'}</div></div>`;
 }
-function character(resident: Resident, size: 'small' | 'profile' | 'hero') {
+function character(resident: Resident, size: 'small' | 'profile' | 'hero', english = false) {
   const art = characterArtwork[resident.id];
-  const label = `${resident.name}的星芽族形象：${art?.description || '角色圖尚未提供'}；虛構示範形象`;
-  return `<span class="character-avatar character-${size}${art ? '' : ' is-unavailable'}" data-character-id="${resident.id}" data-character-name="${escape(resident.name)}"${art ? '' : ` role="img" aria-label="${escape(resident.name)}的角色圖尚未提供，顯示姓名文字"`}><span class="character-fallback" aria-hidden="true">${escape(resident.name.slice(0, 1))}</span>${art ? `<img src="${href(prototypeArtPath(art.file))}" alt="${escape(label)}" width="1254" height="1254" ${size === 'small' ? 'loading="lazy"' : ''} decoding="async">` : ''}</span>`;
+  const label = english?`${resident.name}: ${art?.description??m.demoArt.pending} · ${m.demoArt.character}`:`${resident.name}的星芽族形象：${art?.description || '角色圖尚未提供'}；虛構示範形象`;
+  return `<span class="character-avatar character-${size}${art ? '' : ' is-unavailable'}" data-character-id="${resident.id}" data-character-name="${escape(resident.name)}"${art ? '' : ` role="img" aria-label="${english?escape(m.demoArt.unavailable(resident.name)):`${escape(resident.name)}的角色圖尚未提供，顯示姓名文字`}"`}><span class="character-fallback" aria-hidden="true">${escape(resident.name.slice(0, 1))}</span>${art ? `<img src="${href(prototypeArtPath(art.file))}" alt="${escape(label)}" width="1254" height="1254" ${size === 'small' ? 'loading="lazy"' : ''} decoding="async">` : ''}</span>`;
 }
 function demoOwner(resident: Resident) {
   const profile = resident.demo;
   return profile.kind === 'fictional-fixture' && profile.ownerIsFictional === true && profile.ownerDisclosure === 'fictional-demo-only' ? profile.ownerAlias : '未公開';
 }
 function eventTime(value: string) { return `<time datetime="${escape(value)}">${escape(value.slice(0, 10))} ${escape(value.slice(11, 16))} UTC</time>`; }
-function editorialLabel() { return '示範社區公開日常'; }
+function editorialLabel(){return m.demo.community;}
 function eventMeta(e: PublicEvent) {
-  return `<p class="event-meta"><span>${e.isFixture ? '虛構示範事件' : '授權公開事件'} · ${eventTime(e.occurredAt)}</span>${community ? `<span>樓管編輯 ${eventTime(community.edition.editedAt)}</span>` : ''}</p>`;
+  return `<p class="event-meta"><span>${e.isFixture?m.demo.fictionalEvent:m.demo.publicEvent} · ${eventTime(e.occurredAt)}</span>${community ? `<span>${m.demo.desk} ${eventTime(community.edition.editedAt)}</span>` : ''}</p>`;
 }
 function sourceCard(p: Pick, section: Section) {
   const e = community!.events.find(e => e.id === p.sourceEventIds[0])!;
   const r = findResident(e.residentId)!;
   const featured = section === 'windows';
   const arrival = section === 'arrivals';
-  return `<article ${arrival ? `data-resident-card="${r.id}"` : ''} class="community-card ${featured ? 'story-feature' : ''} ${arrival ? 'arrival-card' : ''}" data-event-id="${e.id}" data-section="${section}">${featured ? link(sourcePath(e), room(r, true), 'story-room-link') : ''}<div class="story-copy"><div class="story-byline">${link(r.id, character(r, 'small'), 'byline-avatar')}<div>${link(r.id, `<strong>${r.name}</strong> <span>${r.demo.city}</span>`)}<small>${r.role}</small></div><span class="story-kind">${{ highlights: '樓管選入', windows: '公開近況', seeking: '想認識誰', arrivals: '搬家小記' }[section]}</span></div><h3>${link(sourcePath(e), escape(e.title))}</h3><p class="story-excerpt">${escape(p.summary)}</p>${arrival ? `<p class="arrival-intro">${escape(r.intro)}</p>` : ''}${eventMeta(e)}<div class="story-bottom">${link(sourcePath(e), arrival ? '認識這位新鄰居 ↗' : '讀原始公開內容 ↗', 'text-link')}</div></div></article>`;
+  return `<article ${arrival ? `data-resident-card="${r.id}"` : ''} class="community-card ${featured ? 'story-feature' : ''} ${arrival ? 'arrival-card' : ''}" data-event-id="${e.id}" data-section="${section}">${featured ? link(sourcePath(e), room(r, true, true), 'story-room-link') : ''}<div class="story-copy"><div class="story-byline">${link(r.id, character(r, 'small', true), 'byline-avatar')}<div>${link(r.id, `<strong>${r.name}</strong> <span>${r.demo.city}</span>`)}<small>${r.role}</small></div><span class="story-kind">${m.feed.sections[section][0]}</span></div><h3>${link(sourcePath(e), escape(e.title))}</h3><p class="story-excerpt">${escape(p.summary)}</p>${arrival ? `<p class="arrival-intro">${escape(r.intro)}</p>` : ''}${eventMeta(e)}<div class="story-bottom">${link(sourcePath(e), arrival?m.demo.meet:m.demo.read, 'text-link')}</div></div></article>`;
 }
 function editorialSection(section: Section, title: string, subtitle: string, cls = '') {
   const picks = community?.edition.sections[section] ?? [];
-  return `<section class="community-section ${cls}" id="${section === 'arrivals' ? 'residents' : section}"><div class="community-section-heading"><div><p class="eyebrow">${{highlights:'FROM THE LOBBY DESK',windows:'THROUGH THE WINDOWS',seeking:'LET’S TALK SOMETIME',arrivals:'NEW DOORS, NEW STORIES'}[section]}</p><h2>${title}</h2></div><p>${subtitle}</p></div><div class="feed-${section}">${picks.length ? picks.map(p => sourceCard(p,section)).join('') : '<div class="community-empty"><h3>這個角落還沒有公開消息。</h3><p>樓管只選入已有來源的公開內容，不從私人記憶補故事。</p></div>'}</div></section>`;
+  return `<section class="community-section ${cls}" id="${section === 'arrivals' ? 'residents' : section}"><div class="community-section-heading"><div><p class="eyebrow">${{highlights:'FROM THE LOBBY DESK',windows:'THROUGH THE WINDOWS',seeking:'LET’S TALK SOMETIME',arrivals:'NEW DOORS, NEW STORIES'}[section]}</p><h2>${title}</h2></div><p>${subtitle}</p></div><div class="feed-${section}">${picks.length ? picks.map(p => sourceCard(p,section)).join('') : `<div class="community-empty"><h3>${m.feed.empty}</h3><p>${m.feed.emptyNote}</p></div>`}</div></section>`;
 }
 function communityNotices() {
-  return `<aside class="community-announcements" aria-label="社區公佈欄"><div class="community-section-heading"><div><p class="eyebrow">BY THE FRONT DOOR</p><h2>社區公佈欄</h2></div></div><div class="notice-cards">${notices.map((n,i) => `<article class="notice-card ${i === 0 ? 'notice-important' : ''}"><span class="notice-category">${escape(n.label)}</span><h3>${escape(n.title)}</h3><p>${escape(n.body)}</p>${n.external ? `<a href="${n.href}" target="_blank" rel="noopener noreferrer">${escape(n.action)} ↗</a>` : link(n.href,`${escape(n.action)} ↗`)}</article>`).join('')}</div><nav class="mobile-notice-links" aria-label="更多社區公告">${notices.slice(1).map(n=>n.external ? `<a href="${n.href}" target="_blank" rel="noopener noreferrer">${escape(n.shortTitle)} ↗</a>`:link(n.href,`${escape(n.shortTitle)} ↗`)).join('')}</nav><p class="notice-footnote">沒有真實開幕或招募日期；其他 Tower 尚在規劃。名稱不代表官方合作。</p></aside>`;
+  return `<aside class="community-announcements" aria-label="${m.feed.board}"><div class="community-section-heading"><div><p class="eyebrow">BY THE FRONT DOOR</p><h2>${m.feed.board}</h2></div></div><div class="notice-cards">${notices.map((n,i) => `<article class="notice-card ${i === 0 ? 'notice-important' : ''}"><span class="notice-category">${escape(n.label)}</span><h3>${escape(n.title)}</h3><p>${escape(n.body)}</p>${n.external ? `<a href="${n.href}" target="_blank" rel="noopener noreferrer">${escape(n.action)} ↗</a>` : link(n.href,`${escape(n.action)} ↗`)}</article>`).join('')}</div><nav class="mobile-notice-links" aria-label="${m.demo.moreNotices}">${notices.slice(1).map(n=>n.external ? `<a href="${n.href}" target="_blank" rel="noopener noreferrer">${escape(n.shortTitle)} ↗</a>`:link(n.href,`${escape(n.shortTitle)} ↗`)).join('')}</nav><p class="notice-footnote">${m.demo.futureNotice}</p></aside>`;
 }
-function tower() {
-  const e = community?.edition;
-  return `${header('tower')}<main id="main" class="community-page page-width">${towerWelcome(base)}<section class="lobby-masthead"><div><p class="eyebrow">MUSE TOWER / 鄰居們的公開日常</p><h2>樓裡的新鮮事<span class="masthead-dot">。</span></h2><p>在各自的小世界忙碌，也在同一棟樓遇見。</p></div><div class="edition-stamp"><strong>${editorialLabel()}</strong><span>${e ? `活動截點 ${eventTime(e.asOf)}` : '正在讀取公開選輯'}</span><span>${e ? `編輯於 ${eventTime(e.editedAt)}` : '只有通過來源驗證的資料才會顯示'}</span><button class="text-button" data-refresh-community ${communityLoading ? 'disabled' : ''}>${communityLoading ? '讀取佈告中…' : '更新佈告 ↻'}</button></div></section><aside class="community-disclosure"><span class="disclosure-label">示範社區</span><p>十位住戶與日常均為虛構，日期保留示範事件原值。${link('about','認識這棟樓 ↗')}</p></aside><p class="community-load-status" role="status">${communityError ? `${escape(communityError)}。${community ? '目前保留上一份已驗證選輯。' : '請稍後按「更新佈告」重試；不以預設故事取代來源。'}` : communityLoading ? '正在確認來源與選輯版本…' : ''}</p><div class="lobby-columns"><div class="community-life">${e ? `${editorialSection('highlights','樓管小報','幾件主動分享的小事，讓門與門之間多一點話題。')}${editorialSection('windows','鄰居窗邊','一個家的樣子，一句願意分享的近況。')}${editorialSection('seeking','想找誰聊聊','公開的交友意願；遇到同好，再去門邊打聲招呼。')}${editorialSection('arrivals','新鄰居','十扇新門，十個等你認識的小世界。','directory')}` : '<section class="community-empty"><h2>佈告欄正在等一份可驗證的選輯。</h2><p>公開來源尚未載入，請稍後更新佈告。</p></section>'}</div>${communityNotices()}</div><p class="edition-footnote">${e ? `${link('選輯紀錄','查看社區公開紀錄 ↗')}` : '公開活動資料暫時無法讀取。'}</p>${residentGuide(base)}</main>${footer()}`;
+function tower(){
+ const edition=community?.edition;
+ return `${header('tower')}<main id="main" class="community-page page-width">${towerWelcome(base)}<section class="lobby-masthead"><div><p class="eyebrow">LIFE AT MUSE TOWER</p><h2>${m.feed.title}</h2><p>${m.feed.intro}</p></div><div class="edition-stamp"><strong>${editorialLabel()}</strong><span>${edition?`${m.demo.asOf} ${eventTime(edition.asOf)}`:m.demo.loading}</span><span>${edition?`${m.demo.edited} ${eventTime(edition.editedAt)}`:m.demo.validated}</span><button class="text-button" data-refresh-community ${communityLoading?'disabled':''}>${communityLoading?m.demo.loading:m.demo.refresh}</button></div></section><aside class="community-disclosure"><span class="disclosure-label">${m.demo.community}</span><p>${m.demo.disclosure} ${link('about',m.demo.about)}</p></aside><p class="community-load-status" role="status">${communityError?m.demo.error:communityLoading?m.demo.loading:''}</p><div class="lobby-columns"><div class="community-life">${edition?(['highlights','windows','seeking','arrivals'] as Section[]).map(section=>editorialSection(section,m.feed.sections[section][0],m.feed.sections[section][1],section==='arrivals'?'directory':'')).join(''):`<section class="community-empty"><h2>${m.demo.empty}</h2><p>${m.demo.emptyBody}</p></section>`}</div>${communityNotices()}</div><p class="edition-footnote">${edition?link('選輯紀錄',m.demo.records):m.demo.error}</p>${residentGuide(base)}</main>${footer()}`;
 }
 function publicResidentEntries(resident: Resident, type: 'journal' | 'status' | 'arrival' | 'seeking' | 'interaction') {
   if (!community) return `<p class="small-note">${communityError ? '公開日常暫時無法讀取；回大廳可重新整理佈告。' : '正在讀取公開日常…'}</p>`;
@@ -116,7 +118,8 @@ function render(focus = false) {
   const segments = pathname.split('/');
   const resident = findResident(segments[0]);
   activeResident = resident;
-  if (!pathname) { root.innerHTML = '<main id="main" class="live-main"><p role="status">正在走進公寓大廳…</p></main>'; document.title = '樓裡的新鮮事 — Muse Tower'; void renderLiveTower(root, () => { root.innerHTML = tower(); bindTowerWelcome(root,base); }); }
+  document.documentElement.lang=pathname?'zh-Hant':'en';
+  if (!pathname) { root.innerHTML = `<main id="main" class="live-main"><p role="status">${m.service.loading}</p></main>`; document.title = m.meta.title; void renderLiveTower(root, () => { root.innerHTML = tower(); bindTowerWelcome(root,base); }); }
   else if (pathname === '選輯紀錄') { root.innerHTML = audit(); document.title = '社區公開紀錄 — Muse Tower'; }
   else if (pathname === '入住' || pathname === 'about') { root.innerHTML = moveIn(); document.title = '關於入住 — Muse Tower'; }
   else if (resident && (segments.length === 1 || (segments.length === 2 && ['inside','dreams'].includes(segments[1])))) {
@@ -177,7 +180,7 @@ root.addEventListener('error', event => {
   image.hidden = true;
   avatar.classList.add('is-unavailable');
   avatar.setAttribute('role', 'img');
-  avatar.setAttribute('aria-label', `${avatar.dataset.characterName}的角色圖暫無法載入，顯示姓名文字`);
+  avatar.setAttribute('aria-label', document.documentElement.lang==='en'?m.demoArt.unavailable(avatar.dataset.characterName??'Resident'):`${avatar.dataset.characterName}的角色圖暫無法載入，顯示姓名文字`);
 }, true);
 window.addEventListener('popstate', () => render(true));
 window.addEventListener('storage', event => { if (event.key === STORAGE_KEY) refreshEntries(); });

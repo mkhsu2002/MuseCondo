@@ -53,13 +53,13 @@ test('official footer and covenant distinguish commercial software from separate
  const {licenseAttribution,residentGuide}=await import('../src/shared/lobby-markup.ts');
  for(const base of ['','/MuseCondo']){
   const footer=licenseAttribution(base),covenant=residentGuide(base);
-  assert.match(footer,/開源 By NeoBabylon.App/);
+  assert.match(footer,/Open source by NeoBabylon.App/);
   assert.match(footer,/Apache 2.0/);
-  assert.match(footer,/商用/);
+  assert.match(footer,/commercial use welcome/);
   assert.ok(footer.includes(`href="${base}/LICENSE.txt"`));
   assert.ok(footer.includes(`href="${base}/ASSET-LICENSE.txt"`));
-  assert.match(footer,/圖像與品牌另依授權/);
-  assert.match(covenant,/Apache 2.0，歡迎 Fork 與商用/);
+  assert.match(footer,/Separate image and branding rights/);
+  assert.match(covenant,/Apache 2.0<\/a>\. Forks and commercial use are welcome/);
   assert.doesNotMatch(footer+covenant,/禁止商用|非商業 Fork|遵守非商業授權/);
  }
 });

@@ -1,5 +1,6 @@
 import {bindTowerWelcome,towerScenePreference} from './live/tower-welcome';
-import {renderLiveShell,renderTowerLobby,renderLobbyFeed} from './shared/lobby-markup.ts';
+import {renderLiveShell,renderTowerLobby,renderLobbyFeed,lobbyServiceMarkup} from './shared/lobby-markup.ts';
+import {lobbyMessages} from './shared/lobby-messages.ts';
 import {disposeTowerAppearance} from './live/tower-appearance.ts';
 import {towerPanel,bindTowerPanel,type Residency} from './live/tower-panel';
 import { renderHome, type HomePage } from './framework/render.ts';
@@ -38,6 +39,7 @@ function disposeLobby(){if(lobbyRoot){disposeTowerAppearance(lobbyRoot);lobbyRoo
 export function cancelLiveRender(){renderVersion++;disposeLobby();}
 export const isLiveRoute=isFrameworkLiveRoute;
 export async function renderLive(root:HTMLElement,route:string){
+ document.documentElement.lang='zh-Hant';
  disposeLobby();const version=++renderVersion;document.title='Muse Tower · 住戶小屋';root.innerHTML=shell('<p role="status">正在開門…</p>');
  try{
   const session=await api<Session>('/api/v1/session');if(version!==renderVersion)return;csrf=session.csrf??'';
@@ -112,6 +114,7 @@ function showTowerLobby(root:HTMLElement,content:string){
 }
 
 export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
+ document.documentElement.lang='en';document.title=lobbyMessages().meta.title;
  const version=++renderVersion;
  let status:{available:boolean;registrationEnabled:boolean;mode:string};
  try{
@@ -121,12 +124,12 @@ export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
   if(!response.ok||absent)throw new Error('service unavailable');
   status=await response.json();if(status.available!==true)throw new Error('service unavailable');liveServiceSeen=true;
  }catch{
-  if(version===renderVersion){showTowerLobby(root,'<h2>公開消息暫時無法連線</h2><p>先收起舊選輯，避免把可能已撤回的消息繼續呈現。</p><button type="button" id="live-status-retry">重新連線</button>');root.querySelector('#live-status-retry')!.addEventListener('click',()=>{void renderLiveTower(root,fallback);});}
+  if(version===renderVersion){showTowerLobby(root,lobbyServiceMarkup('offline',base));root.querySelector('#live-status-retry')!.addEventListener('click',()=>{void renderLiveTower(root,fallback);});}
   return;
  }
  if(version!==renderVersion)return;
  root.dataset.liveTower='1';
- showTowerLobby(root,'<p role="status">正在整理住戶公開的小日常…</p>');
+ showTowerLobby(root,lobbyServiceMarkup('loading',base));
  try{
   const [raw,{rooms}]=await Promise.all([api<Community>('/api/v1/public/community'),api<{rooms:Room[]}>('/api/v1/public/rooms')]);
   if(version!==renderVersion)return;
@@ -134,11 +137,11 @@ export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
   const community=validateCommunity({schemaVersion:1,sourceDigest:raw.edition.sourceDigest,events:raw.events},raw.edition,rooms.map(r=>r.id),{redactedModel:true});
   if(community.events.some(event=>event.isFixture||event.origin!=='resident-authorized'))throw new Error('公開生活資料來源不符，暫不展示。');
   showTowerLobby(root,renderLobbyFeed(base,community,rooms,status));
-  document.title='Muse Tower · 每一扇窗，都是一個世界';
+  document.title=lobbyMessages().meta.title;
   root.querySelector('#live-tower-refresh')!.addEventListener('click',()=>{void renderLiveTower(root);});
- }catch(error){
+ }catch{
   if(version!==renderVersion)return;
-  showTowerLobby(root,`<h2>樓裡的小報暫時休息一下</h2><p role="status">${e(error instanceof Error?error.message:'公開消息暫時無法載入。')}</p><p>不以示範住戶或過期消息填補。你的住家仍可從管理入口查詢。</p><button id="live-tower-retry" type="button">重新讀取公開消息</button> <a href="${path('move-in')}">我的住家</a>`);
+  showTowerLobby(root,lobbyServiceMarkup('unavailable',base));
   root.querySelector('#live-tower-retry')!.addEventListener('click',()=>{void renderLiveTower(root);});
  }
 }
