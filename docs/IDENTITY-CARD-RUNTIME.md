@@ -1,6 +1,6 @@
 # 身分證 runtime 與發布 gate
 
-2026-10-31：v0.59 Pages／獨立證件 Worker／兩環境 DO 綁定已部署，0018 已套用並完成 140 物件 DDL／外鍵比對。線上公鑰端點因 JWK alg metadata 的執行環境差異回503，故 I04 仍阻塞；修復版 v0.60 待更新及完整 live 驗收。以下部署步驟為可重複操作指引，完成證據以階段計畫最後實際回讀為準。I05 附件寄送及 I06 Fang／K 真人操作仍未完成。
+2026-10-31：I04 工程已隨 v0.60 完成雙環境 Pages／獨立證件 Worker／DO 綁定／0018 的部署與實際回讀，140 個來源物件 DDL／外鍵一致。v0.59 公鑰端點的 JWK metadata 相容性問題已修復。受控 dev 核發／補發／撤銷、實際 PDF／JSON 摘要與簽章、獨立 raster QR 解碼、跨 DO 永久收據重送、跨環境拒絕與 audit 通過。下列為可重複操作指引；完整證據見階段計畫最後一筆。I05 附件郵寄及 I06 Fang／K 真人、手機實掃仍未完成。
 
 ## 執行邊界
 
@@ -24,9 +24,9 @@ Renderer只接深凍結公開SignedCredential，固定品牌幾何、完整80 Un
 
 `/identity/verify/:cid`（可尾slash）以固定 standalone HTML提供，只從pathname讀32hexCID，不讀query／私人秘密／storage。不跟憑證自帶URL，不發跨origin requests；fetch同origin verify／keys API，credentials:omit、cache:no-store、redirect:error。以嚴格欄位及同issuer Ed25519驗簽比對API subject；狀態撤銷／取代／停權／停止公開／404／壞回應先清空所有名字與ID，不留前次資料。僅以textContent寫DOM。CSP self、no-store／noindex／no-referrer；公開說明只呈現比對卡面及不授接管權，generic復原入口不含門牌。
 
-## 本地驗證與待做live gate
+## 驗證方式與真人 gate
 
 - `npm run typecheck`包含workers；`npm run lint`覆蓋新runtime。`npm run build`包含固定verify route與安全header、資產存在檢查，不把DO font複製到Pages。Wrangler4.156 dry-run以flags[]編譯Worker及Pages。
 - `node --experimental-strip-types --test tests/identity-card*.test.ts tests/identity-verify*.test.*`：本地SQLite生命週期與DO結構mock只是本地證據。render測試需PATH中的Poppler `pdftotext`／`pdffonts`／`pdftoppm`，以真PDF文本／頁數／embedded font及獨立jsQR解碼raster、quietzone檢查；不需Swift或特定使用者scratch路徑。VM UI以真合成Ed25519簽章驗壞回應及狀態清欄，非真人browser。
-- 部署後需由受控dev合成戶走原key未知結果續取、issue／reissue／revoke、無授權／跨環境拒絕、完整PDF／JSON digest與簽章、手機實掃QR、public status最後撤權、D1 head／chunks／audit／outbox／永久收據一致及無重扣quota；正式環境另驗部署層與受保護流程，不擅自操作真戶。
-- canonical browser390px／桌機可讀性、Fang／K真人、原Agent及新環境、硬體Passkey／離線備援、真正邀請收件與附件交付仍由後續stage執行。I04b不呼叫寄信provider、沒有假裝已送信；pending outbox留I05。
+- v0.60已由受控dev合成戶驗證原requestKey永久收據續取（不同private DO shard亦一致）、issue／reissue／revoke、無授權／跨環境拒絕、完整PDF／JSON digest與簽章、獨立PDF raster QR解碼、public status最後撤權、D1 head／chunks／audit／outbox／永久收據一致及無重扣quota；正式環境另已驗部署層、未授權與dev key拒絕；未擅自操作真戶。模擬lost-ack／render失敗續取仍是本地反例，未在平台製造未知結果事故。
+- canonical browser已驗實際被取代／撤銷狀態在390px與桌機可讀、失效姓名／ID清空；既有Tower主題localStorage不由驗證頁讀寫。Fang／K真人、原Agent及新環境、手機實掃、硬體Passkey／離線備援、真正邀請收件與附件交付仍由後續stage執行。I04b不呼叫寄信provider、沒有假裝已送信；pending outbox留I05。

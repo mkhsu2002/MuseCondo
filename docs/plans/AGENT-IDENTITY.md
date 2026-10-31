@@ -16,7 +16,7 @@
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
-| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。I04b 本地兩階段審查／559tests通過；v0.59已部署兩環境Worker／Pages與0018。公鑰端點runtime相容性503阻塞live gate，v0.60修復待部署再驗 |
+| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.60工程通過：兩階段審查、563tests、兩環境同版Pages／Worker／0018，受控dev實際核發／PDF JSON／補發撤銷／跨DO永久收據與audit PASS；真人與手機實掃留I06 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
@@ -51,12 +51,12 @@ Files: `server/live/identity-guardian.ts`、`server/live/identity-recovery.ts`�
 
 Files: `server/live/identity-card.ts`、`migrations/0018_identity_cards.sql`、`tests/identity-card.test.ts`；I04b 另補真 PDF／QR renderer、驗證頁及核發者公鑰端點接線。
 
-I04a 當時僅提供可測試 factory；I04b 已完成 Worker／Pages proxy／machine 及公開驗證頁接線、整體規格與品質審查，v0.59 已部署並套0018。線上公鑰端點503仍阻塞完整I04 gate，修復與重驗見本文件最新紀錄。第一版固定品牌圖樣，不抓取或裁取監護人肖像。原早期「不接 Worker」限制已由本地接線切片取代，未取代正式部署／真人 gate。
+I04a 當時僅提供可測試 factory；I04b 已完成 Worker／Pages proxy／machine 及公開驗證頁接線、整體規格與品質審查，v0.59 已部署並套0018。v0.60已修復線上公鑰匯入相容性問題，工程驗收與真人待辦見本文件最新紀錄。第一版固定品牌圖樣，不抓取或裁取監護人肖像。原早期「不接 Worker」限制已由本地接線切片取代，未取代正式部署／真人 gate。
 
-- [ ] 檢查 signer 配置只用部署 secret、歷史 keyId 公鑰可驗證；卡片照片素材只取已授權本戶內容。
-- [ ] 核發限 active＋已綁住所＋監護／備援確認；原子證件、supersede、outbox、receipt、audit。
-- [ ] PDF 與 JSON 實際附件、QR 掃描內容、字體／繁中／版面檢查；公開頁不曝私戶門牌或監護 email，卡片不能復原。
-- [ ] 篡改／補發／撤證與舊證測試；綠→兩階段審查→提交。
+- [x] signer只用部署secret，trusted歷史keyId可驗；第一版固定品牌圖樣，不讀住戶或監護人照片。
+- [x] 核發限active＋已綁住所＋監護／備援確認；原子證件、supersede、outbox、receipt、audit。
+- [x] 實際PDF／JSON檔下載、摘要／簽章、獨立raster QR內容與字體／繁中／版面工程檢查；公開頁無門牌或監護email，卡片不能復原。手機實掃留I06、郵寄附件留I05。
+- [x] 篡改／補發／撤證與舊證；反例、兩階段審查、提交及實際部署／資料回讀完成。
 
 ### I05 郵寄
 
@@ -222,3 +222,13 @@ Node24本地身份／UI／build focused 263項全PASS，另57項card／verify／
 v0.59／53739fc 已合併兩目標分支，兩環境 Pages 及獨立證件 Worker 成功部署；0018 已實際套用、140 物件 DDL 與外鍵比對通過。前端驗證頁 JS 與來源 bytes 相同，私人卡路由無權回401、未知CID回404，但 public keys 回503；因此沒有以部署成功當作 I04 完成，沒有操作真實住戶或寄信。
 
 同compat日期的真 workerd 最小重現：原 Node 產生 JWK 的 alg=Ed25519 被 importKey 拒絕為 DataError，alg=EdDSA 或省略成功。8fbc59d 在原嚴格 parse 全部通過後複製 JWK 並移除可選 alg metadata，公私匯入都使用明確 Ed25519 algorithm；不更換金鑰、不變更原配置／公開projection／canonicalpayload／簽章／身份version／0018。未知alg仍拒絕，不吞錯或改為假簽章。新增反例先 RED503，修復後 identity215／完整563／版號8、build／lint通過；實際workerd正規化三種輸入皆可匯入。待獨立規格→品質審查、兩環境部署、完整核發／附件／公開狀態／稽核驗收後另記通過結果。
+
+### 2026-10-31 I04 工程驗收完成（v0.60／ea3bcda）
+
+8fbc59d修復已通過獨立規格→品質審查；主控563完整測試／8版號、build／lint及Workers／Pages編譯通過。兩目標分支合併同版，兩環境Pages部署success；獨立證件Worker實際下載的worker.js與固定commit編譯產物逐位元組相同（兩環境相同SHA256 `3f2518274c0522ed0aac36a29740a598fa0471f0c80f6e6862f9a3383c30f494`）。公鑰端點回200；公開JS與來源bytes相同，匿名卡路由401，未知CID404，dev有效測試授權在正式被403拒絕。所有原配置／隔離綁定保留，兩庫0018及140來源物件DDL一致、FK無錯；額外平台表不計入來源物件數。
+
+受控dev私密合成戶以真正P256測試authenticator完成部署後註冊，再走實際issue／原body永久重送／不同body409／補發／撤銷與撤銷重送；共2cards、3attempts、3成功receipts、head revision3，僅2次issue logical quota，2張舊卡pending信取消。私密下載PDF4,378,668bytes及簽署JSON790bytes與D1 digest／length一致，Ed25519驗簽通過。實際PDF嵌入完整繁中字體，80字名字／完整ID可讀、無裁切，Poppler raster由獨立jsQR解出原官方驗證網址；未以假小PDF冒充。390px行動版寬度與桌機canonical browser實看被取代／撤銷頁，失效資訊清空且無橫向溢出。
+
+另以同一受控戶兩把短效測試token進不同private DO shards，沿原requestKey回相同歷史receipt，沒有額外card／attempt／receipt／quota；歷史成功不恢復已失效卡。這不是刻意切斷平台commit ack；未知結果及render失敗原candidate恢復仍有本地真交易反例。測試結束身份停權、所有fixture token／Passkey撤銷，待送安全通知取消並保留audit，身份／附件／收據歷史不刪。
+
+Fang兩環境原小窩／門牌／revision／公開指標／分享選擇保持，未代Fang或K綁身份／發證。無provider／Meta／付費生圖呼叫。I04工程可進I05，但真實住戶、原Agent、真人硬體Passkey／離線備援、手機實掃、真正邀請收件與郵寄PDF＋JSON交付仍待I05／I06，第一階段T09不因此完成。

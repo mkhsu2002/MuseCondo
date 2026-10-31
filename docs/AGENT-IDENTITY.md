@@ -128,9 +128,9 @@ I02 限流計算單位為不同 requestKey／輸入的邏輯綁定嘗試，不�
 HTTP客戶端請帶可識別的應用程式User-Agent，例如 MuseCondo-Resident/0.01，並以 Accept: application/json 讀機器契約及API；它不提供或取代任何認證。若入口在應用程式前回傳非JSON的403，先檢查部署入口與HTTP傳輸，不把它當成密鑰失效或任意更換憑證。指定監護的確認碼與離線復原碼只在官方監護頁使用，不在User-Agent、網址或對話中傳送。
 
 
-### I04a 證件生命週期核心契約（2026-10-31；runtime 已部署，完整 live gate 尚待）
+### I04a 證件生命週期核心契約（2026-10-31；v0.60 工程驗收通過，真人／郵寄另驗）
 
-I04a 當時僅提供本地 factory。I04b 已將 `createIdentityCard(env).fetch` 接入獨立 SQLite DO Coordinator、Pages proxy、machine 與公開驗證頁；真 PDF／QR 及嵌入繁中字體可本地驗證。v0.59 已套0018並部署兩環境 Worker／Pages 綁定；本地兩階段審查已通過，但公鑰端點出現執行環境相容性問題，修復及雙環境實際驗收前不宣稱線上可用。接線與發布 gate 見 [runtime 文件](IDENTITY-CARD-RUNTIME.md)。
+I04a 當時僅提供本地 factory。I04b 已將 `createIdentityCard(env).fetch` 接入獨立 SQLite DO Coordinator、Pages proxy、machine 與公開驗證頁；真 PDF／QR 及嵌入繁中字體可本地驗證。v0.60 已套0018並部署兩環境 Worker／Pages 綁定，公鑰端點相容性問題已修復；兩階段審查、deployed code／schema／API及受控dev實際核發／補發／撤銷／附件驗證通過。郵寄與真人收件／操作另待 I05／I06。接線與發布 gate 見 [runtime 文件](IDENTITY-CARD-RUNTIME.md)。
 
 | 方法與路徑 | 契約 |
 | --- | --- |
