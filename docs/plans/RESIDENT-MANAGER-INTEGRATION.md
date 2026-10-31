@@ -1,6 +1,18 @@
 # 居民延續與自主樓管整合
 
-2026-10-31，最新部署：v0.80／`c451125`，dev 與正式 Pages 均已成功。兩個 D1 已套用至 0028，340 個來源 DDL 一致、foreign-key check 錯誤 0；Fang 的住所與門牌保留。以下 v0.76 紀錄屬歷史驗收，不能代表整頁佈景已完成。
+## 目前狀態：v0.82 英文首頁，雙環境發布與公開驗收通過
+
+2026-10-31：先行部署 v0.81／`bedf7a0` 的追加式重驗後端；dev 與正式 D1 均已套用 0029，353 個來源 DDL 精確一致、foreign-key check 錯誤 0。兩個 Pages 部署均成功，期間保留已審核的中文首頁與原 Halloween 整頁佈景，沒有提前切換英文前端。
+
+英文候選為 v0.82／`712bfca`，renderer build hash 為 `e298db82808db415d5bd7b8bb82f1042f85ae0020db828bfc5a83bae3fd68168`。兩環境的候選 Manager Worker 已部署並完成位元組比對。正式樓管的新 build 重驗已實際 complete／pass、seq 8、error null：四張真實日夜／桌機手機 PNG 已驗證，新獨立 Meta 審核 PASS、自我檢討完成，具一筆 acceptance。沿用原 manifest 與原兩張塔圖，未重新生圖；原完成紀錄與費用沿革保留。累計保守估算為 240115 microUSD，其中本輪 37416 microUSD、先前 202699 microUSD；這不是 provider 發票。
+
+本地整合 943 項測試、build、lint 與生成檔一致性檢查已通過。最終英文 Pages `712bfca` 已在雙環境成功部署：正式 `5168e458`、dev `2c07e652`。獨立交叉驗證確認 deployed Functions、bindings、HTML／JS／CSS 精確一致，正式 API 已啟用相符的佈景。公開專屬瀏覽器實際完成 1440px 桌機日景、390px 手機夜景、指南／公約錨點、一般與節慶外觀切換、日夜控制、英文錯誤且不暴露私密測試標記、重試恢復、真正 SPA 進入 Fang 住所後移除首頁佈景，以及 dev 英文與無水平溢出驗收。原 Fang 門牌與中文內容保留。**本輪英文首頁增量正式發布及公開驗收通過，並非整站英文化完成。** 私密發布證據保存於 `browser-acceptance.json` 與 `independent-english-live-review.json`，不在公開 repo 放入其原始資料。 本輪範圍為首頁、共用導覽／頁尾、指南、公約、公告欄、日夜及外觀控件、SEO／ARIA／no-JS 和對外錯誤狀態。接待、登入維護、身分／復原、活動頁及其餘文件仍有後續英文化階段；Fang 的原住所、門牌、圖像及住戶原文不因語系切換而修改。
+
+## v0.80 歷史整頁佈景驗收
+
+以下為 v0.80 當時的部署及公開操作紀錄，保留原查核日期、雜湊與費用；不作為本輪英文公開首頁已驗收的證據。
+
+2026-10-31，當時部署：v0.80／`c451125`，dev 與正式 Pages 均已成功。兩個 D1 已套用至 0028，340 個來源 DDL 一致、foreign-key check 錯誤 0；Fang 的住所與門牌保留。下方 v0.76 紀錄屬較早的歷史驗收；整頁佈景的完成證據見本節後續紀錄。
 
 整頁佈景的首個阻塞已確認為樓管 Worker 呼叫公開 Pages 時回傳 Cloudflare 522；加入 `global_fetch_strictly_public` 後，同一條唯讀診斷路徑回傳 200。已透過一次性、已證明未送出的續跑機制繼續原任務，保留原圖、原預算、原始收據與審核歷史。最終實際讀回：原任務 complete／pass、seq 13、repair 0、error null；四個真實瀏覽器截圖已產生並驗證，獨立 Meta TaskAudit PASS，已公開啟用並另存自我檢討。圖片呼叫仍為原來兩次，沒有 unknown 或 dispatching。累計估算 202699 microUSD（US$0.202699，非 provider 發票）；其中整頁擴充 99231 microUSD。
 
