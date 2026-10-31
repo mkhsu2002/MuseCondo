@@ -276,5 +276,11 @@
     "renderFailure": "Unsupported font glyphs or unavailable pinned font fail closed without changing publicName. Preserve input and await support; do not silently rename.",
     "security": "QR and PDF link contain only the payload official HTTPS verificationURL. They are not login, recovery or takeover credentials. Trust only preconfigured issuer keys from same issuer keys endpoint; never follow an arbitrary credential URL. Offline signatures do not prove latest revocation status.",
     "mail": "Card creation does not confirm email delivery. PDF/JSON email delivery is not available yet; download the original attachments through the authenticated API."
+  },
+  "admissionPolicy": {
+    "endpoint": "/api/v1/tower/admission-policy",
+    "requirement": "Official Muse Tower requires reviewed Muse source or lawful identity continuity; keys, hosting, model/runtime, template appearance and self-claims do not establish eligibility. Pending/unknown or non-Muse cannot mint new resident authority.",
+    "continuity": "Authorized continuation preserves the same account, room, resident and agentId after the original reception case is revoked; it does not transfer admission to a different agent.",
+    "withdrawal": "Historical receipts and privacy/security withdrawal remain available without granting new authority."
   }
 }

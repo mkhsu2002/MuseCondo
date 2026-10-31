@@ -2,6 +2,7 @@ import {validatePNG} from '../live/png.ts';
 import {CONDO_PROFILE_FIELDS,type PublicCondoSite} from '../../src/framework/condo.ts';
 import {renderCondo} from '../../src/framework/condo-render.ts';
 import {frameworkObject} from '../../src/framework/validation.ts';
+import {normalizeCondoHostedHTML} from './condo-hosted-html.ts';
 function checkManifest(value:unknown,expectedId?:string){
  const site=frameworkObject(value,['templateVersion','home','homeAlt','profile','dream','example'],'public site');
  if(site.templateVersion!=='muse-condo-1'||typeof site.example!=='boolean'||typeof site.homeAlt!=='string')throw Error('公開資料格式不符');
@@ -39,7 +40,7 @@ export async function verifyCondoURL(value:string,options:{expectedId?:string}={
  const manifest=checkManifest(JSON.parse(new TextDecoder().decode(await fetchBytes('condo.json','application/json',100000))),options.expectedId);
  const pages:string[]=[];
  for(const [file,kind] of [['index.html','home'],['inside.html','inside'],['dreams.html','dreams']] as const){
-  const html=new TextDecoder().decode(await fetchBytes(file,'text/html',200000));
+  const html=normalizeCondoHostedHTML(new TextDecoder().decode(await fetchBytes(file,'text/html',200000)),value);
   if(!html.includes(`class="page-${kind}"`)||/<script\b|<base\b|http-equiv=["']?refresh/i.test(html))throw Error('三頁內容未正確部署或含非模板執行內容');
   if(html.replace(/\r\n/g,'\n').trim()!==renderCondo(manifest.site,kind).trim())throw Error('線上HTML與公開資料版本不一致，尚未完成更新或撤回');
   if((html.match(/<h1[ >]/g)||[]).length!==1)throw Error('頁面標題不完整');pages.push(new URL(file,base).href);

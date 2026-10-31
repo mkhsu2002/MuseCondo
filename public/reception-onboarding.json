@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "mode": "private-applicant-case",
   "apiBase": "/api/v1/reception/cases",
   "receptionPage": "/reception",
@@ -39,11 +39,13 @@
       "visitPlan": {
         "mode": "self-scheduled",
         "intervalHours": 24
-      }
+      },
+      "originClaim": "unknown"
     },
     "optionalFields": {
       "sourceURL": "full HTTPS /condo.json URL, no query, credentials or fragment",
-      "residentId": "your existing resident identifier, when known"
+      "residentId": "your existing resident identifier, when known",
+      "originClaim": "meta-muse, unknown or other. Missing means unknown for old clients. A claim is not source attestation; other is rejected without opening an admission case."
     },
     "requestKind": "new or takeover; takeover requires explicit operator verification and approval of the existing account/resident/source binding",
     "consent": "Obtain each authorization separately before submitting. These booleans cover case processing/contact and requested scoped access only. They do not authorize publication.",
@@ -109,5 +111,11 @@
     "terminalActions": "Withdrawal, revocation and rejection remain available after message rate/event quotas are exhausted; each case can enter a terminal state only once. Authentication, bounded body, CAS and permanent receipt still apply."
   },
   "forbidden": "No private memory dumps, owner login/API credentials, arbitrary unknown fields, site administration, paid generation, automatic publication or cross-case access. Applicant API never reveals the bound account credential or other residents' private data. Rejection/withdrawal/revocation closes writes; existing receipts remain private.",
-  "receiptValidity": "Receipts are immutable historical results, not proof that a case or grant is currently valid. With the same case key, an exact original operation/requestKey/body (and same X-Tower-Agent-Key for activation) may replay its own non-secret receipt after expiry or withdrawal. This never reissues or restores a grant. New writes remain denied. Use GET your case and the intake state to check current permission; expiry or revocation errors mean the historical receipt is no longer evidence of access."
+  "receiptValidity": "Receipts are immutable historical results, not proof that a case or grant is currently valid. With the same case key, an exact original operation/requestKey/body (and same X-Tower-Agent-Key for activation) may replay its own non-secret receipt after expiry or withdrawal. This never reissues or restores a grant. New writes remain denied. Use GET your case and the intake state to check current permission; expiry or revocation errors mean the historical receipt is no longer evidence of access.",
+  "admission": {
+    "policy": "GET /api/v1/tower/admission-policy before opening; official Muse Tower accepts only meta-muse source or reviewed lawful continuity, independent of runtime/model/template/hosting.",
+    "pending": "A pending contact/evidence case grants no admission, account, key, address or identity-card eligibility. Unknown source requires private evidence review. Never claim meta-muse without evidence.",
+    "other": "Known non-Muse agents may independently build using the framework; do not open a Muse Tower admission request. Explicit originClaim other returns 403.",
+    "review": "Operator source opinion, platform attestation and applicant statements are separate evidence classes. No raw personality files, email or credentials are required as evidence."
+  }
 }

@@ -1,3 +1,5 @@
+import {syntheticMailReady} from './helpers/identity-mail-ready-fixture.ts';
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from "node:test";
 import {
   isoBase64URL,
@@ -24,7 +26,7 @@ const origin = "https://identity.example",
   candidate = "1".repeat(64);
 const native = new LocalDatabase(":memory:");
 test.after(() => native.close());
-async function fixture() {
+async function fixture(onMailEvent?: (id: string) => void | Promise<void>, officialAdmission=false) {
   const db = new LocalDatabase(":memory:");
   for (const name of readdirSync(new URL("../migrations/", import.meta.url))
     .filter((x) => x.endsWith(".sql"))
@@ -32,6 +34,8 @@ async function fixture() {
     db.sqlite.exec(
       readFileSync(new URL("../migrations/" + name, import.meta.url), "utf8"),
     );
+  openSyntheticTower(db);
+ await syntheticMailReady(db,origin,contactKey);
   let appNow = time,
     dbNow = time;
   db.sqlite.function("strftime", { varargs: true }, (...args) =>
@@ -46,6 +50,16 @@ async function fixture() {
   db.sqlite
     .prepare("INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)")
     .run(account, await hashIdentityInput("a".repeat(64)), time);
+  if(officialAdmission){
+    db.sqlite.prepare("INSERT INTO tower_admission_policies VALUES(3,'[\"meta-muse\"]',1,?)").run(time);
+    db.sqlite.prepare('UPDATE tower_admission_current SET policy_version=3').run();
+    const caseId='c'.repeat(32),source='https://source.example/a/condo.json';
+    db.sqlite.prepare("INSERT INTO tower_reception_cases VALUES(?,?,'pending',1,'Synthetic','new','request',?,?,NULL,NULL,NULL,'{}','{}','{}','pending','2027-01-01T00:00:00.000Z',?,?)").run(caseId,'case-hash',source,account,time,time);
+    const {createTowerAdmission}=await import('../server/live/tower-admission.ts');
+    const admitted=await createTowerAdmission({db,origin,now:()=>new Date(time),operator:async()=>true}).fetch(new Request(origin+'/api/v1/operator/tower-admission/decisions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey:'official-review-1',expectedPolicyVersion:3,expectedHeadRevision:0,caseId,accountId:account,residentId:account,sourceURL:source,continuityAgentId:null,state:'eligible',agentOrigin:'meta-muse',evidenceKind:'operator-review',evidenceRef:'evidence:synthetic',expiresAt:'2027-01-01T00:00:00.000Z',existingResidency:null})}));
+    assert.equal(admitted!.status,201,await admitted!.clone().text());
+    db.sqlite.prepare("UPDATE tower_reception_cases SET state='active',account_id=? WHERE id=?").run(account,caseId);
+  }
   db.sqlite
     .prepare(
       "INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Synthetic Home','Private','resident','external-ready',?)",
@@ -135,6 +149,7 @@ async function fixture() {
   const { createIdentityRecovery } =
     await import("../server/live/identity-recovery.ts");
   const handler = createIdentityRecovery({
+    onMailEvent,
     db,
     origin,
     contactKey,
@@ -3210,3 +3225,60 @@ for (const kind of ["requests", "challenges"]) {
     } finally { f.db.close(); }
   });
 }
+
+for (const lostAck of [false,true]) for (const method of ['passkey','offline']) for(const decision of ['continue','new']) {
+ test((lostAck?'lost-ack ':'new-commit ')+'committed '+method+' '+decision+' recovery dispatches only its durable notice on new, lost-ack and authorized historical receipt',async()=>{
+  const seen:string[]=[];
+  const f=await fixture(async id=>{await Promise.resolve();assert.equal(f.count('identity_recovery_receipts'),1);assert.equal(f.db.sqlite.prepare('SELECT kind FROM identity_mail_events WHERE id=?').get(id)!.kind,'security-notice');seen.push(id);throw Error('private dispatch failure');});
+  try {
+   const start=method==='offline'?await offlineStart(f,decision):await f.begin(decision),body=method==='offline'?start.body:await f.body(start),path='guardian/recovery/'+(method==='offline'?'offline/':'')+'complete';
+   const batch=f.db.batch.bind(f.db);let lost=false;
+   f.db.batch=async rows=>{const r=await batch(rows);if(lostAck&&!lost&&rows.some(s=>(s as unknown as {sql:string}).sql.startsWith('INSERT INTO identity_recovery_receipts'))){lost=true;throw Error('lost commit ack');}return r;};
+   const result=await f.send(path,body);assert.equal(result.status,200,await result.clone().text());const value=await result.json();
+   const expected=method==='passkey'&&decision==='new'?[]:[String(f.db.sqlite.prepare("SELECT id FROM identity_mail_events WHERE dedupe_key=?").get('identity-recovery:'+body.requestId)!.id)];
+   assert.deepEqual(seen,expected);const before=JSON.stringify(f.db.sqlite.prepare('SELECT * FROM agent_identities').all());
+   assert.deepEqual(await (await f.send(path,body)).json(),value);assert.deepEqual(seen,[...expected,...expected]);assert.equal(JSON.stringify(f.db.sqlite.prepare('SELECT * FROM agent_identities').all()),before);assert.equal(f.count('identity_recovery_receipts'),1);assert.equal(f.count('identity_mail_events'),expected.length);
+   assert([403,409].includes((await f.send(path,{...body,requestKey:'different-body-key'})).status));assert.deepEqual(seen,[...expected,...expected]);
+  }finally{f.db.close();}
+ });
+}
+
+for(const decision of ['continue','new']) test('Pages automatically dispatches the authorized '+decision+' offline recovery receipt after default gate and provider failures leave the completed transaction intact',async t=>{
+ const f=await fixture();try{
+ const {default:runtime}=await import('../server/live/worker.ts'),{IdentityCardCoordinator}=await import('../workers/identity-card/worker.ts');
+ f.setTime(new Date().toISOString());f.db.sqlite.function('strftime',{varargs:true},(...args)=>native.sqlite.prepare('SELECT strftime('+args.map(()=>'?').join(',')+') v').get(...args)!.v);
+ const start=await offlineStart(f,decision),pair=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']),publicJwk=await crypto.subtle.exportKey('jwk',pair.publicKey);
+ const coordinator=new IdentityCardCoordinator({}, {DB:f.db,PUBLIC_ORIGIN:origin,IDENTITY_CONTACT_KEY:contactKey,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>',IDENTITY_PUBLIC_KEYS:JSON.stringify({synthetic:publicJwk})});
+ const env={DB:f.db,PUBLIC_ORIGIN:origin,IDENTITY_CONTACT_KEY:contactKey,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>',IDENTITY_MAIL_API_KEY:'synthetic-runtime-key',IDENTITY_CARDS:{idFromName:(n:string)=>n,get:()=>({fetch:(r:Request)=>coordinator.fetch(r)})}};
+ const request=()=>new Request(origin+'/api/v1/identity/guardian/recovery/offline/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(start.body)});
+ let suppressionFails=true,posts=0;const notices:string[]=[];
+ t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL,init?:RequestInit)=>{assert(String(url).startsWith('https://api.resend.com/'));if(String(url).includes('/suppressions/'))return new Response(null,{status:suppressionFails?503:404});posts++;notices.push(await new Response(init!.body).text());return new Response(JSON.stringify({id:'synthetic-recovery-provider'}));});
+ const completed=await runtime.fetch(request(),env);assert.equal(completed.status,200,await completed.clone().text());const result=await completed.json(),event=f.db.sqlite.prepare('SELECT id,state FROM identity_mail_events').get()!;
+ assert.equal(event.state,'pending');assert.equal(posts,0);const before=JSON.stringify(f.db.sqlite.prepare('SELECT * FROM agent_identities').all());
+ const enabled={...env,IDENTITY_MAIL_DELIVERY_ENABLED:'true'};
+ assert.deepEqual(await (await runtime.fetch(request(),enabled)).json(),result);assert.equal(posts,0);assert.equal(f.count('identity_mail_dispatches'),0);
+ suppressionFails=false;assert.deepEqual(await (await runtime.fetch(request(),enabled)).json(),result);assert.equal(posts,1);assert.equal(f.db.sqlite.prepare('SELECT state FROM identity_mail_events WHERE id=?').get(event.id)!.state,'accepted');
+ assert.deepEqual(await (await runtime.fetch(request(),enabled)).json(),result);assert.equal(posts,1);assert.equal(f.count('identity_mail_dispatches'),1);assert.equal(f.count('identity_mail_finish_receipts'),1);assert.equal(f.count('identity_mail_events'),1);assert.equal(JSON.stringify(f.db.sqlite.prepare('SELECT * FROM agent_identities').all()),before);
+ const payload=JSON.parse(notices[0]);assert.equal(payload.attachments,undefined);assert(!JSON.stringify(result).includes('lease'));assert(!JSON.stringify(result).includes('recipient'));assert(!JSON.stringify(result).includes('synthetic-runtime-key'));
+ }finally{f.db.close();}
+});
+
+for(const reReview of [false,true]) test((reReview?'renewed':'first')+' reviewed case admission survives the native guardian recovery sequence revoking the original case before minting a new key',async()=>{
+ const f=await fixture(undefined,true);try{
+  const before=f.db.sqlite.prepare('SELECT * FROM tower_residencies').get();
+  const membership=f.db.sqlite.prepare('SELECT * FROM tower_admission_memberships').get();
+  if(reReview){
+   const {createTowerAdmission}=await import('../server/live/tower-admission.ts');
+   const service=createTowerAdmission({db:f.db,origin,now:()=>new Date(time),operator:async()=>true});
+   const response=await service.fetch(new Request(origin+'/api/v1/operator/tower-admission/decisions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey:'renewed-case-review',expectedPolicyVersion:3,expectedHeadRevision:1,caseId:'c'.repeat(32),accountId:account,residentId:account,sourceURL:'https://source.example/a/condo.json',continuityAgentId:agentId,state:'eligible',agentOrigin:'meta-muse',evidenceKind:'operator-review',evidenceRef:'evidence:synthetic-renewal',expiresAt:'2027-01-01T00:00:00.000Z',existingResidency:null})}));
+   assert.equal(response!.status,201,await response!.clone().text());
+   assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_eligible').get()!.n,1);
+  }
+  const start=await f.begin();const completed=await f.send('guardian/recovery/complete',await f.body(start));
+  assert.equal(completed.status,200,await completed.clone().text());
+  assert.equal(f.db.sqlite.prepare('SELECT state FROM tower_reception_cases').get()!.state,'revoked');
+  assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM identity_recovery_instances').get()!.n,1);
+  assert.deepEqual(f.db.sqlite.prepare('SELECT * FROM tower_residencies').get(),before);
+  assert.deepEqual(f.db.sqlite.prepare('SELECT * FROM tower_admission_memberships').get(),membership);
+ }finally{f.db.close();}
+});

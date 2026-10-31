@@ -1,3 +1,4 @@
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -11,6 +12,7 @@ function fixture() {
     const db = new LocalDatabase(':memory:');
     for (const file of readdirSync(new URL('../migrations/', import.meta.url)).filter(f => f.endsWith('.sql')).sort())
         db.sqlite.exec(readFileSync(new URL('../migrations/' + file, import.meta.url), 'utf8'));
+ openSyntheticTower(db);
     let time = new Date('2026-10-30T12:00:00.000Z');
     const api = createTowerReception({ db, origin, now: () => time, operator: async (r) => r.headers.get('X-Tower-Operator-Key') === 'operator' });
     const req = async (path: string, method = 'GET', body?: unknown, secret = key, operator = false, extra: Record<string, string> = {}) => api.fetch(new Request(origin + (operator ? '/api/v1/operator/reception' : '/api/v1/reception') + path, { method, headers: { 'Content-Type': 'application/json', ...(operator ? { 'X-Tower-Operator-Key': 'operator' } : { Authorization: 'Bearer ' + secret }), 'CF-Connecting-IP': '127.0.0.1', ...extra }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));

@@ -1,3 +1,4 @@
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync,existsSync} from 'node:fs';
@@ -10,6 +11,7 @@ const sha=async(v:string)=>Buffer.from(await crypto.subtle.digest('SHA-256',new 
 async function fixture(){
  const db=new LocalDatabase(':memory:');
  for(const f of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8'));
+ openSyntheticTower(db);
  for(const x of ['a','b']){
   const account=x.repeat(16),room=x.repeat(16),resident=(x==='a'?'c':'d').repeat(16);
   db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(account,await sha(x+'login'),time);

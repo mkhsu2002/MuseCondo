@@ -3,7 +3,7 @@ import { createIdentityMail, type IdentityMailEnvironment } from './identity-mai
 import { decryptPrivate, encryptPrivate, hashIdentityInput, hashPrivate, maskGuardianEmail, randomIdentityId, randomIdentitySecret, validContactKey, validateGuardianEmail } from './identity-private.ts';
 interface Environment extends IdentityMailEnvironment {
     operator: (request: Request) => Promise<boolean>;
-    onMailEvent?: (eventId: string) => void;
+    onMailEvent?: (eventId: string) => void | Promise<void>;
 }
 interface Identity {
     agent_id: string;
@@ -130,6 +130,14 @@ export function createIdentityGuardian(env: Environment) {
         await auth.verify();
         throw error;
     } }
+    // Only committed, scoped results supply the ID. Delivery failure cannot undo the agreement.
+    async function dispatch(auth: Authorization, operation: string, status: number, result: { invitation?: { id?: unknown }; mailEvent?: { id?: unknown } }) {
+        if (!env.onMailEvent || operation !== 'accept' || status !== 200 || typeof result?.mailEvent?.id !== 'string' || typeof result?.invitation?.id !== 'string') return;
+        try {
+            const found = await one<{ id: string }>("SELECT e.id FROM identity_mail_events e JOIN identity_guardian_invites g ON g.id=e.entity_id WHERE e.id=? AND e.kind='guardian-invitation' AND g.id=? AND g.account_id=? AND e.dedupe_key='guardian-invitation:'||g.id||':'||g.email_hash LIMIT 1", result.mailEvent.id, result.invitation.id, auth.accountId);
+            if (found) await env.onMailEvent(found.id);
+        } catch { /* The committed event remains available to protected recovery. */ }
+    }
     async function prior(auth: Authorization, key: string, operation: string, digest: string) {
         const receipt = await one<{
             operation: string;
@@ -142,7 +150,9 @@ export function createIdentityGuardian(env: Environment) {
         if (receipt.operation !== operation || receipt.input_hash !== digest)
             fail(409, 'idempotency_conflict');
         await auth.verify();
-        return json(JSON.parse(receipt.response_json), receipt.status);
+        const result = JSON.parse(receipt.response_json);
+        await dispatch(auth, receipt.operation, receipt.status, result);
+        return json(result, receipt.status);
     }
     async function rate(auth: Authorization, key: string, digest: string) {
         const now = stamp(), expires = new Date(Date.parse(now) + 3600000).toISOString(), limits = [['guardian:' + auth.scope, 20], ['guardian:global', 1000]] as const;
@@ -298,11 +308,7 @@ export function createIdentityGuardian(env: Environment) {
                     }
                     throw error;
                 }
-                if (event)
-                    try {
-                        env.onMailEvent?.(event);
-                    }
-                    catch { /* Persistent event remains pending for protected recovery. */ }
+                await dispatch(auth, operation, 200, result);
                 return json(result);
             }
             catch (error) {

@@ -1,3 +1,5 @@
+import {syntheticMailReady} from './helpers/identity-mail-ready-fixture.ts';
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -13,6 +15,8 @@ async function fixture(adapter?: Adapter) {
     const db = new LocalDatabase(':memory:');
     for (const f of readdirSync(new URL('../migrations/', import.meta.url)).filter(f => f.endsWith('.sql')).sort())
         db.sqlite.exec(readFileSync(new URL('../migrations/' + f, import.meta.url), 'utf8'));
+ openSyntheticTower(db);
+ await syntheticMailReady(db,origin,contactKey);
     let native = time, app = time, renders = 0;
     const real = new LocalDatabase(':memory:');
     db.sqlite.function('strftime', { varargs: true }, (...args) => args[1] === 'now' ? native : real.sqlite.prepare('SELECT strftime(' + args.map(() => '?').join(',') + ') v').get(...args)!.v);
@@ -889,4 +893,23 @@ test('lost revoke acknowledgement replays the original receipt after contact rem
     finally {
         f.close();
     }
+});
+
+test('Pages dispatches only real card-core committed issue, reissue and lost-ack revoke events through private Coordinator with permanent receipt replay',async t=>{
+ const f=await fixture();try{
+ const {default:runtime}=await import('../server/live/worker.ts'),{IdentityCardCoordinator}=await import('../workers/identity-card/worker.ts');
+ const service=f.create(f.env),coordinator=new IdentityCardCoordinator({}, {DB:f.db,PUBLIC_ORIGIN:origin,IDENTITY_CONTACT_KEY:contactKey,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>',IDENTITY_PUBLIC_KEYS:f.env.trustedPublicJwks});
+ const namespace={idFromName:(n:string)=>n,get:()=>({fetch:(r:Request)=>new URL(r.url).pathname.startsWith('/__internal/')?coordinator.fetch(r):service.fetch(r)})};
+ const env={DB:f.db,PUBLIC_ORIGIN:origin,IDENTITY_CONTACT_KEY:contactKey,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>',IDENTITY_MAIL_API_KEY:'synthetic-deployment-key',IDENTITY_MAIL_DELIVERY_ENABLED:'true',IDENTITY_CARDS:namespace};
+ const send=(path:string,body:unknown,token='a')=>runtime.fetch(new Request(origin+path,{method:'POST',headers:{Authorization:'Bearer '+token.repeat(64),'Content-Type':'application/json'},body:JSON.stringify(body)}),env);
+ const ids:string[]=[],bodies:string[]=[];t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL,init?:RequestInit)=>{assert(String(url).startsWith('https://api.resend.com/'));if(String(url).includes('/suppressions/'))return new Response(null,{status:404});ids.push(new Headers(init!.headers).get('Idempotency-Key')!);bodies.push(await new Response(init!.body).text());return new Response(JSON.stringify({id:'synthetic-provider-'+ids.length}));});
+ const original=await send(base+'/issue',f.issue);assert.equal(original.status,201);const first=await original.json();assert.equal(ids.length,1);
+ assert.deepEqual(await (await send(base+'/issue',f.issue)).json(),first);assert.equal(ids.length,1);
+ const reissue={...f.issue,requestKey:'synthetic-reissue',expectedCardRevision:1,publicName:'新版公開名稱'},next=await send(base+'/issue',reissue);assert.equal(next.status,201);const second=await next.json();assert.equal(ids.length,2);assert.notEqual(second.card.credentialId,first.card.credentialId);
+ const batch=f.db.batch.bind(f.db);let lost=false;f.db.batch=async rows=>{const result=await batch(rows);if(!lost&&rows.some(s=>(s as unknown as {sql:string}).sql.startsWith('INSERT INTO identity_card_requests'))){lost=true;throw Error('lost committed acknowledgement');}return result;};
+ const revoke={requestKey:'synthetic-revoke',expectedIdentityVersion:3,expectedCardRevision:2,credentialId:second.card.credentialId},revoked=await send(base+'/revoke',revoke);assert.equal(revoked.status,200,await revoked.clone().text());const result=await revoked.json();assert.equal(ids.length,3);
+ assert.deepEqual(await (await send(base+'/revoke',revoke)).json(),result);assert.equal(ids.length,3);assert.equal((await send(base+'/revoke',{...revoke,expectedCardRevision:3})).status,409);assert.equal((await send(base+'/issue',reissue,'b')).status,409);assert.equal(ids.length,3);
+ assert.equal(new Set(ids).size,3);assert.equal(f.count('identity_mail_events'),3);assert.equal(f.count('identity_mail_dispatches'),3);assert.equal(f.count('identity_mail_finish_receipts'),3);assert.equal(f.count('identity_card_requests'),3);assert.equal(f.count('identity_credentials'),2);
+ assert.equal(JSON.parse(bodies[0]).attachments.length,2);assert.equal(JSON.parse(bodies[1]).attachments.length,2);assert.equal(JSON.parse(bodies[2]).attachments,undefined);assert.equal(f.db.sqlite.prepare('SELECT authority_epoch FROM agent_identities WHERE account_id=?').get('a'.repeat(16))!.authority_epoch,1);
+ }finally{f.close();}
 });

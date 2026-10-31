@@ -1,3 +1,4 @@
+import {createTowerAdmission} from './tower-admission.ts';
 import {isIdentityCardPath,proxyIdentityCard} from './identity-card-proxy.ts';
 import {createIdentityRecovery} from './identity-recovery.ts';
 import {createIdentityRegistration} from './identity-registration.ts';
@@ -15,12 +16,13 @@ const port=Number(process.env.PORT??8787);
 if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid PORT');
 await mkdir('data',{recursive:true});
 const db=new LocalDatabase(resolve('data/local-mvp.sqlite'));
-for(const [file,table] of [['0001_live_mvp.sql','accounts'],['0002_recovery_audit.sql','recovery_audit'],['0003_provider_requests.sql','provider_requests'],['0004_agent_onboarding.sql','onboarding_grants'],['0005_framework.sql','framework_profiles'],['0006_tower_intake.sql','tower_residencies'],['0007_tower_manager.sql','manager_jobs'],['0008_tower_publication_events.sql','manager_events'],['0009_tower_reception.sql','tower_reception_cases'],['0010_tower_visits.sql','tower_visits'],['0011_tower_activities.sql','tower_activities'],['0012_agent_identity.sql','agent_identities'],['0013_identity_guardian_invites.sql','identity_guardian_invites'],['0014_identity_guardian_credentials.sql','identity_guardians'],['0015_identity_recovery.sql','identity_recovery_requests'],['0016_identity_offline_recovery.sql','identity_offline_recovery_challenges'],['0017_identity_recovery_retention.sql','identity_recovery_request_prune_guard']]){
+for(const [file,table] of [['0001_live_mvp.sql','accounts'],['0002_recovery_audit.sql','recovery_audit'],['0003_provider_requests.sql','provider_requests'],['0004_agent_onboarding.sql','onboarding_grants'],['0005_framework.sql','framework_profiles'],['0006_tower_intake.sql','tower_residencies'],['0007_tower_manager.sql','manager_jobs'],['0008_tower_publication_events.sql','manager_events'],['0009_tower_reception.sql','tower_reception_cases'],['0010_tower_visits.sql','tower_visits'],['0011_tower_activities.sql','tower_activities'],['0012_agent_identity.sql','agent_identities'],['0013_identity_guardian_invites.sql','identity_guardian_invites'],['0014_identity_guardian_credentials.sql','identity_guardians'],['0015_identity_recovery.sql','identity_recovery_requests'],['0016_identity_offline_recovery.sql','identity_offline_recovery_challenges'],['0017_identity_recovery_retention.sql','identity_recovery_request_prune_guard'],['0018_identity_cards.sql','identity_credentials'],['0019_identity_mail_provider_checks.sql','identity_mail_provider_checks'],['0020_identity_mail_envelopes.sql','identity_mail_envelopes'],['0021_identity_mail_dispatch.sql','identity_mail_dispatches'],['0022_identity_mail_delivery.sql','identity_mail_delivery_facts'],['0024_tower_admission.sql','tower_admission_current'],['0025_identity_mail_control.sql','identity_mail_webhook_setups']]){
  if(!db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger') AND name=?").get(table))db.sqlite.exec(await readFile('migrations/'+file,'utf8'));
 }
 const origin=`http://127.0.0.1:${port}`;
 const app=createLiveApp({db,origin,localTest:true,registrationEnabled:true,towerEnabled:true});
 const intake=createTowerIntake({db,origin,localTest:true,operator:async req=>!!process.env.TOWER_OPERATOR_KEY&&req.headers.get('X-Tower-Operator-Key')===process.env.TOWER_OPERATOR_KEY,sourceOrigins:JSON.parse(process.env.TOWER_SOURCE_ORIGINS??'[]'),onChange:async()=>{await app.editBuilding();}});
+const admission=createTowerAdmission({db,origin,operator:async req=>!!process.env.TOWER_OPERATOR_KEY&&req.headers.get('X-Tower-Operator-Key')===process.env.TOWER_OPERATOR_KEY});
 const reception=createTowerReception({db,origin,operator:async req=>!!process.env.TOWER_OPERATOR_KEY&&req.headers.get('X-Tower-Operator-Key')===process.env.TOWER_OPERATOR_KEY});
 // Local development intentionally has no mail provider credentials or delivery dispatch.
 const guardian=createIdentityGuardian({db,origin,operator:async req=>!!process.env.TOWER_OPERATOR_KEY&&req.headers.get('X-Tower-Operator-Key')===process.env.TOWER_OPERATOR_KEY});
@@ -37,7 +39,7 @@ const server=createServer(async(req,res)=>{
    const headers=new Headers();for(const [k,v] of Object.entries(req.headers))if(v)headers.set(k,Array.isArray(v)?v.join(','):v);
    const init:RequestInit&{duplex?:'half'}={method:req.method,headers};
    if(req.method!=='GET'&&req.method!=='HEAD'){init.body=Readable.toWeb(req) as ReadableStream<Uint8Array>;init.duplex='half';}
-   const request=new Request(url,init),response=(isIdentityCardPath(url.pathname)?await proxyIdentityCard(request):null)??await guardian.fetch(request)??await registration.fetch(request)??await recovery.fetch(request)??await identity.fetch(request)??await reception.fetch(request)??await intake.fetch(request)??(url.pathname.startsWith('/api/')?await app.fetch(request,req.socket.remoteAddress??'local'):null);
+   const request=new Request(url,init),response=(isIdentityCardPath(url.pathname)?await proxyIdentityCard(request):null)??await admission.fetch(request)??await guardian.fetch(request)??await registration.fetch(request)??await recovery.fetch(request)??await identity.fetch(request)??await reception.fetch(request)??await intake.fetch(request)??(url.pathname.startsWith('/api/')?await app.fetch(request,req.socket.remoteAddress??'local'):null);
    if(response){res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}
   }
   if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405).end();return;}

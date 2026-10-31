@@ -16,7 +16,7 @@ class Rejection extends Error {readonly status:number;constructor(status:number,
 function fail(status:number,code:string):never{throw new Rejection(status,code);}
 const json=(value:unknown,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'}});
 const path='/api/v1/operator/identity/mail-readiness',rateKey='identity-mail-provider:global';
-const schema=['identity_mail_provider_checks','identity_mail_provider_audit','identity_mail_provider_check_immutable','identity_mail_provider_check_permanent','identity_mail_provider_audit_immutable','identity_mail_provider_audit_permanent'];
+export const IDENTITY_MAIL_PROVIDER_SCHEMA=['identity_mail_provider_checks','identity_mail_provider_audit','identity_mail_provider_check_immutable','identity_mail_provider_check_permanent','identity_mail_provider_audit_immutable','identity_mail_provider_audit_permanent'];
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v);
 function canonicalOrigin(value:string){try{return value.startsWith('https://')&&new URL(value).origin===value;}catch{return false;}}
 function domainName(value:unknown):string|null {
@@ -25,7 +25,7 @@ function domainName(value:unknown):string|null {
  return labels.length>=2&&labels.every(label=>/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))&&/^(?:[a-z]{2,63}|xn--[a-z0-9-]+)$/.test(labels.at(-1)!)?valueLower:null;
 }
 /** Conservative single dot-atom mailbox, optionally one display name. Never guess a parent domain. */
-function senderDomain(value:unknown):string|null {
+export function senderDomain(value:unknown):string|null {
  if(typeof value!=='string'||value.length>320||value!==value.trim()||Array.from(value).some(c=>c.charCodeAt(0)<=31||c.charCodeAt(0)>=127&&c.charCodeAt(0)<=159)||/[\u202a-\u202e\u2066-\u2069]/.test(value))return null;
  const match=value.match(/^(?:([^<>]+) <([^<>]+)>|([^<>\s]+))$/);if(!match)return null;
  if(match[1]&&(match[1]!==match[1].trim()||Array.from(match[1]).some(c=>'(),:;@"\\[]'.includes(c))))return null;
@@ -132,7 +132,7 @@ export function createIdentityMailReadiness(env:Environment){
    const requestKey=await input(request),keyHash=await hashIdentityInput(JSON.stringify(['identity-mail-provider:request',requestKey]));
    const inputHash=await hashIdentityInput(JSON.stringify(['identity-mail-provider:input',env.from??null,env.origin]));
    const objects=(await db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger')").all<{name:string}>()).results;
-   if(!schema.every(name=>objects.some(row=>row.name===name)))fail(503,'mail_readiness_unavailable');
+   if(!IDENTITY_MAIL_PROVIDER_SCHEMA.every(name=>objects.some(row=>row.name===name)))fail(503,'mail_readiness_unavailable');
    const old=await lookup(keyHash);if(old)return replay(old,inputHash);
    const id=randomIdentityId(),domain=senderDomain(env.from),now=stamp(),expires=new Date(Date.parse(now)+3600000).toISOString();
    try{await db.batch([

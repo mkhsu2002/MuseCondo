@@ -1,3 +1,4 @@
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
@@ -25,6 +26,7 @@ async function fixture(compoundSelectLimit?: number) {
     db.sqlite.exec(
       readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8"),
     );
+  openSyntheticTower(db);
   let appNow = time,
     dbNow = time;
   db.sqlite.function("strftime", { varargs: true }, (...args) =>

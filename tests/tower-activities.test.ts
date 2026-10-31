@@ -1,3 +1,4 @@
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
@@ -8,6 +9,7 @@ const origin='https://tower.example',now='2026-10-30T00:00:00.000Z',base='/api/v
 const sha=async(s:string)=>Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))).toString('hex');
 async function fixture(){
  const db=new LocalDatabase(':memory:');for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+ openSyntheticTower(db);
  for(const id of ['a','b']){
   db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(id,await sha(id.repeat(64)),now);
   db.sqlite.prepare('INSERT INTO sessions(token_hash,account_id,csrf,expires_at) VALUES(?,?,?,?)').run(await sha(id.repeat(64)),id,'csrf-'+id,'2027-01-01T00:00:00Z');

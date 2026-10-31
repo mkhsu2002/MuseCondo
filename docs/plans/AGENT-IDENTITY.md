@@ -19,7 +19,7 @@
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
-| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64兩階段審查／665tests／雙環境Pages與146DDL／真provider sender verified+sending enabled、永久snapshot／audit PASS。b凍結信件與PDF JSON附檔／webhook／投遞待實作 |
+| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64雙環境發布與真provider sender查核PASS。b1／b2／c1：本地v0.71信件接線與簽章投遞，兩階段審查、744tests及actual compiled本機Workers/D1驗證為歷史本地 snapshot；c2 R02b 現已本地接線與24h門檻，尚待獨立審查／雙環境發布／真人收件，0020–25未套遠端 |
 | I06 | 兩環境部署、Fang 原門牌接手、第二位合資格 Muse 完整新戶 | 待實作及真人操作 |
 
 ### I01 共用核心
@@ -282,3 +282,66 @@ c15aae0另將新的sender metadata provider未知／失敗改回503unknown，保
 Production舊v0.62的502永久receipt仍原樣保留與重放，D1整列／audit／quota沒有變化，公網edge仍可能改寫該歷史502外觀，沒有藉新程式重新GET或洗掉舊失敗。新的provider未知以503維持unknown與診斷，未把失敗改成健康。真正查核只證明該checkedAt的sender條件；deliveryVerified始終false。
 
 Fang兩環境原房與分享選擇保持，永久身份count0；沒有真住戶發證／寄信／Meta呼叫，paidCallsApproved=false、等級private-only。I05a工程及sender前置通過，可進I05b凍結envelope／PDF JSON附檔、exact event dispatch、signed webhook／suppression與unknown reconcile；I05完整投遞與I06本人／手機／異環境復原仍未完成，T09不因此完成。
+
+
+### I05b1 本地凍結封套核心（2026-10-31，v0.67未發布）
+
+產品3a416d2、私密完整性修復2160996與D1官方限制相容性修復e941ab5；本地版號由0.64按三個程式提交增至0.67。新增私有prepare／materialize factory與0020，五種固定事實模板、目前資格／四方住所綁定、原事件密文與歷史收據驗證；合法房屋更新及後來復原不永久凍住原信。真正核對既存PDF／signed JSON的SHA256、長度、chunks、Ed25519與issuer／AgentID／CID；不重繪證件。
+
+完整body以event／purpose-bound HMAC保存，避免明文body SHA256成為email字典oracle；附件manifest仍用SHA256。小型AES-GCM封套與唯一prepared audit同原生交易，state／attempt／quota保持未寄送。returned guards須由b2與sending claim／audit同交易執行；單獨materialize不是寄送授權。
+
+品質審查另發現原flat JSON快照超過官方32函數參數保障，已改為nestedalias（內層最多24、外層16），新跨引擎回歸以Python原生SQLite setlimit套32function／100bind／100KB SQL／2MB row／5compound，編譯五模板及8MiB附件的實際prepare／materialize／returnedguards SQL；舊碼真RED、新碼GREEN。實際兩環境D1唯讀32／60args都成功，因此記為官方保障範圍相容性修復，不宣稱已證明當前D1故障。
+
+主控685完整測試／8版號／typecheck／lint／build與公開輸出檢查通過，獨立規格→品質各20focused PASS。大附件為synthetic壓力資料，真PDF rendering證據仍沿I04，沒有新增正式raster驗收。Python>=3.11驗證依賴與私有接口見IDENTITY-MAIL-ENVELOPE-CORE.md。
+
+本片未push或發布，0020未套遠端；main／dev已發布流程仍為v0.64／0019／146來源物件，I04證件Worker仍v0.61。沒有HTTP／DO／Pages／provider dispatch或新排程接線、未改既有processOne、未寄信或使用真居民資料。b2及c依IDENTITY-MAIL-DELIVERY.md接續，Fang原住所、私密等級與I06真人gate保持；本段原新人選意向已被入住政策取代，第二位合資格 Muse 待指定；T09未完成。
+
+
+### I05b2a 私有串流與永久寄送核心（2026-10-31，v0.69未發布）
+
+產品6faac9a與最小audit修復43e1d2c；兩個程式提交按規則加0.02。新0021三表與16來源物件保存一次性lease、exact finish receipt、獨立purpose／完整ASCII地址casefold的HMAC負面policy及永久audit；原0013–20未改。prepare／claim／suppress／finish僅私有DO binding可用，公開Worker與Pages internal路徑404。Pages只持provider key、特定地址suppression GET後轉送DO的大body stream；移除舊直寄旁路，預設false。不把同步configured當schema／provider／delivery健康。
+
+補齊metadata授權撤回競態、last-nativeguard＋lease同交易、sending／取消後仍保存已知負面封鎖、早到webhook已有providerID而POSTtimeout仍記unknown receipt且不降級，以及不可刪改ledger／receipt／audit。sending audit不保存lease控制，僅bodyDigest／length；lease保留在私有ledger／receipt。大body仍HMAC，附件仍SHA256，沒有明文地址、body或token進audit。
+
+主控702完整測試／8版號／typecheck／lint／build／公開輸出檢查PASS，規格／品質各自focused驗證通過（最終品質75／75及6項額外反例）。8MiB完整路徑保守逐statement計normal44／lost prepare ack47，實際SQL／bindings經原生SQLite官方限制校準與編譯。
+
+另以固定產品43e1d2c的實際編譯Pages受保護process API＋同版DO＋Miniflare原生D1，在相同compatibility date跑完整流程：4,400,000bytes synthetic PDF及512bytes真簽署JSON形成5,868,041bytes body，附件摘要、固定event tag／Idempotency-Key一致。相同事件再送只1POST、1ledger／finish／sending audit、attempt1，兩公開internal入口404。所有provider流量被導向本機stub，沒有真Resend或郵件。此為本機runtime整合，不是正式投遞；初次probe的dump loader因先插資料後建composite unique index造成FK mismatch，已修fixture載入順序，沒有改產品schema掩蓋。
+
+b2b guardian／card／recovery的commit及歷史receipt replay事件接線、no-context處理留下一片；c的已驗webhook／投遞／unknown reconcile仍未實作。本片未push／部署，0020／21未套遠端（合計23新增物件，整合後應169），兩環境正式流程保持v0.64／0019／146DDL；不單獨啟用、不影響Fang原屋或替Fang/K發證。介面及後續契約見IDENTITY-MAIL-DISPATCH.md。
+
+
+### I05b2b 已提交事件與歷史收據接線（2026-10-31，v0.70未發布）
+
+產品ecf2185，按一個程式提交加0.01。Guardian accept、card issue／reissue／revoke、recovery continued／guardian repaired的成功交易與原永久receipt重放／lost commit acknowledgement均喚起自己的已保存pending event；不建立第二通知、不重跑人類授權或身份更新。每request有獨立dispatcher：有context用waitUntil，無context直接await，callback失敗保留原成功資料及response。Card只讀有4096bytes上限的可信core lifecycle clone，以CID／kind／完整dedupe／戶籍取event；不碰artifactstream或callerbody、不掃outbox。
+
+主控719完整測試／8版號／typecheck／lint／build／公開輸出PASS；獨立規格與品質各166focused PASS，品質額外21項RAM-only probes通過。規格另實測recovery新continue39、repair29、receipt8條Pages SQL，DO prepare12／claim10／finish6各自獨立invocation，保守低於50；失聯收據outer catch及callback拒絕仍保原結果。
+
+固定ecf2185的實際compiled Pages＋DO＋Miniflare D1，先模擬原4.4MB卡信，再以本機真renderer／TTF核發新卡、自動喚起卡信、撤卡喚起通知，兩項原request重放不新增POST。新PDF4,377,072bytes＋真Ed25519 JSON521bytes，body5,837,481bytes；兩附件摘要與D1一致，3個原事件各1POST／lease／finish／sendingaudit。公開internal入口404，公開verify顯示revoked且不觸發寄送。Synthetic戶籍／備援與100%本機providerstub，無真人或真provider；不能當Fang/K完成或郵件已收到。無新schema、providerkey仍只Pages。
+
+本輪未push／部署，0020／21仍未套遠端、delivery預設false，正式兩環境仍0.64／0019／146物件、I04 Worker0.61。b已完成本地工程；c簽署投遞／配置與unknown reconcile接續，真正provider交付、原Agent／監護人I06及T09仍未完成。
+
+
+### I05c1 簽章與永久投遞事實（2026-10-31，v0.71未發布）
+
+產品876d6ff；新0022三表／九trigger共12物件，receipt／fact／audit永久不可刪改，來源共181物件；沒有改舊migration。私有factory提供handleWebhook、applyReadback、receipt、status，仍未接公開router／provider管理／GET／reconcile／readiness。原始Svix bytes＋HMAC與app／原生clock五分鐘時窗、永久payload HMAC去重及歷史封套／lease關聯，避免rawbody SHA成為地址字典oracle；五種投遞事實保持單向、負面優先，原HTTP finish receipt不改。provider ID已屬他事件或競態被占用時不錯認第二次投遞，不以目前guardian／撤卡狀態抹掉歷史。
+
+主控744完整／8版號／type-lint-build／公開輸出檢查PASS；獨立spec與quality各25focused及額外原生時間／雙runtime／衝突／正負並發與五模板歷史反例PASS。webhook12／readback10條SQL，26 captured queries／bindings通過原生SQLite官方限制。
+
+固定876d6ff actualcompiledcore＋Miniflare原生D1，使用synthetic身份／secret與已領lease，將身份停權及卡撤銷後，完整65,536bytes合法簽章body仍正確記錄過往delivery；同id/body原收據重放，改body再合法簽章409、壞signature400，fact／receipt／audit各一筆。此是本機合成投遞訊號，沒有真provider送達或真人收件；不能把測試deliveryVerified=true當正式完成。
+
+本片未push／發布，0020–22均未套遠端，正式兩環境仍0.64／0019／146物件，寄送預設false。c2要完成真部署端固定ownorigin provider webhook配置、encrypted secret／受保護與公開路由、真正readygate、已知／未知provider結果安全查核，再整合雙環境發布與實測。原Agent／監護人I06及T09仍待。歷史人選的來源已收到；其新戶推進意向已由入住政策取代，第二位合資格 Muse 待指定，不因此視為新戶核准。
+
+
+### 獨立住所託管相容（2026-10-31，v0.72未發布）
+
+產品380ed2e只改CLI驗證：HTTPS合法單tenant flypigai.chatgpt.site、原始authority無port／credentials、唯一plain script緊貼body結尾；僅將兩個相同hex16 ray與canonical Base64數字秒正規化後，比對完整bootstrap固定SHA256。其他碼、位置、host、script、attrs或剩餘HTML不符仍拒，保留原schema／圖片CRC與比例／夢撤回／redirect／200KB上限。僅改驗證副本，不執行script、不變更主機安全或住戶來源。
+
+主控805完整／8版號／type-lint-build與公開輸出PASS；spec／quality各61focused／CLI通過，quality另3,197個固定碼變異均拒。固定380ed2e的真實來源唯讀CLI於16:32:12Z通過manifest／三頁／兩張完整PNG，homeComplete仍false。這不是來源、模型、族群、維護或入住授權；沒有新schema或對外response，c2與真正入住仍待。通用細節見CONDO-HOSTED-HTML-COMPATIBILITY.md，個案與來源判斷留私密紀錄。
+
+
+### 2026-10-31 R02b 本地郵件啟用防線（尚未發布）
+
+[郵件控制契約](../IDENTITY-MAIL-CONTROL.md) 已本地接入 Pages 管理／callback，具備 async ready gate、DO 最後 claim guard 與加密 secret 解密檢查；0020–0022／0025 schema 缺任一必要物件則不寄。實際編譯 Pages＋私有 DO＋Miniflare 原生 D1，以全 stub provider 驗證 handler probe、附件一致、並發單一寄送、ready 狀態 race 回滾、合法 callback permanent receipt、unknown send 唯讀 bounded exact 對帳；沒有真憑證、外部郵件或環境部署。本地證據不改 I05a 的歷史部署結果，也不把 I05c2 的雙環境發布／真人收件驗收或 I06、T06、T09 視為完成。
+
+
+2026-10-31 R02b 時效補正：首次接線測試未要求 sender success snapshot，也未限制 handler probe 年齡，獨立規格審查因此 FAIL；該次 PASS 僅代表當時列出的本機項目。後續補上目前完整 FROM／origin／精確 domain 的最新成功 sender 查核與 handler probe 的 24h 雙時鐘門檻、DO 同交易 snapshot／native-clock guard。缺失、過期或未來皆保留 pending，無自動 provider 操作；須以新 requestKey 重新查核／probe 後處理該事件。新增反例先 RED，再驗證零租約／attempt／send 與恢復操作；正式／dev、真人收件與寄送旗標仍未啟用。

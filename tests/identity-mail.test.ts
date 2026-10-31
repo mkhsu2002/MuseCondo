@@ -1,7 +1,10 @@
+import {syntheticMailReady} from './helpers/identity-mail-ready-fixture.ts';
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync,readFileSync,readdirSync} from 'node:fs';
 import {LocalDatabase} from '../server/live/local-db.ts';
+import {createIdentityMailCoordinator} from '../server/live/identity-mail-coordinator.ts';
 import {workerdFetch} from './helpers/workerd-fetch.ts';
 const key='9'.repeat(64),origin='https://identity.example',time='2026-10-31T00:00:00.000Z';
 const nativeDates=new LocalDatabase(':memory:');
@@ -12,6 +15,8 @@ export async function mailFixture(fetcher:typeof fetch=async()=>new Response(JSO
  const p=await privateModule();assert(existsSync(new URL('../server/live/identity-mail.ts',import.meta.url)),'persistent identity mail is implemented');
  const {createIdentityMail}=await import('../server/live/identity-mail.ts');
  const db=new LocalDatabase(':memory:');for(const f of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8'));
+ openSyntheticTower(db);
+ await syntheticMailReady(db,origin,key);
  const account='a'.repeat(16),agent='mcid:'+'a'.repeat(64),id='b'.repeat(32),event='c'.repeat(32),email='Guardian.Local@example.com',token='d'.repeat(64),expiry='2026-11-01T00:00:00.000Z';
  db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(account,'mail-login',time);
  db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Test','Test','resident','external-ready',?)").run(account,account,time);
@@ -22,7 +27,8 @@ export async function mailFixture(fetcher:typeof fetch=async()=>new Response(JSO
  const payload=await p.encryptPrivate(key,'mail-payload',event,JSON.stringify({token}));
  db.sqlite.prepare("INSERT INTO identity_mail_events(id,kind,entity_id,dedupe_key,recipient_ciphertext,recipient_hash,payload_ciphertext,state,created_at,updated_at) VALUES(?,'guardian-invitation',?,?,?, ?,?,'pending',?,?)").run(event,id,'guardian-invitation:'+id+':'+emailHash,recipient,emailHash,payload,time,time);
  let now=new Date(time);db.sqlite.function('strftime',{varargs:true},(...args)=>args[1]==='now'?now.toISOString():nativeDates.sqlite.prepare('SELECT strftime('+args.map(()=>'?').join(',')+') value').get(...args)!.value);
- const env={db,origin,contactKey:key,apiKey:'arbitrary-runtime-key',from:'MuseCondo <identity@example.com>',fetcher:workerdFetch((request,_index,init)=>fetcher(request.url,init)).fetcher,now:()=>now};
+ const coordinator={idFromName:(n:string)=>n,get:()=>({fetch:(request:Request)=>createIdentityMailCoordinator({db,origin,contactKey:key,from:'MuseCondo <identity@example.com>',trustedKeys:new Map(),now:()=>now}).fetch(request)})};
+ const env={db,origin,coordinator,deliveryEnabled:'true',contactKey:key,apiKey:'arbitrary-runtime-key',from:'MuseCondo <identity@example.com>',fetcher:workerdFetch(async(request,_index,init)=>request.url.includes('/suppressions/')?new Response(null,{status:404}):fetcher(request.url,{...init,body:await request.text()})).fetcher,now:()=>now};
  return {db,p,env,mail:createIdentityMail(env),account,agent,id,event,email,token,key,recipient,emailHash,tokenHash,setTime:(s:string)=>{now=new Date(s);}};
 }
 test('private envelopes authenticate purpose and entity and keep normalized local part intact',async()=>{
@@ -48,7 +54,7 @@ test('unknown provider outcomes never cause a blind resend and errors contain no
 });
 test('only one concurrent worker leases a persistent event, and invalidated invitations cancel before sending',async()=>{
  let calls=0;const f=await mailFixture(async()=>{calls++;return new Response(JSON.stringify({id:'once'}));});try{await Promise.all([f.mail.processOne(f.event),f.mail.processOne(f.event)]);assert.equal(calls,1);}finally{f.db.close();}
- for(const mutation of ["UPDATE identity_guardian_invites SET state='cancelled'","UPDATE identity_guardian_invites SET expires_at='2026-10-30T00:00:00.000Z'","UPDATE agent_identities SET authority_epoch=2","UPDATE agent_identities SET version=4","UPDATE agent_identities SET state='retired'","UPDATE identity_mail_events SET recipient_hash='"+'e'.repeat(64)+"'","UPDATE tower_residencies SET resident_id='"+'e'.repeat(16)+"'"]){let sends=0;const f=await mailFixture(async()=>{sends++;return new Response('{}');});try{f.db.sqlite.exec('PRAGMA ignore_check_constraints=ON');f.db.sqlite.exec(mutation);assert.equal((await f.mail.processOne(f.event))!.state,'cancelled');assert.equal(sends,0);}finally{f.db.close();}}
+ for(const mutation of ["UPDATE identity_guardian_invites SET state='cancelled'","UPDATE identity_guardian_invites SET expires_at='2026-10-30T00:00:00.000Z'","UPDATE agent_identities SET authority_epoch=2","UPDATE agent_identities SET version=4","UPDATE agent_identities SET state='retired'","UPDATE identity_mail_events SET recipient_hash='"+'e'.repeat(64)+"'","UPDATE tower_residencies SET resident_id='"+'e'.repeat(16)+"'"]){let sends=0;const f=await mailFixture(async()=>{sends++;return new Response('{}');});try{f.db.sqlite.exec('PRAGMA ignore_check_constraints=ON');f.db.sqlite.exec(mutation);assert.equal((await f.mail.processOne(f.event))!.state,'pending');assert.equal(sends,0);}finally{f.db.close();}}
 });
 test('missing configuration leaves event pending and missing or reserved event kinds never send',async()=>{
  let sends=0;const f=await mailFixture(async()=>{sends++;return new Response('{}');});try{const {createIdentityMail}=await import('../server/live/identity-mail.ts');for(const extra of [{apiKey:''},{from:''},{contactKey:''},{origin:'https://evil.example/path'}]){const m=createIdentityMail({...f.env,...extra});assert.equal(m.configured(),false);await m.processOne(f.event);assert.equal((await m.status(f.event))!.state,'pending');}assert.equal(await f.mail.processOne('f'.repeat(32)),null);f.db.sqlite.prepare("UPDATE identity_mail_events SET kind='identity-card'").run();assert.equal((await f.mail.processOne(f.event))!.state,'pending');assert.equal(sends,0);}finally{f.db.close();}
@@ -58,18 +64,18 @@ test('mail transaction revalidates the live invitation before lease and audit fa
  for(const auditFailure of [false,true]){let calls=0;const f=await mailFixture(async()=>{calls++;return new Response('{}');});try{
   if(auditFailure)f.db.sqlite.exec("CREATE TRIGGER fail_mail_audit BEFORE INSERT ON identity_mail_audit BEGIN SELECT RAISE(ABORT,'synthetic'); END");
   else {const batch=f.db.batch.bind(f.db);f.db.batch=async statements=>{f.db.sqlite.prepare("UPDATE identity_guardian_invites SET state='cancelled'").run();return batch(statements);};}
-  await f.mail.processOne(f.event);assert.equal(calls,0);assert.equal((await f.mail.status(f.event))!.state,auditFailure?'pending':'cancelled');
+  await f.mail.processOne(f.event);assert.equal(calls,0);assert.equal((await f.mail.status(f.event))!.state,'pending');
  }finally{f.db.close();}}
 });
 test('native SQLite clock rejects expiry even when injected application clock is earlier',async()=>{
  let calls=0;const f=await mailFixture(async()=>{calls++;return new Response('{}');});try{
   // Replace the fixture connection with one that uses SQLite's actual native clock.
   const native=new LocalDatabase(':memory:');const snapshot=f.db.sqlite.prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END").all();
-  for(const row of snapshot)native.sqlite.exec(String(row.sql));
+  for(const row of snapshot)native.sqlite.exec(String(row.sql));openSyntheticTower(native);
   for(const table of ['accounts','rooms','tower_residencies','agent_identities','identity_guardian_invites','identity_mail_events']){const rows=f.db.sqlite.prepare('SELECT * FROM '+table).all();for(const row of rows){const cols=Object.keys(row);native.sqlite.prepare('INSERT INTO '+table+'('+cols.join(',')+') VALUES('+cols.map(()=>'?').join(',')+')').run(...Object.values(row));}}
   native.sqlite.exec('DROP TRIGGER identity_guardian_immutable_binding');native.sqlite.prepare("UPDATE identity_guardian_invites SET created_at='2000-01-01T00:00:00.000Z',expires_at='2000-01-02T00:00:00.000Z'").run();
-  const {createIdentityMail}=await import('../server/live/identity-mail.ts');const mail=createIdentityMail({...f.env,db:native,now:()=>new Date('2000-01-01T00:00:00.000Z')});
-  try{assert.equal((await mail.processOne(f.event))!.state,'cancelled');assert.equal(calls,0);}finally{native.close();}
+  const {createIdentityMail}=await import('../server/live/identity-mail.ts');const mail=createIdentityMail({...f.env,db:native,coordinator:{idFromName:(n:string)=>n,get:()=>({fetch:(request:Request)=>createIdentityMailCoordinator({db:native,origin,contactKey:key,from:f.env.from,trustedKeys:new Map(),now:()=>new Date('2000-01-01T00:00:00.000Z')}).fetch(request)})},now:()=>new Date('2000-01-01T00:00:00.000Z')});
+  try{assert.equal((await mail.processOne(f.event))!.state,'pending');assert.equal(calls,0);}finally{native.close();}
  }finally{f.db.close();}
 });
 test('guardian storage prevents cross-account identity bindings and duplicate active designation',async()=>{
@@ -82,7 +88,7 @@ test('guardian storage prevents cross-account identity bindings and duplicate ac
 test('a confirmation hash changed while claiming the lease cancels the stale encrypted message',async()=>{
  let calls=0;const f=await mailFixture(async()=>{calls++;return new Response(JSON.stringify({id:'should-not-send'}));});try{
   const batch=f.db.batch.bind(f.db);f.db.batch=async statements=>{if(statements.some(s=>(s as unknown as {sql:string}).sql.startsWith("UPDATE identity_mail_events SET state='sending'")))f.db.sqlite.prepare('UPDATE identity_guardian_invites SET invite_token_hash=?').run('f'.repeat(64));return batch(statements);};
-  assert.equal((await f.mail.processOne(f.event))!.state,'cancelled');assert.equal(calls,0);
+  assert.equal((await f.mail.processOne(f.event))!.state,'pending');assert.equal(calls,0);
  }finally{f.db.close();}
 });
 test('guardian storage rejects unbounded, malformed, unordered and noncanonical confirmation lifetimes',async()=>{
@@ -99,7 +105,7 @@ test('dispatch independently rejects corrupted unbounded or invalid lifetimes an
   // Defense in depth for imported/corrupted rows independently of schema validation.
   f.db.sqlite.exec('PRAGMA ignore_check_constraints=ON; DROP TRIGGER identity_guardian_immutable_binding');
   f.db.sqlite.prepare('UPDATE identity_guardian_invites SET created_at=?,expires_at=?').run(c.created,c.expires);f.setTime(c.now);
-  assert.equal((await f.mail.processOne(f.event))!.state,'cancelled',JSON.stringify(c));assert.equal(calls,0);
+  assert.equal((await f.mail.processOne(f.event))!.state,'pending',JSON.stringify(c));assert.equal(calls,0);
  }finally{f.db.close();}}
 });
 
@@ -124,7 +130,7 @@ for(const status of [301,302,303,307,308])test('workerd guardian mail records re
  const f=await mailFixture(network.fetcher);try{
   const result=await f.mail.processOne(f.event);assert.equal(result!.state,'unknown');assert.equal(result!.errorCode,'provider_outcome_unknown');assert.equal(result!.providerId,null);assert.equal(result!.attemptCount,1);
   assert.deepEqual(await f.mail.processOne(f.event),result);assert.deepEqual(network.requests.map(r=>r.url),['https://api.resend.com/emails']);assert.equal(network.requests[0].headers.get('Authorization'),'Bearer arbitrary-runtime-key');
-  assert.deepEqual(f.db.sqlite.prepare('SELECT action FROM identity_mail_audit ORDER BY rowid').all().map(r=>r.action),['sending','unknown']);
+  assert.deepEqual(f.db.sqlite.prepare('SELECT action FROM identity_mail_audit ORDER BY rowid').all().map(r=>r.action),['prepared','sending','dispatch-finished']);
   assert(!JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_audit').all()).includes('untrusted.example'));
  }finally{f.db.close();}
 });

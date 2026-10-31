@@ -1,13 +1,15 @@
 # I05b／I05c：身分證附件與投遞
 
-2026-10-31：I05a已完成正式sender metadata查核；下列仍是待實作計畫，不代表已寄信。沿既有身份／監護／outbox及newsletter-worker-standard，不建立行銷訂閱或平行寄送系統。provider key只在Pages部署端，沒有本機／runner key、分鐘polling或新排程。
+2026-10-31 狀態更新：I05a已完成正式sender metadata查核；b1／b2及c1簽章投遞核心已通過本地驗收（v0.71），c2正式入口／provider配置／unknown查核仍待實作。下列b1原切片限制為歷史邊界；本地已接新transport，但尚未發布，0020–0022未套遠端、寄送預設關閉，不代表已寄信。沿既有身份／監護／outbox及newsletter-worker-standard，不建立行銷訂閱或平行寄送系統。provider key只在Pages部署端，沒有本機／runner key、分鐘polling或新排程。
+
+2026-10-31 入住資格補充：依 [Tower 入住政策](../TOWER-ADMISSION.md)，第二位合資格 Muse 待指定；原人選意向已被此政策取代。以下歷史驗收人選稱呼不代表當前核發／寄送授權，資格防線仍待實作。
 
 ## b1：凍結信件核心（本地切片）
 
 - 僅私有server factory，處理既有guardian-invitation、identity-card及security-notice固定模板；不接公開HTTP、不租用寄送、不呼叫provider。
 - 沿本戶身份／住所四方綁定、有效邀請或目前已驗證監護聯絡檢查收件資格，對原事件的ciphertext／hash與payload再次核對。首次確認碼只寄原指定地址；expired／cancelled／換聯絡皆不得利用舊內容。
 - 卡信附已保存的完整PDF＋signed JSON，核對immutable manifests／chunk序號、長度、digest與signature資料，不重生卡或換檔。私人資料、等級、住家門牌及長期復原碼不進信。
-- 第一次準備即固定寄件人、收件人、模板版本、文字、tags與附件refs及整個body digest／length。小型envelope加密保存；附件仍引用immutable chunks，不把大base64放入32KiB解密封套或D1大row。
+- 第一次準備即固定寄件人、收件人、模板版本、文字、tags與附件refs及整個body的event／purpose-bound HMAC／length。小型envelope加密保存；附件仍引用immutable chunks，不把大base64放入32KiB解密封套或D1大row。完整body不保存明文SHA256，避免以收件地址字典離線猜測；PDF／JSON附件manifest仍使用SHA256。
 - 同event永久重放原body，即使display FROM之後變動也不改已凍結bytes；origin變動或聯絡不再授權時fail closed。每次materialize重新核對目前資格與artifact完整性。失去資格不改歷史、不自動換收件人。
 - 新0020僅新增最小envelope／prepared audit資料；transaction最後原生context guard、永久去重、並發或lost acknowledgement不產生第二封套。mail event仍pending，不將prepared當sent。
 

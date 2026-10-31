@@ -1,3 +1,5 @@
+import {syntheticMailReady} from './helpers/identity-mail-ready-fixture.ts';
+import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -30,18 +32,20 @@ test('coordinator schema gate protects lifecycle; public keys need no signer/con
  const db=new LocalDatabase(':memory:');try{
  const key=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);const publicKey=await crypto.subtle.exportKey('jwk',key.publicKey);const env={DB:db,PUBLIC_ORIGIN:origin,IDENTITY_PUBLIC_KEYS:JSON.stringify({test:publicKey})};const coordinator=new IdentityCardCoordinator({},env);
  const keys=await coordinator.fetch(req('/api/v1/identity/keys'));assert.equal(keys.status,200);assert.deepEqual((await keys.json()).keys.test,{kty:'OKP',crv:'Ed25519',x:publicKey.x});assert.equal((await coordinator.fetch(req(base))).status,503);
- for(const file of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql','0006_tower_intake.sql','0007_tower_manager.sql','0008_tower_publication_events.sql','0009_tower_reception.sql','0010_tower_visits.sql','0011_tower_activities.sql','0012_agent_identity.sql','0013_identity_guardian_invites.sql','0014_identity_guardian_credentials.sql','0015_identity_recovery.sql','0016_identity_offline_recovery.sql','0017_identity_recovery_retention.sql','0018_identity_cards.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+ for(const file of (await import('node:fs')).readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));openSyntheticTower(db);
  assert.equal((await coordinator.fetch(req(base))).status,401);assert.equal((await coordinator.fetch(req('/api/v1/identity/verify/'+cid))).status,404);
  db.sqlite.exec('DROP INDEX identity_card_one_issued');assert.equal((await coordinator.fetch(req(base))).status,503);assert.equal((await coordinator.fetch(req('/api/v1/identity/keys'))).status,200);
  db.sqlite.exec("CREATE UNIQUE INDEX identity_card_one_issued ON identity_credentials(account_id) WHERE state='issued'");
  db.sqlite.exec('DROP TRIGGER identity_card_immutable');assert.equal((await coordinator.fetch(req(base))).status,503);
  }finally{db.close();}
 });
-test('Pages to real coordinator persists actual PDF chunks and immutable candidate survives font failure/object recreation',async()=>{
+test('Pages to real coordinator persists actual PDF chunks, automatically dispatches frozen attachments and receipt survives object recreation',async t=>{
  const db=new LocalDatabase(':memory:');try{
  const {readdirSync}=await import('node:fs');for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+ openSyntheticTower(db);
  const {hashIdentityInput,encryptPrivate,hashPrivate}=await import('../server/live/identity-private.ts');const {verifyCredential}=await import('../src/identity/index.ts');
  const account='a'.repeat(16),agent='mcid:'+'a'.repeat(64),invite='a'.repeat(32),contact='9'.repeat(64),now=new Date().toISOString(),expiry=new Date(Date.parse(now)+86400000).toISOString();
+ await syntheticMailReady(db,origin,contact);
  db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(account,await hashIdentityInput('synthetic-login'),now);
  db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Synthetic','Private','resident','external-ready',?)").run(account,account,now);
  db.sqlite.prepare("INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,created_at,updated_at) VALUES(?,?,?,'https://private.example','challenge',?,?)").run(account,account,account,now,now);
@@ -53,14 +57,15 @@ test('Pages to real coordinator persists actual PDF chunks and immutable candida
  db.sqlite.prepare('INSERT INTO identity_offline_recovery_codes(agent_id,code_hash,authority_epoch,identity_version,created_at,confirmed_at) VALUES(?,?,1,3,?,?)').run(agent,'a'.repeat(64),now,now);
  const pair=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']),privateKey=await crypto.subtle.exportKey('jwk',pair.privateKey),publicKey=await crypto.subtle.exportKey('jwk',pair.publicKey);
  const env={DB:db,PUBLIC_ORIGIN:origin,IDENTITY_CONTACT_KEY:contact,IDENTITY_SIGNING_KEY_ID:'test',IDENTITY_SIGNING_JWK:JSON.stringify(privateKey),IDENTITY_PUBLIC_KEYS:JSON.stringify({test:publicKey})};
- let coordinator=new IdentityCardCoordinator({},env);const pages={PUBLIC_ORIGIN:origin,IDENTITY_CARDS:{idFromName(name:string){return name;},get(){return {fetch:(request:Request)=>coordinator.fetch(request)};}}};
+ let posts=0;const providerBodies:string[]=[];t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL,init?:RequestInit)=>{assert(String(url).startsWith('https://api.resend.com/'));if(String(url).includes('/suppressions/'))return new Response(null,{status:404});assert(init?.body instanceof ReadableStream);posts++;providerBodies.push(await new Response(init.body).text());return new Response(JSON.stringify({id:'synthetic-native-provider'}));});
+ let coordinator=new IdentityCardCoordinator({}, {...env,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>'});const pages={DB:db,IDENTITY_CONTACT_KEY:contact,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>',IDENTITY_MAIL_API_KEY:'synthetic-runtime-only',IDENTITY_MAIL_DELIVERY_ENABLED:'true',PUBLIC_ORIGIN:origin,IDENTITY_CARDS:{idFromName(name:string){return name;},get(){return {fetch:(request:Request)=>coordinator.fetch(request)};}}};
  const send=(path:string,body?:unknown)=>runtime.fetch(new Request(origin+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+'a'.repeat(64),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})}),pages);
  const issue={requestKey:'synthetic-real-pdf',expectedIdentityVersion:3,expectedCardRevision:0,publicName:'繁體中文測試居民'.repeat(10),publicVerificationConsent:true};
  assert.equal((await send(base+'/issue',issue)).status,503);const candidate=db.sqlite.prepare('SELECT credential_id,signed_json FROM identity_card_attempts').get()!;assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM identity_credentials').get()!.n,0);
- coordinator=new IdentityCardCoordinator({}, {...env,ASSETS:{async fetch(){return new Response(readFileSync(new URL('../workers/identity-card/assets/MuseCondoTC-Regular.ttf',import.meta.url)));}}});
+ coordinator=new IdentityCardCoordinator({}, {...env,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>',ASSETS:{async fetch(){return new Response(readFileSync(new URL('../workers/identity-card/assets/MuseCondoTC-Regular.ttf',import.meta.url)));}}});
  const issued=await send(base+'/issue',issue);assert.equal(issued.status,201,await issued.clone().text());const result=await issued.json();assert.equal(result.card.credentialId,candidate.credential_id);const signed=await (await send(base+'/'+result.card.credentialId+'/json')).json();assert.equal(JSON.stringify(signed),candidate.signed_json);assert(await verifyCredential(signed,{issuer:origin,keys:new Map([['test',pair.publicKey]])}));
  const pdf=await send(base+'/'+result.card.credentialId+'/pdf');assert.equal(pdf.headers.get('Content-Type'),'application/pdf');const bytes=new Uint8Array(await pdf.arrayBuffer());assert(bytes.length>4000000&&bytes.length<8388608);assert(new TextDecoder().decode(bytes.subarray(0,8)).startsWith('%PDF-'));assert.equal(db.sqlite.prepare('SELECT version FROM agent_identities').get()!.version,3);assert(db.sqlite.prepare("SELECT COUNT(*) n FROM identity_card_artifacts WHERE kind='pdf'").get()!.n as number>80);
- coordinator=new IdentityCardCoordinator({},env);assert.deepEqual(await (await send(base+'/issue',issue)).json(),result);assert.equal(db.sqlite.prepare("SELECT count FROM rate_limits WHERE key=?").get('identity-card:account:'+account)!.count,1);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM identity_mail_events').get()!.n,1);assert.equal(db.sqlite.prepare('SELECT state FROM identity_mail_events').get()!.state,'pending');
+ coordinator=new IdentityCardCoordinator({},env);assert.deepEqual(await (await send(base+'/issue',issue)).json(),result);assert.equal(db.sqlite.prepare("SELECT count FROM rate_limits WHERE key=?").get('identity-card:account:'+account)!.count,1);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM identity_mail_events').get()!.n,1);assert.equal(db.sqlite.prepare('SELECT state FROM identity_mail_events').get()!.state,'accepted');assert.equal(posts,1);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM identity_mail_dispatches').get()!.n,1);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM identity_mail_finish_receipts').get()!.n,1);const sent=JSON.parse(providerBodies[0]);assert.equal(sent.attachments.length,2);assert.equal(Buffer.from(sent.attachments[0].content,'base64').length,bytes.length);assert.equal(Buffer.from(sent.attachments[1].content,'base64').toString(),candidate.signed_json);
  assert.equal((await runtime.fetch(new Request(origin+base+'/'+result.card.credentialId+'/pdf',{headers:{Authorization:'Bearer '+'b'.repeat(64)}}),pages)).status,403);
  }finally{db.close();}
 });

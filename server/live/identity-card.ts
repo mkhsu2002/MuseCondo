@@ -118,7 +118,7 @@ function parseJwk(value: unknown, privateKey: boolean): JsonWebKey {
     delete jwk.alg;
     return jwk as JsonWebKey;
 }
-async function trust(env: IdentityCardEnvironment) {
+export async function identityCardTrust(env: Pick<IdentityCardEnvironment, 'trustedPublicJwks'>) {
     if (typeof env.trustedPublicJwks !== 'string' || env.trustedPublicJwks.length > 32768)
         throw new Error('keys');
     const raw: unknown = JSON.parse(env.trustedPublicJwks);
@@ -145,7 +145,7 @@ async function trust(env: IdentityCardEnvironment) {
 async function signer(env: IdentityCardEnvironment) {
     if (!validContactKey(env.contactKey) || !env.renderCard || !keyPattern.test(env.signingKeyId ?? '') || typeof env.signingPrivateJwk !== 'string' || env.signingPrivateJwk.length > 4096)
         throw new Error('configuration');
-    const ring = await trust(env), jwk = parseJwk(JSON.parse(env.signingPrivateJwk), true);
+    const ring = await identityCardTrust(env), jwk = parseJwk(JSON.parse(env.signingPrivateJwk), true);
     if (ring.projection[env.signingKeyId!]?.x !== jwk.x)
         throw new Error('signer');
     return { privateKey: await crypto.subtle.importKey('jwk', jwk, 'Ed25519', false, ['sign']), ...ring };
@@ -486,7 +486,7 @@ export function createIdentityCard(env: IdentityCardEnvironment) {
         let status = publicStatus(c);
         if (status !== 'valid')
             return json({ credentialId: id, status });
-        const ring = await trust(env), signed: unknown = JSON.parse(c.signed_json);
+        const ring = await identityCardTrust(env), signed: unknown = JSON.parse(c.signed_json);
         if (!await verifyCredential(signed, { issuer: env.origin, keys: ring.keys }) || (signed as SignedCredential).payload.credentialId !== id || (signed as SignedCredential).payload.agentId !== c.agent_id || await digest(encoder.encode(c.signed_json)) !== c.json_digest)
             fail(503, 'credential_verification_unavailable');
         // Last database read occurs after crypto. A suspended/revoked/withdrawn credential never exposes names.
@@ -517,7 +517,7 @@ export function createIdentityCard(env: IdentityCardEnvironment) {
                 if (publicMatch)
                     return await publicVerify(publicMatch[1]);
                 if (path === '/api/v1/identity/keys')
-                    return json({ issuer: env.origin, keys: (await trust(env)).projection });
+                    return json({ issuer: env.origin, keys: (await identityCardTrust(env)).projection });
                 const auth = await authorize(request, operation ? 'tower:write' : 'tower:read');
                 if (operation) {
                     await protectMutation(auth);
