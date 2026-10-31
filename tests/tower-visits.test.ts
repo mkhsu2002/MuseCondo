@@ -155,3 +155,19 @@ test('concurrent same-key sends and status updates have one durable winner; audi
   assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_requests').get()?.n,before);
  }finally{f.db.close();}
 });
+
+for(const field of ['kind','giftId','action'] as const){
+ const allowed=field==='kind'?'message':field==='giftId'?'gift-cloud':'accept';
+ const invalids=[['array',[allowed]],['object',{value:allowed}],['null',null],['number',1],['boolean',true]] as const;
+ for(const [type,value] of invalids)test(`visit ${field} rejects ${type} with 400 and no visit, receipt or audit mutation`,async()=>{
+  const f=await fixture();try{
+   const invitation=field==='action'?await (await f.send('invitation')).json():null;
+   const snapshot=()=>Object.fromEntries(['tower_visits','tower_requests','tower_audit'].map(table=>[table,f.db.sqlite.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()]));
+   const before=snapshot();
+   const response=field==='action'
+    ?await f.request(f.owner+'/'+invitation.visit.id+'/moderate','POST',{expectedVersion:1,requestKey:crypto.randomUUID(),action:value},'b')
+    :await f.send(field==='giftId'?'gift':'message',crypto.randomUUID(),{[field]:value});
+   assert.deepEqual({status:response.status,tables:snapshot()},{status:400,tables:before});
+  }finally{f.db.close();}
+ });
+}

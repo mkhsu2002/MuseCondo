@@ -66,10 +66,10 @@ export function createTowerVisits(d:Dependencies){
     if(url.search)fail(400,'invalid_visit_input');
     const input=await d.body(req,['targetDoor','requestKey','kind','nickname','body','giftId'],8192),
      door=typeof input.targetDoor==='string'?input.targetDoor.match(/^\/home\/([a-f0-9]{16})$/):null;
-    if(!door||!['message','gift','invitation'].includes(String(input.kind)))fail(400,'invalid_visit_input');
+    if(!door||typeof input.kind!=='string'||!['message','gift','invitation'].includes(input.kind))fail(400,'invalid_visit_input');
     const roomId=door![1],kind=input.kind as Visit['kind'],nickname=text(input.nickname,24),body=text(input.body,kind==='invitation'?1000:280),
      gift=kind==='gift'?input.giftId:null;
-    if(kind==='gift'?!gifts.includes(String(gift)):input.giftId!==undefined)fail(400,'invalid_free_gift');
+    if(kind==='gift'?(typeof gift!=='string'||!gifts.includes(gift)):input.giftId!==undefined)fail(400,'invalid_free_gift');
     if(/https?:|www\.|[^\s]+@[^\s]+\.[^\s]+/i.test(nickname)||(kind!=='invitation'&&/https?:|www\.|[^\s]+@[^\s]+\.[^\s]+/i.test(body)))fail(400,'contacts_or_links_not_allowed');
     const key=d.requestKey(input.requestKey),op='visit-send',inputHash=await d.hash(JSON.stringify({roomId,kind,nickname,body,gift})),saved=await d.prior(identity,key,op,inputHash);
     if(saved)return d.json(saved,201);
@@ -95,14 +95,14 @@ export function createTowerVisits(d:Dependencies){
     if(url.search)fail(400,'invalid_visit_input');
     const withdraw=actionRoute[2]==='withdraw',input=await d.body(req,withdraw?['expectedVersion','requestKey']:['expectedVersion','requestKey','action'],1024),
      expected=d.revision(input.expectedVersion),key=d.requestKey(input.requestKey),action=withdraw?'withdraw':input.action;
-    if(!['accept','reject','hide','withdraw'].includes(String(action))||(!withdraw&&action==='withdraw'))fail(400,'invalid_visit_action');
+    if(typeof action!=='string'||!['accept','reject','hide','withdraw'].includes(action)||(!withdraw&&action==='withdraw'))fail(400,'invalid_visit_action');
     const id=actionRoute[1],op='visit-'+action,inputHash=await d.hash(JSON.stringify({id,expected,action})),
      saved=await d.prior(identity,key,op,inputHash);if(saved)return d.json(saved);
     const ownedSQL=withdraw?'sender_account_id=?':'EXISTS(SELECT 1 FROM tower_residencies r WHERE r.room_id=tower_visits.recipient_room_id AND r.account_id=?)',
      row=await one<Visit>(`SELECT * FROM tower_visits WHERE id=? AND ${ownedSQL}`,id,accountId);
     if(!row)fail(404,'visit_not_found');
     if(row!.version!==expected||row!.state==='withdrawn'||(action==='hide'&&(row!.state!=='published'||row!.kind==='invitation'))||
-     (['accept','reject'].includes(String(action))&&(row!.kind!=='invitation'||row!.state!=='pending')))fail(409,'visit_state_conflict');
+     ((action==='accept'||action==='reject')&&(row!.kind!=='invitation'||row!.state!=='pending')))fail(409,'visit_state_conflict');
     const state=action==='withdraw'?'withdrawn':action==='accept'?'accepted':'rejected',
      changed={...row!,state:state as Visit['state'],version:expected+1,updated_at:d.stamp()},result={visit:safe(changed)};
     try{await d.write(identity,[
