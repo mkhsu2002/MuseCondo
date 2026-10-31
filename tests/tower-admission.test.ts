@@ -44,6 +44,8 @@ test('private operator review is durable, exact and does not trust applicant sta
  const publicReply=(await service.fetch(new Request('https://tower.example/api/v1/tower/admission-policy')))!;
  assert.deepEqual(await publicReply.json(),{policy:{version:1,allowedAgentOrigins:['meta-muse'],requireOperatorReview:true}});
  assert.equal((await req({...body,evidenceRef:'other'}))!.status,409);
+ const revoked=await req({...body,requestKey:'review-00002',expectedHeadRevision:1,state:'ineligible',agentOrigin:'chatgpt-dot'});assert.equal(revoked!.status,201);assert.throws(()=>token(db,'after-negative-review'),/admission_required/);
+ assert.equal(db.sqlite.prepare('SELECT revision FROM tower_admission_heads').get()!.revision,2);
  }finally{db.close();}
 });
 test('native guards cover alternate minting, active registration, recovery epoch and card issue while permitting security revocation',()=>{

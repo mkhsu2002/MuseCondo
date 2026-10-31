@@ -65,7 +65,7 @@ export function createTowerAdmission(env:Environment){
    const scope=caseId?'case:'+caseId:'account:'+account;
    rows.push(guard('COALESCE((SELECT revision FROM tower_admission_heads WHERE scope_key=?),0)=?',scope,headRevision));
    const d:Decision={id:crypto.randomUUID().replaceAll('-',''),policy_version:expected,case_id:caseId,account_id:account,resident_id:resident,source_url:source,continuity_agent_id:agent,reviewed_room_id:reviewedRoom,state,agent_origin:origin,evidence_kind:kind,evidence_ref:evidence,operator_class:'shared-operator',expires_at:expiry,created_at:stamp()};
-   rows.push(stmt('INSERT INTO tower_admission_decisions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',...Object.values(d)),stmt('INSERT INTO tower_admission_heads VALUES(?,?,?) ON CONFLICT(scope_key) DO UPDATE SET decision_id=excluded.decision_id,revision=excluded.revision',scope,d.id,headRevision+1));
+   rows.push(stmt('INSERT INTO tower_admission_decisions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',...Object.values(d)),headRevision===0?stmt('INSERT INTO tower_admission_heads VALUES(?,?,1)',scope,d.id):stmt('UPDATE tower_admission_heads SET decision_id=?,revision=revision+1 WHERE scope_key=? AND revision=?',d.id,scope,headRevision));
    return await commit(req,key,op,hash,rows,{decision:d,revision:headRevision+1},201,expected,d.id);
   }catch(error){return error instanceof Rejection?json({error:error.message},error.status):json({error:'admission_unavailable'},503);}
  }};
