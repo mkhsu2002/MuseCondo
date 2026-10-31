@@ -238,3 +238,9 @@ Fang兩環境原小窩／門牌／revision／公開指標／分享選擇保持�
 上一節通過證據僅涵蓋所列範圍；完整issuer文字未被原測試驗證。對實際下載PDF進一步pdftotext檢查，含數字子網域的issuer遺失數字；QR仍為正確原網址，簽章／D1 immutable bytes未錯。根因為fontkit在Latin script對數字做locl替代glyph，而pdf-lib完整字體ToUnicode／width cache只包含cmap glyph；直接數字或CJK測試未覆蓋字母後數字。root probe原版重現，關calt或default availableFeatures無效，明確locl:false回baseglyph；修復版需真PDF全文反例及獨立審查後驗證，不用假成功或subset掩蓋。
 
 I05a當時僅讀官方契約與設計、無改檔或provider呼叫，已暫緩先修I04。沒有真實住戶證件／寄信／付費生成，不重寫已存歷史附件。新測試須驗完整issuer、混合英數名字及0–9、80字長名／ID／QR／字體／版面確定性；部署後重新核發受控卡實際抽取及肉眼檢查。I04與T09不標完成。
+
+### I04 PDF 數字修復本地切片（115b589，v0.61待發布）
+
+真PDF新反例先驗completeName=false／completeIssuer=false，再於原完整靜態TTF embedding明確設features:{locl:false}。新測試驗含0–9的issuer、完整80字混合英數／中文名、PDF bbox界線與原cmap nominal advance間距，沒有靠去空白掩蓋原數字缺失；其他features維持default，不換字體或改subset／SHA。原80中文長名、嵌入字體、單頁、完整IDs、metadata與同input bytes確定性、實際raster QR／quietzone、unsupportedfailclosed保留。歷史immutable附件不重寫，無schema／API／payload／keys變更。
+
+主控564完整測試／8版號、build／lint通過，identity216、focused47通過。獨立規格→品質、兩環境更新及實際新卡下載的完整姓名／issuer／字距／QR與audit仍待驗；此切片不恢復上一節完成判定。
