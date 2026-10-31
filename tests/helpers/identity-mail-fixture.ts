@@ -5,11 +5,11 @@ import {LocalDatabase} from '../../server/live/local-db.ts';
 import {encryptPrivate,hashPrivate,hashIdentityInput} from '../../server/live/identity-private.ts';
 import {signCredential} from '../../src/identity/index.ts';
 const origin='https://identity.example',time='2026-10-31T00:00:00.000Z',key='9'.repeat(64),enc=new TextEncoder();
-export async function envelopeFixture(size=64){
+export async function envelopeFixture(size=64,senderReady=true){
  const db=new LocalDatabase(':memory:'),native=new LocalDatabase(':memory:');
  for(const file of readdirSync(new URL('../../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../../migrations/'+file,import.meta.url),'utf8'));
  openSyntheticTower(db);
- await syntheticMailReady(db,origin,key);
+ await syntheticMailReady(db,origin,key,time,senderReady);
  let clock=time,nativeClock=time;
  db.sqlite.function('strftime',{varargs:true},(...args)=>args[1]==='now'?nativeClock:native.sqlite.prepare('SELECT strftime('+args.map(()=>'?').join(',')+') v').get(...args)!.v);
  const pair=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);

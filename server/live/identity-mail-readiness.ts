@@ -16,7 +16,7 @@ class Rejection extends Error {readonly status:number;constructor(status:number,
 function fail(status:number,code:string):never{throw new Rejection(status,code);}
 const json=(value:unknown,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'}});
 const path='/api/v1/operator/identity/mail-readiness',rateKey='identity-mail-provider:global';
-const schema=['identity_mail_provider_checks','identity_mail_provider_audit','identity_mail_provider_check_immutable','identity_mail_provider_check_permanent','identity_mail_provider_audit_immutable','identity_mail_provider_audit_permanent'];
+export const IDENTITY_MAIL_PROVIDER_SCHEMA=['identity_mail_provider_checks','identity_mail_provider_audit','identity_mail_provider_check_immutable','identity_mail_provider_check_permanent','identity_mail_provider_audit_immutable','identity_mail_provider_audit_permanent'];
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v);
 function canonicalOrigin(value:string){try{return value.startsWith('https://')&&new URL(value).origin===value;}catch{return false;}}
 function domainName(value:unknown):string|null {
@@ -132,7 +132,7 @@ export function createIdentityMailReadiness(env:Environment){
    const requestKey=await input(request),keyHash=await hashIdentityInput(JSON.stringify(['identity-mail-provider:request',requestKey]));
    const inputHash=await hashIdentityInput(JSON.stringify(['identity-mail-provider:input',env.from??null,env.origin]));
    const objects=(await db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger')").all<{name:string}>()).results;
-   if(!schema.every(name=>objects.some(row=>row.name===name)))fail(503,'mail_readiness_unavailable');
+   if(!IDENTITY_MAIL_PROVIDER_SCHEMA.every(name=>objects.some(row=>row.name===name)))fail(503,'mail_readiness_unavailable');
    const old=await lookup(keyHash);if(old)return replay(old,inputHash);
    const id=randomIdentityId(),domain=senderDomain(env.from),now=stamp(),expires=new Date(Date.parse(now)+3600000).toISOString();
    try{await db.batch([

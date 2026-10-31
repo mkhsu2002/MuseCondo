@@ -51,3 +51,15 @@ test('missing readiness blocks Pages dispatch and native claim rechecks readines
  await assert.rejects(c.claim(f.event,m.descriptor.bodyDigest));assert.equal(f.count('identity_mail_dispatches'),0);assert.equal(f.db.sqlite.prepare('SELECT state FROM identity_mail_events WHERE id=?').get(f.event)!.state,'pending');
  }finally{f.close();}
 });
+test('unknown lookup uses the permanent dispatch time when an event waited across multiple days',async()=>{
+ const {envelopeFixture}=await import('./helpers/identity-mail-fixture.ts'),{syntheticSenderReady}=await import('./helpers/identity-mail-ready-fixture.ts'),{createIdentityMailCoordinator}=await import('../server/live/identity-mail-coordinator.ts'),{createIdentityMailControl}=await import('../server/live/identity-mail-control.ts');
+ const f=await envelopeFixture();try{
+  const sentAt='2026-11-02T00:00:00.000Z';f.setClock(sentAt);f.setNative(sentAt);f.db.sqlite.prepare('UPDATE identity_mail_webhook_setups SET handler_probe_at=?').run(sentAt);await syntheticSenderReady(f.db,f.env.origin,f.env.from,sentAt);
+  const c=createIdentityMailCoordinator(f.env),prepared=await c.prepare(f.event),claimed=await c.claim(f.event,prepared.descriptor.bodyDigest),body=await claimed.json();
+  await c.finish({eventId:f.event,leaseId:claimed.headers.get('X-Identity-Mail-Lease')!,state:'unknown',providerId:null,errorCode:'provider_outcome_unknown'});
+  let calls=0;const email={id:'cross-day-provider',from:body.from,to:body.to,subject:body.subject,tags:[{name:'identity_event',value:f.event}],last_event:'delivered',created_at:sentAt};
+  const control=createIdentityMailControl({...f.env,apiKey:'synthetic',operator:async()=>true,fetcher:async(input,init)=>{calls++;assert.notEqual(init?.method,'POST');return String(input).includes('/emails/cross-day-provider')?Response.json(email):Response.json({object:'list',has_more:false,data:[email]});}});
+  const response=await control.fetch(new Request(f.env.origin+'/api/v1/operator/identity/mail-delivery/event-reconcile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey:'cross-day-lookup',eventId:f.event})}));
+  assert.equal(response!.status,200);assert.equal((await response!.json()).delivery.deliveryVerified,true);assert.equal(calls,2);assert.equal(f.count('identity_mail_dispatches'),1);
+ }finally{f.close();}
+});

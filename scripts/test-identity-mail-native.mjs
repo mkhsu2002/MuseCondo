@@ -38,6 +38,8 @@ const outbound=async request=>{
  if(url.origin===origin){assert.equal(url.pathname,'/api/v1/identity/mail/webhook');return mf.dispatchFetch(request);}
  assert.equal(url.origin,'https://api.resend.com','No external provider/network request is allowed');
  assert.equal(request.headers.get('Authorization'),'Bearer synthetic-pages-only-key');
+ if(url.pathname==='/domains')return Response.json({object:'list',has_more:false,data:[{id:'synthetic-domain',name:'example.com'}]});
+ if(url.pathname==='/domains/synthetic-domain')return Response.json({object:'domain',id:'synthetic-domain',name:'example.com',status:'verified',capabilities:{sending:'enabled'}});
  if(url.pathname==='/webhooks'&&request.method==='GET')return Response.json({object:'list',has_more:false,data:created?[{id:'synthetic-hook',endpoint:origin+'/api/v1/identity/mail/webhook'}]:[]});
  if(url.pathname==='/webhooks'&&request.method==='POST'){
   assert(await (await mf.getD1Database('DB','pages')).prepare("SELECT 1 FROM identity_mail_webhook_setups WHERE state='creating'").first());
@@ -89,6 +91,21 @@ try{
  const beforeProbeCalls=providerCalls.length;await processEvent(first);assert.equal(providerCalls.length,beforeProbeCalls,'Setup alone does not authorize a provider suppression GET or POST');
  const probe=await control('probe','native-probe-0001');assert.equal(probe.status,200,await probe.clone().text());assert.deepEqual(await probe.json(),{handlerVerified:true,deliveryVerified:false});
  assert.equal((await db.prepare('SELECT COUNT(*) n FROM identity_mail_delivery_receipts').first()).n,0);
+ const beforeSender=providerCalls.length;await processEvent(first);assert.equal(providerCalls.length,beforeSender,'A probed handler without sender proof cannot access provider');
+ const senderCheck=key=>post('/api/v1/operator/identity/mail-readiness',{requestKey:key});
+ const checked=await senderCheck('native-sender-initial');assert.equal(checked.status,200,await checked.clone().text());assert.equal((await checked.json()).senderReady,true);
+ const probeAt=(await db.prepare('SELECT handler_probe_at FROM identity_mail_webhook_setups').first()).handler_probe_at;
+ for(const at of ['2000-01-01T00:00:00.000Z','2999-01-01T00:00:00.000Z']){
+  await db.prepare('UPDATE identity_mail_webhook_setups SET handler_probe_at=?').bind(at).run();const before=providerCalls.length;const blocked=await processEvent(first);assert.equal((await blocked.json()).state,'pending');assert.equal(providerCalls.length,before);
+ }
+ await db.prepare('UPDATE identity_mail_webhook_setups SET handler_probe_at=?').bind(probeAt).run();
+ for(const [i,at] of ['2000-01-01T00:00:00.000Z','2999-01-01T00:00:00.000Z'].entries()){
+  const old=await db.prepare('SELECT * FROM identity_mail_provider_checks ORDER BY rowid DESC LIMIT 1').first(),id=crypto.randomUUID().replaceAll('-',''),value={...JSON.parse(old.result_json),checkId:id,checkedAt:at};
+  await db.prepare("INSERT INTO identity_mail_provider_checks VALUES(?,?,?,?,'complete',200,?,?,?)").bind(id,id.repeat(2),old.input_hash,old.domain,JSON.stringify(value),at,at).run();
+  const before=providerCalls.length;const blocked=await processEvent(first);assert.equal((await blocked.json()).state,'pending');assert.equal(providerCalls.length,before);
+  assert.equal((await senderCheck('native-sender-refresh-'+i)).status,200);
+ }
+
  const accepted=await processEvent(first);assert.equal(accepted.status,200,await accepted.clone().text());assert.equal((await accepted.json()).state,'accepted');assert.equal(sent.length,1);
  assert.equal(sent[0].attachments.length,2);assert.equal(Buffer.from(sent[0].attachments[0].content,'base64').length,fixture.pdf.length);
  assert.equal(Buffer.compare(Buffer.from(sent[0].attachments[0].content,'base64'),Buffer.from(fixture.pdf)),0);
@@ -124,5 +141,5 @@ try{
  assert.deepEqual(await (await reconcile()).json(),resolvedValue);assert.equal(providerCalls.length,callCount);assert.equal(sent.length,postCount);
  assert.equal((await db.prepare('SELECT COUNT(*) n FROM identity_mail_dispatches').first()).n,3);assert.equal((await db.prepare('SELECT COUNT(*) n FROM identity_mail_finish_receipts').first()).n,3);
  await assert.rejects(db.exec('DELETE FROM identity_mail_control_audit'));await assert.rejects(db.exec('DELETE FROM identity_mail_dispatches'));
- console.log('PASS actual compiled Pages + DO + native D1: exact five-event setup, encrypted secret, own callback probe, async gate, final-batch race rollback, 4.4MB attachment identity, permanent single POST/lease/finish/audit, concurrent replay, signed callback receipts, unknown-send GET-only exact reconciliation and private RPC isolation; all network stubbed');
+ console.log('PASS actual compiled Pages + DO + native D1: exact five-event setup, encrypted secret, own callback probe, 24h sender/probe gates (absence/stale/future), final-batch race rollback, 4.4MB attachment identity, permanent single POST/lease/finish/audit, concurrent replay, signed callback receipts, unknown-send GET-only exact reconciliation and private RPC isolation; all network stubbed');
 }finally{fixture.close();await mf.dispose();}

@@ -32,7 +32,8 @@ test('five real envelope templates cross private transport as frozen stream and 
  const f=await transportFixture(template==='identity-card-v1'?4400000:64);try{
  if(template==='guardian-invitation')await f.invitation();else if(template!=='identity-card-v1')await f.security(template);
  const expected=await f.c.prepare(f.event),body=await (await import('../server/live/identity-mail-envelope.ts')).createIdentityMailEnvelope(f.env).materialize(f.event);
- const m=createIdentityMail({...f.env,from:'Changed <changed@example.com>'});const result=await m.processOne(f.event);
+ const changed=createIdentityMail({...f.env,from:'Changed <changed@example.com>'});assert.equal((await changed.processOne(f.event))!.state,'pending');assert.equal(f.calls.length,0);
+ const m=createIdentityMail(f.env);const result=await m.processOne(f.event);
  assert.equal(result!.state,'accepted');assert.equal(result!.attemptCount,1);assert.equal(f.calls.length,2);assert.equal(f.calls[0].url,'https://api.resend.com/suppressions/shared%40example.com');
  assert.equal(f.calls[1].url,'https://api.resend.com/emails');assert.equal(f.calls[1].init.redirect,'manual');assert.equal(new Headers(f.calls[1].init.headers).get('Idempotency-Key'),f.event);assert.equal(f.calls[1].bytes,body.body);assert.equal(expected.descriptor.bodyLength,new TextEncoder().encode(f.calls[1].bytes).length);
  await m.processOne(f.event);assert.equal(f.calls.length,2);assert.equal(f.count('identity_mail_dispatches'),1);assert.equal(f.count('identity_mail_finish_receipts'),1);

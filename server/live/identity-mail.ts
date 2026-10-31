@@ -23,10 +23,10 @@ export function createIdentityMail(env:IdentityMailEnvironment){
  return {configured,status,async processOne(id:string):Promise<IdentityMailStatus|null>{
   const current=await status(id);if(!current||current.state!=='pending'||current.attemptCount!==0||!configured())return current;
   try{
-   if(!await identityMailSchemaReady(db)||!await identityMailDeliveryReady(db,env.origin,env.contactKey))return current;
+   if(!await identityMailSchemaReady(db)||!await identityMailDeliveryReady(db,env.origin,env.contactKey,env.from,env.now?.()))return current;
    const prepared=await rpc('prepare',{eventId:id},id);if(!prepared.ok)return status(id);
    const m=await smallJson(prepared),d=m.descriptor as Record<string,unknown>|undefined;
-   if(!d||d.eventId!==id||typeof d.bodyDigest!=='string'||!/^[a-f0-9]{64}$/.test(d.bodyDigest)||!Number.isSafeInteger(d.bodyLength)||(d.bodyLength as number)<1||(d.bodyLength as number)>12582912||typeof m.recipient!=='string'||validateGuardianEmail(m.recipient)!==m.recipient||!senderDomain(m.from))return status(id);
+   if(!d||d.eventId!==id||typeof d.bodyDigest!=='string'||!/^[a-f0-9]{64}$/.test(d.bodyDigest)||!Number.isSafeInteger(d.bodyLength)||(d.bodyLength as number)<1||(d.bodyLength as number)>12582912||typeof m.recipient!=='string'||validateGuardianEmail(m.recipient)!==m.recipient||!senderDomain(m.from)||m.from!==env.from)return status(id);
    const response=await (env.fetcher??fetch)('https://api.resend.com/suppressions/'+encodeURIComponent(m.recipient),{method:'GET',headers:{Authorization:'Bearer '+env.apiKey},signal:AbortSignal.timeout(15000),redirect:'manual'});
    if(response.status===200){
     const suppression=await smallJson(response);

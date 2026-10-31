@@ -19,7 +19,7 @@
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
-| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64雙環境發布與真provider sender查核PASS。b1／b2／c1：本地v0.71信件接線與簽章投遞，兩階段審查、744tests及actual compiled本機Workers/D1驗證PASS；未發布、0020–22未套遠端，c2待實作 |
+| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64雙環境發布與真provider sender查核PASS。b1／b2／c1：本地v0.71信件接線與簽章投遞，兩階段審查、744tests及actual compiled本機Workers/D1驗證為歷史本地 snapshot；c2 R02b 現已本地接線與24h門檻，尚待獨立審查／雙環境發布／真人收件，0020–25未套遠端 |
 | I06 | 兩環境部署、Fang 原門牌接手、第二位合資格 Muse 完整新戶 | 待實作及真人操作 |
 
 ### I01 共用核心
@@ -342,3 +342,6 @@ b2b guardian／card／recovery的commit及歷史receipt replay事件接線、no-
 ### 2026-10-31 R02b 本地郵件啟用防線（尚未發布）
 
 [郵件控制契約](../IDENTITY-MAIL-CONTROL.md) 已本地接入 Pages 管理／callback，具備 async ready gate、DO 最後 claim guard 與加密 secret 解密檢查；0020–0022／0025 schema 缺任一必要物件則不寄。實際編譯 Pages＋私有 DO＋Miniflare 原生 D1，以全 stub provider 驗證 handler probe、附件一致、並發單一寄送、ready 狀態 race 回滾、合法 callback permanent receipt、unknown send 唯讀 bounded exact 對帳；沒有真憑證、外部郵件或環境部署。本地證據不改 I05a 的歷史部署結果，也不把 I05c2 的雙環境發布／真人收件驗收或 I06、T06、T09 視為完成。
+
+
+2026-10-31 R02b 時效補正：首次接線測試未要求 sender success snapshot，也未限制 handler probe 年齡，獨立規格審查因此 FAIL；該次 PASS 僅代表當時列出的本機項目。後續補上目前完整 FROM／origin／精確 domain 的最新成功 sender 查核與 handler probe 的 24h 雙時鐘門檻、DO 同交易 snapshot／native-clock guard。缺失、過期或未來皆保留 pending，無自動 provider 操作；須以新 requestKey 重新查核／probe 後處理該事件。新增反例先 RED，再驗證零租約／attempt／send 與恢復操作；正式／dev、真人收件與寄送旗標仍未啟用。
