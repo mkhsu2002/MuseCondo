@@ -42,7 +42,7 @@ export function createTowerAppearance(db:Database,now:()=>Date=()=>new Date()){
   }
   const revision=action==='preview'?null:current.revision+1,time=now().toISOString(),serialized=JSON.stringify(next);
   await db.batch([
-   db.prepare('INSERT INTO tower_appearance_audit(request_key,fingerprint,action,actor,revision,snapshot_json,created_at) SELECT ?,?,?,?,?,?,? WHERE ? IS NULL OR EXISTS(SELECT 1 FROM tower_appearance_state WHERE id=1 AND revision=?) ON CONFLICT(request_key) DO NOTHING').bind(v.requestKey,fingerprint,action,actor,revision,serialized,time,revision,current.revision),
+   db.prepare("INSERT INTO tower_appearance_audit(request_key,fingerprint,action,actor,revision,snapshot_json,created_at) SELECT ?,?,?,?,?,?,? WHERE ? IS NULL OR EXISTS(SELECT 1 FROM tower_appearance_state WHERE id=1 AND revision=? AND ((?='expire' AND ends_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now')) OR (? IN ('activate','rollback') AND (? IS NULL OR ?>strftime('%Y-%m-%dT%H:%M:%fZ','now'))))) ON CONFLICT(request_key) DO NOTHING").bind(v.requestKey,fingerprint,action,actor,revision,serialized,time,revision,current.revision,action,action,next.endsAt,next.endsAt),
    db.prepare('UPDATE tower_appearance_state SET revision=?,theme=?,starts_at=?,ends_at=?,timezone=? WHERE id=1 AND revision=? AND ? IS NOT NULL AND EXISTS(SELECT 1 FROM tower_appearance_audit WHERE request_key=? AND fingerprint=? AND revision=?)').bind(revision??current.revision,next.theme,next.startsAt,next.endsAt,next.timezone,current.revision,revision,v.requestKey,fingerprint,revision),
   ]);
   const saved=await existing();if(!saved)throw Error('revision_conflict');if(saved.fingerprint!==fingerprint)throw Error('request_key_conflict');return receipt(saved);

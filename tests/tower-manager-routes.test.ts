@@ -9,7 +9,7 @@ test('Pages dispatch protects appearance and schedule independently, public proj
  try{
  assert.equal((await runtime.fetch(post('/api/v1/operator/manager/appearance','wrong',{}),env)).status,401);
  assert.equal((await runtime.fetch(post('/api/v1/manager/run-due','synthetic-operator',{}),env)).status,401);
- const auth=async()=>true,routes=createManagerRoutes({db,origin,operator:auth,scheduleAuthorized:async()=>false,now:()=>new Date('2026-10-31T20:00:00Z')});
+ db.sqlite.function('strftime',{varargs:true},()=>'2026-10-31T20:00:00.000Z');const auth=async()=>true,routes=createManagerRoutes({db,origin,operator:auth,scheduleAuthorized:async()=>false,now:()=>new Date('2026-10-31T20:00:00Z')});
  const command={action:'preview',requestKey:'preview-halloween-01',theme:'halloween',...HALLOWEEN_2026};
  let response=await routes.fetch(post('/api/v1/operator/manager/appearance','',command));assert.equal(response!.status,201);
  response=await routes.fetch(post('/api/v1/operator/manager/appearance','',{action:'activate',requestKey:'activate-halloween-01',previewKey:command.requestKey,expectedRevision:0}));assert.equal(response!.status,201);

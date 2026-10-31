@@ -16,7 +16,10 @@ CREATE UNIQUE INDEX tower_appearance_revision ON tower_appearance_audit(revision
 CREATE TRIGGER tower_appearance_audit_immutable_update BEFORE UPDATE ON tower_appearance_audit BEGIN SELECT RAISE(ABORT,'appearance_audit_immutable'); END;
 CREATE TRIGGER tower_appearance_audit_immutable_delete BEFORE DELETE ON tower_appearance_audit BEGIN SELECT RAISE(ABORT,'appearance_audit_immutable'); END;
 CREATE TRIGGER tower_appearance_state_guard BEFORE UPDATE ON tower_appearance_state
- WHEN NEW.revision!=OLD.revision+1 OR NOT EXISTS (
+ WHEN NEW.revision!=OLD.revision+1
+ OR (NEW.theme='halloween' AND NEW.ends_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+ OR (OLD.ends_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND EXISTS(SELECT 1 FROM tower_appearance_audit WHERE revision=NEW.revision AND action='expire'))
+ OR NOT EXISTS (
  SELECT 1 FROM tower_appearance_audit WHERE revision=NEW.revision
  AND json_extract(snapshot_json,'$.theme')=NEW.theme
  AND json_extract(snapshot_json,'$.startsAt') IS NEW.starts_at AND json_extract(snapshot_json,'$.endsAt') IS NEW.ends_at
