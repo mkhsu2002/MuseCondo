@@ -105,7 +105,7 @@ async function inspect(env:Environment,base:Result):Promise<{result:Result;statu
   throw new ProviderFailure('provider_pagination_bounded',http);
  }
  try{return {result:await Promise.race([query(),deadline]),status:200};}
- catch(error){const failure=timedOut?new ProviderFailure('provider_timeout',http):error instanceof ProviderFailure?error:new ProviderFailure('provider_unavailable',http);return {result:{...base,reason:failure.reason,providerHttpStatus:failure.http,providerErrorName:failure.providerName},status:502};}
+ catch(error){const failure=timedOut?new ProviderFailure('provider_timeout',http):error instanceof ProviderFailure?error:new ProviderFailure('provider_unavailable',http);return {result:{...base,reason:failure.reason,providerHttpStatus:failure.http,providerErrorName:failure.providerName},status:503};}
  finally{clearTimeout(timer!);controller.abort();}
 }
 

@@ -10,7 +10,7 @@ exact `POST /api/v1/operator/identity/mail-readiness`，同環境 `X-Tower-Opera
 
 ## 固定 provider 讀取
 
-Function 固定 GET `https://api.resend.com/domains?limit=100`；`has_more=true` 時用該頁最後一個 ID 作 `after`，最多 10 頁。找到精確 domain 後固定 GET `/domains/:id`，獨立檢查單域回應的 `status` 與 `capabilities.sending`。整次 provider 操作共用 15 秒 deadline（包含讀 body），成功 body 每次最多 128 KiB、錯誤 body 最多 4 KiB；redirect 拒絕。缺任一配置時不進行任何網路讀取。
+Function 固定 GET `https://api.resend.com/domains?limit=100`；`has_more=true` 時用該頁最後一個 ID 作 `after`，最多 10 頁。找到精確 domain 後固定 GET `/domains/:id`，獨立檢查單域回應的 `status` 與 `capabilities.sending`。整次 provider 操作共用 15 秒 deadline（包含讀 body），成功 body 每次最多 128 KiB、錯誤 body 最多 4 KiB；使用 workerd 支援的 `redirect: manual`，在解析 body 前拒絕所有 3xx；不追蹤 Location、不轉送 Authorization。缺任一配置時不進行任何網路讀取。
 
 只在完整、合法清單 traversal 結束時認定 domain missing。空但有後頁、重複 ID／循環、超過頁數、錯誤／過大／畸形／重複欄位 body、未知 status／capability 與 timeout 一律 unknown。匹配後的單域回應必須保持相同 ID／domain。其他 domain、ID、DNS records、原 provider body／message 及 secret 不輸出或保存。
 
@@ -20,11 +20,13 @@ provider 拒絕會保留原始 HTTP status，`providerErrorName` 只允許官方
 
 - `200 ready`：只有 domain verified 且 sending enabled 才有 `senderReady=true`；這僅證明當次 sender metadata。
 - `200 not_ready`：完整合法清單查無該 domain，或域名未 verified／sending disabled；`senderReady=false`。
-- `502 unknown`：provider 拒絕、無法完成或資料不可信；`senderReady=null`。配置缺失為 `503 unknown`。
+- `503 unknown`：新產生的 provider 拒絕、無法完成或資料不可信結果；`senderReady=null`。保留 `providerHttpStatus` 與允許的 `providerErrorName`，不能視為健康；配置缺失同為 `503 unknown`。
 - `202 checking`：永久意圖已保留，操作尚未完成；重放不重查，不宣稱健康。
 - `409 request_key_conflict`：同 key 的原 FROM 或 origin 已改變，包括只改顯示名稱／字母大小寫。
 - `429 mail_readiness_rate_limited`：同環境不同 logical checks 已達 10／小時。
 - `503 mail_readiness_unavailable` 或 `audit_unavailable`：診斷 schema／持久化不可用，不能視為通過。
+
+新結果使用 503 表示診斷依賴不可用，避免 502 經 edge 錯誤頁處理後遺失應用層 JSON。Cloudflare [Custom Errors 官方文件](https://developers.cloudflare.com/rules/custom-errors/)說明 Error Pages 不適用 503；實際部署回應仍須另行回讀驗證，不能只靠本地通過。此變更不將錯誤改成 200、不修改 zone 設定，也不重寫歷史收據：已保存 `response_status=502` 的結果仍在應用層逐字重播原 JSON 與原 502；永久 audit、quota 與 checkedAt 均不變。0019 已允許 503，不需修改 migration。
 
 所有診斷結果都保持 `deliveryVerified=false`。PDF＋JSON attachment、permanent frozen envelope、事件 exact dispatch、簽署 webhook 的 delivery／suppression 與 unknown reconcile 均屬後續 I05 切片；不得把 `senderReady=true` 改寫成可寄送或投遞驗收完成。
 
