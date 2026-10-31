@@ -94,3 +94,14 @@ test('identity endpoints require migration 0012 tables and immutable binding tri
 test('Pages dispatches only the private identity endpoints with Tower authorization',async()=>{
  const db=database();try{for(const suffix of ['', '/record','/enroll']){const response=await runtime.fetch(new Request(origin+'/api/v1/agent/identity'+suffix,{method:suffix==='/enroll'?'POST':'GET'}),{PUBLIC_ORIGIN:origin,DB:db});assert.equal(response.status,401);assert.equal((await response.json()).error,'tower_token_required');}}finally{db.close();}
 });
+
+test('identity uses the fixed directory document for clean paths and safely follows the HTML canonical entry',async()=>{
+ const paths:string[]=[],methods:string[]=[];
+ const env:PagesBindings={ASSETS:{async fetch(req){const path=new URL(req.url).pathname;paths.push(path);methods.push(req.method);if(path==='/identity.html')return new Response(null,{status:308,headers:{Location:origin+'/identity'}});if(path==='/identity/index.html')return new Response(null,{status:308,headers:{Location:origin+'/identity/'}});return path==='/identity/'?new Response(req.method==='HEAD'?null:'<h1>身份守護</h1>',{headers:{'Content-Type':'text/html; charset=utf-8'}}):new Response('missing',{status:404});}}};
+ for(const path of ['/identity','/identity/']){const res=await runtime.fetch(request(path),env);assert.equal(res.status,200,path);assert.equal(await res.text(),'<h1>身份守護</h1>');assert.equal(res.headers.get('Location'),null);}
+ assert.deepEqual(paths,['/identity/','/identity/']);
+ const head=await runtime.fetch(request('/identity','HEAD'),env);assert.equal(head.status,200);assert.equal(await head.text(),'');assert.equal(methods.at(-1),'HEAD');
+ const file=await runtime.fetch(request('/identity.html'),env);assert.equal(file.status,308);const followed=await runtime.fetch(new Request(file.headers.get('Location')!),env);assert.equal(followed.status,200);assert.equal(await followed.text(),'<h1>身份守護</h1>');
+ for(const path of ['/identity','/identity/','/identity.html'])assert.equal((await runtime.fetch(request(path,'POST'),env)).status,405,path);
+ assert.equal((await runtime.fetch(request('/identity'),{})).status,503);
+});

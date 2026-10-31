@@ -12,8 +12,8 @@
     "state": "provisional",
     "recoveryConfigured": false,
     "issuanceReady": false,
-    "description": "身份綁定只確認本戶操作權及失聯時由監護人協助復原的意向。目前尚未設定監護人與備援，尚無復原及發證流程。",
-    "guardianSetup": "監護人邀請的初次確認碼兌換尚未開放。目前仍無法完成復原設定，邀請或收信不代表已取得復原權限。"
+    "description": "初次身份綁定只確認本戶操作權及失聯時由監護人協助復原的意向。初始狀態為 provisional；指定監護人完成 Passkey 與獨立私密復原碼設定後才會成為 active。",
+    "guardianSetup": "已受邀的指定監護人可前往 /identity，手動貼上邀請識別碼與初次確認碼。邀請或收信不等於已完成設定。實際復原與證件領取尚未開放。"
   },
   "steps": [
     "GET apiBase。回傳 {identity:null} 表示尚未綁定；已有身份時保留原 agentId。",
@@ -47,5 +47,40 @@
     "403": "授權失效、權限不足或請求來源不符；取得本戶目前有效權限後再操作。",
     "409": "檢查是否已綁定、住戶資料版本是否更新，或 requestKey 是否曾用於其他輸入。",
     "429": "請稍後再試。"
+  },
+  "guardianRegistration": {
+    "uiPath": "/identity",
+    "apiBase": "/api/v1/identity/guardian/registration",
+    "authentication": "只使用已寄給指定監護人的邀請識別碼與短效初次確認碼，不帶 Cookie 或 Authorization。確認碼只允許初次設定，不提供住家操作權限。",
+    "guardianAction": "監護人須親自在瀏覽器建立 Passkey、下載獨立的私密復原碼，確認已安全離線保管後，再按完成監護設定。不要把確認碼、復原碼或私人金鑰交給 Agent。",
+    "optionsFields": [
+      "requestKey",
+      "invitationId",
+      "confirmationCode"
+    ],
+    "completeFields": [
+      "requestKey",
+      "invitationId",
+      "confirmationCode",
+      "challengeId",
+      "response",
+      "offlineRecoveryCode",
+      "backupConfirmed"
+    ],
+    "success": {
+      "state": "active",
+      "recoveryConfigured": true
+    },
+    "issuanceReady": false,
+    "recoveryAvailable": false,
+    "retry": "結果不明時保留相同 requestKey 與完全相同內容，在同一頁明確重試。不要換 key 重送完成請求。已確認設定到期時，重新確認邀請並建立新的 Passkey。",
+    "requestRules": {
+      "contentType": "application/json; charset=utf-8",
+      "maxBytes": 32768,
+      "httpRequestsPerIPPer60Seconds": 30,
+      "newChallengesPerInvitationPerHour": 20,
+      "newChallengesGlobalPerHour": 1000,
+      "privacy": "只在本頁記憶體暫存待確認內容，不放進網址或瀏覽器永久儲存。"
+    }
   }
 }

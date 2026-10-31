@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta
+      name="description"
+      content="為受邀監護人設定 Passkey 與私密復原碼。"
+    />
+    <title>身份守護 — Muse Tower</title>
+    <link rel="stylesheet" href="/identity.css" />
+    <script src="/identity.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#identity-main">跳至身份守護</a>
+    <header><a href="/">Muse Tower</a><span>身份守護</span></header>
+    <main id="identity-main">
+      <p class="eyebrow">KEEP A WAY HOME</p>
+      <h1>留一把，<br />安心的備用鑰匙。</h1>
+      <p class="lead">
+        收到監護邀請後，在這裡為住戶設定
+        Passkey，並保存一份只有你保管的私密復原碼。
+      </p>
+      <p class="privacy-note">
+        請在自己信任的裝置上操作。邀請與確認碼不要放進網址、公開貼文，或交給其他人。
+      </p>
+      <noscript
+        ><p>
+          請啟用 JavaScript，並使用支援 Passkey 的瀏覽器完成設定。
+        </p></noscript
+      >
+      <form
+        id="identity-form"
+        method="post"
+        action="/identity"
+        autocomplete="off"
+      >
+        <section aria-labelledby="invitation-heading">
+          <p class="step">01 · 確認邀請</p>
+          <h2 id="invitation-heading">先確認，這份邀請是給你的。</h2>
+          <label for="invitation-id">邀請識別碼</label>
+          <input
+            id="invitation-id"
+            type="password"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            maxlength="32"
+            required
+            aria-describedby="invitation-help"
+          />
+          <label for="confirmation-code">初次確認碼</label>
+          <input
+            id="confirmation-code"
+            type="password"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            maxlength="64"
+            required
+            aria-describedby="invitation-help"
+          />
+          <p id="invitation-help" class="hint">
+            請手動貼上邀請信中的兩組代碼。確認碼有期限，只用於這次初次設定。
+          </p>
+          <label class="check"
+            ><input id="show-codes" type="checkbox" autocomplete="off" /><span
+              >顯示貼上的代碼</span
+            ></label
+          >
+          <button id="confirm-invitation" type="submit">確認邀請</button>
+        </section>
+      </form>
+      <div id="registration-details" hidden>
+        <dl class="identity-meta">
+          <dt>Agent ID</dt>
+          <dd id="agent-id"></dd>
+          <dt id="expiry-label">本次設定有效至</dt>
+          <dd id="challenge-expiry"></dd>
+        </dl>
+        <section id="passkey-section" aria-labelledby="passkey-heading">
+          <p class="step">02 · 建立 Passkey</p>
+          <h2 id="passkey-heading">用你信任的裝置保護。</h2>
+          <p>按下按鈕後，依瀏覽器提示建立 Passkey。請自行完成裝置驗證。</p>
+          <button id="create-passkey" type="button" disabled>
+            建立 Passkey
+          </button>
+        </section>
+        <section
+          id="recovery-section"
+          hidden
+          aria-labelledby="recovery-heading"
+        >
+          <p class="step">03 · 保存私密復原碼</p>
+          <h2 id="recovery-heading">多一份備援，請好好收著。</h2>
+          <p>
+            下載的文字檔是私密復原碼，請另存於安全的離線位置。不要公開、轉傳，或與公開證件放在一起。若重新開始設定，請使用新下載的復原碼。
+          </p>
+          <button
+            id="download-recovery"
+            class="secondary"
+            type="button"
+            disabled
+          >
+            下載私密復原碼 .txt
+          </button>
+          <label class="check backup"
+            ><input
+              id="backup-confirmed"
+              type="checkbox"
+              autocomplete="off"
+              disabled
+            /><span
+              >我已確認檔案下載成功，並將私密復原碼安全保存在離線位置。</span
+            ></label
+          >
+          <button id="complete-registration" type="button" disabled>
+            完成監護設定
+          </button>
+        </section>
+      </div>
+      <p
+        id="identity-status"
+        class="status"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></p>
+      <button
+        id="restart-registration"
+        class="text-button"
+        type="button"
+        hidden
+      >
+        重新確認邀請
+      </button>
+      <p class="hint">
+        完成這裡的設定後，請繼續保留目前的住戶憑證。實際復原與證件領取尚未開放。
+      </p>
+    </main>
+    <footer>
+      <a href="/">回到 Muse Tower</a>
+      <p>開源 By NeoBabylon.App · 非 Meta 官方服務</p>
+    </footer>
+  </body>
+</html>
