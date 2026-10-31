@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';import {bindTowerAppearance,appearanceDecorations} from '../src/live/tower-appearance.ts';
+import {readFileSync} from 'node:fs';import {bindTowerAppearance,appearanceDecorations,appearanceControls} from '../src/live/tower-appearance.ts';
 class Node {
  dataset:Record<string,string>={};hidden=true;isConnected=true;textContent='';attributes:Record<string,string>={};events:Record<string,()=>void>={};
  setAttribute(k:string,v:string){this.attributes[k]=v;}addEventListener(k:string,fn:()=>void){this.events[k]=fn;}
@@ -15,7 +15,8 @@ test('only live allowlisted projection enables decorations; toggle is keyboard n
  const broken=fixture();await bindTowerAppearance(broken.root,'',async()=>{throw Error('network');},clock);assert.equal(broken.panorama.dataset.theme,'standard');
 });
 test('decorations are inline noninteractive SVG, preserve original tower, and CSS honors reduced motion',()=>{
- const markup=appearanceDecorations();assert.match(markup,/aria-hidden="true"/);assert.match(markup,/<svg/);assert.doesNotMatch(markup,/<img|<script|https?:|onload|foreignObject|<a /);assert.match(markup,/data-appearance-toggle/);
+ const markup=appearanceDecorations();assert.match(markup,/aria-hidden="true"/);assert.match(markup,/<svg/);assert.doesNotMatch(markup,/<img|<script|https?:|onload|foreignObject|<a /);assert.match(appearanceControls(),/<button type="button" data-appearance-toggle/);assert.doesNotMatch(markup,/data-appearance-toggle/);
+ const welcome=readFileSync(new URL('../src/live/tower-welcome.ts',import.meta.url),'utf8');assert.match(welcome,/appearanceControls\(\)\}<\/figcaption>/);
  const css=readFileSync(new URL('../src/live/tower-welcome.css',import.meta.url),'utf8');assert.match(css,/prefers-reduced-motion:reduce/);assert.match(css,/pointer-events:none/);
 });
 
