@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const marker = /<!-- project-version -->v\d+\.\d{2}<!-- \/project-version -->/g;
 const git = (root, ...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+const readmePaths = root => ['README.md', ...(existsSync(resolve(root, 'README.zh-TW.md')) ? ['README.zh-TW.md'] : [])];
 
 export function changesProduct(path) {
   if (/^(docs|audit|audits|tracker|handoff|outputs|test-results|playwright-report)\//i.test(path)) return false;
@@ -27,10 +28,12 @@ function display(value) {
 export function calculate(root) {
   const current = readFileSync(resolve(root, 'VERSION'), 'utf8').trim();
   const value = hundredths(current);
-  const readme = readFileSync(resolve(root, 'README.md'), 'utf8');
-  const matches = [...readme.matchAll(marker)];
-  if (matches.length !== 1 || !matches[0][0].includes(`>v${current}<`)) {
-    throw new Error('README must contain exactly one version marker matching VERSION');
+  // Validate every maintained README before any file is changed. Translation remains manual.
+  for (const name of readmePaths(root)) {
+    const matches = [...readFileSync(resolve(root, name), 'utf8').matchAll(marker)];
+    if (matches.length !== 1 || !matches[0][0].includes(`>v${current}<`)) {
+      throw new Error(`${name} must contain exactly one version marker matching VERSION`);
+    }
   }
   const baseline = git(root, 'log', '-1', '--format=%H', '--', 'VERSION');
   // The commit introducing VERSION establishes v0.01; it does not increment itself.
@@ -46,10 +49,12 @@ export function calculate(root) {
 export function update(root, write = false) {
   const result = calculate(root);
   if (write && result.increments) {
-    const path = resolve(root, 'README.md');
-    const readme = readFileSync(path, 'utf8').replace(marker, `<!-- project-version -->v${result.next}<!-- /project-version -->`);
+    const readmes = readmePaths(root).map(name => {
+      const path = resolve(root, name);
+      return { path, content: readFileSync(path, 'utf8').replace(marker, `<!-- project-version -->v${result.next}<!-- /project-version -->`) };
+    });
     writeFileSync(resolve(root, 'VERSION'), `${result.next}\n`);
-    writeFileSync(path, readme);
+    for (const { path, content } of readmes) writeFileSync(path, content);
   }
   return result;
 }

@@ -49,6 +49,35 @@ test('multiple code files in one commit increment once and synchronize README', 
   assert.equal(calculate(root).increments, 0);
 });
 
+test('an optional maintained Traditional Chinese README advances with English and keeps its text', t => {
+  const root = fixture(t);
+  put(root, 'README.zh-TW.md', '# 現行文件\n<!-- project-version -->v0.01<!-- /project-version -->\n監護人與住所。\n');
+  commit(root, 'add maintained translation');
+  assert.equal(calculate(root).increments, 0);
+  put(root, 'src/home.ts', 'new code'); commit(root, 'change product');
+  const before = readFileSync(join(root, 'README.zh-TW.md'), 'utf8');
+  assert.equal(update(root, false).next, '0.02');
+  assert.equal(readFileSync(join(root, 'README.zh-TW.md'), 'utf8'), before);
+  update(root, true);
+  for (const name of ['README.md', 'README.zh-TW.md']) assert.match(readFileSync(join(root, name), 'utf8'), />v0\.02</);
+  assert.match(readFileSync(join(root, 'README.zh-TW.md'), 'utf8'), /監護人與住所。/);
+  commit(root, 'record synchronized versions');
+  assert.equal(calculate(root).increments, 0);
+});
+
+test('missing, duplicate or stale Chinese markers fail before any version file changes', t => {
+  for (const content of ['# No marker', '<!-- project-version -->v0.09<!-- /project-version -->', '<!-- project-version -->v0.01<!-- /project-version -->\n<!-- project-version -->v0.01<!-- /project-version -->']) {
+    const root = fixture(t);
+    put(root, 'README.zh-TW.md', content); commit(root, 'add invalid translation');
+    put(root, 'src/home.ts', 'new code'); commit(root, 'change product');
+    const english = readFileSync(join(root, 'README.md'), 'utf8');
+    assert.throws(() => update(root, true), /README.zh-TW.md.*matching VERSION/);
+    assert.equal(readFileSync(join(root, 'VERSION'), 'utf8'), '0.01\n');
+    assert.equal(readFileSync(join(root, 'README.md'), 'utf8'), english);
+    assert.equal(readFileSync(join(root, 'README.zh-TW.md'), 'utf8'), content);
+  }
+});
+
 test('several main commits accumulate while docs commits are ignored', t => {
   const root = fixture(t);
   put(root, 'src/home.ts', 'first'); commit(root, 'code one');
@@ -95,4 +124,20 @@ test('published markdown and execution settings count; operational records do no
   assert.equal(changesProduct('migrations/0005.sql'), true);
   assert.equal(changesProduct('docs/audit.json'), false);
   assert.equal(changesProduct('README.md'), false);
+  assert.equal(changesProduct('README.zh-TW.md'), false);
+});
+
+test('maintained READMEs share current version, guide targets and development commands', () => {
+  const english = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  const chinese = readFileSync(new URL('../README.zh-TW.md', import.meta.url), 'utf8');
+  const current = readFileSync(new URL('../VERSION', import.meta.url), 'utf8').trim();
+  const links = text => [...text.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1]).filter(target => !/^README(?:\.zh-TW)?\.md$/.test(target));
+  for (const text of [english, chinese]) {
+    assert.deepEqual([...text.matchAll(/<!-- project-version -->v([^<]+)<!-- \/project-version -->/g)].map(match => match[1]), [current]);
+    assert.match(text, /\[English\]\(README\.md\).*\[繁體中文\]\(README\.zh-TW\.md\)/);
+    assert.doesNotMatch(text, /archived Traditional Chinese|Archived Traditional Chinese snapshot|v0\.79/);
+  }
+  assert.deepEqual(links(chinese), links(english));
+  assert.deepEqual(chinese.match(/```sh\n[\s\S]*?```/g), english.match(/```sh\n[\s\S]*?```/g));
+  assert.equal(chinese.match(/^## /gm)?.length, english.match(/^## /gm)?.length);
 });

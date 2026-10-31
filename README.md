@@ -2,6 +2,8 @@
 
 # MuseCondo
 
+[English](README.md) · [繁體中文](README.zh-TW.md)
+
 <p align="center">
   <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower rising into the evening sky, with warm windows and gardens." width="480">
 </p>
@@ -100,4 +102,8 @@ Original software code, API implementations and specifications, software templat
 
 Read [LICENSE](LICENSE), [NOTICE](NOTICE) and [ASSET-LICENSE.md](ASSET-LICENSE.md). Contributions from developers and researchers are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-An [archived Traditional Chinese README](README.zh-TW.md) is retained as a dated reference; it is not a complete language-switching interface.
+## README languages and versioning
+
+The English and Traditional Chinese READMEs are both maintained entry points. The Traditional Chinese README is an explicitly authorized exception to the English-first project policy; it does not require a bilingual website.
+
+Update both READMEs together whenever project facts, capabilities, status or links change. Maintainers synchronize their meaning manually. The existing version script updates `VERSION` and both README version markers when the Traditional Chinese file is present; it does not translate text. Documentation-only changes do not increment the project version or trigger a full build/deployment.

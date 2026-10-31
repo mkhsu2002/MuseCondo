@@ -46,10 +46,14 @@ jobs:
             git fetch origin main
             git checkout --detach origin/main
             node scripts/project-version.mjs --write
-            if git diff --quiet -- VERSION README.md; then
+            version_files=(VERSION README.md)
+            if [[ -f README.zh-TW.md ]]; then
+              version_files+=(README.zh-TW.md)
+            fi
+            if git diff --quiet -- "${version_files[@]}"; then
               exit 0
             fi
-            git add -- VERSION README.md
+            git add -- "${version_files[@]}"
             git commit -m 'docs: synchronize project version'
             if git push origin HEAD:main; then
               exit 0
