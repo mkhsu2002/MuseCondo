@@ -33,6 +33,7 @@
     "requestKey": "8 至 96 個可列印 ASCII 字元",
     "additionalFields": false,
     "rateLimitPerAccountPerHour": 20,
+    "rateLimitPolicy": "完全相同的重送不重複計入額度；同一 requestKey 永久綁定原輸入，變更內容會回傳 409。",
     "rateLimitGlobalPerHour": 1000
   },
   "privacy": {

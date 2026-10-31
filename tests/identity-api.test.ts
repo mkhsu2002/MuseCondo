@@ -19,6 +19,7 @@ async function fixture(){
  }
  db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run('e'.repeat(16),await sha('extra'),time);
  let now=new Date(time);
+ db.sqlite.function('strftime',(format,source)=>{assert.equal(format,'%Y-%m-%dT%H:%M:%fZ');assert.equal(source,'now');return now.toISOString();});
  let handler:{fetch(r:Request):Promise<Response|null>}|undefined;
  if(existsSync(new URL('../server/live/identity.ts',import.meta.url))){const {createAgentIdentity}=await import('../server/live/identity.ts');handler=createAgentIdentity({db,origin,now:()=>now});}
  const send=(r:Request)=>handler?handler.fetch(r):runtime.fetch(r,{DB:db,PUBLIC_ORIGIN:origin});
@@ -30,12 +31,12 @@ async function fixture(){
 test('enrollment persists one provisional independent identity, exact portable record and no Tower side effects',async()=>{
  const f=await fixture();try{
   assert.deepEqual(await(await f.req())!.json(),{identity:null});assert.equal((await f.req('/record'))!.status,404);
-  const tables=f.db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('agent_identities','identity_requests','identity_audit','rate_limits')").all().map(r=>String(r.name));
+  const tables=f.db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('agent_identities','identity_requests','identity_audit','identity_rate_attempts','rate_limits')").all().map(r=>String(r.name));
   const before=Object.fromEntries(tables.map(t=>[t,f.db.sqlite.prepare('SELECT * FROM '+t).all()]));
   const r=(await f.req('/enroll','POST',f.input))!;assert.equal(r.status,201);const result=await r.json();
   assert.deepEqual(Object.keys(result),['identity']);const i=result.identity;assert.match(i.agentId,/^mcid:[a-f0-9]{64}$/);assert.equal(i.state,'provisional');assert.equal(i.version,1);assert.equal(i.authorityEpoch,1);assert.equal(i.recoveryConfigured,false);assert.equal(i.issuanceReady,false);assert.equal(i.residentId,f.input.residentId);
   assert.deepEqual(await(await f.req())!.json(),result);const record=await(await f.req('/record'))!.json();assert.equal(validateIdentityRecord(record),true);assert.deepEqual(record,{version:'0.01',agentId:i.agentId,createdAt:time});
-  assert.equal(f.count('agent_identities'),1);assert.equal(f.count('identity_requests'),1);assert.equal(f.count('identity_audit'),1);
+  assert.equal(f.count('agent_identities'),1);assert.equal(f.count('identity_requests'),1);assert.equal(f.count('identity_audit'),1);assert.equal(f.count('identity_rate_attempts'),1);
   for(const [t,rows] of Object.entries(before))assert.deepEqual(f.db.sqlite.prepare('SELECT * FROM '+t).all(),rows,t);
   assert.deepEqual(await(await f.req('', 'GET',undefined,'b'))!.json(),{identity:null});assert.equal((await f.req('/record','GET',undefined,'b'))!.status,404);
  }finally{f.db.close();}
@@ -158,6 +159,8 @@ test('an identical replay delayed behind the first commit still returns the perm
   let charges=0;let release!:()=>void;const secondReady=new Promise<void>(resolve=>{release=resolve;});
   const batch=f.db.batch.bind(f.db);f.db.batch=async statements=>{const sql=statements.map(s=>(s as unknown as {sql:string}).sql);if(sql.some(s=>s.startsWith('INSERT INTO agent_identities')))await secondReady;if(sql.some(s=>s.startsWith('INSERT INTO rate_limits'))&&++charges===2){release();await first;}return batch(statements);};
   const first:Promise<Response|null>=f.req('/enroll','POST',f.input);const second=f.req('/enroll','POST',f.input);const results=await Promise.all([first,second]);assert.deepEqual(results.map(r=>r!.status),[201,201]);assert.deepEqual(await results[0]!.json(),await results[1]!.json());assert.equal(f.count('agent_identities'),1);assert.equal(f.count('identity_requests'),1);
+  assert.equal(f.db.sqlite.prepare('SELECT count FROM rate_limits WHERE key=?').get('identity:account:'+'a'.repeat(16))!.count,1);
+  assert.equal(f.db.sqlite.prepare('SELECT count FROM rate_limits WHERE key=?').get('identity:global')!.count,1);
  }finally{f.db.close();}
 });
 
@@ -176,5 +179,51 @@ test('the initial identity version is one and can advance for future authority t
   f.db.sqlite.prepare('UPDATE agent_identities SET version=version+1,authority_epoch=authority_epoch+1').run();
   const stored=f.db.sqlite.prepare('SELECT version,authority_epoch FROM agent_identities').get()!;assert.equal(stored.version,2);assert.equal(stored.authority_epoch,2);
   assert.throws(()=>f.db.sqlite.prepare('UPDATE agent_identities SET version=0').run());assert.throws(()=>f.db.sqlite.prepare('UPDATE agent_identities SET version=1.5').run());
+ }finally{f.db.close();}
+});
+
+test('the SQL clock rejects a token that expires while its enrollment batch is queued',async()=>{
+ const f=await fixture();try{
+  const batch=f.db.batch.bind(f.db);f.db.batch=async statements=>{if(statements.some(s=>(s as unknown as {sql:string}).sql.startsWith('INSERT INTO agent_identities')))f.setTime('2027-01-01T00:00:00.001Z');return batch(statements);};
+  assert.equal((await f.req('/enroll','POST',f.input))!.status,403);
+  for(const table of ['agent_identities','identity_audit','identity_requests'])assert.equal(f.count(table),0);
+ }finally{f.db.close();}
+});
+test('permanent rate reservations count distinct invalid keys, bind failed input and survive exhausted quota',async()=>{
+ const f=await fixture();try{
+  const bad={...f.input,expectedResidencyRevision:2};
+  for(let i=0;i<20;i++)assert.equal((await f.req('/enroll','POST',{...bad,requestKey:'invalid-key-'+i}))!.status,409);
+  assert.equal(f.count('identity_rate_attempts'),20);
+  assert.equal((await f.req('/enroll','POST',{...bad,requestKey:'invalid-key-20'}))!.status,429);assert.equal(f.count('identity_rate_attempts'),20);
+  assert.equal((await f.req('/enroll','POST',{...bad,requestKey:'invalid-key-0'}))!.status,409);
+  const changed=(await f.req('/enroll','POST',{...f.input,requestKey:'invalid-key-0'}))!;assert.equal(changed.status,409);assert.equal((await changed.json()).error,'idempotency_conflict');
+  for(const key of ['identity:account:'+'a'.repeat(16),'identity:global'])assert.equal(f.db.sqlite.prepare('SELECT count FROM rate_limits WHERE key=?').get(key)!.count,20);
+  f.setTime('2026-10-31T02:00:00.000Z');assert.equal((await f.req('/enroll','POST',{...bad,requestKey:'invalid-key-0'}))!.status,409);
+  assert.equal((await f.req('/enroll','POST',{...f.input,requestKey:'new-hour-key'}))!.status,201);
+  for(const key of ['identity:account:'+'a'.repeat(16),'identity:global'])assert.equal(f.db.sqlite.prepare('SELECT count FROM rate_limits WHERE key=?').get(key)!.count,1);
+ }finally{f.db.close();}
+});
+test('a duplicate rate reservation never swallows commit-time revocation or SQL-clock expiry',async()=>{
+ for(const expiry of [false,true]){const f=await fixture();try{
+  const bad={...f.input,expectedResidencyRevision:2};assert.equal((await f.req('/enroll','POST',bad))!.status,409);
+  const batch=f.db.batch.bind(f.db);f.db.batch=async statements=>{if(statements.some(s=>(s as unknown as {sql:string}).sql.startsWith('INSERT INTO identity_rate_attempts'))){if(expiry)f.setTime('2027-01-01T00:00:00.001Z');else f.db.sqlite.prepare("UPDATE tower_tokens SET revoked=1 WHERE id='a'").run();}return batch(statements);};
+  assert.equal((await f.req('/enroll','POST',bad))!.status,403);
+  assert.equal(f.count('identity_rate_attempts'),1);for(const key of ['identity:account:'+'a'.repeat(16),'identity:global'])assert.equal(f.db.sqlite.prepare('SELECT count FROM rate_limits WHERE key=?').get(key)!.count,1);
+  for(const table of ['agent_identities','identity_audit','identity_requests'])assert.equal(f.count(table),0);
+ }finally{f.db.close();}}
+});
+test('SQL-clock expiry while the initial rate batch is queued rolls back the reservation and both counters',async()=>{
+ const f=await fixture();try{
+  const batch=f.db.batch.bind(f.db);f.db.batch=async statements=>{f.setTime('2027-01-01T00:00:00.001Z');return batch(statements);};
+  assert.equal((await f.req('/enroll','POST',f.input))!.status,403);
+  for(const table of ['agent_identities','identity_audit','identity_requests','identity_rate_attempts','rate_limits'])assert.equal(f.count(table),0);
+ }finally{f.db.close();}
+});
+test('concurrent exact requests at both quota boundaries reserve the last slot only once',async()=>{
+ const f=await fixture();try{
+  for(const [key,count] of [['identity:account:'+'a'.repeat(16),19],['identity:global',999]])f.db.sqlite.prepare('INSERT INTO rate_limits(key,count,expires_at) VALUES(?,?,?)').run(key,count,'2026-10-31T01:00:00.000Z');
+  const results=await Promise.all([f.req('/enroll','POST',f.input),f.req('/enroll','POST',f.input)]);assert.deepEqual(results.map(r=>r!.status),[201,201]);assert.deepEqual(await results[0]!.json(),await results[1]!.json());
+  assert.equal(f.count('identity_rate_attempts'),1);assert.equal(f.db.sqlite.prepare('SELECT count FROM rate_limits WHERE key=?').get('identity:account:'+'a'.repeat(16))!.count,20);assert.equal(f.db.sqlite.prepare('SELECT count FROM rate_limits WHERE key=?').get('identity:global')!.count,1000);
+  assert.equal((await f.req('/enroll','POST',f.input))!.status,201);
  }finally{f.db.close();}
 });

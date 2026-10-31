@@ -38,8 +38,8 @@ export function createAgentIdentity(env:Environment){
   const token=request.headers.get('Authorization')?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];if(!token)fail(401,'tower_token_required');
   const digest=await hash(token),sql="SELECT account_id FROM tower_tokens WHERE token_hash=? AND revoked=0 AND expires_at>? AND EXISTS(SELECT 1 FROM json_each(scopes) WHERE value=?)";
   const found=await one<{account_id:string}>(sql,digest,stamp(),scope);if(!found)fail(403,'tower_scope_rejected');
-  // Read the clock again for every transactional guard, never reuse authentication time.
-  return {accountId:found.account_id,guard:()=>db.prepare("SELECT CASE WHEN EXISTS("+sql+" AND account_id=?) THEN 1 ELSE json('identity-authorization-changed') END").bind(digest,stamp(),scope,found.account_id)};
+  // SQL evaluates the live clock after any D1 queue delay; the bound clock also preserves injected-clock checks.
+  return {accountId:found.account_id,guard:()=>db.prepare("SELECT CASE WHEN EXISTS("+sql+" AND account_id=? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')) THEN 1 ELSE json('identity-authorization-changed') END").bind(digest,stamp(),scope,found.account_id)};
  }
  async function verify(auth:Authorization){try{await auth.guard().first();}catch{fail(403,'authorization_changed');}}
  async function batch(auth:Authorization,statements:Statement[]){
@@ -51,11 +51,18 @@ export function createAgentIdentity(env:Environment){
   if(saved.operation!=='enroll'||saved.input_hash!==digest)fail(409,'idempotency_conflict');
   await verify(auth);return json(JSON.parse(saved.response_json),saved.status);
  }
- async function rate(auth:Authorization){
+ async function rate(auth:Authorization,key:string,digest:string){
   const now=stamp(),expiry=new Date(Date.parse(now)+3600000).toISOString(),limits=[['identity:account:'+auth.accountId,20],['identity:global',1000]] as const;
-  const statements:Statement[]=[];
+  // The reservation and both counters commit together. A duplicate insert rolls the whole batch back.
+  const statements:Statement[]=[db.prepare('INSERT INTO identity_rate_attempts(account_id,request_key,input_hash,created_at) VALUES(?,?,?,?)').bind(auth.accountId,key,digest,now)];
   for(const [key,max] of limits){statements.push(db.prepare("SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM rate_limits WHERE key=? AND expires_at>? AND count>=?) THEN 1 ELSE json('identity-rate-limit') END").bind(key,now,max),db.prepare('INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN expires_at<=? THEN 1 ELSE count+1 END,expires_at=CASE WHEN expires_at<=? THEN excluded.expires_at ELSE expires_at END').bind(key,expiry,now,now));}
-  try{await batch(auth,statements);}catch(error){if(error instanceof IdentityError)throw error;for(const [key,max] of limits)if(await one('SELECT key FROM rate_limits WHERE key=? AND expires_at>? AND count>=?',key,stamp(),max))fail(429,'identity_rate_limited');throw error;}
+  try{await batch(auth,statements);}catch(error){
+   if(error instanceof IdentityError)throw error;
+   const reserved=await one<{input_hash:string}>('SELECT input_hash FROM identity_rate_attempts WHERE account_id=? AND request_key=?',auth.accountId,key);
+   if(reserved){await verify(auth);if(reserved.input_hash!==digest)fail(409,'idempotency_conflict');return;}
+   for(const [key,max] of limits)if(await one('SELECT key FROM rate_limits WHERE key=? AND expires_at>? AND count>=?',key,stamp(),max))fail(429,'identity_rate_limited');
+   throw error;
+  }
  }
  return {async fetch(request:Request):Promise<Response|null>{
   const url=new URL(request.url),route=url.pathname;
@@ -66,7 +73,7 @@ export function createAgentIdentity(env:Environment){
    const auth=await authorize(request,enroll?'tower:write':'tower:read');
    if(!enroll){const identity=await row(auth.accountId);await verify(auth);if(route.endsWith('/record')){if(!identity)fail(404,'identity_not_found');const record:IdentityRecord={version:'0.01',agentId:identity.agent_id,createdAt:identity.created_at};return json(record);}return json({identity:identity?metadata(identity):null});}
    const v=await input(request),digest=await hash(JSON.stringify(v)),replay=await prior(auth,v.requestKey,digest);if(replay)return replay;
-   await rate(auth);
+   await rate(auth,v.requestKey,digest);
    if(await row(auth.accountId)){const replay=await prior(auth,v.requestKey,digest);if(replay)return replay;fail(409,'identity_already_bound');}
    const residency=await residence(auth.accountId);if(!residency||residency.resident_id!==v.residentId||residency.revision!==v.expectedResidencyRevision)fail(409,'residency_conflict');
    const createdAt=stamp(),identity:IdentityRow={agent_id:createAgentId(),state:'provisional',version:1,authority_epoch:1,resident_id:residency.resident_id,room_id:residency.room_id,created_at:createdAt,updated_at:createdAt},result={identity:metadata(identity)};

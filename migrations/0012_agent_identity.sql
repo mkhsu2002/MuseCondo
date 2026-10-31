@@ -24,3 +24,10 @@ CREATE TABLE identity_audit (
  action TEXT NOT NULL, detail_json TEXT NOT NULL, created_at TEXT NOT NULL
 );
 CREATE INDEX identity_audit_agent ON identity_audit(agent_id,created_at);
+
+-- Permanent per-input rate reservations: a successful concurrent retry never consumes quota twice.
+CREATE TABLE identity_rate_attempts (
+ account_id TEXT NOT NULL REFERENCES accounts(id), request_key TEXT NOT NULL,
+ input_hash TEXT NOT NULL, created_at TEXT NOT NULL,
+ PRIMARY KEY(account_id,request_key)
+);

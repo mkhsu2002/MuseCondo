@@ -82,7 +82,7 @@ test('activities directory is a fixed public document and its API fails closed w
 
 test('identity endpoints require migration 0012 tables and immutable binding trigger',async()=>{
  const db=database();try{
-  for(const name of ['agent_identities','identity_requests','identity_audit']){
+  for(const name of ['agent_identities','identity_requests','identity_audit','identity_rate_attempts']){
    // Renames preserve foreign keys and let the same complete fixture test each required name.
    db.sqlite.exec('ALTER TABLE '+name+' RENAME TO hidden_'+name);
    const response=await runtime.fetch(request('/api/v1/agent/identity'),{PUBLIC_ORIGIN:origin,DB:db});assert.equal(response.status,503);assert.equal((await response.json()).error,'database_schema_not_ready');
