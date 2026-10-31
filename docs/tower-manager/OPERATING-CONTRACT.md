@@ -1,50 +1,56 @@
-# Tower 樓管：職責與受限維護契約
+# Tower 樓管：自主職責與受限維護契約
 
-2026-10-31。此文件描述本分支的實作契約；不是正式環境已部署證明。既有文字迎新／公開更新與撤回仍採事件驅動，不因本功能改成排程。
+2026-10-31。本文件是實作契約與本機證據，**不是正式部署完成證明**。正式 migration、bindings、Worker／Pages 版本與真實 provider／公開讀回，須由發布紀錄另列。
 
-| 職責 | 可讀 | 可寫 | 權限／限制 |
+## 已取代的舊版設計
+
+M03 的「Codex 預製 Halloween SVG/CSS、operator 手動 activate 即交付」及 M04 的「沒有新消息就不呼叫模型、只有 DB 摘要」於 2026-10-31 明確 **superseded**。舊 0023 私密 preview／永久 receipt 與安全 DB registry 保留相容性；舊 theme 不再產生公開 Halloween 投影。舊 SVG／UI 視覺測試僅為歷史介面基建證據，不能充當部署樓管生圖／審核／發布證據。
+
+## 固定授權與日常職責
+
+| 職責 | 可讀 | 可執行 | 限制 |
 | --- | --- | --- | --- |
-| 首頁外觀維護 | 固定主題、外觀歷史、公開投影 | 私密預覽、啟用、到期、回復、audit | 營運者或明確授權的外觀維護工具；固定 token，不收 CSS/HTML/JS/URL |
-| 社區接待與公告 | 當下仍同意公開的事件 | 可追溯來源的公告 | 沿用既有事件鏈、撤回檢查與獨立預算；無事件不呼叫模型 |
-| 每日照顧 | 外觀日曆、公開投影健康、待處理案件數 | 到期清理、私密摘要 | 不閱讀居民私密內容；不自動聯繫居民 |
-| 每週社區整理 | 有來源的公開事件計數 | 私密回顧／自願活動草稿 | 不虛構居民、參與者或活動，不自動公開新活動 |
-| 每月資源檢視 | 公告工作狀態／成本合計、權限設定是否存在 | 私密成本／權限檢視草稿 | 不增加預算、不修改權限 |
+| 每日自主照顧 | 當地日曆、公開投影存在／健康、先前私密工作記憶、已阻塞任務的最小摘要 | 每天真正透過 Meta 思考，決定不更動／檢查公開健康／建立受限外觀任務 | 即使沒有新消息仍思考；不讀 Fang 或居民私密內容 |
+| 外觀維護 | 既有 `muse-tower-day-v2.webp`／`night-v2.webp` 原圖 | Meta Spark 生成方案／prompt、原生 function tool、Muse Image 編輯原圖、私密 R2、驗證、獨立 TaskAudit、啟用 D1 pointer | 目前外觀 calendar catalog **僅 Halloween 2026**；不宣稱支援任意節日。保留單一前景、無邊際塔、日夜兩圖；未 PASS 不公開 |
+| 每週整理 | 本週 period key、公開健康、既有私密工作記憶 | 在當週首個每日思考納入週整理判斷並寫永久私密記錄 | 不虛構活動／居民，不發布活動、不聯繫居民 |
+| 每月資源檢視 | 月 period key、lifetime-as-of-run 成本與承諾 | 在月首個每日思考檢視成本與固定權限，保存私密結論 | 不增加權限或預算，不宣稱成本是本月新增 |
+| 既有社區接待與公告 | 當下仍同意公開的事件 | 原有可追溯的文字迎新／更新／撤回鏈 | 獨立事件與預算；**這條文字公告鏈**無事件不呼叫模型，不影響新的每日自主思考 |
 
-樓管不能撤 key、改／恢復身分、查看居民私密資料、變更付款或自行建立高權管理者。Tower Lord 後續另案；未來人類角色固定「樓主暫時代理人」，「正式交棒」保持停用，標示「專案既定方向，功能開發中」。本輪不建立此高權角色或可用交棒介面。
+樓管不能讀居民私訊、撤 key、恢復身分、付款、寄信、改權限或建立高權管理者。Tower Lord／正式交棒仍停用；未建立可用高權角色。
 
-## 有界實作與驗證
+## 狀態機與實際成果
 
-M01 為本契約。M02 為 migration 0023、固定主題 core、不可變 requestKey／payload、CAS revision、持久 audit、受保護 operator API 與公開最小投影。預覽不影響公開指標；啟用必須引用已有預覽。回復引用歷史快照，仍經期限與 CAS 檢查。每次成功變更具永久 receipt，可重送但不可重綁。
+`enable standing mandate → daily thinking → execute function tool → image-day → image-night → deterministic verify → function_call_output acknowledgement → independent TaskAudit → activate → independent daily selfreview → complete`。`noop/health` 仍有實際公開健康讀回、獨立 TaskAudit 與另一次每日反省。各模型 context 分開；只有 executor 使用 `store:false` encrypted reasoning replay 完成同一工具迴圈，不把 executor 自稱完成當獨立審核。
 
-M03 保留既有單棟塔日夜原圖與原頁面入口，加入可關閉 Halloween inline SVG 裝飾；不使用外部素材或新生成圖片。明確採 America/Vancouver 日曆：Halloween 2026-10-31 00:00（2026-10-31T07:00:00Z）至 2026-11-01 00:00（2026-11-01T07:00:00Z），到期立即以一般外觀投影，即使每日清理尚未執行。瀏覽器不依 host timezone 推測節日，也不自行啟用主題。
+任務在每日思考中自定目的、驗收、預算與受限 permissions。每日最多一個邏輯任務（每日例行與該日外觀行動共用同一成本戶），總預算不超過 US$10，包含思考、executor、圖、審核、一次修復、反省；模型只能降低計畫預算，不能提升部署上限。計畫完成前檢查足以涵蓋後續有界階段的保留空間。每日 aggregate 另限制 US$10，DB 永久限制 task 數一筆，repair 沿用原 cycle／budget。固定 `appearance:halloween:2026` 永久 anchor 防止將同一外觀任務隔日重 key、拆任務或重設預算。
 
-M04 固定每日／每週／每月 job registry，部署原生每日一次 tick 在同一時區計算 due；永久 period key、runs ledger、有限重試、無工作快速退出。只有 safe local DB 工作可重試；不建立付費、寄信或住戶事件輪詢。unknown 外部付費結果沿用既有不盲重送政策。預設一個月 28–31 次 tick；每日工作 3 個、週工作 1 個、月工作 1 個，無新消息的摘要不呼叫模型；每日 tick 無到期時 appearance job 為 no-op。部署／cron 綁定由整合發布負責，未部署前不宣稱 scheduled live。
+每一次 Meta HTTP（含 input token count、獨立 TaskAudit、每日反省）先有永久 dispatch 記錄與 step key；Spark 先呼叫官方 input token count，拒絕超出 128,000 input，再按 Standard $1.25/M input、$4.25/M output 與 max output 2,400 保留費用；圖每張固定 $0.01。usage／provider id 確認後結帳。網路中斷、5xx、redirect、無法確認 usage 均保留原 reservation，不盲重試、不換 key。原生 lease 到期而尚在 dispatch 的 call 轉 unknown；不能再次送付費請求。HTTP 4xx 明確拒絕不視為完成。
 
-不改 v0.65，不改圖片授權清單。發布須先套 dev／production migration，再部署一致的 API／前端及 scheduler，核對 deployed schema、code、live behavior 與 audit；正式驗證記錄另附，不用本機測試替代。
+驗證實際從 **R2 重新讀取**已生成圖：存在、bytes、SHA256、PNG CRC／chunk 順序／解壓 scanline、最低解析度與16:9、day/night 完整且 hash 不同。後續獨立 Spark TaskAudit 使用兩張原圖與兩張 R2 實際讀回圖，做畫面與方案比對；單純模型字串 PASS 不足以 activation。D1 guard 同時驗證 PASS 對應獨立 paid receipt、deterministic evidence generation、兩圖 provider provenance、固定 permission、有效 mandate、native clock／lease、CAS revision；immutable records 阻擋 UPDATE／DELETE／INSERT OR REPLACE。
 
-## API 與每日部署入口
+TaskAudit FAIL 可在同一原任務最多修一次；重新執行工具、驗證、獨立審核。無法修復則 blocked，仍嘗試另一次私密 daily selfreview，保存事實、記憶與 nextTasks；反省本身也失敗時不假稱完成。未知外部付費仍留在原 task／anchor；下一日可以思考、檢查健康及反省，但不能 clone/restart 其影像工作。
 
-- `GET /api/v1/tower/appearance`：唯讀 `{theme, revision, endsAt}`，不帶 actor、preview、授權資訊或內部日曆。0023 缺少表／trigger 時 503，前端自行回到一般外觀。
-- `GET/POST /api/v1/operator/manager/appearance`：沿用 `X-Tower-Operator-Key`，拒絕 Cookie、跨站 Origin／Sec-Fetch-Site，body 上限 2 KiB。POST 僅固定欄位；preview 可填 theme、startsAt、endsAt、timezone。activate 使用 previewKey＋expectedRevision；rollback 使用 targetRevision＋expectedRevision。每次帶不可重綁 requestKey。
-- `GET /api/v1/operator/manager/schedule`：私密 registry／最近 50 筆 runs。
-- `POST /api/v1/manager/run-due`：僅 `X-Manager-Schedule-Key`，不接受 operator key 替代；body 僅 scheduledTime，與執行時間差不可超過 36 小時。每次五個 registry 檢查；同日重送只處理尚未完成且未超過兩次安全嘗試者。
+只有已驗證且 PASS 的 pair 可啟用 runtime pointer。Halloween window 為 `2026-10-31T07:00:00Z` 至 `2026-11-01T07:00:00Z`，America/Vancouver；到期公開 projection／asset endpoint 即回一般外觀，無須等 cron。公開只出 theme、revision、endsAt、generation 與同源 day/night URL；沒有 prompt、模型、QA、工作安排或居民資訊。找不到可用 runtime 圖則保留一般原圖。
 
-`workers/tower-manager` 為獨立部署原生排程模板，每日 UTC 16:00 一次（Vancouver 夏令 09:00、冬令 08:00），無公開執行入口／D1／provider／operator key。僅持 `PUBLIC_ORIGIN` 與部署端 `MANAGER_SCHEDULE_TRIGGER_KEY`；Pages 持相同 scope-specific trigger secret。每月 28–31 次 Worker invocation；若 prod/dev 均啟用則各自計數。無分鐘 polling、無 CI／Codex automation。週/月工作於當地第一個 tick 產生本期私密草稿；首次啟用也只建當期，不補發歷史。
+## 部署與保護入口
 
-run key 固定 job＋當地 day／Monday week／month。claim lease 五分鐘，同一 period 最多兩次；完成不重跑，外部 HTTP 不盲重送。失敗只保留固定 error code，不儲存例外原文；本期兩次失敗後留待營運檢視，下期不是前期成功補帳。三種摘要不讀取私人內容：案件只算未到期待處理數，週稿只算目前公開 edition 中有效公開且非 fixture 事件，月稿明示 lifetime-as-of-run 的公告成本與有效 delegation 數，不假稱當月新增或自動改權。
+- Pages 既有 `meta_muse_api` 單獨持有 provider secret。**不得回讀到本機，不得複製 prod key 到 dev**。dev 缺 provider 時 enable 503，維持 disabled。
+- Pages 新增 `MANAGER_ASSETS`（private R2）、`MANAGER_RUNTIME`（service binding 指向 scheduler Worker）、既有 `MANAGER_SCHEDULE_TRIGGER_KEY`（scoped secret）、ASSETS 與 DB。
+- `workers/tower-manager` 持 PUBLIC_ORIGIN／scoped trigger，無 provider／operator／居民 key。DO class `ManagerClock`，binding `MANAGER_CLOCK`，SQLite DO migration `manager-clock-v1`。
+- `GET/POST /api/v1/operator/manager/autonomy`：`X-Tower-Operator-Key`；POST 僅 `{action:"enable"|"disable"}`。enable 完成持久 mandate 後立即呼叫 service `/wake`；首次可自行決策當天工作，不等人派單。
+- `POST /api/v1/manager/autonomy/step`：僅 `X-Manager-Schedule-Key`；不接受 operator key。每步最多一個 paid request，加必要的免費 token count。拒絕 Cookie／跨站 Origin／Sec-Fetch-Site。
+- `GET /api/v1/tower/appearance`：最小公開投影，舊 operator 靜態 theme 無法使它變成公開 Halloween。
+- `GET /api/v1/tower/appearance/assets/{generation}/{day|night}.png`：僅當前且有效 window 之 runtime pair；私密 R2 無 public bucket，無任意 key/path fetch。
+- 舊 appearance、schedule inspect、run-due APIs 保留；run-due registry 是免費 DB hygiene，不是自主工作的完成證明。
 
-發布順序：兩環境套 0023 → Pages code／前端 → 各自 scoped trigger secret → 獨立 cron Worker（先 dev 後 prod）→ 正式 operator preview／activate → public projection／audit／一次 native tick readback。未知付費工作不在此 registry；不變更現有 Meta 模型或價格假設，測試全為 synthetic／免費 DB 操作。
+每日 UTC 16:00 cron（Vancouver 夏令09:00／冬令08:00）各環境每月28–31次；每次都需要當日判斷，並非空輪詢。原生 DO alarm 只在有待續跑工作時 event-driven 接下一階段，完成／blocked即清除 alarm；網路 recovery 最多3次，每次6分鐘，僅續已持久工作且 DB 防止付費重送。沒有分鐘級常態 polling、Codex automation、GitHub cron 或CI呼叫provider。safe DB jobs失敗也仍喚醒自主思考。
 
-## 目前操作介面與視覺預覽界線
+發布順序：dev/prod 依順序套至0026（0024/25由其他分支提供）→ 同版本 Pages／前端 → private R2 與DO Worker／servicebinding／scoped secret → 逐環境 native／deployed schema與code／readiness → enable mandate → 讀回每日思考、tool、paid ledger、R2產物、deterministic evidence、獨立TaskAudit、pointer、公開圖片與私密selfreview。任何層未驗證，不能標記自主樓管或萬聖節交付完成。commit／本機測試不等於正式發布。
 
-目前私密 API preview 是**配置預覽**（固定 token 快照與永久 receipt），尚無可操作的樓管後台或公開 previewKey／query 預覽入口。畫面驗收使用 canonical lane 的本機受控 synthetic projection；正式啟用仍只能由受保護 operator command 引用預覽、核對 expectedRevision。訪客的外觀按鈕只控制自己瀏覽器是否顯示目前已核准節慶裝飾，不能啟用未授權或過期的主題。關閉偏好可於本機儲存；儲存與 appearance service 失效均保留一般外觀、日夜按鈕、指南與公約。開著的分頁也在期限到達後收起裝飾，不等下次 reload 或 cron。
+## 本機證據（2026-10-31）
 
-裝飾以固定本地 SVG 與 CSS 呈現暖燈、南瓜與小蝙蝠；裝飾層 aria-hidden／pointer-events none，切換為原生 button，尊重 reduced-motion（本版無動畫），所有素材不額外請求外部 URL、不生成新圖、不修改47圖授權。公開文案只有「萬聖夜，留一盞暖燈。」及外觀操作，不宣稱活動或居民參與。
+`tests/tower-autonomy.test.ts` synthetic provider 驗證空消息仍思考、獨立audit與selfreview、真正function call/output replay、有效雙PNG、R2讀回、四圖audit、atomic activate、同task FAIL修復、unknown保留reservation／跨日仍思考但不clone、損毀artifact阻擋公開、dev缺provider failclosed、alarm有界續跑。測試圖只存在記憶體，未上傳R2，不能充當真實Meta產物。
 
-## 本機驗證紀錄（2026-10-31，非正式部署）
+`scripts/test-tower-manager-native.mjs <existing-node_modules>` 重用現有 Wrangler4.156／Miniflare5／workerd、compatibility2026-10-30；原生D1套完整migration、編譯Pages scope／projection／devdisabled、cron dispatch，以及實際SQLite DO wake→alarm→scoped step→停止均通過。外網拒絕或synthetic handler，無真實provider付費。原生 `redirect:'manual'` 拒絕3xx，不使用workerd不支援的`redirect:'error'`。
 
-原生 SQLite Tower focused suite 160/160；外觀 UI 三例含開頁到期、網路失敗、非allowlist輸入、原生按鈕，另有 build-output／既有 Pages runtime 回歸。`scripts/preview-tower-appearance.mjs` 僅綁 loopback，GET／HEAD、記憶體資料庫與固定 synthetic projection，不代理正式站、不收 key／POST；可由 `TOWER_PREVIEW_EXPIRY_SECONDS` 調整本機視覺到期秒數。視覺驗收 screenshot／最終結論由整合發布另記。
-
-`scripts/test-tower-manager-native.mjs <existing-node_modules>` 可重用已有 Miniflare／esbuild cache，不安裝或變動專案依賴。2026-10-31 以 Wrangler 4.156.0 對應的 Miniflare 5／workerd、compatibility date 2026-10-30，在隔離原生 D1 batch 實際套完 migrations 後，編譯 Pages API 的 preview／activate／永久重送／衝突／公開投影／scheduler scope／五個 period ledger／不可刪 audit 均通過；另編譯 cron Worker，public 404 與 scheduled 一次 scoped dispatch 通過。原生 proof 阻斷所有外網；不代表 Cloudflare 正式 D1 或 Cron 已部署。
-
-native proof 找到 Node mock 無法揭露的 redirect 契約差異，scheduler 已改 `manual` 並拒絕非2xx（含redirect），不追隨其他host。模板 compatibility date 固定為已驗證的2026-10-30，不隨 host 當天自動調整。
+官方契約重查2026-10-31：[Responses](https://dev.meta.ai/docs/protocols/responses)、[token count](https://dev.meta.ai/docs/api-reference/responses/count-input-tokens)、[tools](https://dev.meta.ai/docs/tool-calling)、[images](https://dev.meta.ai/docs/image-generation)。tool_choice僅auto；函式回合上限由應用限制；images JSON edits、WxH aspect ratio、tool_enablement／reasoning_strength以官方契約為準，不能套用其他供應商參數假設。

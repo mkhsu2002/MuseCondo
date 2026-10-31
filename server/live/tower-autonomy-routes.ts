@@ -1,0 +1,26 @@
+import {createManagerAutonomy,type AssetBucket} from './tower-autonomy.ts';
+import type {Database} from './db.ts';
+export interface ManagerRuntimeBinding {fetch(request:Request):Promise<Response>}
+interface Options {db:Database;origin:string;operator:()=>Promise<boolean>;scheduled:()=>Promise<boolean>;bucket?:AssetBucket;runtime?:ManagerRuntimeBinding;trigger?:string;apiKey?:string;assets?:{fetch(request:Request):Promise<Response>};now?:()=>Date}
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
+export function createAutonomyRoutes(options:Options){
+ const manager=createManagerAutonomy({db:options.db,bucket:options.bucket,apiKey:options.apiKey,now:options.now,assetFetch:options.assets?(path)=>options.assets!.fetch(new Request(new URL(path,options.origin))):undefined,wake:options.runtime&&options.trigger?async()=>{const result=await options.runtime!.fetch(new Request('https://manager.internal/wake',{method:'POST',headers:{'X-Manager-Schedule-Key':options.trigger!}}));if(!result.ok)throw Error('runtime_wake_failed');}:undefined});
+ return {async fetch(request:Request):Promise<Response|null>{
+  const url=new URL(request.url),operator=url.pathname==='/api/v1/operator/manager/autonomy',step=url.pathname==='/api/v1/manager/autonomy/step',asset=url.pathname.match(/^\/api\/v1\/tower\/appearance\/assets\/([^/]+)\/(day|night)\.png$/);
+  if(!operator&&!step&&!asset)return null;
+  if(url.origin!==options.origin)return json({error:'origin_rejected'},403);
+  if(!asset&&(request.headers.has('Cookie')||request.headers.has('Origin')&&request.headers.get('Origin')!==options.origin||request.headers.get('Sec-Fetch-Site')==='cross-site'))return json({error:'origin_rejected'},403);
+  if(!asset&&!(step?await options.scheduled():await options.operator()))return json({error:step?'schedule_authorization_required':'operator_required'},401);
+  if(asset&&!['GET','HEAD'].includes(request.method)||step&&request.method!=='POST'||operator&&!['GET','POST'].includes(request.method))return json({error:'method_not_allowed'},405);
+  try{
+   const schema=await options.db.prepare("SELECT count(*) n FROM sqlite_master WHERE name IN ('tower_autonomy_mandate','tower_autonomy_cycles','tower_autonomy_calls','tower_autonomy_events','tower_autonomy_assets','tower_autonomy_current','tower_autonomy_call_binding','tower_autonomy_current_guard','tower_autonomy_current_update_guard')").first<{n:number}>();if(schema?.n!==9)return json({error:'autonomy_schema_not_ready'},503);
+   if(asset){const bytes=await manager.asset(asset[1],asset[2]);return bytes?new Response(request.method==='HEAD'?null:bytes,{headers:{'Content-Type':'image/png','Cache-Control':'public, max-age=60, must-revalidate','X-Content-Type-Options':'nosniff'}}):json({error:'not_found'},404);}
+   if(step)return json(await manager.step());
+   if(request.method==='GET')return json(await manager.inspect());
+   const raw=await request.text();if(raw.length>1024)return json({error:'body_too_large'},413);const command=JSON.parse(raw);if(!command||Object.keys(command).length!==1||!['enable','disable'].includes(command.action))return json({error:'invalid_command'},400);
+   // A disabled development provider stays disabled; never copy the production key.
+   if(command.action==='enable'&&(!options.apiKey||!options.bucket||!options.runtime||!options.trigger||!options.assets))return json({error:'autonomy_bindings_not_ready'},503);
+   return json(await (command.action==='enable'?manager.enable():manager.disable()));
+  }catch{return json({error:'autonomy_unavailable'},503);}
+ }};
+}

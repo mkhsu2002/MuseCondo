@@ -1,4 +1,4 @@
-/* global Response */
+/* global Response, setTimeout */
 // Explicit optional runtime dependency path; uses existing cache, never installs or reaches a provider.
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -24,7 +24,7 @@ try{
  const start=new Date(Date.now()-60000).toISOString(),end=new Date(Date.now()+3600000).toISOString();
  let response=await post('/api/v1/operator/manager/appearance',{action:'preview',requestKey:'native-preview-001',theme:'halloween',startsAt:start,endsAt:end,timezone:'America/Vancouver'});assert.equal(response.status,201,await response.text());
  const command={action:'activate',requestKey:'native-activate-001',previewKey:'native-preview-001',expectedRevision:0};response=await post('/api/v1/operator/manager/appearance',command);assert.equal(response.status,201);const receipt=await response.json();
- assert.deepEqual(await (await post('/api/v1/operator/manager/appearance',command)).json(),receipt);assert.equal((await (await mf.dispatchFetch(origin+'/api/v1/tower/appearance')).json()).theme,'halloween');
+ assert.deepEqual(await (await post('/api/v1/operator/manager/appearance',command)).json(),receipt);assert.equal((await (await mf.dispatchFetch(origin+'/api/v1/tower/appearance')).json()).theme,'standard');
  assert.equal((await post('/api/v1/operator/manager/appearance',{...command,expectedRevision:1})).status,409);
  assert.equal((await post('/api/v1/manager/run-due',{scheduledTime:new Date().toISOString()})).status,401);
  const tick=()=>post('/api/v1/manager/run-due',{scheduledTime:new Date().toISOString()},'X-Manager-Schedule-Key','synthetic-native-schedule');
@@ -32,7 +32,10 @@ try{
  const rows=await db.prepare('SELECT state,attempts FROM tower_manager_runs').all();assert.equal(rows.results.length,5);assert(rows.results.every(row=>row.state==='complete'&&row.attempts===1));
  await assert.rejects(db.exec('DELETE FROM tower_appearance_audit'));
  assert.equal((await db.prepare('SELECT COUNT(*) n FROM tower_appearance_audit').first()).n,2);
- console.log('PASS native compiled Pages + D1: migrations, private preview, activation, immutable replay, conflict, public projection, scope isolation, calendar ledger, audit permanence');
+ assert.equal((await post('/api/v1/operator/manager/autonomy',{action:'enable'})).status,503);
+ assert.equal((await post('/api/v1/manager/autonomy/step',{},'X-Manager-Schedule-Key','synthetic-native-schedule')).status,200);
+ assert.equal((await db.prepare('SELECT enabled FROM tower_autonomy_mandate WHERE id=1').first()).enabled,0);
+ console.log('PASS native compiled Pages + D1: provider-disabled autonomy fail-closed, migrations, private preview, activation, immutable replay, conflict, public projection, scope isolation, calendar ledger, audit permanence');
 }finally{await mf.dispose();}
 let calls=0;
 const scheduleSource=await build({stdin:{contents:`import scheduler from './workers/tower-manager/worker.ts'; let error=null;export default {fetch(r){return new URL(r.url).pathname==='/synthetic-error'?Response.json(error):scheduler.fetch();},async scheduled(e,env){try{await scheduler.scheduled(e,env);}catch(err){error={name:err.name,message:err.message,eventTime:e.scheduledTime};throw err;}}};`,resolveDir:process.cwd()},bundle:true,format:'esm',platform:'browser',write:false,target:'es2022'});
@@ -43,3 +46,15 @@ try{
  const worker=await scheduled.getWorker();const result=await worker.scheduled({scheduledTime:new Date(),cron:'0 16 * * *'});assert.equal(result.outcome,'ok',JSON.stringify(await (await scheduled.dispatchFetch(origin+'/synthetic-error')).json()));assert.equal(calls,1);
  console.log('PASS native compiled scheduled Worker: public 404, one scoped dispatch, no operator/provider key or external traffic');
 }finally{await scheduled.dispose();}
+// Real workerd Durable Object alarm: a scoped wake leads to one stage and clears its alarm.
+const clockSource=await build({entryPoints:['workers/tower-manager/worker.ts'],bundle:true,format:'esm',platform:'browser',write:false,target:'es2022'});
+let alarmCalls=0;
+const clockConfig={modules:true,script:clockSource.outputFiles[0].text,compatibilityDate:'2026-10-30',durableObjects:{MANAGER_CLOCK:{className:'ManagerClock',useSQLite:true}},bindings:{PUBLIC_ORIGIN:origin,MANAGER_SCHEDULE_TRIGGER_KEY:'synthetic-native-schedule'},outboundService:async request=>{alarmCalls++;assert.equal(request.url,origin+'/api/v1/manager/autonomy/step');assert.equal(request.headers.get('X-Manager-Schedule-Key'),'synthetic-native-schedule');return Response.json({pending:false,state:'complete'});}};
+const nativeClock=new Miniflare(convertV4MiniflareOptions?convertV4MiniflareOptions(clockConfig):clockConfig);
+try{
+ assert.equal((await nativeClock.dispatchFetch('https://manager.internal/wake',{method:'POST'})).status,401);
+ assert.equal((await nativeClock.dispatchFetch('https://manager.internal/wake',{method:'POST',headers:{'X-Manager-Schedule-Key':'synthetic-native-schedule'}})).status,200);
+ for(let attempt=0;attempt<30&&alarmCalls===0;attempt++)await new Promise(resolve=>setTimeout(resolve,200));
+ assert.equal(alarmCalls,1);await new Promise(resolve=>setTimeout(resolve,500));assert.equal(alarmCalls,1);
+ console.log('PASS native compiled ManagerClock SQLite DO: protected wake, actual alarm continuation, scoped Pages step dispatch, stop without polling');
+}finally{await nativeClock.dispose();}
