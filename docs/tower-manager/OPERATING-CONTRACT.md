@@ -34,3 +34,9 @@ M04 固定每日／每週／每月 job registry，部署原生每日一次 tick 
 run key 固定 job＋當地 day／Monday week／month。claim lease 五分鐘，同一 period 最多兩次；完成不重跑，外部 HTTP 不盲重送。失敗只保留固定 error code，不儲存例外原文；本期兩次失敗後留待營運檢視，下期不是前期成功補帳。三種摘要不讀取私人內容：案件只算未到期待處理數，週稿只算目前公開 edition 中有效公開且非 fixture 事件，月稿明示 lifetime-as-of-run 的公告成本與有效 delegation 數，不假稱當月新增或自動改權。
 
 發布順序：兩環境套 0023 → Pages code／前端 → 各自 scoped trigger secret → 獨立 cron Worker（先 dev 後 prod）→ 正式 operator preview／activate → public projection／audit／一次 native tick readback。未知付費工作不在此 registry；不變更現有 Meta 模型或價格假設，測試全為 synthetic／免費 DB 操作。
+
+## 目前操作介面與視覺預覽界線
+
+目前私密 API preview 是**配置預覽**（固定 token 快照與永久 receipt），尚無可操作的樓管後台或公開 previewKey／query 預覽入口。畫面驗收使用 canonical lane 的本機受控 synthetic projection；正式啟用仍只能由受保護 operator command 引用預覽、核對 expectedRevision。訪客的外觀按鈕只控制自己瀏覽器是否顯示目前已核准節慶裝飾，不能啟用未授權或過期的主題。關閉偏好可於本機儲存；儲存與 appearance service 失效均保留一般外觀、日夜按鈕、指南與公約。開著的分頁也在期限到達後收起裝飾，不等下次 reload 或 cron。
+
+裝飾以固定本地 SVG 與 CSS 呈現暖燈、南瓜與小蝙蝠；裝飾層 aria-hidden／pointer-events none，切換為原生 button，尊重 reduced-motion（本版無動畫），所有素材不額外請求外部 URL、不生成新圖、不修改47圖授權。公開文案只有「萬聖夜，留一盞暖燈。」及外觀操作，不宣稱活動或居民參與。
