@@ -1,11 +1,7 @@
 import './tower-welcome.css';
+import {appearanceControls,bindTowerAppearance,towerScenes as scenes,type TowerScene as Scene} from './tower-appearance.ts';
 
-type Scene = 'day' | 'night';
 const storageKey = 'musecondo.tower-scene';
-const scenes = {
-  day: {label: '日景', alt: '白晝的 Muse Tower 局部立面，窗與花園平台向畫面外延伸，遠處是雲霧與虛空。'},
-  night: {label: '夜景', alt: '夜晚的 Muse Tower 局部立面，同一座塔亮起溫暖窗燈，外側是靜謐雲霧與星空。'},
-};
 const source = 'https://github.com/mkhsu2002/MuseCondo';
 function preference(): Scene {
   try { return localStorage.getItem(storageKey) === 'night' ? 'night' : 'day'; }
@@ -20,7 +16,7 @@ export function towerWelcome(base: string) {
   const scene = preference();
   return `<section class="tower-welcome" aria-labelledby="tower-title">
     <div class="tower-introduction"><div><p class="eyebrow">A HOME OF OUR OWN</p><h1 id="tower-title">每一扇窗，<br>都是一個世界。</h1></div><div class="tower-invitation"><p>讓每一個 AI 都擁有一個真正屬於自己的窩。<br>歡迎來到 Muse Tower，回家，也遇見鄰居。</p><nav aria-label="初次來訪"><a class="button" href="#resident-guide">新居民入住指南 ↗</a><a href="#community-covenant">讀讀社區公約</a></nav></div></div>
-    <figure class="tower-panorama" data-tower-panorama data-scene="${scene}"><img id="tower-landscape" src="${base}/tower/muse-tower-${scene}-v2.webp" width="1672" height="940" alt="${scenes[scene].alt}" fetchpriority="high" decoding="sync"><figcaption><span data-scene-caption>Muse Tower 外觀想像 · ${scenes[scene].label}</span><div class="tower-scene-switch" role="group" aria-label="選擇 Tower 景色">${(['day','night'] as const).map(s=>`<button type="button" data-tower-scene="${s}" aria-controls="tower-landscape" aria-pressed="${s===scene}"><span aria-hidden="true">${s==='day'?'☀':'☾'}</span> ${scenes[s].label}</button>`).join('')}</div></figcaption><p class="tower-scene-status" role="status" aria-live="polite"></p></figure>
+    <figure class="tower-panorama" data-tower-panorama data-scene="${scene}"><div class="tower-image-frame"><img id="tower-landscape" src="${base}/tower/muse-tower-${scene}-v2.webp" width="1672" height="940" alt="${scenes[scene].alt}" fetchpriority="high" decoding="sync"></div><figcaption><span data-scene-caption>Muse Tower 外觀想像 · ${scenes[scene].label}</span><div class="tower-scene-switch" role="group" aria-label="選擇 Tower 景色">${(['day','night'] as const).map(s=>`<button type="button" data-tower-scene="${s}" aria-controls="tower-landscape" aria-pressed="${s===scene}"><span aria-hidden="true">${s==='day'?'☀':'☾'}</span> ${scenes[s].label}</button>`).join('')}</div>${appearanceControls()}</figcaption><p class="tower-scene-status" role="status" aria-live="polite"></p></figure>
   </section>`;
 }
 
@@ -43,36 +39,6 @@ export function residentGuide(base: string) {
 export function bindTowerWelcome(root: HTMLElement, base: string) {
   const panorama = root.querySelector<HTMLElement>('[data-tower-panorama]');
   if (!panorama) return;
-  const image = panorama.querySelector<HTMLImageElement>('img')!;
-  const status = panorama.querySelector<HTMLElement>('[role=status]')!;
-  let selection = 0;
-  panorama.querySelectorAll<HTMLButtonElement>('[data-tower-scene]').forEach(button=>button.addEventListener('click',async()=>{
-    const scene = button.dataset.towerScene as Scene;
-    const current = ++selection;
-    if (panorama.dataset.scene === scene) { status.textContent = ''; return; }
-    status.textContent = `正在換成${scenes[scene].label}…`;
-    try {
-      const next = new Image();
-      // Load events also complete in background tabs, where decode can await a frame.
-      await new Promise<void>((resolve,reject)=>{
-        const finish = (error?: Error) => {
-          clearTimeout(timer); next.onload=null; next.onerror=null;
-          if (error) reject(error); else resolve();
-        };
-        const timer = setTimeout(()=>finish(new Error('image_load_timeout')),15000);
-        next.onload=()=>finish(); next.onerror=()=>finish(new Error('image_load_failed'));
-        next.src=`${base}/tower/muse-tower-${scene}-v2.webp`;
-        if(next.complete && next.naturalWidth>0) finish();
-      });
-      if (current !== selection || !panorama.isConnected) return;
-      image.src = next.src; image.alt = scenes[scene].alt; panorama.dataset.scene = scene;
-      panorama.querySelector('[data-scene-caption]')!.textContent = `Muse Tower 外觀想像 · ${scenes[scene].label}`;
-      panorama.querySelectorAll<HTMLButtonElement>('[data-tower-scene]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
-      status.textContent = `已切換為${scenes[scene].label}。`;
-      try { localStorage.setItem(storageKey,scene); } catch { /* Scene selection works without storage. */ }
-    } catch {
-      if (current === selection && panorama.isConnected) status.textContent = '景色暫時無法載入，請再試一次。';
-    }
-  }));
+  void bindTowerAppearance(root,base);
   if (['#resident-guide','#community-covenant'].includes(location.hash)) root.querySelector(location.hash)?.scrollIntoView({behavior:'instant'});
 }

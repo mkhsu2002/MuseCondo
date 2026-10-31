@@ -16,13 +16,17 @@ import {databaseJournal} from './meta-home.ts';
 import {createFrameworkHomeGenerator} from '../framework/generator.ts';
 import {createTowerIntake} from './tower-intake.ts';
 import {createTowerManager,MANAGER_MODEL} from './tower-manager.ts';
+import {createManagerRoutes} from './tower-manager-routes.ts';
+import {createAutonomyRoutes,type ManagerRuntimeBinding} from './tower-autonomy-routes.ts';
+import type {AssetBucket} from './tower-autonomy.ts';
 import type {Database} from './db.ts';
 export interface PagesBindings {
  IDENTITY_CARDS?:IdentityCardNamespace;
+ MANAGER_ASSETS?:AssetBucket;MANAGER_RUNTIME?:ManagerRuntimeBinding;
  DB?:Database;ASSETS?:{fetch(request:Request):Promise<Response>};PUBLIC_ORIGIN?:string;
  REGISTRATION_ENABLED?:string;META_PAID_CALLS_APPROVED?:string;meta_muse_api?:string;
  IDENTITY_MAIL_DELIVERY_ENABLED?:string; IDENTITY_CONTACT_KEY?:string;IDENTITY_MAIL_API_KEY?:string;IDENTITY_MAIL_FROM?:string;
- TOWER_SOURCE_ORIGINS?:string;TOWER_OPERATOR_KEY?:string;LEGACY_HOME_REDIRECTS?:string;
+ TOWER_SOURCE_ORIGINS?:string;TOWER_OPERATOR_KEY?:string;MANAGER_SCHEDULE_TRIGGER_KEY?:string;LEGACY_HOME_REDIRECTS?:string;
  META_MANAGER_APPROVED?:string;META_MANAGER_BUDGET_MICRO?:string;META_MANAGER_DAILY_MICRO?:string;META_MANAGER_MONTHLY_MICRO?:string;
 }
 export interface RuntimeContext {waitUntil(promise:Promise<unknown>):void}
@@ -52,6 +56,9 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   }catch{return json({available:false,error:'database_unavailable',runtime:safe},503);}
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
   const mailControlResponse=await createIdentityMailControl({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request);if(mailControlResponse)return mailControlResponse;
+  const scheduled=async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!request.headers.get('X-Manager-Schedule-Key')&&await digest(request.headers.get('X-Manager-Schedule-Key')!)===await digest(env.MANAGER_SCHEDULE_TRIGGER_KEY);
+  const autonomyRoute=await createAutonomyRoutes({db,origin:env.PUBLIC_ORIGIN!,operator,scheduled,bucket:env.MANAGER_ASSETS,runtime:env.MANAGER_RUNTIME,trigger:env.MANAGER_SCHEDULE_TRIGGER_KEY,apiKey:env.meta_muse_api,assets:env.ASSETS}).fetch(request);if(autonomyRoute)return autonomyRoute;
+  const managerRoute=await createManagerRoutes({db,bucket:env.MANAGER_ASSETS,origin:env.PUBLIC_ORIGIN!,operator,scheduleAuthorized:async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!request.headers.get('X-Manager-Schedule-Key')&&await digest(request.headers.get('X-Manager-Schedule-Key')!)===await digest(env.MANAGER_SCHEDULE_TRIGGER_KEY)}).fetch(request);if(managerRoute)return managerRoute;
   if(url.pathname==='/api/v1/operator/identity/mail-readiness')return (await createIdentityMailReadiness({db,origin:env.PUBLIC_ORIGIN!,from:env.IDENTITY_MAIL_FROM,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request))!;
   const admissionResponse=await createTowerAdmission({db,origin:env.PUBLIC_ORIGIN!,operator}).fetch(request);if(admissionResponse)return admissionResponse;
   const generator=metaSecretConfigured&&paidCallsApproved?createFrameworkHomeGenerator({apiKey:env.meta_muse_api,approvedPaidCalls:true,textModel:MANAGER_MODEL,journal:databaseJournal(db)}):undefined;
