@@ -123,7 +123,7 @@ import type {Database,Statement} from '../server/live/db.ts';
 test('awaiting either count reservation or paid reservation across midnight closes unsent receipt without HTTP or rekey',async()=>{
  for(const seam of ['count-reservation','paid-reservation']){
  const db=database();let time=new Date('2026-10-31T06:59:59.990Z'),crossed=false,counts=0,paid=0;const prepare=db.prepare.bind(db);
- const wrappedDb:Database={prepare(sql:string){const wrap=(statement:Statement):Statement=>Object.assign({bind(...values:unknown[]){return wrap(statement.bind(...values));},first<T>(){return statement.first<T>();},all<T>(){return statement.all<T>();},async run(){const result=await statement.run();if(!crossed&&(seam==='paid-reservation'?sql.includes('ON CONFLICT(step_key) DO NOTHING'):sql.includes("VALUES(?,?,?,?,?,'dispatching',0,?,?)"))){crossed=true;time=new Date('2026-10-31T07:00:00.010Z');}return result;}},{rawStatement:statement});return wrap(prepare(sql));},batch:statements=>db.batch(statements.map(statement=>(statement as Statement&{rawStatement?:Statement}).rawStatement??statement))};
+ const wrappedDb:Database={prepare(sql:string){const wrap=(statement:Statement):Statement=>Object.assign({bind(...values:unknown[]){return wrap(statement.bind(...values));},first<T>(){return statement.first<T>();},all<T>(){return statement.all<T>();},async run(){const result=await statement.run();if(!crossed&&(seam==='paid-reservation'?sql.includes('ON CONFLICT(step_key) DO NOTHING'):sql.includes("SELECT ?,?,?,?,?,'dispatching',0,?,?"))){crossed=true;time=new Date('2026-10-31T07:00:00.010Z');}return result;}},{rawStatement:statement});return wrap(prepare(sql));},batch:statements=>db.batch(statements.map(statement=>(statement as Statement&{rawStatement?:Statement}).rawStatement??statement))};
  try{const transport:typeof fetch=async(url)=>{if(String(url).endsWith('/input_tokens')){counts++;return Response.json({input_tokens:120});}paid++;return textResponse({...appearancePlan,kind:'noop',budgetMicro:1000000});};const manager=createManagerAutonomy({db:wrappedDb,now:()=>time,bucket,apiKey:'synthetic',transport,wake:async()=>{}});await manager.enable();const result=await manager.step();assert.equal(result.state,'selfreview');assert.equal(paid,0);assert.equal(counts,seam==='count-reservation'?0:1);
  const unsent=db.sqlite.prepare("SELECT * FROM tower_autonomy_calls WHERE state='rejected'").get()!;assert.ok(unsent);assert.equal(unsent.actual_micro,0);assert.equal(unsent.billing_day,'2026-10-30');assert.equal(db.sqlite.prepare('SELECT error_code FROM tower_autonomy_cycles').get()!.error_code,'missed_daily_thinking');assert.equal(db.sqlite.prepare('SELECT count(*) n FROM tower_autonomy_task_anchors').get()!.n,0);assert.equal(db.sqlite.prepare("SELECT count(*) n FROM tower_autonomy_events WHERE kind='unsent-dispatch-day-changed'").get()!.n,1);
  }finally{db.close();}}
@@ -185,10 +185,77 @@ test('native plan authorization rechecks committed spend inside the same transac
 test('private planner receives complete task budget ranges; stated minima cover worst-case thought and lower plans remain blocked',async()=>{
  for(const kind of ['appearance','health','noop'] as const)for(const sufficient of [true,false]){
  const db=database(),minimum=kind==='appearance'?2000000:600000;let supplied:Record<string,unknown>|undefined;try{
- const transport:typeof fetch=async(url,init)=>{if(String(url).endsWith('/input_tokens'))return Response.json({input_tokens:128000});const payload=JSON.parse(String(init?.body));supplied=JSON.parse(String(payload.input));assert.match(String(payload.instructions),/planningBudget\.minimumMicro/);assert.match(String(payload.instructions),/not.*charge/i);const response=await textResponse({...appearancePlan,kind,budgetMicro:sufficient?minimum:kind==='appearance'?1000000:100000}).json();response.usage={input_tokens:128000,output_tokens:2400};return Response.json(response);};
+ const transport:typeof fetch=async(url,init)=>{if(String(url).endsWith('/input_tokens'))return Response.json({input_tokens:128000});const payload=JSON.parse(String(init?.body));supplied=JSON.parse(String(payload.input));assert.match(String(payload.instructions),/planningBudget\.minimumMicro/);assert.match(String(payload.instructions),/not.*charge/i);const response=await textResponse({...appearancePlan,kind,budgetMicro:sufficient?minimum:kind==='appearance'?1000000:100000}).json();response.usage={input_tokens:128000,output_tokens:8192};return Response.json(response);};
  const manager=createManagerAutonomy({db,now:kind==='appearance'?clock:()=>new Date('2026-10-30T19:00:00Z'),bucket,apiKey:'synthetic',transport,wake:async()=>{},assetFetch:async()=>new Response(new Uint8Array(200))});await manager.enable();const result=await manager.step();assert.deepEqual(supplied!.planningBudget,{minimumMicro:{appearance:2000000,health:600000,noop:600000},maximumMicro:10000000,currency:'microUSD'});assert.equal(result.state,sufficient?kind==='appearance'?'execute':'verify':'selfreview');assert.equal(db.sqlite.prepare('SELECT count(*) n FROM tower_autonomy_authorizations').get()!.n,sufficient?1:0);if(sufficient)assert.equal(db.sqlite.prepare('SELECT budget_micro FROM tower_autonomy_cycles').get()!.budget_micro,minimum);
  }finally{db.close();}}
 });
 test('operator API cannot raise the standing cap through planning budget fields',async()=>{
  const db=database();try{const routes=createAutonomyRoutes({db,origin:'https://tower.example',operator:async()=>true,scheduled:async()=>false});for(const extra of [{budgetMicro:20000000},{planningBudget:{maximumMicro:20000000}},{task_limit_micro:20000000}]){const response=await routes.fetch(new Request('https://tower.example/api/v1/operator/manager/autonomy',{method:'POST',body:JSON.stringify({action:'enable',...extra})}));assert.equal(response!.status,400);}assert.equal(db.sqlite.prepare('SELECT task_limit_micro FROM tower_autonomy_mandate').get()!.task_limit_micro,10000000);assert.equal(db.sqlite.prepare('SELECT daily_limit_micro FROM tower_autonomy_mandate').get()!.daily_limit_micro,10000000);}finally{db.close();}
+});
+
+async function blockedAuditFixture(mode:'known'|'legacy'='known',options:{repeatIncomplete?:boolean;resumedFail?:boolean}={}){
+ const db=database(),storage=memoryBucket(),provider=syntheticProvider();let time=clock(),audits=0;
+ const transport:typeof fetch=async(url,init)=>{const payload=JSON.parse(String(init?.body));if(!String(url).endsWith('/input_tokens')&&String(payload.instructions).includes('You are an independent TaskAudit reviewer')){
+  audits++;assert.equal(payload.max_output_tokens,8192);
+  if(mode==='known'&&(audits===1||options.repeatIncomplete))return Response.json({id:crypto.randomUUID(),model:'muse-spark-1.3',status:'incomplete',incomplete_details:{reason:'max_output_tokens',private:'DO_NOT_SAVE_RAW_PROVIDER'},max_output_tokens:8192,usage:{input_tokens:120,output_tokens:8192,output_tokens_details:{reasoning_tokens:8192}},output:[{type:'message',content:[{type:'output_text',text:'DO_NOT_SAVE_RAW_PROVIDER'}]}]});
+  return textResponse({verdict:options.resumedFail?'FAIL':'PASS',reason:'Fresh audit of preserved actual pair',dayPrompt:'Do not regenerate',nightPrompt:'Do not regenerate'});
+ }return provider.transport(url,init);};
+ const make=(database:Database=db)=>createManagerAutonomy({db:database,now:()=>time,bucket:storage,apiKey:'synthetic',transport,wake:async()=>{},assetFetch:async()=>new Response(new Uint8Array(200))});
+ const manager=make();await manager.enable();for(let i=0;i<6;i++)await manager.step();
+ if(mode==='legacy'){
+  const at=time.toISOString();db.sqlite.prepare("INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,billing_day,state,reserved_micro,created_at) VALUES('legacy-cap-audit','manager-2026-10-31','manager-2026-10-31:6:independent-task-audit','independent-task-audit','muse-spark-1.3','2026-10-31','dispatching',24924,?)").run(at);
+  db.sqlite.prepare("UPDATE tower_autonomy_calls SET state='received',actual_micro=24225,input_tokens=11220,output_tokens=2400,provider_id='legacy-known-response',completed_at=? WHERE id='legacy-cap-audit'").run(at);
+  db.sqlite.exec("UPDATE tower_autonomy_cycles SET state='selfreview',outcome='blocked',error_code='provider_contract',step_seq=7,lease_until=NULL");
+ }else await manager.step();
+ await manager.step();assert.equal(db.sqlite.prepare('SELECT state FROM tower_autonomy_cycles').get()!.state,'blocked');
+ return {db,storage,provider,manager,make,move:(value:Date)=>{time=value;},get audits(){return audits;}};
+}
+
+test('known received incomplete retains actual billing and safe contract metadata; concurrent wake resumes audit once over original pair',async()=>{
+ const fixture=await blockedAuditFixture();const {db,storage,provider,manager}=fixture;try{
+ const original=db.sqlite.prepare("SELECT * FROM tower_autonomy_calls WHERE purpose='independent-task-audit'").get()!;assert.equal(original.state,'received');assert.equal(original.actual_micro,34966);assert.equal(original.output_tokens,8192);
+ const metadata=JSON.parse(String(db.sqlite.prepare("SELECT detail_json FROM tower_autonomy_events WHERE kind='provider-response-contract' AND json_extract(detail_json,'$.purpose')='independent-task-audit'").get()!.detail_json));assert.equal(metadata.status,'incomplete');assert.equal(metadata.model,'muse-spark-1.3');assert.equal(metadata.incompleteReason,'max_output_tokens');assert.equal(metadata.reasoningTokens,8192);assert.doesNotMatch(JSON.stringify(await manager.inspect()),/DO_NOT_SAVE_RAW_PROVIDER/);
+ const hashes=[...storage.data.values()].map(bytes=>Buffer.from(bytes).toString('base64'));await manager.enable();await Promise.all([manager.step(),manager.step(),manager.step()]);for(let i=0;i<6;i++)await manager.step();
+ const row=db.sqlite.prepare('SELECT * FROM tower_autonomy_cycles').get()!;assert.equal(row.state,'complete');assert.equal(row.repair,0);assert.equal(row.budget_micro,appearancePlan.budgetMicro);assert.equal(row.id,'manager-2026-10-31');assert.equal(provider.images,2);assert.equal(storage.data.size,2);assert.deepEqual([...storage.data.values()].map(bytes=>Buffer.from(bytes).toString('base64')),hashes);assert.equal(fixture.audits,2);assert.equal(db.sqlite.prepare("SELECT count(*) n FROM tower_autonomy_events WHERE kind='audit-output-cap-resumed'").get()!.n,1);assert.deepEqual(db.sqlite.prepare('SELECT * FROM tower_autonomy_calls WHERE id=?').get(original.id),original);assert.equal(db.sqlite.prepare('SELECT count(*) n FROM tower_autonomy_authorizations').get()!.n,1);assert.equal(db.sqlite.prepare('SELECT count(*) n FROM tower_autonomy_task_anchors').get()!.n,1);assert.equal(db.sqlite.prepare("SELECT count(*) n FROM tower_autonomy_calls WHERE purpose='daily-selfreview'").get()!.n,2);assert.equal(db.sqlite.prepare('SELECT count(*) n FROM tower_autonomy_cycles').get()!.n,1);assert.ok(await manager.publicState());
+ }finally{db.close();}
+});
+
+test('the exact legacy 2400-cap settled case resumes without pretending its missing status was observed',async()=>{
+ const fixture=await blockedAuditFixture('legacy');const {db,manager,provider}=fixture;try{const old=db.sqlite.prepare("SELECT * FROM tower_autonomy_calls WHERE id='legacy-cap-audit'").get();for(let i=0;i<6;i++)await manager.step();assert.equal(db.sqlite.prepare('SELECT state FROM tower_autonomy_cycles').get()!.state,'complete');assert.equal(provider.images,2);assert.deepEqual(db.sqlite.prepare("SELECT * FROM tower_autonomy_calls WHERE id='legacy-cap-audit'").get(),old);const detail=JSON.parse(String(db.sqlite.prepare("SELECT detail_json FROM tower_autonomy_events WHERE kind='audit-output-cap-resumed'").get()!.detail_json));assert.equal(detail.source,'legacy-cap-reached-inferred');assert.equal(detail.sourceAuditCallId,'legacy-cap-audit');assert.equal(detail.generation,'manager-2026-10-31-r0');}finally{db.close();}
+});
+
+test('resumed audit can never repair images or reopen a second time, including another known incomplete',async()=>{
+ for(const scenario of ['FAIL','incomplete']){const fixture=await blockedAuditFixture('known',{resumedFail:scenario==='FAIL',repeatIncomplete:scenario==='incomplete'});const {db,manager,provider}=fixture;try{for(let i=0;i<8;i++)await manager.step();assert.equal(db.sqlite.prepare('SELECT state FROM tower_autonomy_cycles').get()!.state,'blocked');assert.equal(db.sqlite.prepare('SELECT repair FROM tower_autonomy_cycles').get()!.repair,0);assert.equal(provider.images,2);assert.equal(fixture.audits,2);assert.equal(await manager.publicState(),null);assert.equal(db.sqlite.prepare("SELECT count(*) n FROM tower_autonomy_events WHERE kind='audit-output-cap-resumed'").get()!.n,1);}finally{db.close();}}
+});
+
+test('unknown, PASS, expiry, mandate, insufficient task/daily room, prior receipt and altered legacy case never mint resume receipt',async()=>{
+ for(const scenario of ['unknown','dispatching','PASS','expiry','disabled','task-budget','daily-budget','already-resumed','legacy-mismatch','artifact-mismatch']){
+ const fixture=await blockedAuditFixture(scenario==='legacy-mismatch'?'legacy':'known');const {db,manager}=fixture;try{
+ if(scenario==='unknown'||scenario==='dispatching')db.sqlite.prepare("INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,billing_day,state,reserved_micro,created_at) VALUES('unresolved','manager-2026-10-31','unresolved','diagnostic','muse-spark-1.3','2026-10-31',?,1,?)").run(scenario,clock().toISOString());
+ if(scenario==='PASS')db.sqlite.exec('UPDATE tower_autonomy_cycles SET audit_json=\'{"verdict":"PASS"}\'');
+ if(scenario==='expiry')fixture.move(new Date('2026-11-01T07:00:00.010Z'));
+ if(scenario==='disabled')await manager.disable();
+ if(scenario==='task-budget')db.sqlite.prepare("INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,billing_day,state,reserved_micro,created_at) VALUES('consume-room','manager-2026-10-31','consume-room','diagnostic','muse-spark-1.3','2026-10-31','dispatching',2800000,?)").run(clock().toISOString());
+ if(scenario==='task-budget')db.sqlite.exec("UPDATE tower_autonomy_calls SET state='received',actual_micro=2800000,completed_at='2026-10-31T19:00:00.000Z' WHERE id='consume-room'");
+ if(scenario==='daily-budget')db.sqlite.exec('UPDATE tower_autonomy_mandate SET daily_limit_micro=100000');
+ if(scenario==='already-resumed')db.sqlite.prepare("INSERT INTO tower_autonomy_events VALUES('audit-output-cap-resume:manager-2026-10-31:r0','manager-2026-10-31','audit-output-cap-resumed','{}',?)").run(clock().toISOString());
+ if(scenario==='legacy-mismatch')db.sqlite.exec('UPDATE tower_autonomy_cycles SET step_seq=9');
+ if(scenario==='artifact-mismatch')fixture.storage.data.set([...fixture.storage.data.keys()][0],new Uint8Array([0]));
+ await manager.step();assert.equal(db.sqlite.prepare("SELECT state FROM tower_autonomy_cycles WHERE id='manager-2026-10-31'").get()!.state,'blocked',scenario);assert.equal(db.sqlite.prepare("SELECT count(*) n FROM tower_autonomy_events WHERE kind='audit-output-cap-resumed'").get()!.n,scenario==='already-resumed'?1:0,scenario);assert.equal(fixture.audits,scenario==='legacy-mismatch'?0:1,scenario);assert.equal(fixture.provider.images,2,scenario);
+ }finally{db.close();}}
+});
+
+test('native resume state, receipt and audit transaction rolls back on expiry at every SQL boundary and revoked mandate after R2 read',async()=>{
+ for(const boundary of ['state','claim','receipt','state-audit','final','mandate']){
+ const fixture=await blockedAuditFixture();const {db}=fixture;let injected=false;
+ const wrappedDb:Database={prepare:sql=>db.prepare(sql),async batch(statements){const initial=String((statements[0] as Statement&{sql?:string}).sql);if(!injected&&initial.includes('UPDATE tower_autonomy_cycles AS c')){
+  injected=true;if(boundary==='mandate')db.sqlite.exec('UPDATE tower_autonomy_mandate SET enabled=0');
+  else{const index=['state','claim','receipt','state-audit','final'].indexOf(boundary);const target=String((statements[index] as Statement&{sql?:string}).sql);db.sqlite.function('synthetic_expire_resume',()=>{fixture.move(new Date('2026-11-01T07:00:00.010Z'));return 1;});
+   if(index===0)db.sqlite.exec("CREATE TRIGGER synthetic_resume_boundary BEFORE UPDATE ON tower_autonomy_cycles WHEN NEW.state='audit' AND OLD.state='blocked' BEGIN SELECT synthetic_expire_resume(); END");
+   else if(index===2||index===3)db.sqlite.exec(`CREATE TRIGGER synthetic_resume_boundary BEFORE INSERT ON tower_autonomy_events WHEN NEW.kind='${index===2?'audit-output-cap-resumed':'state-transition'}' BEGIN SELECT synthetic_expire_resume(); END`);
+   else{statements[index]=db.prepare(`SELECT synthetic_expire_resume(),(${target})`).bind(...((statements[index] as Statement&{values?:unknown[]}).values??[]));}
+  }
+ }return db.batch(statements);}};
+ try{await fixture.make(wrappedDb).step();assert.equal(injected,true,boundary);assert.equal(db.sqlite.prepare("SELECT state FROM tower_autonomy_cycles WHERE id='manager-2026-10-31'").get()!.state,'blocked',boundary);assert.equal(db.sqlite.prepare("SELECT count(*) n FROM tower_autonomy_events WHERE kind='audit-output-cap-resumed'").get()!.n,0,boundary);assert.equal(fixture.provider.images,2);}finally{db.close();}
+ }
 });

@@ -26,7 +26,7 @@ M03 的「Codex 預製 Halloween SVG/CSS、operator 手動 activate 即交付」
 
 新增不可變 `tower_autonomy_authorizations` 記錄 task kind／原day／budget／granted seq／固定tool window／calendar policy。初始 thinking→execute或verify、完整預算餘量、authorization、appearance anchor、weekly/monthly review與state/action audit，全部在同一筆D1 guarded batch；移除先讀spent再await寫anchor的分段授權。每個關鍵SQL write與最後native check都重驗D1當地日、提交timestamp、有效lease/seq與mandate；任何statement邊界跨午夜、撤權或過期都rollback，不能留下partial anchor／authority。後續進execute、image-day/night、activate，以及executor count／付費tool／image claim，也由native guard要求同一immutable authority、原anchor與有效window。HTTP前保留最後同步日期／tool-window gate；過期的reference read不會引發生圖。狀態變更與transition audit、mandate enable/disable與其audit也各自原子提交。
 
-每一次 Meta HTTP（含 input token count、獨立 TaskAudit、每日反省）先有永久 dispatch 記錄與 step key；Spark 先呼叫官方 input token count，拒絕超出 128,000 input，再按 Standard $1.25/M input、$4.25/M output 與 max output 2,400 保留費用；圖每張固定 $0.01。usage／provider id 確認後結帳。網路中斷、5xx、redirect、無法確認 usage 均保留原 reservation，不盲重試、不換 key。原生 lease 到期而尚在 dispatch 的 call 轉 unknown；不能再次送付費請求。HTTP 4xx 明確拒絕不視為完成。免費 count 與 paid request 都會在 await D1 claim 完成、body 預先序列化之後、真正 HTTP 前最後同步檢查當地日；若期間跨午夜，尚未送出的 receipt 明確記 rejected／actual0 並寫私密 audit。daily-thinking 轉 missed/selfreview；其他階段也 fail closed 轉原任務反省，本版不重 key 補送。已送出的 unknown 永遠保留 reservation，不與這種「確知未送出」混淆。
+每一次 Meta HTTP（含 input token count、獨立 TaskAudit、每日反省）先有永久 dispatch 記錄與 step key；Spark 先呼叫官方 input token count，拒絕超出 128,000 input，再按 Standard $1.25/M input、$4.25/M output 與 max output 8,192 保留費用；圖每張固定 $0.01。usage／provider id 確認後結帳。網路中斷、5xx、redirect、無法確認 usage 均保留原 reservation，不盲重試、不換 key。原生 lease 到期而尚在 dispatch 的 call 轉 unknown；不能再次送付費請求。HTTP 4xx 明確拒絕不視為完成。免費 count 與 paid request 都會在 await D1 claim 完成、body 預先序列化之後、真正 HTTP 前最後同步檢查當地日；若期間跨午夜，尚未送出的 receipt 明確記 rejected／actual0 並寫私密 audit。daily-thinking 轉 missed/selfreview；其他階段也 fail closed 轉原任務反省，本版不重 key 補送。已送出的 unknown 永遠保留 reservation，不與這種「確知未送出」混淆。
 
 所有provider PNG先沿用框架 `sanitizePublicPNG`：移除tEXt／iTXt／zTXt／eXIf及其他非必要ancillary metadata，重編碼scanlines清除zlib trailing bytes並保留像素。R2、公開hash與visionaudit只接收sanitizedbytes；rawprovider圖不持久化於公開storage。嚴格runtime拒絕非法trailing stream時直接blocked，不把raw當fallback。
 
@@ -74,3 +74,14 @@ TaskAudit FAIL 可在同一原任務最多修一次；重新執行工具、驗�
 測試亦使用帶private prompt/model/producer標記的PNG ancillary與compressed-trailing反例；公開R2／asset bytes與visionaudit無標記，sanitized像素與原圖逐像素一致；無法合法解壓的輸入在公開持久化前failclosed。框架共享constraint僅使用通用private resident content，不含真居民姓名。公開alt只描述日夜景，不含provider metadata。
 
 原生午夜seam測試使用隔離的synthetic native clock table使D1時鐘與應用時鐘在await處一起前進；正式Pages／原生正向D1+R2 proof仍使用真native clock，沒有可供正式請求指定時間或跳過guard的API。測試DB adapter會保留／unwrap真prepared statement後交給D1 batch，不能用foreign wrapper statement冒充原子驗證。
+
+
+## 已結算審核輸出上限的一次性續跑（2026-10-31）
+
+官方 [Reasoning](https://dev.meta.ai/docs/reasoning) 與 [Responses](https://dev.meta.ai/docs/protocols/responses) 此輪重讀：output cap 同時計入推理及可見答案，因此提高至8192；最壞128000 input＋8192 output為194816 microUSD的保留額，既有task／daily US$10與planner最低2M／600k、native授權門檻均不變。回應有合法usage即保存received／實際費用，即使status incomplete也不得改成unknown或零費。私密永久event只保存安全model、status、incomplete_details.reason、request／response cap及token數；不保存raw response／reasoning／錯誤文字。
+
+僅對同一blocked appearance task、原immutable authorization／budget／anchor、r0已實際驗證同pair、已完成失敗反省、原獨立審核received且達已知cap，才允許一次重新審核；unknown／dispatching、已PASS／已有審核結論、過期、撤mandate、預算不足、已有resume receipt都禁止。新回應必須有明確incomplete／max_output_tokens原始metadata。唯一舊版相容案限原2026-10-31 cycle／seq8、原seq6審核、11220／2400 tokens、actual24225／reserve24924、provider_contract且沒有原始metadata；這只代表達舊cap的有界推斷，不能補造原provider status／錯碼。
+
+部署端step先重新讀回同R2 pair，然後以原生clock、lease／seq CAS、mandate、節慶窗、原task與今日daily餘額在同D1 batch更新audit狀態、deterministic ID永久event與state audit，最後再驗原生權限；任一SQL邊界失效整筆rollback，不消耗續跑receipt。原帳本與原失敗反省永久event保留，沒有重設預算／建立cycle／新增schema／生圖。新的audit使用fresh context看原圖與同組R2實際圖，PASS才走既有guard activate及另一次私密selfreview；續跑FAIL或再次incomplete只能blocked／selfreview，不能repair或二次resume。既有enable service wake可喚醒這條部署端恢復路徑，沒有公開／operator任意rollback、改D1或人工PASS入口。
+
+新增本機證據涵蓋known與唯一legacy case、併發wake一次、舊費用不變、images仍兩張／repair0、兩次selfreview、metadata不保存rawtext、unknown／dispatching／PASS／到期／mandate／雙預算／已續跑／legacy不符／R2損毀均不續；原生D1＋R2亦驗兩類cap續跑，全部使用synthetic provider而非真實付費生成。

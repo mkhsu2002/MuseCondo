@@ -23,7 +23,9 @@ interface Options {db:Database;bucket?:AssetBucket;apiKey?:string;transport?:typ
 interface Plan {kind:'noop'|'health'|'appearance';purpose:string;acceptance:string[];budgetMicro:number;permissions:string[];reason:string;dayPrompt:string;nightPrompt:string}
 interface Cycle {id:string;day:string;state:string;outcome:string;error_code:string|null;tool_json:string|null;budget_micro:number;plan_json:string|null;evidence_json:string|null;audit_json:string|null;repair:number;step_seq:number;lease_until:string|null}
 interface Asset {generation_id:string;scene:'day'|'night';object_key:string;sha256:string;width:number;height:number;bytes:number;provider_call_id:string}
-const MODEL='muse-spark-1.3',IMAGE='muse-image-1.0',LIMIT=10_000_000,MAX_INPUT=128000,MAX_OUTPUT=2400;
+const MODEL='muse-spark-1.3',IMAGE='muse-image-1.0',LIMIT=10_000_000,MAX_INPUT=128000,MAX_OUTPUT=8192;
+const MAX_TEXT_RESERVE=Math.ceil((MAX_INPUT*5+MAX_OUTPUT*17)/4);
+const safeContractToken=(value:unknown)=>typeof value==='string'&&/^[A-Za-z0-9_.-]{1,100}$/.test(value)?value:null;
 const constraint='You are the private Muse Tower building manager. Use Traditional Chinese for memories. You have no access to private resident content, credentials, identity changes, payments, messaging or permission changes. Only inspect public aggregate health or edit the two existing exterior reference images. Preserve a single isolated foreground tower with no edge borders, original architecture, framing and day/night lighting. No text, people, claims of residents participating, logos or added buildings. All task planning, prompts, model names, audit and memory remain private. A logical task includes all planning, tools, independent audit and repair within the same immutable US$10 cap. Never split tasks, reset budgets or retry unknown provider outcomes.';
 const digest=async(bytes:Uint8Array)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new Uint8Array(bytes)))).map(v=>v.toString(16).padStart(2,'0')).join('');
 const encode=(bytes:Uint8Array)=>{let result='';for(let i=0;i<bytes.length;i+=16384)result+=String.fromCharCode(...bytes.subarray(i,i+16384));return btoa(result);};
@@ -47,13 +49,17 @@ export function createManagerAutonomy(options:Options){
  async function provider(c:Cycle,purpose:string,payload:Record<string,unknown>,image=false){
   if(!options.apiKey)throw Error('provider_not_configured');
   const stepKey=`${c.id}:${c.step_seq}:${purpose}`,requestBody=JSON.stringify(payload);let counted=0;
+  const appearanceAudit=purpose==='independent-task-audit'&&JSON.parse(c.plan_json??'null')?.kind==='appearance';
+  const auditScope=appearanceAudit?` AND EXISTS(SELECT 1 FROM tower_autonomy_authorizations a JOIN tower_autonomy_cycles c ON c.id=a.cycle_id JOIN tower_autonomy_task_anchors t ON t.cycle_id=c.id WHERE c.id=? AND c.state='audit' AND c.step_seq=? AND c.lease_until=? AND c.lease_until>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND a.kind='appearance' AND a.budget_micro=c.budget_micro AND t.anchor='appearance:halloween:2026' AND a.starts_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND a.ends_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))`:'';
+  const auditArgs=appearanceAudit?[c.id,c.step_seq,c.lease_until]:[];
   if(!image){
    const countId=crypto.randomUUID(),countAt=clock();
-   await run("INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,state,reserved_micro,billing_day,created_at) VALUES(?,?,?,?,?,'dispatching',0,?,?)",countId,c.id,stepKey+':count',purpose+':input-token-count',MODEL,calendarPeriods(countAt).day,countAt.toISOString());
+   const countClaim=await run(`INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,state,reserved_micro,billing_day,created_at) SELECT ?,?,?,?,?,'dispatching',0,?,? WHERE (SELECT enabled FROM tower_autonomy_mandate WHERE id=1)=1${auditScope}`,countId,c.id,stepKey+':count',purpose+':input-token-count',MODEL,calendarPeriods(countAt).day,countAt.toISOString(),...auditArgs);if(!countClaim.meta.changes)throw Error('audit_scope_expired');
    let countFinished=false;
    try{
     const requestInit:RequestInit={method:'POST',redirect:'manual',headers:{Authorization:`Bearer ${options.apiKey}`,'Content-Type':'application/json'},body:requestBody,signal:AbortSignal.timeout(30000)};
     const currentDay=calendarPeriods(clock()).day;
+    if(appearanceAudit&&(clock().toISOString()<HALLOWEEN_2026.startsAt||clock().toISOString()>=HALLOWEEN_2026.endsAt)){await run("UPDATE tower_autonomy_calls SET state='rejected',actual_micro=0,completed_at=? WHERE id=?",clock().toISOString(),countId);countFinished=true;await event(c.id,'unsent-audit-scope-expired',{call:countId,paidDispatched:false});throw Error('audit_scope_expired');}
     if(currentDay!==calendarPeriods(countAt).day){await run("UPDATE tower_autonomy_calls SET state='rejected',actual_micro=0,completed_at=? WHERE id=?",clock().toISOString(),countId);countFinished=true;await event(c.id,'unsent-dispatch-day-changed',{call:countId,purpose:purpose+':input-token-count',billingDay:calendarPeriods(countAt).day,currentDay,paidDispatched:false});throw Error(purpose==='daily-thinking'?'missed_daily_thinking':'dispatch_day_changed');}
     const countResponse=await transport('https://api.meta.ai/v1/responses/input_tokens',requestInit);
     if(!countResponse.ok){await run("UPDATE tower_autonomy_calls SET state='rejected',actual_micro=0,completed_at=? WHERE id=?",clock().toISOString(),countId);countFinished=true;throw Error('token_count_rejected');}
@@ -68,14 +74,14 @@ export function createManagerAutonomy(options:Options){
    (SELECT enabled FROM tower_autonomy_mandate WHERE id=1)=1 AND
    (SELECT COALESCE(SUM(COALESCE(actual_micro,reserved_micro)),0) FROM tower_autonomy_calls WHERE cycle_id=?)+?<=? AND
    (SELECT COALESCE(SUM(COALESCE(a.actual_micro,a.reserved_micro)),0) FROM tower_autonomy_calls a WHERE a.billing_day=?)+?<=(SELECT daily_limit_micro FROM tower_autonomy_mandate WHERE id=1)
-   ON CONFLICT(step_key) DO NOTHING`,call,c.id,stepKey,purpose,image?IMAGE:MODEL,reserve,billingDay,time,c.id,reserve,c.budget_micro,billingDay,reserve);
+   ${auditScope} ON CONFLICT(step_key) DO NOTHING`,call,c.id,stepKey,purpose,image?IMAGE:MODEL,reserve,billingDay,time,c.id,reserve,c.budget_micro,billingDay,reserve,...auditArgs);
   if(!claimed.meta.changes)throw Error('budget_or_dispatch_blocked');
   let confirmed=false;
   try{
    const requestInit:RequestInit={method:'POST',redirect:'manual',headers:{Authorization:`Bearer ${options.apiKey}`,'Content-Type':'application/json'},body:requestBody,signal:AbortSignal.timeout(image?120000:90000)};
    // This is the last synchronous gate after the awaited native claim and serialized body, before HTTP.
    const currentDay=calendarPeriods(clock()).day;
-   const toolExpired=(image||purpose==='tool-executor')&&(clock().toISOString()<HALLOWEEN_2026.startsAt||clock().toISOString()>=HALLOWEEN_2026.endsAt);
+   const toolExpired=(image||purpose==='tool-executor'||appearanceAudit)&&(clock().toISOString()<HALLOWEEN_2026.startsAt||clock().toISOString()>=HALLOWEEN_2026.endsAt);
    if(toolExpired){await run("UPDATE tower_autonomy_calls SET state='rejected',actual_micro=0,completed_at=? WHERE id=?",clock().toISOString(),call);confirmed=true;await event(c.id,'unsent-tool-scope-expired',{call,purpose,paidDispatched:false});throw Error('tool_scope_expired');}
    if(currentDay!==billingDay){await run("UPDATE tower_autonomy_calls SET state='rejected',actual_micro=0,completed_at=? WHERE id=?",clock().toISOString(),call);confirmed=true;await event(c.id,'unsent-dispatch-day-changed',{call,purpose,billingDay,currentDay,paidDispatched:false});throw Error(purpose==='daily-thinking'?'missed_daily_thinking':'dispatch_day_changed');}
    const response=await transport(`https://api.meta.ai/v1/${image?'images/edits':'responses'}`,requestInit);
@@ -85,6 +91,8 @@ export function createManagerAutonomy(options:Options){
    const actual=image?10000:Math.ceil((Number(usage!.input_tokens)*5+Number(usage!.output_tokens)*17)/4);
    const providerId=typeof data.id==='string'?data.id:response.headers.get('x-request-id');
    await run("UPDATE tower_autonomy_calls SET state='received',actual_micro=?,input_tokens=?,output_tokens=?,provider_id=?,completed_at=? WHERE id=?",actual,usage!.input_tokens,usage!.output_tokens,providerId?.slice(0,200)??null,clock().toISOString(),call);confirmed=true;
+   if(!image)await event(c.id,'provider-response-contract',{call,purpose,model:safeContractToken(data.model),status:safeContractToken(data.status),incompleteReason:safeContractToken((data.incomplete_details as {reason?:unknown}|undefined)?.reason),requestedMaxOutputTokens:MAX_OUTPUT,responseMaxOutputTokens:Number.isSafeInteger(data.max_output_tokens)?data.max_output_tokens:null,inputTokens:usage!.input_tokens,outputTokens:usage!.output_tokens,reasoningTokens:Number.isSafeInteger((usage as {output_tokens_details?:{reasoning_tokens?:unknown}})?.output_tokens_details?.reasoning_tokens)?(usage as {output_tokens_details:{reasoning_tokens:number}}).output_tokens_details.reasoning_tokens:null});
+   if(!image&&actual<=reserve&&data.model===MODEL&&data.status==='incomplete'&&(data.incomplete_details as {reason?:unknown}|undefined)?.reason==='max_output_tokens'&&Number(usage!.input_tokens)<=MAX_INPUT&&Number(usage!.output_tokens)===MAX_OUTPUT)throw Error('provider_output_incomplete');
    if(actual>reserve||!image&&(data.model!==MODEL||data.status!=='completed'||Number(usage!.input_tokens)>MAX_INPUT||Number(usage!.output_tokens)>MAX_OUTPUT))throw Error('provider_contract');
    await event(c.id,'provider-received',{call,purpose,actualMicro:actual});return {data,call};
   }catch(error){if(!confirmed)await run("UPDATE tower_autonomy_calls SET state='unknown',completed_at=? WHERE id=?",clock().toISOString(),call);throw error;}
@@ -118,9 +126,48 @@ export function createManagerAutonomy(options:Options){
  async function block(c:Cycle,code:string){await advance(c,c.state==='selfreview'?'blocked':'selfreview',{error_code:code,outcome:'blocked'});}
  const assets=(c:Cycle)=>db.prepare('SELECT * FROM tower_autonomy_assets WHERE generation_id=? ORDER BY scene').bind(`${c.id}-r${c.repair}`).all<Asset>();
  async function readAsset(a:Asset){const object=await options.bucket?.get(a.object_key);if(!object)throw Error('artifact_missing');const bytes=new Uint8Array(await object.arrayBuffer());const size=await validatePNG(bytes);if(bytes.length!==a.bytes||await digest(bytes)!==a.sha256||size.width!==a.width||size.height!==a.height||Math.abs(size.width/size.height-16/9)>0.04||size.width<1200||size.height<675)throw Error('artifact_mismatch');return bytes;}
- async function pending(){return !!await db.prepare("SELECT 1 FROM tower_autonomy_cycles WHERE state NOT IN ('complete','blocked') LIMIT 1").first();}
+ // Reopen only a known, settled audit-cap failure, never an unknown call or a new image task.
+ const resumeId=(id:string)=>`audit-output-cap-resume:${id}:r0`;
+ const nativeResumeScope=`EXISTS(SELECT 1 FROM tower_autonomy_authorizations a JOIN tower_autonomy_task_anchors t ON t.cycle_id=a.cycle_id WHERE a.cycle_id=c.id AND a.kind='appearance' AND a.budget_micro=c.budget_micro AND a.day=c.day AND a.calendar_policy='${MANAGER_CALENDAR_POLICY.id}' AND t.anchor='appearance:halloween:2026' AND a.day=${managerLocalDaySQL('native_now')} AND a.starts_at<=native_now AND a.ends_at>native_now)
+  AND (SELECT enabled FROM tower_autonomy_mandate WHERE id=1)=1
+  AND (SELECT COALESCE(SUM(COALESCE(actual_micro,reserved_micro)),0) FROM tower_autonomy_calls WHERE cycle_id=c.id)+${2*MAX_TEXT_RESERVE}<=c.budget_micro
+  AND (SELECT COALESCE(SUM(COALESCE(actual_micro,reserved_micro)),0) FROM tower_autonomy_calls WHERE billing_day=${managerLocalDaySQL('native_now')})+${2*MAX_TEXT_RESERVE}<=(SELECT daily_limit_micro FROM tower_autonomy_mandate WHERE id=1)
+  AND NOT EXISTS(SELECT 1 FROM tower_autonomy_calls WHERE cycle_id=c.id AND state IN ('unknown','dispatching'))
+  AND c.repair=0 AND c.audit_json IS NULL AND json_extract(c.plan_json,'$.kind')='appearance'
+  AND json_extract(c.evidence_json,'$.verified')=1 AND json_extract(c.evidence_json,'$.generation')=c.id||'-r0'
+  AND EXISTS(SELECT 1 FROM json_each(c.permissions_json) WHERE value='activate-reviewed-exterior')
+  AND EXISTS(SELECT 1 FROM json_each(c.permissions_json) WHERE value='edit-exterior-images')
+  AND NOT EXISTS(SELECT 1 FROM tower_autonomy_current WHERE cycle_id=c.id)
+  AND NOT EXISTS(SELECT 1 FROM tower_autonomy_events WHERE cycle_id=c.id AND kind='task-audit')
+  AND (SELECT count(*) FROM tower_autonomy_assets WHERE cycle_id=c.id)=2
+  AND (SELECT count(*) FROM tower_autonomy_calls WHERE cycle_id=c.id AND model='${IMAGE}')=2
+  AND (SELECT count(*) FROM tower_autonomy_assets s JOIN tower_autonomy_calls p ON p.id=s.provider_call_id WHERE s.cycle_id=c.id AND s.generation_id=c.id||'-r0' AND p.state='received' AND p.model='${IMAGE}' AND p.actual_micro=10000 AND p.purpose='image-'||s.scene||'-r0' AND EXISTS(SELECT 1 FROM json_each(c.evidence_json,'$.assets') e WHERE json_extract(e.value,'$.scene')=s.scene AND json_extract(e.value,'$.sha256')=s.sha256 AND json_extract(e.value,'$.bytes')=s.bytes AND json_extract(e.value,'$.provider_call_id')=s.provider_call_id))=2`;
+ const knownAuditFailure=`(SELECT count(*) FROM tower_autonomy_calls WHERE cycle_id=c.id AND purpose='independent-task-audit')=1 AND EXISTS(SELECT 1 FROM tower_autonomy_calls p WHERE p.cycle_id=c.id AND p.purpose='independent-task-audit' AND p.model='${MODEL}' AND p.state='received' AND p.provider_id IS NOT NULL AND p.actual_micro>0 AND p.actual_micro<=p.reserved_micro AND p.completed_at IS NOT NULL AND (
+  (c.error_code='provider_output_incomplete' AND p.output_tokens=${MAX_OUTPUT} AND EXISTS(SELECT 1 FROM tower_autonomy_events e WHERE e.cycle_id=c.id AND e.kind='provider-response-contract' AND json_extract(e.detail_json,'$.call')=p.id AND json_extract(e.detail_json,'$.model')='${MODEL}' AND json_extract(e.detail_json,'$.status')='incomplete' AND json_extract(e.detail_json,'$.incompleteReason')='max_output_tokens' AND json_extract(e.detail_json,'$.requestedMaxOutputTokens')=${MAX_OUTPUT}))
+  OR (c.id='manager-2026-10-31' AND c.step_seq=8 AND c.error_code='provider_contract' AND p.step_key=c.id||':6:independent-task-audit' AND p.input_tokens=11220 AND p.output_tokens=2400 AND p.actual_micro=24225 AND p.reserved_micro=24924 AND NOT EXISTS(SELECT 1 FROM tower_autonomy_events e WHERE e.cycle_id=c.id AND e.kind='provider-response-contract' AND json_extract(e.detail_json,'$.call')=p.id))
+ ))`;
+ const resumeEligibility=`c.state='blocked' AND c.outcome='blocked' AND c.review_json IS NOT NULL AND (c.lease_until IS NULL OR c.lease_until<=native_now) AND NOT EXISTS(SELECT 1 FROM tower_autonomy_events WHERE id='audit-output-cap-resume:'||c.id||':r0') AND ${nativeResumeScope} AND ${knownAuditFailure}`;
+ const nativeNow="(SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now') native_now)";
+ async function resumeKnownAudit(){
+  if(!options.bucket||!options.assetFetch||!options.apiKey)return false;
+  const c=await db.prepare(`SELECT c.*,(SELECT id FROM tower_autonomy_calls WHERE cycle_id=c.id AND purpose='independent-task-audit') AS resume_source_call FROM tower_autonomy_cycles c,${nativeNow} WHERE ${resumeEligibility} LIMIT 1`).first<Cycle&{resume_source_call:string}>();if(!c)return false;
+  try{
+   const pair=(await assets(c)).results;if(pair.length!==2)return false;for(const asset of pair)await readAsset(asset);
+   const at=clock().toISOString(),id=resumeId(c.id),detail=JSON.stringify({from:'blocked',to:'audit',generation:`${c.id}-r0`,previousError:c.error_code,sourceAuditCallId:c.resume_source_call,budgetMicro:c.budget_micro,source:c.error_code==='provider_contract'?'legacy-cap-reached-inferred':'received-incomplete-max-output',maxOutputTokens:MAX_OUTPUT,attempt:1});
+   await db.batch([
+    db.prepare(`UPDATE tower_autonomy_cycles AS c SET state='audit',outcome='pending',error_code=NULL,step_seq=step_seq+1,lease_until=NULL,updated_at=? WHERE c.id=? AND c.step_seq=? AND EXISTS(SELECT 1 FROM ${nativeNow} WHERE ${resumeEligibility})`).bind(at,c.id,c.step_seq),
+    db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_autonomy_cycles WHERE id=? AND state='audit' AND step_seq=? AND updated_at=?) THEN 1 ELSE json('audit-resume-claim-lost') END").bind(c.id,c.step_seq+1,at),
+    db.prepare('INSERT INTO tower_autonomy_events VALUES(?,?,?,?,?)').bind(id,c.id,'audit-output-cap-resumed',detail,at),
+    db.prepare('INSERT INTO tower_autonomy_events VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),c.id,'state-transition',detail,at),
+    // A clock/mandate/budget change at any SQL boundary rolls back the entire one-time receipt and state.
+    db.prepare(`SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_autonomy_cycles c,${nativeNow} WHERE c.id=? AND c.state='audit' AND c.step_seq=? AND c.updated_at=? AND c.lease_until IS NULL AND EXISTS(SELECT 1 FROM tower_autonomy_events WHERE id=? AND cycle_id=c.id) AND ${nativeResumeScope}) THEN 1 ELSE json('audit-resume-authority-expired') END`).bind(c.id,c.step_seq+1,at,id),
+   ]);return true;
+  }catch{return false;}
+ }
+ async function pending(){return !!await db.prepare(`SELECT 1 FROM tower_autonomy_cycles c,${nativeNow} WHERE c.state NOT IN ('complete','blocked') OR (${resumeEligibility}) LIMIT 1`).first();}
  async function step(){
   if(!(await db.prepare('SELECT enabled FROM tower_autonomy_mandate WHERE id=1').first<{enabled:number}>())?.enabled)return {pending:false,state:'disabled'};
+  if(await resumeKnownAudit())return {pending:true,state:'audit'};
   const now=clock().toISOString(),day=calendarPeriods(clock()).day;
   // A single task per local day, including no-op decisions. Unresolved older paid tasks are never rekeyed.
   await run("INSERT INTO tower_autonomy_cycles(id,day,state,purpose,budget_micro,created_at,updated_at) SELECT ?,?,'thinking','每日自主照顧與今日決策',task_limit_micro,?,? FROM tower_autonomy_mandate WHERE id=1 AND NOT EXISTS(SELECT 1 FROM tower_autonomy_cycles WHERE day=?)",`manager-${day}`,day,now,now,day);
@@ -185,7 +232,7 @@ export function createManagerAutonomy(options:Options){
     if(unfulfilled){audit.providerVerdict=audit.verdict;audit.verdict='FAIL';audit.deterministicGate='standing_obligation_unfulfilled';}
     await event(c.id,'task-audit',audit);
     if(audit.verdict==='PASS')await advance(c,plan.kind==='appearance'?'activate':'selfreview',{audit_json:JSON.stringify(audit)});
-    else if(plan.kind==='appearance'&&c.repair<1&&typeof audit.dayPrompt==='string'&&typeof audit.nightPrompt==='string'&&audit.dayPrompt.length<=4000&&audit.nightPrompt.length<=4000){await advance(c,'execute',{repair:c.repair+1,audit_json:JSON.stringify(audit),plan_json:JSON.stringify({...plan,dayPrompt:audit.dayPrompt,nightPrompt:audit.nightPrompt}),evidence_json:null});}
+    else if(plan.kind==='appearance'&&c.repair<1&&!await db.prepare('SELECT 1 FROM tower_autonomy_events WHERE id=?').bind(resumeId(c.id)).first()&&typeof audit.dayPrompt==='string'&&typeof audit.nightPrompt==='string'&&audit.dayPrompt.length<=4000&&audit.nightPrompt.length<=4000){await advance(c,'execute',{repair:c.repair+1,audit_json:JSON.stringify(audit),plan_json:JSON.stringify({...plan,dayPrompt:audit.dayPrompt,nightPrompt:audit.nightPrompt}),evidence_json:null});}
     else await advance(c,'selfreview',{audit_json:JSON.stringify(audit),error_code:unfulfilled?'standing_obligation_unfulfilled':'task_audit_failed',outcome:'blocked'});
    }else if(c.state==='activate'){
     if(JSON.parse(c.audit_json??'null').verdict!=='PASS'||!JSON.parse(c.evidence_json??'null').verified||clock().toISOString()>=HALLOWEEN_2026.endsAt||clock().toISOString()<HALLOWEEN_2026.startsAt)throw Error('activation_precondition');for(const asset of (await assets(c)).results)await readAsset(asset);
