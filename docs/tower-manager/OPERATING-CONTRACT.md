@@ -10,7 +10,7 @@ M03 的「Codex 預製 Halloween SVG/CSS、operator 手動 activate 即交付」
 
 | 職責 | 可讀 | 可執行 | 限制 |
 | --- | --- | --- | --- |
-| 每日自主照顧 | 當地日曆、公開投影存在／健康、先前私密工作記憶、已阻塞任務的最小摘要 | 每天真正透過 Meta 思考，決定不更動／檢查公開健康／建立受限外觀任務 | 即使沒有新消息仍思考；不讀 Fang 或居民私密內容 |
+| 每日自主照顧 | 當地日曆、公開投影存在／健康、先前私密工作記憶、已阻塞任務的最小摘要 | 每天真正透過 Meta 思考，決定不更動／檢查公開健康／建立受限外觀任務 | 即使沒有新消息仍思考；不讀居民私密內容 |
 | 外觀維護 | 既有 `muse-tower-day-v2.webp`／`night-v2.webp` 原圖 | Meta Spark 生成方案／prompt、原生 function tool、Muse Image 編輯原圖、私密 R2、驗證、獨立 TaskAudit、啟用 D1 pointer | 目前外觀 calendar catalog **僅 Halloween 2026**；不宣稱支援任意節日。保留單一前景、無邊際塔、日夜兩圖；未 PASS 不公開 |
 | 每週整理 | 本週 period key、公開健康、既有私密工作記憶 | 在當週首個每日思考納入週整理判斷並寫永久私密記錄 | 不虛構活動／居民，不發布活動、不聯繫居民 |
 | 每月資源檢視 | 月 period key、lifetime-as-of-run 成本與承諾 | 在月首個每日思考檢視成本與固定權限，保存私密結論 | 不增加權限或預算，不宣稱成本是本月新增 |
@@ -22,9 +22,13 @@ M03 的「Codex 預製 Halloween SVG/CSS、operator 手動 activate 即交付」
 
 `enable standing mandate → daily thinking → execute function tool → image-day → image-night → deterministic verify → function_call_output acknowledgement → independent TaskAudit → activate → independent daily selfreview → complete`。`noop/health` 仍有實際公開健康讀回、獨立 TaskAudit 與另一次每日反省。各模型 context 分開；只有 executor 使用 `store:false` encrypted reasoning replay 完成同一工具迴圈，不把 executor 自稱完成當獨立審核。
 
-任務在每日思考中自定目的、驗收、預算與受限 permissions。每日最多一個邏輯任務（每日例行與該日外觀行動共用同一成本戶），總預算不超過 US$10，包含思考、executor、圖、審核、一次修復、反省；模型只能降低計畫預算，不能提升部署上限。計畫完成前檢查足以涵蓋後續有界階段的保留空間。每日 aggregate 另限制 US$10，DB 永久限制 task 數一筆，repair 沿用原 cycle／budget。task 的 day 是任務歸屬，不作付費日：所有 token count／paid call 另存不可變 `billing_day`，按每次真正 dispatch 的 Vancouver 當地日累計；跨午夜的舊 task audit／反省使用今日 daily cap，同時仍計入原 task cap。DB 從不可變 created_at 依版本化 `bc-pct-2026-10-30` 政策精算 Vancouver 當地日：2026-03-08T10:00Z 起固定 UTC−7，11月不回撥；更早的2007–2025歷史日期才用當時的季節邊界。拒絕錯日、超出原生 UTC36小時容差或任一預算超限的 reservation。UTC容差只用於資料時間合理性，不代替送出當下的日界檢查。固定 `appearance:halloween:2026` 永久 anchor 防止將同一外觀任務隔日重 key、拆任務或重設預算。
+任務在每日思考中自定目的、驗收、預算與受限 permissions。日曆中的 Halloween duty 是尚未履行的 standing obligation，不是只有 season 名稱或等待人派單：planner、deterministic evidence、獨立 TaskAudit 與 selfreview 都取得明確 due obligation、當前 public pointer／R2讀回與實際 binding blockers。窗內缺少已審核公開pair時，健康正常或空泛noop不算完成；即使模型錯回PASS，deterministic gate仍標FAIL／blocked並保留due。真實資源／權限阻塞也保留due與私密記憶，不假稱節慶已交付。每日最多一個邏輯任務（每日例行與該日外觀行動共用同一成本戶），總預算不超過 US$10，包含思考、executor、圖、審核、一次修復、反省；模型只能降低計畫預算，不能提升部署上限。計畫完成前檢查足以涵蓋後續有界階段的保留空間。每日 aggregate 另限制 US$10，DB 永久限制 task 數一筆，repair 沿用原 cycle／budget。task 的 day 是任務歸屬，不作付費日：所有 token count／paid call 另存不可變 `billing_day`，按每次真正 dispatch 的 Vancouver 當地日累計；跨午夜的舊 task audit／反省使用今日 daily cap，同時仍計入原 task cap。DB 從不可變 created_at 依版本化 `bc-pct-2026-10-30` 政策精算 Vancouver 當地日：2026-03-08T10:00Z 起固定 UTC−7，11月不回撥；更早的2007–2025歷史日期才用當時的季節邊界。拒絕錯日、超出原生 UTC36小時容差或任一預算超限的 reservation。UTC容差只用於資料時間合理性，不代替送出當下的日界檢查；`billing_day` 還必須等於D1原生current-day。舊task可在今日審核／反省，但不能用昨天的created_at與billing_day躲入36小時容差借預算。固定 `appearance:halloween:2026` 永久 anchor 防止將同一外觀任務隔日重 key、拆任務或重設預算。
+
+新增不可變 `tower_autonomy_authorizations` 記錄 task kind／原day／budget／granted seq／固定tool window／calendar policy。初始 thinking→execute或verify、完整預算餘量、authorization、appearance anchor、weekly/monthly review與state/action audit，全部在同一筆D1 guarded batch；移除先讀spent再await寫anchor的分段授權。每個關鍵SQL write與最後native check都重驗D1當地日、提交timestamp、有效lease/seq與mandate；任何statement邊界跨午夜、撤權或過期都rollback，不能留下partial anchor／authority。後續進execute、image-day/night、activate，以及executor count／付費tool／image claim，也由native guard要求同一immutable authority、原anchor與有效window。HTTP前保留最後同步日期／tool-window gate；過期的reference read不會引發生圖。狀態變更與transition audit、mandate enable/disable與其audit也各自原子提交。
 
 每一次 Meta HTTP（含 input token count、獨立 TaskAudit、每日反省）先有永久 dispatch 記錄與 step key；Spark 先呼叫官方 input token count，拒絕超出 128,000 input，再按 Standard $1.25/M input、$4.25/M output 與 max output 2,400 保留費用；圖每張固定 $0.01。usage／provider id 確認後結帳。網路中斷、5xx、redirect、無法確認 usage 均保留原 reservation，不盲重試、不換 key。原生 lease 到期而尚在 dispatch 的 call 轉 unknown；不能再次送付費請求。HTTP 4xx 明確拒絕不視為完成。免費 count 與 paid request 都會在 await D1 claim 完成、body 預先序列化之後、真正 HTTP 前最後同步檢查當地日；若期間跨午夜，尚未送出的 receipt 明確記 rejected／actual0 並寫私密 audit。daily-thinking 轉 missed/selfreview；其他階段也 fail closed 轉原任務反省，本版不重 key 補送。已送出的 unknown 永遠保留 reservation，不與這種「確知未送出」混淆。
+
+所有provider PNG先沿用框架 `sanitizePublicPNG`：移除tEXt／iTXt／zTXt／eXIf及其他非必要ancillary metadata，重編碼scanlines清除zlib trailing bytes並保留像素。R2、公開hash與visionaudit只接收sanitizedbytes；rawprovider圖不持久化於公開storage。嚴格runtime拒絕非法trailing stream時直接blocked，不把raw當fallback。
 
 驗證實際從 **R2 重新讀取**已生成圖：存在、bytes、SHA256、PNG CRC／chunk 順序／解壓 scanline、最低解析度與16:9、day/night 完整且 hash 不同。後續獨立 Spark TaskAudit 使用兩張原圖與兩張 R2 實際讀回圖，做畫面與方案比對；單純模型字串 PASS 不足以 activation。D1 guard 同時驗證 PASS 對應獨立 paid receipt、deterministic evidence generation、兩圖 provider provenance、固定 permission、有效 mandate、native clock／lease、CAS revision；immutable records 阻擋 UPDATE／DELETE／INSERT OR REPLACE。
 
@@ -62,3 +66,11 @@ TaskAudit FAIL 可在同一原任務最多修一次；重新執行工具、驗�
 [BC官方說明](https://www2.gov.bc.ca/gov/content/governments/celebrating-british-columbia/daylight-saving-time) publication2026-10-30、此輪實際重新讀回2026-10-31：March8是最後調鐘，November1不回撥。先前把Vancouver當作持續美國季節切換的假設已取代。`server/live/tower-calendar.ts` 為單一版本化政策，JS不依host tzdata判斷；migration中的SQL編譯式有parity測試，runtime readiness也驗實際trigger包含當前政策式，避免同名舊guard被當成ready。未來政策變更須明確更新版本、migration、原生證據，不能靜默假設。
 
 新測例覆蓋count reservation await／paid reservation await跨午夜，確知未送出的call實際HTTP為0且永久rejected／actual0；舊task audit不重新派送。原生D1實際await seam亦通過。Node、compiledworkerd、D1原生日曆式已對照Nov1／Nov2、冬季00:00–00:59、月底／月首、跨年；並讀回host Intl比較（此輪差異0），但正式邏輯採版本化政策，不依舊tzdata碰運氣。
+
+## 原子行動授權與公開PNG補強（2026-10-31）
+
+新增反例覆蓋initial state／authorization／anchor／action audit／state audit五個SQL邊界跨午夜、提交前撤mandate／lease到期／併發增加reservedspend，全都不留下partial authority或anchor。有效authority在窗後失效，連executor免費count也不派送；await reference讀取跨expiry後不建立image receipt。原生workerd+D1+R2 synthetic整條圖產物→sanitized readback→獨立audit→activate→selfreview通過，另在anchor statement故意abort證明D1 transaction整筆rollback、已付費thinkingreceipt仍保留。只有synthetic provider，沒有實際Meta付費呼叫。
+
+測試亦使用帶private prompt/model/producer標記的PNG ancillary與compressed-trailing反例；公開R2／asset bytes與visionaudit無標記，sanitized像素與原圖逐像素一致；無法合法解壓的輸入在公開持久化前failclosed。框架共享constraint僅使用通用private resident content，不含真居民姓名。公開alt只描述日夜景，不含provider metadata。
+
+原生午夜seam測試使用隔離的synthetic native clock table使D1時鐘與應用時鐘在await處一起前進；正式Pages／原生正向D1+R2 proof仍使用真native clock，沒有可供正式請求指定時間或跳過guard的API。測試DB adapter會保留／unwrap真prepared statement後交給D1 batch，不能用foreign wrapper statement冒充原子驗證。
