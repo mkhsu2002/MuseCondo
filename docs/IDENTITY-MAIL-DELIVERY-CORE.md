@@ -1,8 +1,8 @@
 # I05c1 私有投遞事實核心
 
-2026-10-31 發布現況：本投遞核心與 I05c2 Pages／私有 Worker 管理路由已隨 `a67524a`／v0.75 同步部署 dev／正式；0020–0026 已實際套用，321 個來源 DDL 一致、FK 錯誤 0，資格與最後交易防線均已整合。正式 sender、自己的五事件 webhook 及實際簽章 handler probe 已查驗，並非目前仍 dormant 或未接 router。
+2026-10-31 發布現況：本投遞核心與 I05c2 Pages／私有 Worker 管理路由已隨 `f7e9a965`／v0.76 同步部署 dev／正式；0020–0026 已實際套用，321 個來源 DDL 一致、FK 錯誤 0，資格與最後交易防線均已整合。正式 sender、自己的五事件 webhook 及實際簽章 handler probe 已查驗，並非目前仍 dormant 或未接 router。
 
-19:49–19:50 UTC 的 live mail flag 仍 false；19:52:11 UTC 正式配置已暫存 true，待下一部署生效，dev false。沒有真實郵件發出，provider delivered、附件實際取得及監護／復原真人驗收未完成。真正 Meta 已生成並查驗兩張日夜圖，但 TaskAudit blocked、尚未公開，不完成 I06／T09。最新分界見[整合紀錄](plans/RESIDENT-MANAGER-INTEGRATION.md)，目前管理 API、24 小時 readiness 與恢復流程見[郵件控制](IDENTITY-MAIL-CONTROL.md)。
+歷史：19:49–19:50 UTC 的 live mail flag 仍 false；19:52:11 UTC 正式配置已暫存 true，當時待下一部署生效，dev false。現況：v0.76 已完成雙環境部署，部署快照的寄送旗標為 production=true／dev=false；正式設定已生效。沒有真實郵件發出，provider delivered、附件實際取得及監護／復原真人驗收未完成。真正 Meta 已於 20:02 UTC 在同 cycle／r0 通過獨立 TaskAudit，原日夜兩圖已公開啟用；不以首任務完成替代 I06／T09、真人收件／復原或下一次 cron 實際觸發驗收。最新分界見[整合紀錄](plans/RESIDENT-MANAGER-INTEGRATION.md)，目前管理 API、24 小時 readiness 與恢復流程見[郵件控制](IDENTITY-MAIL-CONTROL.md)。
 
 ## 歷史：c1 dormant core 切片範圍（2026-10-31）
 

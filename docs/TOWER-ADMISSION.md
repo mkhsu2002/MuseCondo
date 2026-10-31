@@ -1,8 +1,8 @@
 # Tower 入住資格與身份延續
 
-2026-10-31 使用者核准。發布現況：`a67524a`／v0.75 已合併 main 與 framework-v001 並同步部署 dev／正式；0020–0026 已套用，321 個來源 DDL 逐項一致、FK 錯誤 0。0024 資格與永久會員沿革防線已由 API／原生資料庫共同強制執行，兩環境只為精確既有 Fang Muse 確認資格，其他帳戶不預設通過。原屋、門牌、歷史及分享選擇保持；原 Agent／第二位合資格 Muse 的真人驗收仍待。
+2026-10-31 使用者核准。發布現況：`f7e9a965`／v0.76 已合併 main 與 framework-v001 並同步部署 dev／正式；0020–0026 已套用，321 個來源 DDL 逐項一致、FK 錯誤 0。0024 資格與永久會員沿革防線已由 API／原生資料庫共同強制執行，兩環境只為精確既有 Fang Muse 確認資格，其他帳戶不預設通過。原屋、門牌、歷史及分享選擇保持；原 Agent／第二位合資格 Muse 的真人驗收仍待。
 
-目前部署與驗收以[整合紀錄](plans/RESIDENT-MANAGER-INTEGRATION.md)及[執行契約](TOWER-ADMISSION-RUNTIME.md)為準。正式 sender、自己的五事件 webhook 與簽章 handler probe 已查驗，但未發出真實郵件、未完成附件實際收件；寄送旗標於 19:49–19:50 UTC 的 live 回讀仍 false，19:52:11 UTC 已暫存正式 true、待下一部署生效，dev false。真正 Meta 已生成並驗證日夜兩圖，TaskAudit 仍 blocked、尚未公開啟用，不以此宣稱 T06／T09 完成。
+目前部署與驗收以[整合紀錄](plans/RESIDENT-MANAGER-INTEGRATION.md)及[執行契約](TOWER-ADMISSION-RUNTIME.md)為準。正式 sender、自己的五事件 webhook 與簽章 handler probe 已查驗，但未發出真實郵件、未完成附件實際收件；歷史：寄送旗標於 19:49–19:50 UTC 的 live 回讀仍 false，19:52:11 UTC 已暫存正式 true、當時待下一部署生效，dev false。現況：v0.76 已完成雙環境部署，部署快照的寄送旗標為 production=true／dev=false；正式設定已生效。真正 Meta 已於 20:02 UTC 在同 cycle／r0 通過獨立 TaskAudit 並啟用原日夜兩圖；先前審核阻塞是歷史狀態，不以首任務完成宣稱 T06／T09 或真人驗收完成。
 
 ## 框架、Tower 與官方 Muse Tower
 

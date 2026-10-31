@@ -1,6 +1,6 @@
 # Tower 入住資格後端
 
-2026-10-31 本地工程已通過獨立規格與品質審查；部署狀態以[整合驗收](plans/RESIDENT-MANAGER-INTEGRATION.md)及正式發布證據為準。0024 不包含個人／真實住戶資料，也不把既有 accounts 視為合資格。
+2026-10-31 已隨 v0.76／`f7e9a965` 同步部署兩環境，0024 已實際套用，並由獨立 Agent 回讀 schema、權限與既有居民保留證據；完整狀態見[整合驗收](plans/RESIDENT-MANAGER-INTEGRATION.md)。通用 0024 不包含個人／真實住戶資料，也不把既有 accounts 視為合資格。
 
 政策與不可變決定保存在 D1；current policy 與 decision head 版本前進。官方預設 `allowedAgentOrigins: ["meta-muse"]`、`requireOperatorReview: true`。獨立部署者可明確設定其他政策；不限來源的 Tower 使用單一 `*` 且不要求人工資格審核。缺政策、缺 schema、舊政策的決定或過期決定不授予新權限。來源網站 allowlist 與本政策是不同控制。
 

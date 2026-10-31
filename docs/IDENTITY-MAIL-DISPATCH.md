@@ -1,8 +1,8 @@
 # I05b2a 私有 dispatch 與串流核心
 
-2026-10-31 發布現況：I05b 串流派送、exact-event 接線及 I05c 投遞／管理控制已隨 `a67524a`／v0.75 同步部署 dev／正式；0020–0026 已套用，321 個來源 DDL 一致、FK 錯誤 0，私有 Worker bytes 與發布 bundle 已回讀。資格防線與寄送前的 sender／handler／最後交易 guard 已接入，不能以本頁早期 b2 切片描述推定目前仍缺 readiness。
+2026-10-31 發布現況：I05b 串流派送、exact-event 接線及 I05c 投遞／管理控制已隨 `f7e9a965`／v0.76 同步部署 dev／正式；0020–0026 已套用，321 個來源 DDL 一致、FK 錯誤 0，私有 Worker bytes 與發布 bundle 已回讀。資格防線與寄送前的 sender／handler／最後交易 guard 已接入，不能以本頁早期 b2 切片描述推定目前仍缺 readiness。
 
-正式 sender、自己的五事件 webhook 與實際簽章 handler probe 已查驗；19:49–19:50 UTC live mail flag 仍 false，19:52:11 UTC 正式配置已暫存 true、待下一部署生效，dev false。沒有真實郵件發出，provider 投遞及附件實際收件未驗收。真正 Meta 兩張日夜圖已生成及查驗，但 TaskAudit blocked、未公開啟用，原 Agent／真人身份驗收與 T09 仍待。最新整合分界見[整合紀錄](plans/RESIDENT-MANAGER-INTEGRATION.md)，現行寄送與恢復門檻見[郵件控制](IDENTITY-MAIL-CONTROL.md)。
+正式 sender、自己的五事件 webhook 與實際簽章 handler probe 已查驗；歷史：19:49–19:50 UTC live mail flag 仍 false，19:52:11 UTC 正式配置已暫存 true、當時待下一部署生效，dev false。現況：v0.76 已完成雙環境部署，部署快照的寄送旗標為 production=true／dev=false；正式設定已生效。沒有真實郵件發出，provider 投遞及附件實際收件未驗收。真正 Meta 的同 cycle／r0 已於 20:02 UTC 通過獨立 TaskAudit 並公開啟用原日夜兩圖；原 Agent／真人身份、收件／復原、T09 及下一次 cron 實際觸發驗收仍待。最新整合分界見[整合紀錄](plans/RESIDENT-MANAGER-INTEGRATION.md)，現行寄送與恢復門檻見[郵件控制](IDENTITY-MAIL-CONTROL.md)。
 
 ## 歷史：b2a／b2b 本地切片邊界（2026-10-31）
 

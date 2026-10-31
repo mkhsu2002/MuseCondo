@@ -1,10 +1,10 @@
 # 身份郵件部署端管理
 
-2026-10-31 發布現況：身份郵件接線已完成獨立規格／品質審查，隨 `a67524a`／v0.75 合併至 main 與 framework-v001，兩環境 Pages 均成功部署。0020–0026 已實際套用，321 個來源 DDL 逐項一致、foreign-key check 無錯；兩環境身份 Worker 的部署碼與已驗證發布產物逐位元組相同。整體發布邊界見[整合紀錄](plans/RESIDENT-MANAGER-INTEGRATION.md)。
+2026-10-31 發布現況：身份郵件接線已完成獨立規格／品質審查，隨 `f7e9a965`／v0.76 合併至 main 與 framework-v001，兩環境 Pages 均成功部署。0020–0026 已實際套用，321 個來源 DDL 逐項一致、foreign-key check 無錯；兩環境身份 Worker 的部署碼與已驗證發布產物逐位元組相同。整體發布邊界見[整合紀錄](plans/RESIDENT-MANAGER-INTEGRATION.md)。
 
-正式 sender 在 2026-10-31T19:46:26Z 真實 metadata 查核為 domainVerified／sendingEnabled／senderReady=true；own-origin webhook 已配置且僅訂閱下列五種事件，19:47:41Z 實際簽章 handler probe 為 true。這些證據不代表 provider 已投遞或監護人取得附件。19:49–19:50Z 獨立部署回讀時，兩環境已部署的寄送旗標仍為 false；19:52:11Z Cloudflare 正式配置已暫存 true、於下一次部署生效，dev 保持 false。暫存設定不等於已部署啟用；本次沒有發出真實郵件，真人 Passkey、附件收件及跨環境復原仍待。
+正式 sender 在 2026-10-31T19:46:26Z 真實 metadata 查核為 domainVerified／sendingEnabled／senderReady=true；own-origin webhook 已配置且僅訂閱下列五種事件，19:47:41Z 實際簽章 handler probe 為 true。這些證據不代表 provider 已投遞或監護人取得附件。歷史：19:49–19:50Z 獨立部署回讀時，兩環境已部署的寄送旗標仍為 false；19:52:11Z Cloudflare 正式配置已暫存 true、當時待下一次部署生效，dev 保持 false。現況：v0.76 已完成雙環境部署，部署快照的寄送旗標為 production=true／dev=false；正式設定已生效。本次沒有發出真實郵件，真人 Passkey、附件收件及跨環境復原仍待。
 
-以下無另行註明的契約適用於目前版本；文末本機驗證段是保留原日期的歷史工程證據，當時「未發布／旗標 false」不再代表目前部署與暫存設定。sender 與 handler 證據仍受下述 24 小時及最後交易 guard 約束，不能把本次成功 snapshot 視為永久健康。
+以下無另行註明的契約適用於目前版本；文末本機驗證段是保留原日期的歷史工程證據，當時「未發布／旗標 false」不再代表目前已生效的部署設定。sender 與 handler 證據仍受下述 24 小時及最後交易 guard 約束，不能把本次成功 snapshot 視為永久健康。
 
 Pages 才持有 `IDENTITY_MAIL_API_KEY`。新管理核心只使用固定 `https://api.resend.com` 與本環境 own-origin callback `/api/v1/identity/mail/webhook`；不接受輸入 endpoint、事件清單、地址或 provider key。所有部署 fetch 使用 `redirect: manual`，非 2xx 不跟隨；不使用 Workers 不支援的 `redirect: error`。
 
