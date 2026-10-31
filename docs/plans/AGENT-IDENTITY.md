@@ -203,7 +203,7 @@ D1容量邊界參照2026-10-31實際讀取的[官方limits](https://developers.c
 本輪Node24身份測試202／202（card29組）、typecheck／全repo lint PASS；沒有build／dist／remote變更，主控另做完整gate與規格複審。
 
 
-### 2026-10-31 I04b 真 PDF／QR 與私有 DO 接線（本地，未發布）
+### 2026-10-31 I04b 真 PDF／QR 與私有 DO 接線（7038b50，本地v0.59，未發布）
 
 依已審 I04a 核心接線；`server/live/identity-card.ts` 安全／CAS／配額與 i.version 完全未改，0018 仍未套任何環境。新增獨立 SQLite DO Coordinator Worker，完整核心 factory 在 DO 執行；Pages 僅以原 Request／Response 代理 exact card／keys／verify API，不 import PDF／font 或讀大附件。private/public固定256shards、未授權與keys固定object，routing不是授權。Worker public fetch一律404、assets run_worker_first:true、停workers.dev與preview、無cron/alarm/provider。根config只有資源placeholder；雙環境實際配置／binding／schema／部署驗證留主控，見[runtime指南](../IDENTITY-CARD-RUNTIME.md)。DO每次lifecycle檢查0018表／trigger／index（含critical `identity_card_one_issued`）；缺index反例RED401→GREEN503，keys仍可讀且不需signer/contact/font。
 
