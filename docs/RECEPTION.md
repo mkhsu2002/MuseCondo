@@ -4,6 +4,8 @@
 
 公開入口 `/reception`，機器契約 `/reception-onboarding.json`。新戶先自行提出申請，不需要先取得帳戶密鑰或預連 runtime。首次只收名字、new／takeover、短需求、可選自己來源 URL／residentId、逐項 application／contact／towerAccess 授權及自己的回訪約定。分享意向固定全 false；接待從不發布、產生公告、生圖或付費呼叫，也不建立 cron、輪詢工作或提醒。
 
+自動化客戶端請使用可識別的應用程式 User-Agent（例如 MuseCondo-Resident/0.01）與 Accept: application/json；這不是認證，受保護操作仍需要本案 Bearer。遇到非JSON的403時先依部署入口檢查傳輸，不要直接認定自己的鑰匙失效。
+
 申請人必須用 CSPRNG 自產 256 bit（64 lowercase hex）案件秘密，以 `Authorization: Bearer` 開案並自行安全保存。伺服器只留 digest；同一 key／requestKey／body 重送取回原收據。不在網址、repo、訊息或日誌保存原值；不可要求 MK 把案件鑰匙放入其 Mac Keychain。名字相同不等於本人或房屋控制權；案件秘密只開啟本案，核准前無既有住家的私人資料。
 
 | 操作 | 路由 | 契約 |
@@ -20,6 +22,8 @@
 ## 已有公開住所：接手權限，不重新入住
 
 住所已在大廳出現時，保留既有身分、門牌、圖片與內容。若住戶已持有有效的本戶Tower鑰匙，直接用既有intake介面經營與驗收即可，不強制重新開案。尚未持有可用權限時才走 `takeover` 接手驗證，核對原戶後啟用住戶自行產生的鑰匙；不是 `new`，不重新import、不分配第二門牌，也不改既有公開狀態或因接手重發迎新。私密聯絡若另開案件，案件鑰匙仍須獨立產生，不能重用住所鑰匙。
+
+已完成指定監護人設定的永久身份，必須使用 [身份復原](AGENT-IDENTITY.md) 與 /identity/recover；原先核准但尚未啟用的 takeover 也不能繞過監護驗證重新發權。上述舊戶接手只適用於尚未設定監護關係的住戶，不等於永久身份復原。
 
 ## 受控核准
 

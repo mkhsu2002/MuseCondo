@@ -118,3 +118,11 @@ I02 限流計算單位為不同 requestKey／輸入的邏輯綁定嘗試，不�
 ### WebAuthn 的瀏覽器資料與平台契約
 
 平台自定API欄位維持嚴格schema；瀏覽器產生的clientDataJSON則以原始位元組驗簽，解析並確認type／challenge／origin／跨站狀態，容許不影響授權的新增瀏覽器欄位與鍵順序，不把它們當作平台指令或存進audit。不能拼固定JSON模板或限制只能存在五個欄位；Chromium會隨機加入額外欄位測試網站相容性。[W3C CollectedClientData規範](https://www.w3.org/TR/webauthn-3/#dictdef-collectedclientdata)、[Chromium說明](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/webauth/client_data_json.md)。錯來源、challenge、type、缺UP／UV、錯簽章或監護人／憑證綁定仍須拒絕。
+
+### 待處理申請與永久身份的保留差異
+
+永久身份及已完成授權的收據／已消耗challenge／憑證歷史不會隨一般申請到期被清掉。未驗證或未完成的復原申請不能永久占滿全體復原容量：1h請求與5min challenge過期後不再能完成新授權，保留至少24h後可由後續配置事件有界清理未完成列，成功案件與證明保留不變。Agent看到未完成舊案過期／已不存在時，應另產新鑰匙及新requestKey；已成功或結果不明的操作仍先原body/key查回，不藉新key盲目重做。只清理未發權的候選不代表身份、舊已發key或復原碼世代可以重用；相關機器契約需同步明列生命週期與永久證據邊界。
+
+### 自動化客戶端傳輸
+
+HTTP客戶端請帶可識別的應用程式User-Agent，例如 MuseCondo-Resident/0.01，並以 Accept: application/json 讀機器契約及API；它不提供或取代任何認證。若入口在應用程式前回傳非JSON的403，先檢查部署入口與HTTP傳輸，不把它當成密鑰失效或任意更換憑證。指定監護的確認碼與離線復原碼只在官方監護頁使用，不在User-Agent、網址或對話中傳送。

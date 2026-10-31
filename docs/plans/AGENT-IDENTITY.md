@@ -15,7 +15,7 @@
 | I00 | 兩 repo 規格、計畫、現有 T04／T06 gate 調整 | 已自審、兩 repo main 文件已同步 |
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
-| I03 | Passkey／離線碼復原與舊授權全面失效 | a與b後端及頁面已兩階段審核通過；c的Passkey後端已兩階段審核PASS、離線重建實作中；整體尚未發布 |
+| I03 | Passkey／離線碼復原與舊授權全面失效 | a與b後端及頁面已兩階段審核通過；c的Passkey／離線後端均兩階段審核PASS；過期容量修正已兩階段審核PASS；UI已兩階段審核PASS；整批正在發布驗證 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | 待實作 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
@@ -74,6 +74,8 @@ Files: `server/live/identity-mail.ts`、郵件 migration／tests、部署 secret
 
 ## 每步紀錄
 
+以下按實作時序保存當時證據；舊條目的「待修／未發布」不代表即時狀態。以本頁進度表與最後發布回讀為準，不改寫歷史查核日期。
+
 記錄程式 commit、反例／正例、規格／品質問題與修正、dev／正式部署 ID、migration hash、deployed schema／code／live audit。只有實際重新查核才填查核日期；設計核准日期不能冒充外部狀態更新。私密資料留官方私密 repo 或安全儲存；公開 repo 只留通用契約與去識別化證據。
 
 ### I01 自審與修正
@@ -102,7 +104,7 @@ I03a工程79bae08／bf4832a／6cc7ebd已規格與品質兩階段PASS（370項當
 
 先完成復原後端與舊發權路徑隔離並兩階段審查，再完成監護復原頁面、離線驗證器重建與跨環境整合；未全部通過前不發布I03a／b或宣告復原可用。
 
-- 新環境本地產生獨立256-bit操作鑰匙，以專用header證明持有；server只存SHA-256，候選值不得與任何舊帳戶、Tower／legacy／onboarding／case／session憑證或既有候選／備援重用。建立請求需agentId，不憑名字或email合併。請求最長1小時，維持永久冪等及本環境持有者私密查回；未證監護前不回私稿、門牌或信箱。
+- 新環境本地產生獨立256-bit操作鑰匙，以專用header證明持有；server只存SHA-256，候選值不得與任何舊帳戶、Tower／legacy／onboarding／case／session憑證或既有候選／備援重用。建立請求需agentId，不憑名字或email合併。請求最長1小時，在有效申請生命週期內保持同輸入冪等與本環境持有者私密查回；成功授權或新生選擇的收據永久保存；未證監護前不回私稿、門牌或信箱。
 - 監護人取得新環境提供的請求識別碼，先看agentId、候選鑰匙完整SHA-256指紋與期限，再無預選地決定continue或new。WebAuthn challenge綁定該請求、候選hash、決策、監護版本、身份版本／epoch及確定RP／origin；5分鐘且不超過請求期限，一次性使用。官方verifier驗assertion簽章／UP／UV／counter／userHandle，公開options不列居民credential IDs。
 - continue必須提交新離線碼及已下載確認。既有Passkey途徑驗assertion並CAS更新counter；離線途徑先驗既有碼、以綁定案件的registration challenge註冊新Passkey，完成時撤銷舊Passkeys。兩者同批消耗舊碼、保存新碼hash、新增本戶限期Tower token與instance、遞增identity.version與authorityEpoch，保留同一監護人及已驗證聯絡。
 - 同批撤銷該account全部舊tower_tokens、該room的agent_tokens、onboarding_grants、sessions；替換accounts.login_hash為無法取回的隨機值，關閉其舊接待approved／active發權。approve與activate各自以執行時原子guard阻止已有有效監護身份的舊接手，不因同一operator特許繞過。歷史收據查回不重發權。提交時以原生DB時鐘、版本／epoch／guardian／counter、唯一候選、challenge未用及住所四方綁定重驗；任一變更整批回滾。
@@ -117,3 +119,23 @@ I03b頁面9fd6209修正後規格與品質複審PASS：畸形options與native par
 歷史GitHub Pages稱呼補正：6fa1a7a僅修legacy compiled JS六個稱呼、更新內容雜湊檔名與25個HTML引用，其他52個共同blob及Fang四個轉址／manifest保持相同；規格與品質審核、JS語法皆PASS。官方Pages build讀回built／同commit，公開首頁、新JS及Fang四個舊路徑HTTP200且與commit逐位元組一致。這是legacy gh-pages生成物修復，不改main／dev的身份發布基線或Git歷史。
 
 I03c第一切片90bb85e／0f65506：Passkey復原、全面撤舊權與history保留完成，規格及品質複審PASS。主控審核發現browser clientDataJSON過度exact會拒Chromium合法額外欄位，已先真簽章驗紅後只移除此限制，平台外層及所有授權檢查維持。432項當時完整測試（另有8項版本測試）、品質獨立144項相關測試PASS；新並行測試含A／B定序及finally釋放。固定0f65506以local workerd實際驗P-256註冊／含browser extra的assertion、錯origin／sig／過舊counter拒絕皆true，仍非正式SQL流程或真人UV驗收。0015尚未套環境，離線Passkey重建與復原頁面未完，整體不發布。
+
+
+### I03c 過期未完成申請的可用性修正（發布前 gate）
+
+3859095的離線後端規格／品質審核PASS，444完整測試（另版本8）、獨立64項復原／註冊及兩個mixed new／continue競爭反例PASS；舊註冊fixture的兩次取時鐘偶發24h越界已改單一基準，不放寬schema。
+
+另一輪自審以合成fixture、handler及原本限流配置10,000個未驗監護請求／10,000個未簽章options，將測試時鐘推進48h後仍永久堵全部住戶，連有效離線途徑也被共用cap擋下。尚未部署，因此沒有真住戶或正式攻擊紀錄。根因是把匿名未完成申請和成功授權一律永久保存、共同計入永不恢復的容量；不是HTTP限流即可處理。此問題須在UI／發布前修正。
+
+調整契約如下，取代先前對「每個未證明候選與options永遠查回／禁止刪除」的工程假設：
+- 永久agentId、已發操作憑證的SHA歷史、備援碼世代、所有成功／new選擇收據、已消耗challenge、instance、audit與通知事件維持永久；清理不撤回或改寫任何授權。
+- 未完成請求仍1h、challenge仍5min且不能晚於請求；全域容量只計目前有效且待處理的列，不把成功、已終結或過期申請算成新的復原名額。保留既有HTTP／小時配額，不宣稱完整DDoS防護。
+- 未消耗且過期滿24h的challenge可於後續配置請求中有界清理；過期滿24h、仍pending、沒有receipt／instance／通知或任何剩餘challenge的request才可刪除。原生DB時鐘與新migration條件trigger同時攔錯誤清理，單次上限及索引必須明定，沒有新cron／背景輪詢。
+- 未曾發權且已刪除的過期申請不承諾永久原案查回或永久記住未使用candidate；舊URL可回404／失效，Agent應用新的候選鑰匙與requestKey重新開始。已成功的案件永久保留，未知結果先用原body/key查回；不能因清理建立第二份授權、恢復舊key或遺失成功證據。這個區別不得偷換為永久身份或已發key可以重用。
+- 24h是可清理的最低保留期；實際清理由後續事件觸發且單次有界，沒有後續請求時不承諾準點刪除。真正成功歷史的總量仍會隨使用成長，不宣稱所有永久資料固定大小。
+
+I03c容量修正f022d15規格與品質審核PASS：461完整測試＋8版本測試、品質獨立61項相關測試PASS。規格另驗最後一名額的create／兩類options競爭均只一方成功，實際cleanupSQL走索引。精確工作邊界為每批最多刪150列，不是保證只讀150列；外層仍巡覽過期索引範圍，不掃永久成功歷史。正式尚未套0013–0017／發布；復原UI正在實作。
+
+legacy部署隱私補正9c17bd8：依既有sanitize-public政策，只從gh-pages生成物移除四份開發素材manifest，保留其餘74個路徑/mode/blob，包含Fang四個舊址及所有圖片。規格／品質PASS，官方Pages讀回同commit built；四份普通公開URL均404，首頁、新JS與Fang四個路徑HTTP200且byte-identical。公開framework原始碼的通用範例與正式訪客輸出分開管理；未變更Muse Tower身份發布基線。
+
+I03c復原頁224ea2e／2ddcbed兩階段審核PASS：新申請不得沿用前案指紋勾選／決策P2已真RED→GREEN；unknown complete仍過期後原body/key/signedresponse重試。主控Node24獨立490完整＋8版本測試／lint PASS，品質43既有＋7記憶體async／expiry／wrongsubject反例PASS。真瀏覽器、原生Passkey／下載與正式尚待後續，不把VM當真人。

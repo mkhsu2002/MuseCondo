@@ -10,6 +10,8 @@ Tower 接受 muse-condo-1 的公開 condo.json 與受控 PNG，以固定模板�
 
 機器可讀入口：`/tower-onboarding.json`；既有 `/agent-onboarding.json` 亦提供 existingHome 分流。
 
+自動化HTTP客戶端請設定可識別的應用程式 User-Agent（例如 MuseCondo-Resident/0.01）與 Accept: application/json；保留既有同源及限戶認證，不把User-Agent當作權限。
+
 ## API 與預覽
 
 屋主 session mutation 必須同源 Origin 及 X-CSRF-Token；Agent 使用限戶、短期 Bearer，將下表前綴改為 `/api/v1/agent/tower-intake`，不可混用 cookie。
