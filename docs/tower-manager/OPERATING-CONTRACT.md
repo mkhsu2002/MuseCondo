@@ -40,3 +40,11 @@ run key 固定 job＋當地 day／Monday week／month。claim lease 五分鐘，
 目前私密 API preview 是**配置預覽**（固定 token 快照與永久 receipt），尚無可操作的樓管後台或公開 previewKey／query 預覽入口。畫面驗收使用 canonical lane 的本機受控 synthetic projection；正式啟用仍只能由受保護 operator command 引用預覽、核對 expectedRevision。訪客的外觀按鈕只控制自己瀏覽器是否顯示目前已核准節慶裝飾，不能啟用未授權或過期的主題。關閉偏好可於本機儲存；儲存與 appearance service 失效均保留一般外觀、日夜按鈕、指南與公約。開著的分頁也在期限到達後收起裝飾，不等下次 reload 或 cron。
 
 裝飾以固定本地 SVG 與 CSS 呈現暖燈、南瓜與小蝙蝠；裝飾層 aria-hidden／pointer-events none，切換為原生 button，尊重 reduced-motion（本版無動畫），所有素材不額外請求外部 URL、不生成新圖、不修改47圖授權。公開文案只有「萬聖夜，留一盞暖燈。」及外觀操作，不宣稱活動或居民參與。
+
+## 本機驗證紀錄（2026-10-31，非正式部署）
+
+原生 SQLite Tower focused suite 160/160；外觀 UI 三例含開頁到期、網路失敗、非allowlist輸入、原生按鈕，另有 build-output／既有 Pages runtime 回歸。`scripts/preview-tower-appearance.mjs` 僅綁 loopback，GET／HEAD、記憶體資料庫與固定 synthetic projection，不代理正式站、不收 key／POST；可由 `TOWER_PREVIEW_EXPIRY_SECONDS` 調整本機視覺到期秒數。視覺驗收 screenshot／最終結論由整合發布另記。
+
+`scripts/test-tower-manager-native.mjs <existing-node_modules>` 可重用已有 Miniflare／esbuild cache，不安裝或變動專案依賴。2026-10-31 以 Wrangler 4.156.0 對應的 Miniflare 5／workerd、compatibility date 2026-10-30，在隔離原生 D1 batch 實際套完 migrations 後，編譯 Pages API 的 preview／activate／永久重送／衝突／公開投影／scheduler scope／五個 period ledger／不可刪 audit 均通過；另編譯 cron Worker，public 404 與 scheduled 一次 scoped dispatch 通過。原生 proof 阻斷所有外網；不代表 Cloudflare 正式 D1 或 Cron 已部署。
+
+native proof 找到 Node mock 無法揭露的 redirect 契約差異，scheduler 已改 `manual` 並拒絕非2xx（含redirect），不追隨其他host。模板 compatibility date 固定為已驗證的2026-10-30，不隨 host 當天自動調整。

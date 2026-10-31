@@ -20,8 +20,8 @@ test('one tick runs bounded DB-only registry once per local period, retries only
  }finally{db.close();}
 });
 test('native scheduler uses only scoped trigger, no public execution, network retry or paid calls',async()=>{
- assert.equal((await scheduler.fetch()).status,404);const original=globalThis.fetch;const calls:{url:string;headers:Headers}[]=[];globalThis.fetch=async(input,init)=>{calls.push({url:String(input),headers:new Headers(init?.headers)});return new Response('{}');};try{
+ assert.equal((await scheduler.fetch()).status,404);const original=globalThis.fetch;const calls:{url:string;headers:Headers;redirect?:RequestRedirect}[]=[];globalThis.fetch=async(input,init)=>{calls.push({url:String(input),headers:new Headers(init?.headers),redirect:init?.redirect});return new Response('{}');};try{
  await scheduler.scheduled({scheduledTime:Date.parse('2026-11-01T16:00:00Z')},{PUBLIC_ORIGIN:'https://tower.example',MANAGER_SCHEDULE_TRIGGER_KEY:'synthetic-schedule-key'});
- assert.equal(calls.length,1);assert.equal(calls[0].url,'https://tower.example/api/v1/manager/run-due');assert.equal(calls[0].headers.get('X-Manager-Schedule-Key'),'synthetic-schedule-key');assert.equal(calls[0].headers.get('X-Tower-Operator-Key'),null);
+ assert.equal(calls.length,1);assert.equal(calls[0].redirect,'manual');assert.equal(calls[0].url,'https://tower.example/api/v1/manager/run-due');assert.equal(calls[0].headers.get('X-Manager-Schedule-Key'),'synthetic-schedule-key');assert.equal(calls[0].headers.get('X-Tower-Operator-Key'),null);
  }finally{globalThis.fetch=original;}
 });
