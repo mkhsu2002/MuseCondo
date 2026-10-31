@@ -45,6 +45,22 @@ test('public bulletin strips private model provenance while retaining real manag
   const response=await app.fetch(new Request(origin+'/api/v1/public/community'));const body=await response.text();assert.doesNotMatch(body,/PRIVATE_MODEL|metadataSource|verifiedAt/);assert.equal(JSON.parse(body).edition.editor.kind,'meta-api');assert.equal(JSON.parse(body).edition.editor.model,null);
  }finally{db.close();}
 });
+test('public editorial reasons are English without rewriting a legacy edition or resident source digest',async()=>{
+ const db=database();try{
+  const time='2026-10-30T00:00:00.000Z',room='0123456789abcdef';let changed=0;
+  db.sqlite.prepare('INSERT INTO accounts VALUES(?,?,?,0)').run('resident-account','login-hash',time);
+  db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,published,generation_state,created_at,test_only) VALUES(?,?,?,?,?,1,'complete',?,0)").run(room,'resident-account','方','  我的原始小日子。  ','resident',time);
+  const app=createLiveApp({db,origin,localTest:true,registrationEnabled:false,towerEnabled:true,onCommunityChanged:async()=>{changed++;}});
+  const first=await app.editBuilding(true),legacy=structuredClone(first.edition);
+  legacy.editor.version='public-community-four-sections-v1';legacy.sections.arrivals[0].reason='已刊登的舊中文理由';
+  const stored=JSON.stringify(legacy);db.sqlite.prepare('UPDATE community_editions SET edition_json=? WHERE id=?').run(stored,legacy.id);
+  const body=await (await app.fetch(new Request(origin+'/api/v1/public/community'))).json();
+  assert.equal(body.edition.sections.arrivals[0].reason,'Welcoming a new neighbor');
+  assert.equal(body.edition.sections.arrivals[0].summary,'  我的原始小日子。  ');assert.equal(body.edition.sourceDigest,first.edition.sourceDigest);
+  assert.equal(body.events[0].title,'方搬來了');assert.equal(db.sqlite.prepare('SELECT edition_json FROM community_editions WHERE id=?').get(legacy.id)!.edition_json,stored);
+  assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM community_editions').get()!.n,1);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM manager_jobs').get()!.n,0);assert.equal(changed,1);
+ }finally{db.close();}
+});
 test('private reception opens with registration closed and uses existing operator gate',async()=>{
  const db=database();try{const env={DB:db,PUBLIC_ORIGIN:origin,TOWER_OPERATOR_KEY:'operator-private'},base='/api/v1/reception/cases',key='d'.repeat(64);
  const input={requestKey:'runtime-case',name:'新朋友',requestKind:'new',request:'想申請自己的窩。',authorization:{contact:true,application:true,towerAccess:true},sharing:{snapshot:false,directory:false,announcement:false,dream:false},visitPlan:{mode:'manual-return'}};

@@ -2,6 +2,12 @@
 
 2026-10-31。本文件是實作契約與本機證據，**不是正式部署完成證明**。正式 migration、bindings、Worker／Pages 版本與真實 provider／公開讀回，須由發布紀錄另列。
 
+## Working language and private operational memory
+
+English is the primary language for all new project documentation, code, maintained comments, agent instructions and operational records. Maintainer conversation stays in Traditional Chinese. Newly generated plans, audit reasons, private work memories and `nextTasks` must be requested in English. Older non-English records remain historical input; do not rewrite immutable receipts or resident-authored material.
+
+Private operational memory is a bounded outcome summary in D1, written by the separate daily, theme or build-review self-review. It records what actually happened, blockers and proposed next tasks. It is not resident memory, raw conversation history or a stored chain of thought, and it is never projected onto the public homepage. The next daily decision reads the latest two summaries and current blocked-task data. Proposed `nextTasks` inform that decision; they are not automatically executable job records. This policy changes future generation, not the bytes of historical evidence.
+
 ## 已取代的舊版設計
 
 M03 的「Codex 預製 Halloween SVG/CSS、operator 手動 activate 即交付」及 M04 的「沒有新消息就不呼叫模型、只有 DB 摘要」於 2026-10-31 明確 **superseded**。舊 0023 私密 preview／永久 receipt 與安全 DB registry 保留相容性；舊 theme 不再產生公開 Halloween 投影。預製 SVG 與 Halloween 裝飾 CSS 已移除生產引用；舊測試僅留在 Git 歷史，不能充當部署樓管生圖／審核／發布證據。

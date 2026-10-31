@@ -41,7 +41,7 @@ export function createManagerAutonomy(options:Options){
   if(!options.bucket)blockers.push('appearance_storage_not_bound');if(!options.assetFetch)blockers.push('reference_assets_not_bound');
   if(pointer){try{const pair=(await db.prepare('SELECT * FROM tower_autonomy_assets WHERE generation_id=?').bind(pointer.generation).all<Asset>()).results;if(pair.length!==2)throw Error('pair_missing');for(const asset of pair)await readAsset(asset);available=true;}catch{blockers.push('active_pair_unavailable');}}
   const at=clock().toISOString(),currentDay=calendarPeriods(new Date(at)).day,inWindow=HALLOWEEN_2026.startsAt<=at&&at<HALLOWEEN_2026.endsAt;
-  const globalDue=inWindow&&!available?[{id:'appearance:halloween:2026',purpose:'今日既定的溫暖萬聖節外觀照顧',acceptance:'部署樓管自行構想並經工具產生、實際驗證及獨立審核通過的日夜原圖編輯，已啟用公開pair',state:'due'}]:[];
+  const globalDue=inWindow&&!available?[{id:'appearance:halloween:2026',purpose:"Today's standing duty: warm Halloween appearance care",acceptance:'The deployed manager independently designs and creates day/night edits through its tools, verifies the actual images, obtains independent approval and activates the public pair',state:'due'}]:[];
   return {calendarPolicy:MANAGER_CALENDAR_POLICY.id,taskDay,currentDay,asOf:at,currentPublicAppearance:pointer?{generation:pointer.generation,endsAt:pointer.endsAt,artifactReadback:available?'verified':'unavailable'}:null,due:taskDay===currentDay?globalDue:[],globalDue,blockers};
  }
  const provider=createAutonomyProvider(options);

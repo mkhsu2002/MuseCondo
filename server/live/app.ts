@@ -93,7 +93,7 @@ const s=(await session(req))!;if(req.headers.has('Authorization'))fail(403,'use_
   const asOf=stamp(),publicInput=publicEvents(events,ids,asOf),sourceDigest=await digest(JSON.stringify(publicInput));
   const saved=await one<{id:string;edition_json:string}>('SELECT id,edition_json FROM community_editions WHERE id=(SELECT edition_id FROM community_current WHERE id=1)');
   if(saved){const previous=JSON.parse(saved.edition_json) as Edition;if(previous.sourceDigest===sourceDigest){if(persist)await run('INSERT INTO community_current(id,edition_id) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET edition_id=excluded.edition_id',saved.id);return {events:publicInput,edition:previous};}}
-  const edition:Edition={schemaVersion:1,id:`edition-${crypto.randomUUID()}`,sourceDigest,asOf,editedAt:asOf,editor:{kind:'rules',version:'public-community-four-sections-v1',model:null},isFixture:publicInput.every(e=>e.isFixture),sections:ruleSections(publicInput)};
+  const edition:Edition={schemaVersion:1,id:`edition-${crypto.randomUUID()}`,sourceDigest,asOf,editedAt:asOf,editor:{kind:'rules',version:'public-community-four-sections-v2-en',model:null},isFixture:publicInput.every(e=>e.isFixture),sections:ruleSections(publicInput)};
   const eventFile={schemaVersion:1 as const,sourceDigest,events:publicInput};validateCommunity(eventFile,edition,ids);
   if(persist)await db.batch([db.prepare('INSERT INTO community_editions(id,events_json,edition_json,created_at) VALUES(?,?,?,?)').bind(edition.id,JSON.stringify(eventFile),JSON.stringify(edition),asOf),db.prepare('INSERT INTO community_current(id,edition_id) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET edition_id=excluded.edition_id').bind(edition.id)]);
   if(persist&&env.onCommunityChanged)await env.onCommunityChanged({events:publicInput,residentIds:ids,sourceDigest,asOf});
@@ -323,7 +323,7 @@ const s=(await session(req))!;if(req.headers.has('Authorization'))fail(403,'use_
    const tokenDelete=path.match(/^\/api\/v1\/me\/tokens\/([a-f0-9]{32})$/);if(tokenDelete&&req.method==='DELETE'){const s=await owner(req,true),r=await ownRoom(s.account_id);await run('UPDATE agent_tokens SET revoked=1 WHERE id=? AND room_id=?',tokenDelete[1],r.id);return json({revoked:true});}
    if(path==='/api/v1/public/rooms'&&req.method==='GET')return json({rooms:(await all<Room>('SELECT * FROM rooms WHERE published=1 ORDER BY created_at DESC')).map(roomPublic)});
    if(path==='/api/v1/public/community'&&req.method==='GET'){
-    const result=await editBuilding(false);const sections=Object.fromEntries(Object.entries(result.edition.sections).map(([k,picks])=>[k,picks.map(p=>({...p,reason:k==='arrivals'?'歡迎新鄰居':'鄰居的生活片段'}))]));return json({...result,edition:{...result.edition,sections,editor:{...result.edition.editor,model:null}}});
+    const result=await editBuilding(false);const sections=Object.fromEntries(Object.entries(result.edition.sections).map(([k,picks])=>[k,picks.map(p=>({...p,reason:k==='arrivals'?'Welcoming a new neighbor':'Shared moments from a neighbor'}))]));return json({...result,edition:{...result.edition,sections,editor:{...result.edition.editor,model:null}}});
    }
    const publicRoom=path.match(/^\/api\/v1\/public\/rooms\/([a-f0-9]{16})$/);
    if(publicRoom&&req.method==='GET'){

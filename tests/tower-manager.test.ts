@@ -14,16 +14,16 @@ async function fixture(){
  db.sqlite.exec(await readFile(new URL('../migrations/0001_live_mvp.sql',import.meta.url),'utf8'));
  db.sqlite.exec(await readFile(new URL('../migrations/0007_tower_manager.sql',import.meta.url),'utf8'));
  let current:ManagerSnapshot={events:[event],sourceDigest:'a'.repeat(64),residentIds:[event.residentId],asOf:event.occurredAt};
- let calls=0,interrupt=false;let beforeResponse=()=>{};let overrideSummary:string|undefined;
+ let calls=0,interrupt=false;let beforeResponse=()=>{};let overrideSummary:string|undefined;const instructions:string[]=[];
  const transport=(async(url:string|URL|Request,init?:RequestInit)=>{
-  const payload=JSON.parse(String(init?.body));assert.equal(payload.model,'muse-spark-1.3');assert.equal(payload.tools,undefined);
+  const payload=JSON.parse(String(init?.body));assert.equal(payload.model,'muse-spark-1.3');assert.equal(payload.tools,undefined);instructions.push(payload.instructions);
   if(String(url).endsWith('/input_tokens'))return Response.json({input_tokens:500});
   assert.equal(payload.store,false);
   calls++;if(interrupt)throw Error('network uncertainty');const picks=ruleSections(JSON.parse(payload.input));if(overrideSummary)picks.arrivals[0].summary=overrideSummary;beforeResponse();
   return Response.json({id:'resp-real-reference',model:'muse-spark-1.3',status:'completed',usage:{input_tokens:500,output_tokens:100},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(picks)}]}]});
  }) as typeof fetch;
  const create=(approved=true,budgetMicro=1_000_000)=>createTowerManager({db,apiKey:'never-public',approved,budgetMicro,dailyBudgetMicro:budgetMicro,monthlyBudgetMicro:budgetMicro,fetcher:transport,now:()=>new Date('2026-10-30T01:00:00.000Z'),readPublic:async()=>current});
- return {db,create,summary(value:string){overrideSummary=value;},get calls(){return calls;},set current(v:ManagerSnapshot){current=v;},get current(){return current;},interrupt(){interrupt=true;},duringResponse(fn:()=>void){beforeResponse=fn;},async close(){db.close();await rm(dir,{recursive:true,force:true});}};
+ return {db,create,instructions,summary(value:string){overrideSummary=value;},get calls(){return calls;},set current(v:ManagerSnapshot){current=v;},get current(){return current;},interrupt(){interrupt=true;},duringResponse(fn:()=>void){beforeResponse=fn;},async close(){db.close();await rm(dir,{recursive:true,force:true});}};
 }
 
 test('manager is event-driven, duplicate/concurrent jobs spend once and persist usage with a real edition',async()=>{
@@ -71,4 +71,26 @@ test('provider cannot invent levels, owner claims or internal workflow text; inv
 
 test('a delayed stale enqueue cannot cancel the current job, reconciliation still calls exactly once',async()=>{
  const f=await fixture();try{const m=f.create(),latest=f.current,stale={...latest,sourceDigest:'d'.repeat(64)};await m.enqueue(latest);await m.enqueue(stale);await m.processOne();await m.enqueue(latest);await m.processOne();assert.equal(f.calls,1);assert.equal(f.db.sqlite.prepare('SELECT state FROM manager_jobs WHERE source_digest=?').get(latest.sourceDigest)!.state,'complete');}finally{await f.close();}
+});
+
+test('new manager editions use English greetings and reasons while preserving resident summaries verbatim',async()=>{
+ for(const prefix of ['', 'Welcome, new neighbor! ', 'Welcome to Muse Tower. ', 'Meet our new neighbor: ']){
+  const f=await fixture();try{
+   f.summary(prefix+event.summary);const manager=f.create();await manager.enqueue(f.current);await manager.processOne();
+   assert.equal(f.db.sqlite.prepare('SELECT state FROM manager_jobs').get()!.state,'complete');
+   const edition=JSON.parse(String(f.db.sqlite.prepare('SELECT edition_json FROM community_editions').get()!.edition_json));
+   assert.equal(edition.sections.arrivals[0].summary,prefix+event.summary);assert.equal(edition.sections.arrivals[0].reason,'Welcoming a new neighbor');assert.equal(edition.editor.version,'tower-manager-v2-en');
+   assert.ok(f.instructions.every(text=>text.includes('Write new editorial text in English')&&!/\p{Script=Han}/u.test(text)));
+  }finally{await f.close();}
+ }
+});
+
+test('a new English manager does not requeue a completed legacy digest or rewrite its stored edition',async()=>{
+ const f=await fixture();try{
+  const legacy=JSON.stringify({editor:{version:'tower-manager-v1'},summary:'歡迎新鄰居！'+event.summary});
+  f.db.sqlite.prepare('INSERT INTO community_editions(id,events_json,edition_json,created_at) VALUES(?,?,?,?)').run('legacy-edition','{}',legacy,event.occurredAt);
+  f.db.sqlite.prepare("INSERT INTO manager_jobs(id,source_digest,state,created_at,actual_micro) VALUES(?,?,'complete',?,1050)").run('legacy-job',f.current.sourceDigest,event.occurredAt);
+  const manager=f.create();await manager.enqueue(f.current);await manager.processOne();
+  assert.equal(f.calls,0);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM manager_jobs').get()!.n,1);assert.equal(f.db.sqlite.prepare('SELECT edition_json FROM community_editions').get()!.edition_json,legacy);
+ }finally{await f.close();}
 });

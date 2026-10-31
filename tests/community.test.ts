@@ -79,10 +79,28 @@ test('Meta adapter requires approval and model evidence, uses only sanitized pub
   const transport:typeof fetch=async(url,options)=>{
     calls++;assert.equal(url,'https://api.meta.ai/v1/responses');
     const request=JSON.parse(String(options?.body));assert.equal(request.store,false);
+    assert.match(request.instructions,/Write new editorial text in English/);assert.doesNotMatch(request.instructions,/Write Traditional Chinese/);
     assert.doesNotMatch(json(request),/TEST-PRIVATE|PRIVATE-OWNER/);
     return new Response(json({model:'verified-test-model',output:[{type:'message',content:[{type:'output_text',text:json(expected)}]}]}),{status:200});
   };
   const editor=metaEditor({apiKey:'unit-test-placeholder',approvedPaidCalls:true,model:{id:'verified-test-model',metadataSource:'https://dev.meta.ai/docs/overview',verifiedAt:editedAt},transport});
   const result=await editCommunity([...fixture,{...fixture[0],id:'private-source',visibility:'private',body:'TEST-PRIVATE'}],ids,{asOf,editedAt,editor});
   assert.equal(calls,1);assert.equal(result.edition.editor.kind,'meta-api');assert.equal(result.edition.editor.model?.id,'verified-test-model');
+});
+
+test('new rule reasons are English and source summaries retain their original language and bytes',async()=>{
+ const result=await editCommunity(fixture,ids,{asOf,editedAt});
+ for(const picks of Object.values(result.edition.sections))for(const pick of picks){
+  assert.doesNotMatch(pick.reason,/\p{Script=Han}/u);assert.equal(pick.summary,result.eventsFile.events.find(event=>event.id===pick.sourceEventIds[0])!.summary);
+ }
+});
+
+test('Meta editorial prefixes must be English and cannot translate or replace resident source text',async()=>{
+ const source=publicEvents(fixture,ids,asOf),base=await ruleEditor.select(source);
+ for(const prefix of ['Welcome to Muse Tower. ','歡迎新鄰居！','A completely invented welcome. ']){
+  const picks=structuredClone(base);picks.arrivals[0].summary=prefix+source.find(event=>event.id===picks.arrivals[0].sourceEventIds[0])!.summary;
+  const editor=metaEditor({apiKey:'synthetic',approvedPaidCalls:true,model:{id:'verified-test-model',metadataSource:'https://dev.meta.ai/docs/overview',verifiedAt:editedAt},transport:async()=>Response.json({model:'verified-test-model',output:[{type:'message',content:[{type:'output_text',text:json(picks)}]}]})});
+  if(prefix==='Welcome to Muse Tower. '){const result=await editCommunity(fixture,ids,{asOf,editedAt,editor});assert.equal(result.edition.sections.arrivals[0].summary,picks.arrivals[0].summary);assert.equal(result.edition.sections.arrivals[0].reason,'Welcoming a new neighbor');}
+  else await assert.rejects(editCommunity(fixture,ids,{asOf,editedAt,editor}),/source summary/);
+ }
 });
