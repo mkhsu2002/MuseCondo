@@ -56,6 +56,8 @@ Passkey 註冊需既有受保護的監護人註冊授權，不能公開傳 agent
 
 ## 6. 郵寄與聯絡隱私
 
+I05a 的私有寄件網域 metadata 診斷契約與部署 gate 見[寄件網域診斷](IDENTITY-MAIL-READINESS.md)；它不寄信，任何結果的 `deliveryVerified` 都是 false，附件郵寄／投遞仍須獨立完成。
+
 首次收件 email 必須由監護人指定並以短效一次性確認驗證，地址在服務端加密保存，公開憑證／audit 僅存必要非秘密 reference／hash。聯絡確認不開通住所權限。復原 email 或變更收件地址不可偷偷升級監護人權限。
 
 核發成功先持久化 mail outbox，再由部署端 Function／Worker／Queue 立即處理該事件；不得用分鐘 CI／cron 輪詢。寄信 provider key 只在部署 secret。永久 event／recipient 去重及 provider 冪等鍵；unknown send 保留待 reconcile，不盲目換鍵重送。取消／撤證在發送前再次檢查，未知結果不聲稱未寄。遵守部署者的抑制／退信及通知偏好；必要安全通知與訂閱行銷區分，不自動加入行銷名單。

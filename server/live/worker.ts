@@ -3,6 +3,7 @@ import {createIdentityRecovery} from './identity-recovery.ts';
 import {createIdentityRegistration} from './identity-registration.ts';
 import {createIdentityGuardian} from './identity-guardian.ts';
 import {createIdentityMail} from './identity-mail.ts';
+import {createIdentityMailReadiness} from './identity-mail-readiness.ts';
 import {createAgentIdentity} from './identity.ts';
 import {createTowerReception} from './reception.ts';
 import {legacyHomeRedirect} from './legacy-home-redirect.ts';
@@ -43,6 +44,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    if(![...requiredTables,...requiredTriggers,...requiredIndexes].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
   }catch{return json({available:false,error:'database_unavailable',runtime:safe},503);}
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
+  if(url.pathname==='/api/v1/operator/identity/mail-readiness')return (await createIdentityMailReadiness({db,origin:env.PUBLIC_ORIGIN!,from:env.IDENTITY_MAIL_FROM,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request))!;
   const generator=metaSecretConfigured&&paidCallsApproved?createFrameworkHomeGenerator({apiKey:env.meta_muse_api,approvedPaidCalls:true,textModel:MANAGER_MODEL,journal:databaseJournal(db)}):undefined;
   const app=createLiveApp({db,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:safe.registrationEnabled,generator,towerEnabled:true,onCommunityChanged:async snapshot=>{
    await manager.enqueue(snapshot);if(context)context.waitUntil(manager.processOne());else await manager.processOne();
