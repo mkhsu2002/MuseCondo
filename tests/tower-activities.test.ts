@@ -15,16 +15,17 @@ async function fixture(){
   db.sqlite.prepare("INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,revision,public_revision,snapshot_consent,created_at,updated_at) VALUES(?,?,?,?, 'challenge',1,1,1,?,?)").run(room,id,'synthetic-'+id,'https://'+id+'.example/condo.json',now,now);
   db.sqlite.prepare('INSERT INTO tower_snapshots(room_id,revision,public_json,content_digest,created_at) VALUES(?,1,?,?,?)').run(room,JSON.stringify({home:{name:'Public Synthetic '+id}}),'synthetic',now);
  }
- let hook:(()=>void)|null=null,operatorValid=true;
+ let hook:(()=>void)|null=null,operatorValid=true,clockNow=now;
+ db.sqlite.function('strftime',{varargs:true},()=>clockNow);
  const wrapped:Database={prepare:sql=>db.prepare(sql),batch:async(s:Statement[])=>{const fn=hook;hook=null;fn?.();return db.batch(s);}};
- const app=createTowerIntake({db:wrapped,origin,localTest:false,sourceOrigins:[],now:()=>new Date(now),operator:async(req:Request)=>operatorValid&&req.headers.get('X-Tower-Operator-Key')==='synthetic-operator',fetcher:async()=>{throw new Error('No paid or source calls');}});
+ const app=createTowerIntake({db:wrapped,origin,localTest:false,sourceOrigins:[],now:()=>new Date(clockNow),operator:async(req:Request)=>operatorValid&&req.headers.get('X-Tower-Operator-Key')==='synthetic-operator',fetcher:async()=>{throw new Error('No paid or source calls');}});
  async function req(path:string,method='GET',body?:unknown,identity='anonymous',extra:Record<string,string>={}){
   const headers:Record<string,string>={'Content-Type':'application/json'};if(identity==='operator')headers['X-Tower-Operator-Key']='synthetic-operator';else if(identity!=='anonymous'){headers.Cookie='muse_session='+identity.repeat(64);headers.Origin=origin;headers['X-CSRF-Token']='csrf-'+identity;}
   Object.assign(headers,extra);const res=await app.fetch(new Request(origin+path,{method,headers,...(body===undefined?{}:{body:JSON.stringify(body)})}));assert.ok(res,'activity route handled');return res;
  }
  const create=(extra={},key=crypto.randomUUID())=>req(op,'POST',{id:'synthetic-window',title:'A synthetic moment',description:'Voluntary synthetic activity.',state:'open',requestKey:key,...extra},'operator');
  const act=(action='join',version=0,extra={},identity='a',key=crypto.randomUUID())=>req(own+'/synthetic-window/participation','POST',{action,expectedVersion:version,requestKey:key,...extra},identity);
- return {db,req,create,act,hook:(fn:()=>void)=>{hook=fn;},revokeOperator:()=>{operatorValid=false;}};
+ return {db,req,create,act,setTime:(value:string)=>{clockNow=value;},hook:(fn:()=>void)=>{hook=fn;},revokeOperator:()=>{operatorValid=false;}};
 }
 test('operator-only draft/open/closed activities and private independent consent; no fake outcomes',async()=>{
  const f=await fixture();try{
@@ -142,5 +143,53 @@ test('operator callback is rechecked immediately before commit',async()=>{
  const f=await fixture();try{
   let calls=0;const app=createTowerIntake({db:f.db,origin,localTest:false,sourceOrigins:[],now:()=>new Date(now),operator:async()=>++calls===1});
   const res=await app.fetch(new Request(origin+op,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'synthetic-recheck',title:'Synthetic',description:'Synthetic',state:'open',requestKey:'synthetic-recheck'})}));assert.equal(res?.status,401);assert.equal(calls,2);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_activities').get()?.n,0);
+ }finally{f.db.close();}
+});
+test('expired joined resident can withdraw public consent without leaving, with permanent replay',async()=>{
+ const f=await fixture();try{
+  await f.create({endsAt:'2026-10-30T00:00:01.000Z'});assert.equal((await f.act('join',0,{showParticipation:true})).status,200);
+  f.setTime('2026-10-30T00:00:02.000Z');assert.equal((await(await f.req(base+'/synthetic-window')).json()).participants.length,1);
+  const key=crypto.randomUUID();const res=await f.act('visibility',1,{showParticipation:false},'a',key);assert.equal(res.status,200);const saved=await res.json();assert.equal(saved.participation.state,'joined');assert.equal(saved.participation.showParticipation,false);assert.equal(saved.participation.version,2);
+  assert.deepEqual((await(await f.req(base+'/synthetic-window')).json()).participants,[]);assert.equal((await f.act('visibility',1,{showParticipation:false},'a',key)).status,200);
+  assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM tower_audit WHERE action='activity-visibility'").get()?.n,1);
+  assert.equal((await f.act('visibility',2,{showParticipation:true})).status,409);
+ }finally{f.db.close();}
+});
+test('closed and quota-full joined residents can hide consent; visibility cannot join or bypass scope, CAS and revocation',async()=>{
+ const f=await fixture();try{
+  await f.create();await f.act('join',0,{showParticipation:true});
+  const receipt=f.db.sqlite.prepare("INSERT INTO tower_requests VALUES('a',?,'activity-join','synthetic','{}',?)");for(let i=0;i<20;i++)receipt.run('synthetic-full-'+i,now);
+  for(let i=0;i<19;i++){const id='synthetic-cap-'+i;f.db.sqlite.prepare("INSERT INTO tower_activities VALUES(?,?,?,NULL,NULL,'open',1,?,?)").run(id,'Synthetic','Synthetic',now,now);f.db.sqlite.prepare("INSERT INTO tower_activity_participation VALUES(?,'a',?,'joined',0,1,?)").run(id,'a'.repeat(16),now);}assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM tower_activity_participation WHERE account_id='a' AND state='joined'").get()?.n,20);
+  assert.equal((await f.act('visibility',1,{showParticipation:false})).status,200);assert.equal((await f.act('visibility',2,{showParticipation:true})).status,429);
+  assert.equal((await f.act('visibility',0,{showParticipation:false},'b')).status,409);
+  f.db.sqlite.prepare("UPDATE tower_activities SET state='closed',version=2").run();
+  assert.equal((await f.act('visibility',2,{showParticipation:false})).status,200);assert.equal((await f.act('visibility',2,{showParticipation:false})).status,409);
+  assert.equal((await f.act('visibility',3,{showParticipation:true})).status,409);
+  assert.equal((await f.act('visibility',3,{})).status,400);assert.equal((await f.act('visibility',3,{showParticipation:0})).status,400);
+  const token='f'.repeat(64);f.db.sqlite.prepare('INSERT INTO tower_tokens(id,account_id,token_hash,scopes,expires_at,created_at) VALUES(?,?,?,?,?,?)').run('synthetic-visibility','a',await sha(token),'["tower:read"]','2027-01-01T00:00:00Z',now);
+  const path='/api/v1/agent/tower-intake/activities/synthetic-window/participation',input={action:'visibility',showParticipation:false,expectedVersion:3,requestKey:crypto.randomUUID()};
+  assert.equal((await f.req(path,'POST',input,'anonymous',{Authorization:'Bearer '+token})).status,403);
+  f.db.sqlite.prepare("UPDATE tower_tokens SET scopes='[\"tower:write\"]' WHERE id='synthetic-visibility'").run();f.hook(()=>f.db.sqlite.prepare("UPDATE tower_tokens SET revoked=1 WHERE id='synthetic-visibility'").run());
+  assert.equal((await f.req(path,'POST',input,'anonymous',{Authorization:'Bearer '+token})).status,403);
+  assert.equal(f.db.sqlite.prepare("SELECT version,state FROM tower_activity_participation WHERE account_id='a'").get()?.version,3);
+ }finally{f.db.close();}
+});
+test('database clock inside commit rejects join and new visibility consent that cross the deadline',async()=>{
+ const f=await fixture();try{
+  await f.create({endsAt:'2026-10-30T00:00:01.000Z'});f.hook(()=>f.setTime('2026-10-30T00:00:02.000Z'));
+  assert.equal((await f.act('join',0,{showParticipation:true})).status,409);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_activity_participation').get()?.n,0);
+  f.setTime(now);await f.act('join',0);f.hook(()=>f.setTime('2026-10-30T00:00:02.000Z'));assert.equal((await f.act('visibility',1,{showParticipation:true})).status,409);
+  assert.equal(f.db.sqlite.prepare("SELECT show_participation FROM tower_activity_participation WHERE account_id='a'").get()?.show_participation,0);
+  assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM tower_audit WHERE action='activity-visibility'").get()?.n,0);
+ }finally{f.db.close();}
+});
+test('new visibility consent cannot race closure or resurrect on replay; failure leaves consent unchanged',async()=>{
+ const f=await fixture();try{
+  await f.create();await f.act('join',0);const key=crypto.randomUUID();assert.equal((await f.act('visibility',1,{showParticipation:true},'a',key)).status,200);assert.equal((await f.act('visibility',2,{showParticipation:false})).status,200);
+  assert.equal((await f.act('visibility',1,{showParticipation:true},'a',key)).status,200);assert.deepEqual((await(await f.req(base+'/synthetic-window')).json()).participants,[]);
+  f.hook(()=>f.db.sqlite.prepare("UPDATE tower_activities SET state='closed',version=2").run());assert.equal((await f.act('visibility',3,{showParticipation:true})).status,409);
+  f.db.sqlite.prepare("UPDATE tower_activities SET state='open',version=3").run();
+  f.db.sqlite.exec("CREATE TRIGGER synthetic_visibility_audit_failure BEFORE INSERT ON tower_audit BEGIN SELECT RAISE(ABORT,'synthetic'); END");
+  assert.equal((await f.act('visibility',3,{showParticipation:true})).status,503);assert.equal(f.db.sqlite.prepare("SELECT show_participation FROM tower_activity_participation WHERE account_id='a'").get()?.show_participation,0);
  }finally{f.db.close();}
 });

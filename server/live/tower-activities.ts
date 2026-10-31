@@ -17,7 +17,10 @@ export function createTowerActivities(d:Dependencies){
  const {db,fail}=d,stmt=(sql:string,...args:unknown[])=>db.prepare(sql).bind(...args),one=<T>(sql:string,...args:unknown[])=>stmt(sql,...args).first<T>();
  const guard=(sql:string,...args:unknown[])=>stmt("SELECT CASE WHEN ("+sql+") THEN 1 ELSE json('tower-activity-conflict') END",...args);
  const activity=(id:string,privateView=false)=>one<Activity>('SELECT * FROM tower_activities WHERE id=?'+(privateView?'':" AND state!='draft'"),id);
- const activityGuard=(a:Activity)=>guard('EXISTS(SELECT 1 FROM tower_activities WHERE id=? AND version=? AND state=?)',a.id,a.version,a.state);
+ // D1 UTC time is evaluated by SQLite when the guarded statement executes.
+ const activeSQL="state='open' AND (starts_at IS NULL OR starts_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now')) AND (ends_at IS NULL OR ends_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))";
+ const active=(activityID:string)=>one('SELECT id FROM tower_activities WHERE id=? AND '+activeSQL,activityID);
+ const activityGuard=(a:Activity,requireActive=false)=>guard('EXISTS(SELECT 1 FROM tower_activities WHERE id=? AND version=? AND state=?'+(requireActive?' AND '+activeSQL:'')+')',a.id,a.version,a.state);
  function id(v:unknown){if(typeof v!=='string'||! /^[a-z0-9][a-z0-9-]{0,63}$/.test(v))fail(400,'invalid_activity_id');return v as string;}
  function text(v:unknown,max:number){if(typeof v!=='string'||!v.trim()||v.length>max||[...v].some(c=>c.charCodeAt(0)===127||c.charCodeAt(0)<32&&![9,10,13].includes(c.charCodeAt(0))))fail(400,'invalid_activity_text');return (v as string).trim();}
  function date(v:unknown){if(v===undefined||v===null)return null;if(typeof v!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(v)||!Number.isFinite(Date.parse(v))||new Date(v).toISOString()!==v)fail(400,'invalid_activity_date');return v as string;}
@@ -70,22 +73,23 @@ export function createTowerActivities(d:Dependencies){
    const own=()=>one<Participation>('SELECT state,show_participation,version,updated_at FROM tower_activity_participation WHERE activity_id=? AND account_id=?',activityID,identity.accountId);
    if(req.method==='GET'&&!match![2])return d.json({activity:safe(a!),participation:choice(await own())});
    if(req.method!=='POST'||!match![2])fail(405,'method_not_allowed');
-   const input=await d.body(req,['action','showParticipation','expectedVersion','requestKey'],8192),action=input.action;
-   if(typeof action!=='string'||!['join','decline','leave'].includes(action)||!Number.isSafeInteger(input.expectedVersion)||Number(input.expectedVersion)<0||input.showParticipation!==undefined&&typeof input.showParticipation!=='boolean'||action!=='join'&&input.showParticipation!==undefined)fail(400,'invalid_participation_input');
-   const expected=Number(input.expectedVersion),key=d.requestKey(input.requestKey),show=action==='join'&&input.showParticipation===true,op='activity-'+action,hash=await d.hash(JSON.stringify({activityID,expected,action,show})),prior=await d.prior(identity,key,op,hash);if(prior)return d.json(prior);
-   const current=await own();if((current?.version??0)!==expected||action==='leave'&&current?.state!=='joined')fail(409,'participation_state_conflict');
-   if(action==='join'&&(a!.state!=='open'||a!.starts_at&&a!.starts_at>d.stamp()||a!.ends_at&&a!.ends_at<=d.stamp()))fail(409,'activity_not_open');
-   const since=new Date(Date.parse(d.stamp())-3600000).toISOString(),rateSQL="SELECT COUNT(*) AS n FROM tower_requests WHERE account_id=? AND operation='activity-join' AND created_at>?";
-   if(action==='join'&&(await one<{n:number}>(rateSQL,identity.accountId,since))!.n>=20)fail(429,'activity_rate_limited');
+   const input=await d.body(req,['action','showParticipation','expectedVersion','requestKey'],8192),action=typeof input.action==='string'?input.action:'';
+   if(typeof action!=='string'||!['join','decline','leave','visibility'].includes(action)||!Number.isSafeInteger(input.expectedVersion)||Number(input.expectedVersion)<0||input.showParticipation!==undefined&&typeof input.showParticipation!=='boolean'||!['join','visibility'].includes(action)&&input.showParticipation!==undefined||action==='visibility'&&typeof input.showParticipation!=='boolean')fail(400,'invalid_participation_input');
+   const expected=Number(input.expectedVersion),key=d.requestKey(input.requestKey),show=['join','visibility'].includes(action)&&input.showParticipation===true,op='activity-'+action,hash=await d.hash(JSON.stringify({activityID,expected,action,show})),prior=await d.prior(identity,key,op,hash);if(prior)return d.json(prior);
+   const current=await own();if((current?.version??0)!==expected||['leave','visibility'].includes(action)&&current?.state!=='joined')fail(409,'participation_state_conflict');
+   const requireActive=action==='join'||action==='visibility'&&show;
+   if(requireActive&&!await active(activityID))fail(409,'activity_not_open');
+   const since=new Date(Date.parse(d.stamp())-3600000).toISOString(),rateSQL="SELECT COUNT(*) AS n FROM tower_requests WHERE account_id=? AND (operation='activity-join' OR (operation='activity-visibility' AND json_extract(response_json,'$.participation.showParticipation')=1)) AND created_at>?";
+   if(requireActive&&(await one<{n:number}>(rateSQL,identity.accountId,since))!.n>=20)fail(429,'activity_rate_limited');
    const capacitySQL="SELECT COUNT(*) AS n FROM tower_activity_participation WHERE account_id=? AND state='joined' AND activity_id!=?";
    if(action==='join'&&(await one<{n:number}>(capacitySQL,identity.accountId,activityID))!.n>=20)fail(409,'participation_capacity');
-   const next:Participation={state:action==='join'?'joined':action==='decline'?'declined':'left',show_participation:show?1:0,version:expected+1,updated_at:d.stamp()},result={activity:safe(a!),participation:choice(next)};
-   try{await d.write(identity,[activityGuard(a!),guard('EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=?)',room!.room_id,identity.accountId),
+   const next:Participation={state:['join','visibility'].includes(action)?'joined':action==='decline'?'declined':'left',show_participation:show?1:0,version:expected+1,updated_at:d.stamp()},result={activity:safe(a!),participation:choice(next)};
+   try{await d.write(identity,[activityGuard(a!,requireActive),guard('EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=?)',room!.room_id,identity.accountId),
     current?guard('EXISTS(SELECT 1 FROM tower_activity_participation WHERE activity_id=? AND account_id=? AND version=?)',activityID,identity.accountId,expected):guard('NOT EXISTS(SELECT 1 FROM tower_activity_participation WHERE activity_id=? AND account_id=?)',activityID,identity.accountId),
-    ...(action==='join'?[guard('('+rateSQL+')<20',identity.accountId,since),guard('('+capacitySQL+')<20',identity.accountId,activityID)]:[]),
+    ...(requireActive?[guard('('+rateSQL+')<20',identity.accountId,since)]:[]),...(action==='join'?[guard('('+capacitySQL+')<20',identity.accountId,activityID)]:[]),
     stmt('INSERT INTO tower_activity_participation VALUES(?,?,?,?,?,?,?) ON CONFLICT(activity_id,account_id) DO UPDATE SET state=excluded.state,show_participation=excluded.show_participation,version=excluded.version,updated_at=excluded.updated_at',activityID,identity.accountId,room!.room_id,next.state,next.show_participation,next.version,next.updated_at),
     d.receipt(identity,key,op,hash,result),d.audit(identity.accountId,room!.room_id,'activity-'+action,null,{activityId:activityID,version:next.version,showParticipation:show})]);
-   }catch(error){if(error instanceof Error&&'status'in error)throw error;const replay=await d.prior(identity,key,op,hash);if(replay)return d.json(replay);if((await own())?.version!==current?.version)fail(409,'participation_state_conflict');if((await activity(activityID))?.version!==a!.version)fail(409,'activity_state_conflict');if(action==='join'&&(await one<{n:number}>(rateSQL,identity.accountId,since))!.n>=20)fail(429,'activity_rate_limited');if(action==='join'&&(await one<{n:number}>(capacitySQL,identity.accountId,activityID))!.n>=20)fail(409,'participation_capacity');throw error;}
+   }catch(error){if(error instanceof Error&&'status'in error)throw error;const replay=await d.prior(identity,key,op,hash);if(replay)return d.json(replay);if((await own())?.version!==current?.version)fail(409,'participation_state_conflict');if((await activity(activityID))?.version!==a!.version)fail(409,'activity_state_conflict');if(requireActive&&!await active(activityID))fail(409,'activity_not_open');if(requireActive&&(await one<{n:number}>(rateSQL,identity.accountId,since))!.n>=20)fail(429,'activity_rate_limited');if(action==='join'&&(await one<{n:number}>(capacitySQL,identity.accountId,activityID))!.n>=20)fail(409,'participation_capacity');throw error;}
    return d.json(result);
   },
  };
