@@ -196,6 +196,22 @@ export function createIdentityRegistration(env: Environment) {
       JSON.stringify(ordered(value)),
     );
   }
+  /** Shared HTTP protection before parsing or confirmation checks. Cloudflare supplies the
+   * production IP header; this bounded per-IP bucket is not distributed DoS protection. */
+  async function throttle(request: Request) {
+    const supplied = request.headers.get("CF-Connecting-IP"),
+      ip = supplied && supplied.length <= 64 ? supplied : "unknown",
+      fingerprint = await hashPrivate(env.contactKey!, "registration-ip", ip);
+    // One fixed private bucket per IP, with the native clock evaluated in the atomic UPSERT.
+    // The outer strftime preserves native calendar arithmetic in injected-clock tests too.
+    const bucket = await one<{ count: number }>(
+      "INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,strftime('%Y-%m-%dT%H:%M:%fZ',strftime('%Y-%m-%dT%H:%M:%fZ','now'),'+60 seconds')) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN expires_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') THEN 1 ELSE count+1 END,expires_at=CASE WHEN expires_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') THEN strftime('%Y-%m-%dT%H:%M:%fZ',strftime('%Y-%m-%dT%H:%M:%fZ','now'),'+60 seconds') ELSE expires_at END RETURNING count",
+      "registration:http-ip:" + fingerprint,
+    );
+    if (!bucket || !Number.isSafeInteger(bucket.count))
+      fail(503, "identity_registration_unavailable");
+    if (bucket.count > 30) fail(429, "registration_http_rate_limited");
+  }
   function inviteGuard(g: Invite, i: Identity): Statement {
     return stmt(
       "SELECT CASE WHEN EXISTS(SELECT 1 FROM identity_guardian_invites g JOIN agent_identities i ON i.agent_id=g.agent_id AND i.account_id=g.account_id JOIN tower_residencies t ON t.account_id=i.account_id AND t.room_id=i.room_id AND t.resident_id=i.resident_id JOIN rooms r ON r.id=i.room_id AND r.account_id=i.account_id WHERE g.id=? AND g.agent_id=? AND g.account_id=? AND g.version=? AND g.identity_version=? AND g.authority_epoch=? AND g.invite_token_hash=? AND g.state='accepted' AND i.version=g.identity_version AND i.authority_epoch=g.authority_epoch AND i.version=? AND i.authority_epoch=? AND i.room_id=? AND i.resident_id=? AND i.state='provisional' AND i.recovery_consent=1 AND g.created_at<=? AND g.created_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND g.expires_at>? AND g.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND g.expires_at<=strftime('%Y-%m-%dT%H:%M:%fZ',g.created_at,'+24 hours') AND NOT EXISTS(SELECT 1 FROM identity_guardians WHERE agent_id=i.agent_id)) THEN 1 ELSE json('registration-invitation-changed') END",
@@ -334,6 +350,7 @@ export function createIdentityRegistration(env: Environment) {
           new URL(env.origin).origin !== env.origin
         )
           fail(503, "identity_registration_not_configured");
+        await throttle(request);
         const v = await input(request, complete),
           hash = await digest({
             operation: complete
@@ -345,14 +362,6 @@ export function createIdentityRegistration(env: Environment) {
           retry = { id: v.invitationId, key: v.requestKey, hash };
           const replay = await receipt(v.invitationId, v.requestKey, hash);
           if (replay) return replay;
-        } else {
-          const existing = await one<{ input_hash: string }>(
-            "SELECT input_hash FROM identity_guardian_challenges WHERE invitation_id=? AND request_key=?",
-            v.invitationId,
-            v.requestKey,
-          );
-          if (existing && existing.input_hash !== hash)
-            fail(409, "idempotency_conflict");
         }
         const tokenHash = await hashPrivate(
             env.contactKey,
@@ -365,6 +374,16 @@ export function createIdentityRegistration(env: Environment) {
           );
         if (!g || g.invite_token_hash !== tokenHash)
           fail(403, "confirmation_rejected");
+        // Only an authenticated confirmation scope may inspect its logical request key.
+        if (!complete) {
+          const existing = await one<{ input_hash: string }>(
+            "SELECT input_hash FROM identity_guardian_challenges WHERE invitation_id=? AND request_key=?",
+            v.invitationId,
+            v.requestKey,
+          );
+          if (existing && existing.input_hash !== hash)
+            fail(409, "idempotency_conflict");
+        }
         const i = await current(g);
         if (!complete) {
           const replay = await priorOptions(g, i, v.requestKey, hash);

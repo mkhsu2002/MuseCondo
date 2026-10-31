@@ -380,7 +380,7 @@ test("options request keys are permanent, changed input conflicts, and consumed/
     assert.equal(
       (await f.options({ ...f.input, confirmationCode: "d".repeat(64) }))
         .status,
-      409,
+      403,
     );
     const { body, response } = await f.complete(start);
     assert.equal(response.status, 200);
@@ -786,7 +786,7 @@ test("an exact completion delayed behind the winning commit reads its permanent 
     f.db.close();
   }
 });
-test("SQL clock also expires a challenge while its options insertion waits, without charging quota", async () => {
+test("SQL clock expires queued options without charging logical challenge quota", async () => {
   const f = await fixture();
   try {
     const batch = f.db.batch.bind(f.db);
@@ -803,7 +803,14 @@ test("SQL clock also expires a challenge while its options insertion waits, with
     };
     assert.equal((await f.options()).status, 409);
     assert.equal(f.count("identity_guardian_challenges"), 0);
-    assert.equal(f.count("rate_limits"), 0);
+    assert.equal(
+      f.db.sqlite
+        .prepare(
+          "SELECT count(*) n FROM rate_limits WHERE key NOT LIKE 'registration:http-ip:%'",
+        )
+        .get()!.n,
+      0,
+    );
   } finally {
     f.db.close();
   }
@@ -1090,6 +1097,229 @@ test("transport metadata must be an allowlisted string array, never nested or co
     ];
     assert.equal((await f.complete(start, { response })).response.status, 400);
     assert.equal(f.count("identity_guardian_passkeys"), 0);
+  } finally {
+    f.db.close();
+  }
+});
+
+test("thirty wrong confirmation attempts share a private IP bucket; another IP can use the same unclaimed invitation key", async () => {
+  const f = await fixture();
+  try {
+    const ip = "203.0.113.17",
+      other = "2001:db8::42",
+      wrong = { ...f.input, confirmationCode: "f".repeat(64) };
+    for (let n = 0; n < 30; n++)
+      assert.equal(
+        (await f.options(wrong, { "CF-Connecting-IP": ip })).status,
+        403,
+        String(n),
+      );
+    assert.equal(
+      (await f.options(wrong, { "CF-Connecting-IP": ip })).status,
+      429,
+    );
+    assert.equal(f.count("identity_guardian_challenges"), 0);
+    assert.equal(
+      f.db.sqlite
+        .prepare("SELECT count FROM rate_limits WHERE key=?")
+        .get("registration:" + f.input.invitationId),
+      undefined,
+    );
+    assert.equal(
+      f.db.sqlite
+        .prepare("SELECT count FROM rate_limits WHERE key=?")
+        .get("registration:global"),
+      undefined,
+    );
+    assert.equal(
+      (await f.options(f.input, { "CF-Connecting-IP": other })).status,
+      200,
+    );
+    const buckets = f.db.sqlite
+      .prepare(
+        "SELECT key FROM rate_limits WHERE key LIKE 'registration:http-ip:%'",
+      )
+      .all();
+    assert.equal(buckets.length, 2);
+    const persisted = JSON.stringify(
+      f.db.sqlite.prepare("SELECT * FROM rate_limits").all(),
+    );
+    assert(!persisted.includes(ip));
+    assert(!persisted.includes(other));
+  } finally {
+    f.db.close();
+  }
+});
+
+test("unknown invitation retries and complete attempts share the HTTP IP ceiling without reserving invite keys", async () => {
+  const f = await fixture();
+  try {
+    const headers = { "CF-Connecting-IP": "203.0.113.88" },
+      unknown = { ...f.input, invitationId: "f".repeat(32) },
+      body = {
+        ...unknown,
+        challengeId: "f".repeat(32),
+        response: {},
+        offlineRecoveryCode: "e".repeat(64),
+        backupConfirmed: true,
+      };
+    for (let n = 0; n < 15; n++)
+      assert.equal((await f.options(unknown, headers)).status, 403);
+    for (let n = 0; n < 15; n++)
+      assert.equal((await f.send("/complete", body, headers)).status, 403);
+    assert.equal((await f.send("/complete", body, headers)).status, 429);
+    assert.equal(f.count("identity_guardian_challenges"), 0);
+    assert.equal(f.count("identity_registration_requests"), 0);
+  } finally {
+    f.db.close();
+  }
+});
+
+test("HTTP IP quota uses a SQL-native sixty-second expiry, rejects before parsing, and does not exempt exact receipts", async () => {
+  const f = await fixture();
+  try {
+    const start = await f.begin(),
+      { body, response } = await f.complete(start);
+    assert.equal(response.status, 200);
+    for (let n = 0; n < 28; n++)
+      assert.equal((await f.send("/complete", body)).status, 200);
+    assert.equal((await f.send("/complete", body)).status, 429);
+    assert.equal(f.count("identity_audit"), 1);
+    f.setTime(time, "2026-10-31T00:01:00.000Z");
+    assert.equal((await f.send("/complete", body)).status, 200);
+    assert.equal(f.count("identity_audit"), 1);
+    const rows = f.db.sqlite
+      .prepare(
+        "SELECT key,count,expires_at FROM rate_limits WHERE key LIKE 'registration:http-ip:%' ORDER BY key",
+      )
+      .all();
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].count, 1);
+    assert.equal(rows[0].expires_at, "2026-10-31T00:02:00.000Z");
+    const ip = { "CF-Connecting-IP": "203.0.113.29" };
+    for (let n = 0; n < 30; n++)
+      assert.equal(
+        (await f.options({ ...f.input, requestKey: "x" }, ip)).status,
+        400,
+      );
+    const raw = new Request(origin + base + "/options", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain", ...ip },
+      body: "unparsed",
+    });
+    assert.equal((await f.handler.fetch(raw))!.status, 429);
+    f.setTime(time, "2026-10-31T00:02:45.250Z");
+    const offsetIP = "203.0.113.71";
+    assert.equal(
+      (
+        await f.options(
+          { ...f.input, requestKey: "x" },
+          { "CF-Connecting-IP": offsetIP },
+        )
+      ).status,
+      400,
+    );
+    const offsetBucket =
+      "registration:http-ip:" +
+      (await hashPrivate(contactKey, "registration-ip", offsetIP));
+    assert.equal(
+      f.db.sqlite
+        .prepare("SELECT expires_at FROM rate_limits WHERE key=?")
+        .get(offsetBucket)!.expires_at,
+      "2026-10-31T00:03:45.250Z",
+    );
+  } finally {
+    f.db.close();
+  }
+});
+
+test("transport rejects do not spend a valid IP quota and oversized addresses map to the bounded unknown bucket", async () => {
+  const f = await fixture();
+  try {
+    const headers = { "CF-Connecting-IP": "203.0.113.45" };
+    for (let n = 0; n < 31; n++)
+      assert.equal(
+        (
+          await f.options(f.input, {
+            ...headers,
+            Origin: "https://evil.example",
+          })
+        ).status,
+        403,
+      );
+    assert.equal(f.count("rate_limits"), 0);
+    assert.equal((await f.options(f.input, headers)).status, 200);
+    for (let n = 0; n < 30; n++)
+      assert.equal(
+        (
+          await f.options(
+            {
+              ...f.input,
+              requestKey: "oversized-unclaimed",
+              confirmationCode: "f".repeat(64),
+            },
+            { "CF-Connecting-IP": "a".repeat(65) },
+          )
+        ).status,
+        403,
+      );
+    assert.equal(
+      (await f.options({ ...f.input, confirmationCode: "f".repeat(64) }))
+        .status,
+      429,
+    );
+    const keys = JSON.stringify(
+      f.db.sqlite.prepare("SELECT key FROM rate_limits").all(),
+    );
+    assert(!keys.includes("a".repeat(65)));
+  } finally {
+    f.db.close();
+  }
+});
+
+test("concurrent HTTP requests atomically spend only the final available minute slot", async () => {
+  const f = await fixture();
+  try {
+    const headers = { "CF-Connecting-IP": "203.0.113.99" },
+      wrong = { ...f.input, confirmationCode: "f".repeat(64) };
+    for (let n = 0; n < 29; n++)
+      assert.equal((await f.options(wrong, headers)).status, 403);
+    const responses = await Promise.all([
+      f.options(wrong, headers),
+      f.options(wrong, headers),
+    ]);
+    assert.deepEqual(responses.map((r) => r.status).sort(), [403, 429]);
+    assert.equal(f.count("identity_guardian_challenges"), 0);
+  } finally {
+    f.db.close();
+  }
+});
+
+test("options authenticate the confirmation before disclosing whether a request key has already been used", async () => {
+  const f = await fixture();
+  try {
+    await f.begin();
+    const wrong = { ...f.input, confirmationCode: "f".repeat(64) };
+    assert.equal((await f.options(wrong)).status, 403);
+    assert.equal(
+      (await f.options({ ...wrong, requestKey: "never-seen-before" })).status,
+      403,
+    );
+    // A later valid confirmation for this invitation still cannot rebind the old logical key.
+    f.db.sqlite
+      .prepare(
+        "UPDATE identity_guardian_invites SET invite_token_hash=? WHERE id=?",
+      )
+      .run(
+        await hashPrivate(
+          contactKey,
+          "guardian-confirmation:" + f.input.invitationId,
+          wrong.confirmationCode,
+        ),
+        f.input.invitationId,
+      );
+    assert.equal((await f.options(wrong)).status, 409);
+    assert.equal(f.count("identity_guardian_challenges"), 1);
   } finally {
     f.db.close();
   }
