@@ -1,8 +1,8 @@
 import type {Database} from './db.ts';
-import {createTowerAppearance,APPEARANCE_TIMEZONE} from './tower-appearance.ts';
+import {createTowerAppearance} from './tower-appearance.ts';
+import {managerLocalDay} from './tower-calendar.ts';
 export function calendarPeriods(at:Date){
- const parts=new Intl.DateTimeFormat('en-CA',{timeZone:APPEARANCE_TIMEZONE,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(at);
- const part=(key:string)=>parts.find(p=>p.type===key)!.value,day=`${part('year')}-${part('month')}-${part('day')}`;
+ const day=managerLocalDay(at);
  const monday=new Date(day+'T12:00:00.000Z');monday.setUTCDate(monday.getUTCDate()-(monday.getUTCDay()+6)%7);
  return {day,week:monday.toISOString().slice(0,10),month:day.slice(0,7)};
 }
