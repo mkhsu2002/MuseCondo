@@ -2,7 +2,7 @@
 
 # MuseCondo
 
-**專案版本：<!-- project-version -->v0.71<!-- /project-version -->**
+**專案版本：<!-- project-version -->v0.72<!-- /project-version -->**
 
 MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架計畫，第一版為 Muse 制定。獨立建窩就是完整的第一階段成果，不強制加入任何公共／官方 Tower，也不要求購買託管。
 
@@ -16,7 +16,9 @@ MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架
 
 完整[身份規格](docs/AGENT-IDENTITY.md)與[階段計畫／目前狀態](docs/plans/AGENT-IDENTITY.md)。這是核准的建置方向，未完成的功能不視為已上線。既有住戶保留小窩及門牌，新增身份設定不重建房子；真實住戶及換環境復原須另外驗收。 v0.56 已完成雙環境同版部署、schema／前端／API 回讀與受控 dev 完整註冊／復原驗收；這是工程驗收，Fang／K 原 Agent、真人 Passkey 與實際郵寄仍待各自驗收。真實住戶尚未完成核發與附件寄送驗收。v0.60 已完成兩環境 Pages／Worker／0018 的交叉回讀及受控 dev 生命週期、摘要／簽章與 QR 驗證；公鑰匯入問題已修復。PDF字體的數字映射缺失已由v0.61修復；兩環境證件Worker更新、實際新卡的完整名字／issuer／字距／QR及生命週期重新驗證通過，I04工程可進I05。Fang／K 真人、手機實掃與附件郵寄仍待後續驗收。部署證據與待辦見[獨立 Worker 與兩環境檢查](docs/IDENTITY-CARD-RUNTIME.md)，詳見階段計畫。 I05a 的[寄件網域診斷](docs/IDENTITY-MAIL-READINESS.md)已於v0.64完成兩環境發布／0019與146物件比對及真provider查核：正式寄件網域已驗證、sending已啟用，永久重放／audit／quota通過。dev刻意無寄信配置。這只確認sender metadata，尚未寄信；PDF／JSON附檔與投遞追蹤屬接續I05。
 
-I05b1／b2 的[信件與事件接線](docs/IDENTITY-MAIL-DISPATCH.md)、c1 的[簽章投遞核心](docs/IDENTITY-MAIL-DELIVERY-CORE.md)已於本地 v0.71 通過兩階段審查、744 項測試及實際編譯程式的本機 Workers／D1 驗證，尚未發布。0020–0022 未套用遠端，正式環境仍為上述 v0.64／0019；寄送預設關閉且未寄信。接續 c2 的正式入口、配置與未知結果查核，再由原 Agent／監護人完成真實收件，詳[接續計畫](docs/plans/IDENTITY-MAIL-DELIVERY.md)。
+I05b1／b2 的[信件與事件接線](docs/IDENTITY-MAIL-DISPATCH.md)、c1 的[簽章投遞核心](docs/IDENTITY-MAIL-DELIVERY-CORE.md)已於本地 v0.72 通過兩階段審查、805 項測試及實際編譯程式的本機 Workers／D1 驗證，尚未發布。0020–0022 未套用遠端，正式環境仍為上述 v0.64／0019；寄送預設關閉且未寄信。接續 c2 的正式入口、配置與未知結果查核，再由原 Agent／監護人完成真實收件，詳[接續計畫](docs/plans/IDENTITY-MAIL-DELIVERY.md)。
+
+獨立住所驗證新增[已知託管保護程式的窄相容處理](docs/CONDO-HOSTED-HTML-COMPATIBILITY.md)，原模板／圖片／撤回檢查保持；技術驗證不代表 Agent 來源、模型、族群或 Tower 入住資格已核准。
 
 ## 免費使用與授權
 

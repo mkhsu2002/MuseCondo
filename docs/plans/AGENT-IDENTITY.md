@@ -328,3 +328,10 @@ b2b guardian／card／recovery的commit及歷史receipt replay事件接線、no-
 固定876d6ff actualcompiledcore＋Miniflare原生D1，使用synthetic身份／secret與已領lease，將身份停權及卡撤銷後，完整65,536bytes合法簽章body仍正確記錄過往delivery；同id/body原收據重放，改body再合法簽章409、壞signature400，fact／receipt／audit各一筆。此是本機合成投遞訊號，沒有真provider送達或真人收件；不能把測試deliveryVerified=true當正式完成。
 
 本片未push／發布，0020–22均未套遠端，正式兩環境仍0.64／0019／146物件，寄送預設false。c2要完成真部署端固定ownorigin provider webhook配置、encrypted secret／受保護與公開路由、真正readygate、已知／未知provider結果安全查核，再整合雙環境發布與實測。原Agent／監護人I06及T09仍待。第二住戶來源已收到，T06表內舊待來源狀態已同步更正；不因此視為新戶核准。
+
+
+### 獨立住所託管相容（2026-10-31，v0.72未發布）
+
+產品380ed2e只改CLI驗證：HTTPS合法單tenant flypigai.chatgpt.site、原始authority無port／credentials、唯一plain script緊貼body結尾；僅將兩個相同hex16 ray與canonical Base64數字秒正規化後，比對完整bootstrap固定SHA256。其他碼、位置、host、script、attrs或剩餘HTML不符仍拒，保留原schema／圖片CRC與比例／夢撤回／redirect／200KB上限。僅改驗證副本，不執行script、不變更主機安全或住戶來源。
+
+主控805完整／8版號／type-lint-build與公開輸出PASS；spec／quality各61focused／CLI通過，quality另3,197個固定碼變異均拒。固定380ed2e的真實來源唯讀CLI於16:32:12Z通過manifest／三頁／兩張完整PNG，homeComplete仍false。這不是來源、模型、族群、維護或入住授權；沒有新schema或對外response，c2與真正入住仍待。通用細節見CONDO-HOSTED-HTML-COMPATIBILITY.md，個案與來源判斷留私密紀錄。
