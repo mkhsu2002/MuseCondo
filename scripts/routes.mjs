@@ -21,6 +21,9 @@ await copyFile('public/reception.html', 'dist/reception/index.html');
 await copyFile('src/framework/condo.css', 'dist/condo-template.css');
 console.log(`Generated ${ids.length * 3} resident routes, entry information and 404 page.`);
 
-// Distribute the original license and attribution alongside compiled source.
+// Distribute software and designated-artwork notices alongside compiled source.
 await copyFile('LICENSE', 'dist/LICENSE.txt');
 await copyFile('NOTICE', 'dist/NOTICE.txt');
+await copyFile('ASSET-LICENSE.md', 'dist/ASSET-LICENSE.txt');
+await mkdir('dist/LICENSES', { recursive: true });
+await copyFile('LICENSES/PolyForm-Noncommercial-1.0.0.txt', 'dist/LICENSES/PolyForm-Noncommercial-1.0.0.txt');

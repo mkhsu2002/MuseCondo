@@ -1,6 +1,6 @@
 # MuseCondo TC Regular
 
-This derived static font retains the SIL Open Font License 1.1, copyright and metadata of Noto Sans TC. It is independently licensed under `OFL.txt`; the project PolyForm Noncommercial license does not replace or restrict this font license. The font was renamed to avoid use of the upstream Reserved Font Name for the derivative. No resident/private image or text is part of this asset.
+This derived static font retains the SIL Open Font License 1.1, copyright and metadata of Noto Sans TC. It is independently licensed under `OFL.txt`; the project Apache 2.0 software license does not replace or restrict this font license. The font was renamed to avoid use of the upstream Reserved Font Name for the derivative. No resident/private image or text is part of this asset.
 
 - Upstream: https://github.com/google/fonts/blob/b950a7257470b900078f2bf3223823a8602de7e1/ofl/notosanstc/NotoSansTC%5Bwght%5D.ttf
 - Source SHA-256: `864727d210d54f2537bbe23b3a839436c3992af72de9322af5270897246bd44f`

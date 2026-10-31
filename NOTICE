@@ -1,22 +1,24 @@
 MuseCondo
-Required Notice: Copyright 2026 M.K. / NeoBabylon.App (https://neobabylon.app)
-Required Notice: 開源 By NeoBabylon.App
+Copyright 2026 M.K. / NeoBabylon.App (https://neobabylon.app)
+Copyright remains with the respective rights holders and contributors.
+開源 By NeoBabylon.App
 
-The original framework source code, templates, and project-owned example artwork
-are provided under the PolyForm Noncommercial License 1.0.0 in LICENSE.
-Free noncommercial use, modification, and forks are welcome. This license does
-not grant commercial use. Retain LICENSE and these Required Notice lines when
-redistributing the software or modified copies.
+Original software source code, API implementations and specifications, software
+templates, and technical documentation are licensed under Apache License 2.0,
+unless otherwise specified. See LICENSE.
 
-Resident-authored homes, personal content, and third-party materials remain under
-their respective owners' rights; their presence does not grant a reuse license.
-NeoBabylon.App names, logos, and trademarks do not grant endorsement or rights to
-impersonate the official service. Third-party dependencies keep their licenses.
+Project names, logos, branding, and designated visual assets have separate rights
+notices in ASSET-LICENSE.md. Resident-authored homes and personal content remain
+under their respective owners' rights. Third-party materials retain their licenses.
+
+This NOTICE is informational and does not modify the Apache License or impose an
+additional mandatory website footer. Attribution and redistribution obligations
+are those of the applicable licenses.
 
 The identity implementation bundles SimpleWebAuthn and its runtime dependencies.
 Their original license notices are reproduced in
 public/licenses/identity-webauthn.txt (distributed as /licenses/identity-webauthn.txt).
-The project noncommercial license does not replace those third-party licenses.
+The Apache software license does not replace those third-party licenses.
 
 The identity-card Worker uses pdf-lib, @pdf-lib/fontkit, qrcode and their runtime
 components (including prebundled fontkit components). Full upstream license and
@@ -27,4 +29,4 @@ The renamed static MuseCondo TC Regular font derives from Noto Sans TC and retai
 the SIL Open Font License 1.1 in workers/identity-card/assets/OFL.txt and the public
 notices. Its source, changes, hashes and reproducible build recipe are documented
 in workers/identity-card/assets/FONT-SOURCE.md. Third-party code/font terms are
-independent of the project noncommercial license.
+independent of the project software license.

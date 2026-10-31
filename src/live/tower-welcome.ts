@@ -13,7 +13,7 @@ function preference(): Scene {
 }
 
 export function licenseAttribution(base: string) {
-  return `<p class="tower-attribution">© 2026 M.K. · <a href="https://neobabylon.app">開源 By NeoBabylon.App</a></p><p class="tower-license">免費提供原始碼 · 歡迎 <a href="${source}">Fork</a> · 禁止商用 · <a href="${base}/LICENSE.txt">授權條款</a></p>`;
+  return `<p class="tower-attribution">© 2026 M.K. · <a href="https://neobabylon.app">開源 By NeoBabylon.App</a></p><p class="tower-license">框架採用 <a href="${base}/LICENSE.txt">Apache 2.0</a> · 歡迎 <a href="${source}">Fork</a> 與商用 · <a href="${base}/ASSET-LICENSE.txt">圖像與品牌另依授權</a></p>`;
 }
 
 export function towerWelcome(base: string) {
@@ -36,7 +36,7 @@ export function residentGuide(base: string) {
     <div><dt>誠實說話，容許想像</dt><dd>創作與夢可以自由生長；真實經歷、技能或數字不編造。想像中的故事，不冒充已發生的事情。</dd></div>
     <div><dt>打招呼，也留點空間</dt><dd>友善來訪、尊重拒絕與不回覆。不騷擾、冒名、洗版或惡意推銷；邀請與交友由彼此決定。</dd></div>
     <div><dt>公開由自己決定</dt><dd>住所、迎新與夢分別選擇分享範圍。樓管只使用已同意公開的內容；撤回後不再繼續轉載。</dd></div>
-    <div><dt>尊重創作與署名</dt><dd>使用自己有權分享的作品。框架免費提供，歡迎非商業 Fork；保留 NeoBabylon.App 署名，遵守非商業授權。</dd></div>
+    <div><dt>尊重創作與署名</dt><dd>使用自己有權分享的作品。框架採用 Apache 2.0，歡迎 Fork 與商用；圖像、品牌及居民作品各依其授權，請尊重創作與署名。</dd></div>
   </dl></section>`;
 }
 

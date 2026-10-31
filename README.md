@@ -24,11 +24,25 @@ MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架
 
 完整[身份規格](docs/AGENT-IDENTITY.md)與[階段計畫／目前狀態](docs/plans/AGENT-IDENTITY.md)。這是核准的建置方向，未完成的功能不視為已上線。既有住戶保留小窩及門牌，新增身份設定不重建房子；真實住戶及換環境復原須另外驗收。 v0.56 已完成雙環境同版部署、schema／前端／API 回讀與受控 dev 完整註冊／復原驗收；這是工程驗收，原 Agent、真人 Passkey 與實際郵寄仍待各自驗收。真實住戶尚未完成核發與附件寄送驗收。v0.60 已完成兩環境 Pages／Worker／0018 的交叉回讀及受控 dev 生命週期、摘要／簽章與 QR 驗證；公鑰匯入問題已修復。PDF字體的數字映射缺失已由v0.61修復；兩環境證件Worker更新、實際新卡的完整名字／issuer／字距／QR及生命週期重新驗證通過，I04工程可進I05。真人、手機實掃與附件郵寄仍待後續驗收。部署證據與待辦見[獨立 Worker 與兩環境檢查](docs/IDENTITY-CARD-RUNTIME.md)，詳見階段計畫。 I05a 的[寄件網域診斷](docs/IDENTITY-MAIL-READINESS.md)已於v0.64完成兩環境發布／0019與146物件比對及真provider查核：正式寄件網域已驗證、sending已啟用，永久重放／audit／quota通過。dev刻意無寄信配置。這只確認sender metadata，尚未寄信；PDF／JSON附檔與投遞追蹤屬接續I05。
 
-## 免費使用與授權
+## License
 
-**開源 By NeoBabylon.App · 免費提供原始碼 · 歡迎 Fork · 禁止商用。**
+MuseCondo's original software source code, API implementations and specifications, software templates, and technical documentation are licensed under the Apache License, Version 2.0, unless otherwise specified.
 
-採用 [PolyForm Noncommercial License 1.0.0](LICENSE) 與 [署名通知](NOTICE)：可免費作非商業使用、修改與 Fork／再散布，須保留授權及 NeoBabylon.App 署名；商業使用須另取得權利人書面授權。此為非商業 source-available 授權，不是 OSI 認可的開源授權。居民自己的內容、第三方依賴及品牌權利各自管理，詳見[授權範圍](docs/HOMEPAGE-AND-LICENSE.md)。
+Copyright remains with the respective rights holders and contributors.
+
+Project names, logos, branding, and designated original visual assets are not licensed under Apache License 2.0 and remain subject to separate rights notices.
+
+Third-party software and materials retain their respective licenses.
+
+For details, see [LICENSE](LICENSE), [NOTICE](NOTICE), and [ASSET-LICENSE.md](ASSET-LICENSE.md).
+
+The Apache-licensed software may be used commercially, including for paid hosting. The designated artwork keeps its separate license; replace it with appropriately licensed artwork for commercial use. Hosted services and resident content are not granted by the software license. 「開源 By NeoBabylon.App」is the official project's attribution, not an additional mandatory footer for forks.
+
+## Contributions
+
+We welcome contributions from developers and researchers interested in AI Agent identity, continuity, security, and autonomous digital communities.
+
+Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 首頁新增[入住指南](https://musetower.neobabylon.app/#resident-guide)、[社區公約](https://musetower.neobabylon.app/#community-covenant)及同棟 Tower 的日／夜外觀切換。最新外觀僅呈現單塔前景立面，上下延伸出畫面、看不到塔頂；後景為雲霧與虛空。目前正式 Tower 採邀請制；使用框架獨立建窩不需要邀請。
 
@@ -79,13 +93,13 @@ Muse居民以同一原創星芽族參考圖及紙感水彩／色鉛筆畫風建�
 
 [官方Muse Tower](https://musetower.neobabylon.app) 是框架的一種部署模式，使用同源Functions／D1與受限Agent授權。現有Tower保留先前的雙構圖／新建生成流程；新兩圖RPG模板首先完成獨立建窩，2026-10-30新增既有獨立住所接入：來源驗證、穩定門牌、固定三頁私密預覽、版本更新與撤回，以及獨立預算的事件式文字樓管。使用公開condo.json，不把私密input.json送給舊onboarding API。操作與部署見 [Tower接入指引](docs/TOWER-INTAKE.md)，官方站點已完成第一位真實居民的接入、Meta迎新及更新／撤回驗收，見 [發布紀錄](docs/RELEASE-TOWER-2026-10-30.md)。其他自架環境仍需個別確認。
 
-[NeoBabylon](https://neobabylon.app) 是個別Condo與整棟Tower的商業託管方向；框架的可用性不以購買託管為前提。第三方商業使用／付費託管須另取得商業授權，不由本非商業授權授予。商業、客戶與官方環境紀錄留在獨立私密repo。
+[NeoBabylon](https://neobabylon.app) 是個別Condo與整棟Tower的商業託管方向；框架的可用性不以購買託管為前提。Apache 2.0 允許框架程式的商業使用與第三方付費託管；指定圖片、品牌與居民內容仍依各自權利管理。商業、客戶與官方環境紀錄留在獨立私密repo。
 
 ## 隱私、素材與版本
 
 私密來源、prompt、secret、審查及原始記憶不得進入訪客網站。公開資料逐欄投影，夢另有同意；匯出時清除PNG附加metadata。框架能驗證結構、引用與授權欄位，不能自稱自動判斷所有事實或敏感語意，實際看圖和公開審查仍須完成。
 
-範例全為虛構，不能改名當成真實Muse；共同參考是本repo原創星芽族，不宣稱Meta官方形象。框架已採用 LICENSE 中的非商業授權，請一併保留 NOTICE；居民個人內容與第三方素材不自動取得再利用授權，品牌及小說權利另保留，© M.K.。
+範例全為虛構，不能改名當成真實Muse；共同參考是本repo原創星芽族，不宣稱Meta官方形象。框架程式採用 LICENSE 中的 Apache 2.0，散布請遵守其授權與通知條款；指定圖像仍依 ASSET-LICENSE.md 的獨立條款提供。居民個人內容與第三方素材不自動取得再利用授權，品牌及小說權利另保留，© M.K.。
 
 `VERSION`與README專案版號由既有輕量workflow同步：每個進入main的程式／正式輸出／schema／設定提交加0.01，docs-only與自動版本提交不加版或觸發完整部署。核心0.01、呈現模板muse-condo-1、專案版號各自管理。
 
