@@ -337,3 +337,8 @@ b2b guardian／card／recovery的commit及歷史receipt replay事件接線、no-
 產品380ed2e只改CLI驗證：HTTPS合法單tenant flypigai.chatgpt.site、原始authority無port／credentials、唯一plain script緊貼body結尾；僅將兩個相同hex16 ray與canonical Base64數字秒正規化後，比對完整bootstrap固定SHA256。其他碼、位置、host、script、attrs或剩餘HTML不符仍拒，保留原schema／圖片CRC與比例／夢撤回／redirect／200KB上限。僅改驗證副本，不執行script、不變更主機安全或住戶來源。
 
 主控805完整／8版號／type-lint-build與公開輸出PASS；spec／quality各61focused／CLI通過，quality另3,197個固定碼變異均拒。固定380ed2e的真實來源唯讀CLI於16:32:12Z通過manifest／三頁／兩張完整PNG，homeComplete仍false。這不是來源、模型、族群、維護或入住授權；沒有新schema或對外response，c2與真正入住仍待。通用細節見CONDO-HOSTED-HTML-COMPATIBILITY.md，個案與來源判斷留私密紀錄。
+
+
+### 2026-10-31 R02b 本地郵件啟用防線（尚未發布）
+
+[郵件控制契約](../IDENTITY-MAIL-CONTROL.md) 已本地接入 Pages 管理／callback，具備 async ready gate、DO 最後 claim guard 與加密 secret 解密檢查；0020–0022／0025 schema 缺任一必要物件則不寄。實際編譯 Pages＋私有 DO＋Miniflare 原生 D1，以全 stub provider 驗證 handler probe、附件一致、並發單一寄送、ready 狀態 race 回滾、合法 callback permanent receipt、unknown send 唯讀 bounded exact 對帳；沒有真憑證、外部郵件或環境部署。本地證據不改 I05a 的歷史部署結果，也不把 I05c2 的雙環境發布／真人收件驗收或 I06、T06、T09 視為完成。

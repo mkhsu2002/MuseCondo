@@ -1,3 +1,4 @@
+import {syntheticMailReady} from './helpers/identity-mail-ready-fixture.ts';
 import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,6 +16,7 @@ async function fixture() {
     for (const f of readdirSync(new URL('../migrations/', import.meta.url)).filter(f => f.endsWith('.sql')).sort())
         db.sqlite.exec(readFileSync(new URL('../migrations/' + f, import.meta.url), 'utf8'));
  openSyntheticTower(db);
+ await syntheticMailReady(db,origin,contactKey);
     for (const x of ['a', 'b']) {
         const account = x.repeat(16), agent = 'mcid:' + x.repeat(64);
         db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(account, 'guardian-' + x, time);

@@ -1,9 +1,11 @@
+import {createIdentityMailControl,IDENTITY_MAIL_CONTROL_SCHEMA} from './identity-mail-control.ts';
+import {IDENTITY_MAIL_DELIVERY_SCHEMA} from './identity-mail-delivery.ts';
 import {createTowerAdmission,TOWER_ADMISSION_SCHEMA} from './tower-admission.ts';
 import {isIdentityCardPath,proxyIdentityCard,type IdentityCardNamespace} from './identity-card-proxy.ts';
 import {createIdentityRecovery} from './identity-recovery.ts';
 import {createIdentityRegistration} from './identity-registration.ts';
 import {createIdentityGuardian} from './identity-guardian.ts';
-import {IDENTITY_MAIL_INTERNAL_PREFIX} from './identity-mail-contract.ts';
+import {IDENTITY_MAIL_INTERNAL_PREFIX,identityMailSchema} from './identity-mail-contract.ts';
 import {dispatchIdentityCardResult,identityMailEventDispatcher} from './identity-mail-events.ts';
 import {createIdentityMailReadiness} from './identity-mail-readiness.ts';
 import {createAgentIdentity} from './identity.ts';
@@ -46,9 +48,10 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const db=env.DB;if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')return json({available:false,error:'database_not_bound',runtime:safe},503);
   try{
    const rows=(await db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger','index','view')").all<{name:string}>()).results;
-   if(![...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
+   if(![...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
   }catch{return json({available:false,error:'database_unavailable',runtime:safe},503);}
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
+  const mailControlResponse=await createIdentityMailControl({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request);if(mailControlResponse)return mailControlResponse;
   if(url.pathname==='/api/v1/operator/identity/mail-readiness')return (await createIdentityMailReadiness({db,origin:env.PUBLIC_ORIGIN!,from:env.IDENTITY_MAIL_FROM,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request))!;
   const admissionResponse=await createTowerAdmission({db,origin:env.PUBLIC_ORIGIN!,operator}).fetch(request);if(admissionResponse)return admissionResponse;
   const generator=metaSecretConfigured&&paidCallsApproved?createFrameworkHomeGenerator({apiKey:env.meta_muse_api,approvedPaidCalls:true,textModel:MANAGER_MODEL,journal:databaseJournal(db)}):undefined;

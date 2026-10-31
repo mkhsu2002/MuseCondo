@@ -1,3 +1,4 @@
+import {identityMailDeliveryReady} from './identity-mail-control.ts';
 import type {Database} from './db.ts';
 import type {IdentityCardNamespace} from './identity-card-proxy.ts';
 import {validContactKey,validateGuardianEmail} from './identity-private.ts';
@@ -22,7 +23,7 @@ export function createIdentityMail(env:IdentityMailEnvironment){
  return {configured,status,async processOne(id:string):Promise<IdentityMailStatus|null>{
   const current=await status(id);if(!current||current.state!=='pending'||current.attemptCount!==0||!configured())return current;
   try{
-   if(!await identityMailSchemaReady(db))return current;
+   if(!await identityMailSchemaReady(db)||!await identityMailDeliveryReady(db,env.origin,env.contactKey))return current;
    const prepared=await rpc('prepare',{eventId:id},id);if(!prepared.ok)return status(id);
    const m=await smallJson(prepared),d=m.descriptor as Record<string,unknown>|undefined;
    if(!d||d.eventId!==id||typeof d.bodyDigest!=='string'||!/^[a-f0-9]{64}$/.test(d.bodyDigest)||!Number.isSafeInteger(d.bodyLength)||(d.bodyLength as number)<1||(d.bodyLength as number)>12582912||typeof m.recipient!=='string'||validateGuardianEmail(m.recipient)!==m.recipient||!senderDomain(m.from))return status(id);

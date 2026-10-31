@@ -1,3 +1,4 @@
+import {identityMailDeliveryReady,IDENTITY_MAIL_WEBHOOK_PATH} from './identity-mail-control.ts';
 import {createIdentityMailEnvelope,type IdentityMailEnvelopeEnvironment,IdentityMailEnvelopeError} from './identity-mail-envelope.ts';
 import {decryptPrivate,validateGuardianEmail,hashPrivate,randomIdentityId} from './identity-private.ts';
 import {IDENTITY_MAIL_INTERNAL_PREFIX,identityMailSchemaReady,safeIdentityMailProviderError,type SuppressionReason,type IdentityMailFinish} from './identity-mail-contract.ts';
@@ -29,10 +30,12 @@ export function createIdentityMailCoordinator(env:IdentityMailEnvelopeEnvironmen
  }
  async function claim(eventId:string,bodyDigest:string){
   if(!id(eventId)||!digest(bodyDigest))fail('invalid_mail_control');
+  if(!await identityMailDeliveryReady(db,env.origin,env.contactKey))fail('delivery_handler_not_ready');
   const materialized=await envelope.materialize(eventId,bodyDigest),key=await suppressionKey(materialized.recipient),leaseId=randomIdentityId(),time=stamp();
   // Construct the final clock guard immediately before the single native transaction;
   // no await, provider request or separate transaction may split guards and lease.
   const guards=materialized.guards();
+  guards.push(stmt("SELECT CASE WHEN EXISTS(SELECT 1 FROM identity_mail_webhook_setups WHERE origin=? AND endpoint=? AND state='ready' AND secret_ciphertext IS NOT NULL AND provider_id IS NOT NULL AND handler_probe_at IS NOT NULL) THEN 1 ELSE json('delivery-handler-not-ready') END",env.origin,env.origin+IDENTITY_MAIL_WEBHOOK_PATH));
   await db.batch([...guards,
    stmt("SELECT CASE WHEN EXISTS(SELECT 1 FROM identity_mail_events WHERE id=? AND state='pending' AND attempt_count=0) AND NOT EXISTS(SELECT 1 FROM identity_mail_dispatches WHERE event_id=?) AND NOT EXISTS(SELECT 1 FROM identity_mail_suppressions WHERE recipient_hash=?) THEN 1 ELSE json('mail-claim-blocked') END",eventId,eventId,key),
    stmt('INSERT INTO identity_mail_dispatches(event_id,lease_id,body_digest,body_length,created_at) VALUES(?,?,?,?,?)',eventId,leaseId,bodyDigest,materialized.descriptor.bodyLength,time),

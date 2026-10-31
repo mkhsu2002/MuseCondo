@@ -1,3 +1,4 @@
+import {syntheticMailReady} from './helpers/identity-mail-ready-fixture.ts';
 import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from "node:test";
 import {
@@ -34,6 +35,7 @@ async function fixture(onMailEvent?: (id: string) => void | Promise<void>, offic
       readFileSync(new URL("../migrations/" + name, import.meta.url), "utf8"),
     );
   openSyntheticTower(db);
+ await syntheticMailReady(db,origin,contactKey);
   let appNow = time,
     dbNow = time;
   db.sqlite.function("strftime", { varargs: true }, (...args) =>

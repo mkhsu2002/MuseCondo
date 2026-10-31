@@ -37,3 +37,17 @@ test('bounded unknown-send reconciliation uses exact persisted tag and envelope,
  assert.deepEqual(await(await req())!.json(),data);assert.equal(calls,2);
  }finally{f.close();}
 });
+test('manual redirects never follow the provider Location or create a webhook',async()=>{
+ for(const status of [301,302,303,307,308]){let calls=0;const f=await fixture(async(_input,init)=>{calls++;assert.equal(init!.redirect,'manual');return new Response(null,{status,headers:{Location:'https://unrelated.example/secret'}});});try{const r=await f.req('setup');assert.equal(r!.status,200);assert.equal(calls,1);assert.equal(f.db.sqlite.prepare('SELECT state FROM identity_mail_webhook_setups').get()!.state,'unknown');}finally{f.db.close();}}
+});
+test('missing readiness blocks Pages dispatch and native claim rechecks readiness immediately before the lease',async()=>{
+ const {envelopeFixture}=await import('./helpers/identity-mail-fixture.ts'),{createIdentityMailCoordinator}=await import('../server/live/identity-mail-coordinator.ts'),{createIdentityMail}=await import('../server/live/identity-mail.ts');
+ const f=await envelopeFixture();try{
+ const c=createIdentityMailCoordinator(f.env),m=await c.prepare(f.event);f.db.sqlite.prepare("UPDATE identity_mail_webhook_setups SET state='unknown'").run();let calls=0;
+ const mail=createIdentityMail({...f.env,apiKey:'synthetic',deliveryEnabled:'true',coordinator:{idFromName:n=>n,get:()=>({fetch:r=>c.fetch(r)})},fetcher:async()=>{calls++;return Response.json({});}});
+ assert.equal((await mail.processOne(f.event))!.state,'pending');assert.equal(calls,0);
+ f.db.sqlite.prepare("UPDATE identity_mail_webhook_setups SET state='ready'").run();
+ const batch=f.db.batch.bind(f.db);f.db.batch=async rows=>{if(rows.some(row=>(row as unknown as {sql:string}).sql.startsWith('INSERT INTO identity_mail_dispatches')))f.db.sqlite.prepare("UPDATE identity_mail_webhook_setups SET state='unknown'").run();return batch(rows);};
+ await assert.rejects(c.claim(f.event,m.descriptor.bodyDigest));assert.equal(f.count('identity_mail_dispatches'),0);assert.equal(f.db.sqlite.prepare('SELECT state FROM identity_mail_events WHERE id=?').get(f.event)!.state,'pending');
+ }finally{f.close();}
+});

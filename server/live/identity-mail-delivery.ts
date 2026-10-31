@@ -1,3 +1,4 @@
+export const IDENTITY_MAIL_DELIVERY_SCHEMA=["identity_mail_delivery_receipts", "identity_mail_delivery_receipt_binding", "identity_mail_delivery_receipt_immutable", "identity_mail_delivery_receipt_permanent", "identity_mail_delivery_facts", "identity_mail_delivery_fact_binding", "identity_mail_delivery_fact_immutable", "identity_mail_delivery_fact_permanent", "identity_mail_delivery_audit", "identity_mail_delivery_audit_binding", "identity_mail_delivery_audit_immutable", "identity_mail_delivery_audit_permanent"] as const;
 import type {Database} from './db.ts';
 import {decryptPrivate,hashPrivate,validContactKey,validateGuardianEmail} from './identity-private.ts';
 import {senderDomain} from './identity-mail-readiness.ts';
@@ -17,7 +18,7 @@ export interface IdentityMailDeliveryResult {
  suppressionType:'Suppressed'|'OnAccountSuppressionList'|'unknown'|null;
 }
 interface Receipt {event_id:string;payload_hmac:string;result_json:string}
-interface Frozen {id:string;kind:string;entity_id:string;dedupe_key:string;recipient_ciphertext:string;recipient_hash:string;payload_ciphertext:string;created_at:string;provider_id:string|null;metadata_ciphertext:string;template_version:string;attachment_refs:string;body_digest:string;body_length:number;lease_id:string}
+interface Frozen {id:string;kind:string;entity_id:string;dedupe_key:string;recipient_ciphertext:string;recipient_hash:string;payload_ciphertext:string;created_at:string;provider_id:string|null;metadata_ciphertext:string;template_version:string;attachment_refs:string;body_digest:string;body_length:number;lease_id:string;dispatch_created_at:string}
 interface Control {row:Frozen;recipient:string;from:string;subject:string}
 class DeliveryError extends Error {readonly status:number;constructor(status:number,code:string){super(code);this.status=status;}}
 function fail(status:number,code:string):never{throw new DeliveryError(status,code);}
@@ -83,7 +84,7 @@ export function createIdentityMailDelivery(env:IdentityMailDeliveryEnvironment){
  const payloadHmac=(source:Source,id:string,event:string,raw:Uint8Array)=>hashPrivate(env.contactKey,'mail-delivery:'+env.origin+':'+event+':'+source+':'+id,btoa(String.fromCharCode(...raw)));
  async function receipt(source:Source,id:string):Promise<IdentityMailDeliveryResult|null>{configured();if(!['webhook','readback'].includes(source)||!safeId(id))fail(400,'delivery_control_rejected');const old=await stored(source,id);return old?JSON.parse(old.result_json) as IdentityMailDeliveryResult:null;}
  async function historical(id:string):Promise<Control|null>{
-  const row=await one<Frozen>('SELECT e.*,v.metadata_ciphertext,v.template_version,v.attachment_refs,v.body_digest,v.body_length,d.lease_id FROM identity_mail_events e JOIN identity_mail_envelopes v ON v.event_id=e.id JOIN identity_mail_dispatches d ON d.event_id=e.id AND d.body_digest=v.body_digest AND d.body_length=v.body_length WHERE e.id=?',id);
+  const row=await one<Frozen>('SELECT e.*,v.metadata_ciphertext,v.template_version,v.attachment_refs,v.body_digest,v.body_length,d.lease_id,d.created_at dispatch_created_at FROM identity_mail_events e JOIN identity_mail_envelopes v ON v.event_id=e.id JOIN identity_mail_dispatches d ON d.event_id=e.id AND d.body_digest=v.body_digest AND d.body_length=v.body_length WHERE e.id=?',id);
   if(!row)return null;
   try{
    const m:unknown=JSON.parse(await decryptPrivate(env.contactKey,'mail-envelope',id,row.metadata_ciphertext));
@@ -134,7 +135,7 @@ export function createIdentityMailDelivery(env:IdentityMailDeliveryEnvironment){
   return apply('readback',opId,providerEmail,facts.includes(last as Fact)?last as Fact:'accepted',raw);
  }
  async function safe<T>(action:()=>Promise<T>):Promise<T>{try{return await action();}catch(error){if(error instanceof DeliveryError)throw error;fail(503,'delivery_unavailable');}}
- return {control:(id:string)=>safe(async()=>{configured();if(!eventId(id))fail(400,'delivery_control_rejected');const c=await historical(id);return c?{eventId:id,providerId:c.row.provider_id,recipient:c.recipient,from:c.from,subject:c.subject,createdAt:c.row.created_at}:null;}),receipt:(source:Source,id:string)=>safe(()=>receipt(source,id)),status:(id:string)=>safe(()=>status(id)),applyReadback:(opId:string,email:unknown)=>safe(()=>readback(opId,email)),async handleWebhook(request:Request):Promise<Response>{
+ return {control:(id:string)=>safe(async()=>{configured();if(!eventId(id))fail(400,'delivery_control_rejected');const c=await historical(id);return c?{eventId:id,providerId:c.row.provider_id,recipient:c.recipient,from:c.from,subject:c.subject,createdAt:c.row.dispatch_created_at}:null;}),receipt:(source:Source,id:string)=>safe(()=>receipt(source,id)),status:(id:string)=>safe(()=>status(id)),applyReadback:(opId:string,email:unknown)=>safe(()=>readback(opId,email)),async handleWebhook(request:Request):Promise<Response>{
   try{
    configured();if(new URL(request.url).origin!==env.origin)fail(403,'host_rejected');if(request.method!=='POST')fail(405,'method_not_allowed');
    const h=headersValid(request.headers);if(!h)fail(400,'webhook_verification_failed');const raw=await rawBody(request);

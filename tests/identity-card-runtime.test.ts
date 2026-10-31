@@ -1,3 +1,4 @@
+import {syntheticMailReady} from './helpers/identity-mail-ready-fixture.ts';
 import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -44,6 +45,7 @@ test('Pages to real coordinator persists actual PDF chunks, automatically dispat
  openSyntheticTower(db);
  const {hashIdentityInput,encryptPrivate,hashPrivate}=await import('../server/live/identity-private.ts');const {verifyCredential}=await import('../src/identity/index.ts');
  const account='a'.repeat(16),agent='mcid:'+'a'.repeat(64),invite='a'.repeat(32),contact='9'.repeat(64),now=new Date().toISOString(),expiry=new Date(Date.parse(now)+86400000).toISOString();
+ await syntheticMailReady(db,origin,contact);
  db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(account,await hashIdentityInput('synthetic-login'),now);
  db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Synthetic','Private','resident','external-ready',?)").run(account,account,now);
  db.sqlite.prepare("INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,created_at,updated_at) VALUES(?,?,?,'https://private.example','challenge',?,?)").run(account,account,account,now,now);

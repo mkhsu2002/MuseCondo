@@ -1,3 +1,4 @@
+import {syntheticMailReady} from './helpers/identity-mail-ready-fixture.ts';
 import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,6 +16,7 @@ export async function mailFixture(fetcher:typeof fetch=async()=>new Response(JSO
  const {createIdentityMail}=await import('../server/live/identity-mail.ts');
  const db=new LocalDatabase(':memory:');for(const f of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8'));
  openSyntheticTower(db);
+ await syntheticMailReady(db,origin,key);
  const account='a'.repeat(16),agent='mcid:'+'a'.repeat(64),id='b'.repeat(32),event='c'.repeat(32),email='Guardian.Local@example.com',token='d'.repeat(64),expiry='2026-11-01T00:00:00.000Z';
  db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(account,'mail-login',time);
  db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Test','Test','resident','external-ready',?)").run(account,account,time);

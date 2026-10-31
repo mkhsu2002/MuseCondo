@@ -1,3 +1,4 @@
+import {syntheticMailReady} from './identity-mail-ready-fixture.ts';
 import {openSyntheticTower} from './tower-admission-fixture.ts';
 import {readFileSync,readdirSync} from 'node:fs';
 import {LocalDatabase} from '../../server/live/local-db.ts';
@@ -8,6 +9,7 @@ export async function envelopeFixture(size=64){
  const db=new LocalDatabase(':memory:'),native=new LocalDatabase(':memory:');
  for(const file of readdirSync(new URL('../../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../../migrations/'+file,import.meta.url),'utf8'));
  openSyntheticTower(db);
+ await syntheticMailReady(db,origin,key);
  let clock=time,nativeClock=time;
  db.sqlite.function('strftime',{varargs:true},(...args)=>args[1]==='now'?nativeClock:native.sqlite.prepare('SELECT strftime('+args.map(()=>'?').join(',')+') v').get(...args)!.v);
  const pair=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);
