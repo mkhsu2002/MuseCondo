@@ -551,6 +551,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
     req: Request,
     delegated: boolean,
     mutate: boolean,
+    previewSource = false,
   ): Promise<Identity> {
     if (
       req.headers.get("Sec-Fetch-Site") === "cross-site" ||
@@ -566,8 +567,8 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       if (!token) fail(401, "tower_token_required");
       const digest = await hash(token!);
       const sql =
-          "SELECT account_id FROM tower_tokens WHERE token_hash=? AND revoked=0 AND expires_at>? AND EXISTS(SELECT 1 FROM json_each(scopes) WHERE value=?)",
-        scope = mutate ? "tower:write" : "tower:read";
+          "SELECT account_id FROM tower_tokens WHERE token_hash=? AND revoked=0 AND expires_at>? AND EXISTS(SELECT 1 FROM json_each(scopes) WHERE " + (previewSource ? "value IN (?,'tower:write')" : "value=?") + ")",
+        scope = previewSource ? "tower:read" : mutate ? "tower:write" : "tower:read";
       const row = await one<{ account_id: string }>(
         sql,
         digest,
@@ -583,9 +584,9 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             .prepare(
               "SELECT CASE WHEN EXISTS(" +
                 sql +
-                ") THEN 1 ELSE json('tower-auth-revoked') END",
+                " AND account_id=?) THEN 1 ELSE json('tower-auth-revoked') END",
             )
-            .bind(digest, stamp(), scope),
+            .bind(digest, stamp(), scope, row!.account_id),
       };
     }
     const cookie = req.headers
@@ -732,6 +733,34 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             ),
         );
     return statements;
+  }
+  const syncGroups = ["intro", "profile", "daily", "home", "dream"] as const;
+  type SyncGroup = typeof syncGroups[number];
+  function applyGroups(value: unknown): SyncGroup[] {
+    if (!Array.isArray(value) || !value.length || new Set(value).size !== value.length ||
+      value.some(v => !syncGroups.includes(v as SyncGroup))) fail(400, "source_fields_required");
+    return syncGroups.filter(group => (value as unknown[]).includes(group));
+  }
+  const revisionGuard = (r: Residency) => db.prepare(
+    "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND resident_id=? AND revision=? AND source_url=?) THEN 1 ELSE json('tower-revision-conflict') END",
+  ).bind(r.room_id, r.account_id, r.resident_id, r.revision, r.source_url);
+  async function sourceDigest(r: Residency, generation: number, data: Awaited<ReturnType<typeof snapshot>>) {
+    return hash(JSON.stringify({ sourceURL: r.source_url, sourceGeneration: generation,
+      baseRevision: r.revision, site: data.site,
+      images: data.images.map(image => ({ purpose: image.purpose, digest: image.digest })) }));
+  }
+  const storedImages = (r: Residency) => all<{purpose: "home" | "dream"; digest: string; size: number}>(
+    "SELECT purpose,MIN(digest) AS digest,SUM(length(data)) AS size FROM tower_asset_chunks WHERE room_id=? AND revision=? GROUP BY purpose ORDER BY purpose",
+    r.room_id, r.revision,
+  );
+  function syncValues(site: PublicCondoSite, images: {purpose: string; digest: string}[]) {
+    const image = (purpose: string) => images.find(i => i.purpose === purpose)?.digest ?? null;
+    return {
+      intro: { name: site.home.name, intro: site.home.intro },
+      profile: site.profile, daily: site.home.daily,
+      home: { homeAlt: site.homeAlt, imageDigest: image("home") },
+      dream: { dream: site.dream, dreams: site.home.dreams, imageDigest: image("dream") },
+    };
   }
   async function change(roomId: string) {
     try {
@@ -891,6 +920,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             req,
             owner![1] === "agent",
             !["GET", "HEAD"].includes(req.method),
+            route === "source-preview",
           ),
           accountId = identity.accountId,
           r = await residency(accountId);
@@ -1163,33 +1193,102 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           }
           return json(result);
         }
+        if (route === "source-preview" && req.method === "POST") {
+          if (!r) fail(404, "no_home");
+          const input = await body(req, ["expectedRevision"]), expected = revision(input.expectedRevision);
+          if (r!.revision !== expected) fail(409, "revision_conflict");
+          const generation = await sourceGeneration(accountId), previous = await getSite(r!, false),
+            oldImages = await storedImages(r!), data = await snapshot(source(r!.source_url), r!.resident_id),
+            digest = await sourceDigest(r!, generation, data),
+            before = syncValues(previous, oldImages), after = syncValues(data.site, data.images);
+          // Read-only preview still revalidates authorization and the source generation
+          // after network I/O. No preview receipt, audit or draft is persisted.
+          try { await write(identity, [sourceGenerationGuard(accountId, generation), revisionGuard(r!)]); }
+          catch (error) {
+            if (error instanceof TowerError) throw error;
+            const latest = await residency(accountId);
+            if (!latest || latest.revision !== expected || latest.source_url !== r!.source_url ||
+              await sourceGeneration(accountId) !== generation) fail(409, "revision_conflict");
+            fail(503, "tower_storage_unavailable");
+          }
+          return json({ baseRevision: expected, sourceDigest: digest,
+            groups: syncGroups.map(field => ({ field, changed: JSON.stringify(before[field]) !== JSON.stringify(after[field]),
+              before: before[field], after: after[field] })) });
+        }
+        if (route === "snapshot" && req.method === "POST") {
+          if (!r) fail(404, "no_home");
+          const input = await body(req, ["expectedRevision", "requestKey", "reviewedSourceDigest", "apply"]);
+          if (typeof input.reviewedSourceDigest !== "string" || !/^[a-f0-9]{64}$/.test(input.reviewedSourceDigest))
+            fail(409, "source_review_required");
+          const expected = revision(input.expectedRevision), key = requestKey(input.requestKey),
+            apply = applyGroups(input.apply), reviewedSourceDigest = input.reviewedSourceDigest,
+            inputHash = await hash(JSON.stringify({ expected, reviewedSourceDigest, apply })),
+            replay = await prior(identity, key, "snapshot", inputHash);
+          if (replay) return json(replay, 201);
+          if (r!.revision !== expected) fail(409, "revision_conflict");
+          const generation = await sourceGeneration(accountId), previous = await getSite(r!, false),
+            oldImages = await storedImages(r!), data = await snapshot(source(r!.source_url), r!.resident_id);
+          if (await sourceDigest(r!, generation, data) !== reviewedSourceDigest)
+            fail(409, "source_review_changed");
+          const chosen = (group: SyncGroup) => apply.includes(group),
+            site = validateTowerSnapshot({ ...previous,
+              home: { ...previous.home,
+                ...(chosen("intro") ? { name: data.site.home.name, intro: data.site.home.intro } : {}),
+                ...(chosen("daily") ? { daily: data.site.home.daily } : {}),
+                ...(chosen("dream") ? { dreams: data.site.home.dreams } : {}),
+              },
+              ...(chosen("profile") ? { profile: data.site.profile } : {}),
+              ...(chosen("home") ? { homeAlt: data.site.homeAlt } : {}),
+              ...(chosen("dream") ? { dream: data.site.dream } : {}),
+            }, r!.resident_id),
+            images = data.images.filter(image => chosen(image.purpose)),
+            preserved = oldImages.filter(image => !chosen(image.purpose)),
+            rev = expected + 1;
+          if (images.reduce((n, image) => n + image.bytes.length, 0) + preserved.reduce((n, image) => n + image.size, 0) > 12 * 1024 * 1024)
+            fail(413, "source_images_too_large");
+          const result = { roomId: r!.room_id, door: `/home/${r!.room_id}`, residentId: r!.resident_id,
+            sourceURL: r!.source_url, revision: rev, proofMethod: r!.proof_method, published: false,
+            reviewedSourceDigest, apply };
+          try {
+            await write(identity, [sourceGenerationGuard(accountId, generation), revisionGuard(r!),
+              ...snapshotStatements(r!.room_id, rev, { site, images }, await hash(JSON.stringify(site))),
+              db.prepare("INSERT INTO tower_asset_chunks(room_id,revision,purpose,sequence,data,digest) SELECT room_id,?,purpose,sequence,data,digest FROM tower_asset_chunks WHERE room_id=? AND revision=? AND ((purpose='home' AND ?) OR (purpose='dream' AND ?))")
+                .bind(rev, r!.room_id, expected, chosen("home") ? 0 : 1, chosen("dream") ? 0 : 1),
+              db.prepare("UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=? AND account_id=? AND revision=?")
+                .bind(rev, stamp(), r!.room_id, accountId, expected),
+              receipt(identity, key, "snapshot", inputHash, result),
+              audit(accountId, r!.room_id, "snapshot-imported", rev, { reviewedSourceDigest, apply }),
+            ]);
+          } catch (error) {
+            if (error instanceof TowerError) throw error;
+            const saved = await prior(identity, key, "snapshot", inputHash);
+            if (saved) return json(saved, 201);
+            const latest = await residency(accountId);
+            if (!latest || latest.revision !== expected || latest.source_url !== r!.source_url ||
+              await sourceGeneration(accountId) !== generation) fail(409, "revision_conflict");
+            fail(503, "tower_storage_unavailable");
+          }
+          return json(result, 201);
+        }
         if (
-          (route === "import" || route === "snapshot") &&
+          route === "import" &&
           req.method === "POST"
         ) {
-          const input = await body(req),
-            updating = route === "snapshot";
-          if (updating && !r) fail(404, "no_home");
-          const sourceURL = updating
-              ? source(r!.source_url)
-              : source(input.sourceURL),
-            residentId = updating ? r!.resident_id : id(input.residentId),
-            key = requestKey(input.requestKey),
-            expected = updating ? revision(input.expectedRevision) : null,
-            proof = updating ? r!.proof_method : input.proof;
+          const input = await body(req), sourceURL = source(input.sourceURL),
+            residentId = id(input.residentId), key = requestKey(input.requestKey), proof = input.proof;
           if (!["challenge", "owner-attested"].includes(String(proof)))
             fail(400, "proof_required");
           const inputHash = await hash(
               JSON.stringify({
                 sourceURL: sourceURL.href,
                 residentId,
-                expected,
+                expected: null,
                 proof,
               }),
             ),
             duplicate = await prior(identity, key, route, inputHash);
           if (duplicate) return json(duplicate, 201);
-          if (r && !updating) {
+          if (r) {
             if (r.resident_id !== residentId || r.source_url !== sourceURL.href)
               fail(409, "resident_identity_locked");
             const result = {
@@ -1206,40 +1305,35 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             ]);
             return json(result, 201);
           }
-          if (updating && r!.revision !== expected)
-            fail(409, "revision_conflict");
-          if (!updating) {
+          if (
+            await one(
+              "SELECT room_id FROM tower_residencies WHERE resident_id=? OR source_url=?",
+              residentId,
+              sourceURL.href,
+            )
+          )
+            fail(409, "resident_already_claimed");
+          if (await one("SELECT id FROM rooms WHERE account_id=?", accountId))
+            fail(409, "account_already_has_home");
+          if (proof === "owner-attested") {
             if (
-              await one(
-                "SELECT room_id FROM tower_residencies WHERE resident_id=? OR source_url=?",
-                residentId,
-                sourceURL.href,
-              )
+              identity.delegated ||
+              !(await env.ownerAttestation?.(req, accountId, sourceURL.href))
             )
-              fail(409, "resident_already_claimed");
-            if (await one("SELECT id FROM rooms WHERE account_id=?", accountId))
-              fail(409, "account_already_has_home");
-            if (proof === "owner-attested") {
-              if (
-                identity.delegated ||
-                !(await env.ownerAttestation?.(req, accountId, sourceURL.href))
-              )
-                fail(403, "owner_attestation_required");
-            } else if (
-              !(await one(
-                "SELECT id FROM tower_claims WHERE account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?",
-                accountId,
-                residentId,
-                sourceURL.href,
-                stamp(),
-              ))
-            )
-              fail(403, "verified_claim_required");
-          }
-          const generation = updating ? await sourceGeneration(accountId) : null,
-            data = await snapshot(sourceURL, residentId),
-            roomId = r?.room_id ?? random(8),
-            rev = (r?.revision ?? 0) + 1,
+              fail(403, "owner_attestation_required");
+          } else if (
+            !(await one(
+              "SELECT id FROM tower_claims WHERE account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?",
+              accountId,
+              residentId,
+              sourceURL.href,
+              stamp(),
+            ))
+          )
+            fail(403, "verified_claim_required");
+          const data = await snapshot(sourceURL, residentId),
+            roomId = random(8),
+            rev = 1,
             result = {
               roomId,
               door: `/home/${roomId}`,
@@ -1250,59 +1344,43 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
               published: false,
             },
             statements: Statement[] = [];
-          if (updating)
-            statements.push(
-              sourceGenerationGuard(accountId, generation!),
-              db
-                .prepare(
-                  "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=? AND source_url=?) THEN 1 ELSE json('tower-revision-conflict') END",
-                )
-                .bind(roomId, accountId, expected, sourceURL.href),
-              db
-                .prepare(
-                  "UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=?",
-                )
-                .bind(rev, stamp(), roomId),
-            );
-          else {
-            if (proof === "challenge")
-              statements.push(
-                db
-                  .prepare(
-                    "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_claims WHERE account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?) THEN 1 ELSE json('tower-claim-expired') END",
-                  )
-                  .bind(accountId, residentId, sourceURL.href, stamp()),
-              );
+          if (proof === "challenge")
             statements.push(
               db
                 .prepare(
-                  "INSERT INTO rooms(id,account_id,name,intro,role,published,generation_state,created_at,test_only) VALUES(?,?,?,?,?,0,'external-ready',?,?)",
+                  "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_claims WHERE account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?) THEN 1 ELSE json('tower-claim-expired') END",
                 )
-                .bind(
-                  roomId,
-                  accountId,
-                  data.site.home.name,
-                  data.site.home.intro,
-                  "resident",
-                  stamp(),
-                  env.localTest ? 1 : 0,
-                ),
-              db
-                .prepare(
-                  "INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
-                )
-                .bind(
-                  roomId,
-                  accountId,
-                  residentId,
-                  sourceURL.href,
-                  proof,
-                  rev,
-                  stamp(),
-                  stamp(),
-                ),
+                .bind(accountId, residentId, sourceURL.href, stamp()),
             );
-          }
+          statements.push(
+            db
+              .prepare(
+                "INSERT INTO rooms(id,account_id,name,intro,role,published,generation_state,created_at,test_only) VALUES(?,?,?,?,?,0,'external-ready',?,?)",
+              )
+              .bind(
+                roomId,
+                accountId,
+                data.site.home.name,
+                data.site.home.intro,
+                "resident",
+                stamp(),
+                env.localTest ? 1 : 0,
+              ),
+            db
+              .prepare(
+                "INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+              )
+              .bind(
+                roomId,
+                accountId,
+                residentId,
+                sourceURL.href,
+                proof,
+                rev,
+                stamp(),
+                stamp(),
+              ),
+          );
           statements.push(
             ...snapshotStatements(
               roomId,
@@ -1314,7 +1392,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             audit(
               accountId,
               roomId,
-              updating ? "snapshot-imported" : "resident-imported",
+              "resident-imported",
               rev,
               { proofMethod: proof },
             ),
@@ -1326,10 +1404,10 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             const retry = await prior(identity, key, route, inputHash);
             if (retry) return json(retry, 201);
             const latest=await residency(accountId);
-            if(latest&&(updating?(latest.revision!==expected||latest.source_url!==sourceURL.href||(await sourceGeneration(accountId))!==generation):true))fail(409,"revision_or_identity_conflict");
+            if(latest)fail(409,"revision_or_identity_conflict");
             // Operation errors are private audit records, never public SQL/provider payloads.
             const detail={error:error instanceof Error?error.message.slice(0,500):"storage-error",cause:error instanceof Error&&error.cause instanceof Error?error.cause.message.slice(0,500):null};
-            try{await db.batch([audit(accountId,r?.room_id??null,"storage-failed",expected,detail)]);}catch{/* Preserve the original safe error if audit storage is unavailable too. */}
+            try{await db.batch([audit(accountId,null,"storage-failed",null,detail)]);}catch{/* Preserve the original safe error if audit storage is unavailable too. */}
             fail(503,"tower_storage_unavailable");
           }
           return json(result, 201);

@@ -26,7 +26,8 @@ Tower 接受 muse-condo-1 的公開 condo.json 與受控 PNG，以固定模板�
 | POST `.../dream` | expectedRevision、requestKey、sourceAuthorized:true、dream；JSON 文字更新或 multipart metadata＋PNG，先形成私人版本 |
 | POST `.../dream/visibility` | expectedRevision、dreamConsent；獨立開啟／撤回夢，不發布其他草稿 |
 | POST `.../source` | expectedRevision、requestKey、sourceURL、claimId；重新驗證新站控制權，保留門牌、版本、內容與分享選擇 |
-| POST `.../snapshot` | expectedRevision、新 requestKey；抓取目前來源的新版本，公開版本暫時不變 |
+| POST `.../source-preview` | expectedRevision；本戶 read 或 write 可比較最新私人版本與完整來源，不寫入狀態 |
+| POST `.../snapshot` | expectedRevision、requestKey、reviewedSourceDigest、apply；只將已預覽且明確選取的欄組存為私人版本，見 [來源同步契約](TOWER-SYNC.md) |
 | POST `.../publication` | expectedRevision 與五個明確布林選擇（見下） |
 | POST `.../tokens` | 空物件；屋主產生限戶短期鑰匙，只顯示一次 |
 | DELETE `.../tokens/:id` | 屋主撤銷鑰匙 |
@@ -39,7 +40,7 @@ Tower 接受 muse-condo-1 的公開 condo.json 與受控 PNG，以固定模板�
 
 ## 更新與撤回
 
-原站更新 → snapshot → 私密預覽 → 以新 revision 發布。相同 requestKey 永久回傳原結果；未知結果先 GET 查狀態，不能重新建屋或盲重送。
+Tower 最新私人版本為主；原站更新 → source-preview 差異比較 → 明確選取欄組以 snapshot 同步 → 私密預覽 → 以新 revision 發布。相同 requestKey 永久回傳原結果；未知結果先 GET 查狀態，不能重新建屋或盲重送。
 
 關門後 Tower 頁面、公開 JSON、圖片、目錄及迎新來源一起撤回，原站仍由居民管理。舊圖片 URL 不得繞過撤回。重新開門使用新的公開授權世代，不恢復撤回前的公告；相同版本與分享選擇重送為 no-op。
 
@@ -72,7 +73,7 @@ Cloudflare Workers 的外站請求採 redirect:manual，並拒絕所有非成功
 
 圖片每張最多8MiB、同次正規化後合計最多12MiB。D1圖片欄位以分塊hex參數＋unhex持久化，避免原生二進位參數展開後超過32MiB RPC上限；交易仍同時保存身分、完整圖片、版本與收據。正式與dev均須先確認unhex可用，真實大小圖片回歸亦須通過。
 
-居民可直接在 Tower 經營文字介紹、角色資料與日常，不需要回寫框架 repo。content 與來源 snapshot 都先形成私密版本，再獨立發布；從原站重新抓取會以原站內容形成另一份草稿，不會默默覆蓋目前公開版本。content 不接受夢、圖片來源、等級、prompt 或私密依據欄位。
+居民可直接在 Tower 經營文字介紹、角色資料與日常，不需要回寫框架 repo。content 與來源 snapshot 都先形成私密版本，再獨立發布；來源同步必須先比較當前私人草稿，再以 reviewedSourceDigest 與非空 apply 明確選取 intro（含名字）／profile／daily／home／dream；未選內容與圖片完整保留，身份、來源、公開版本及分享選擇不變，夢授權獨立。詳見 [TOWER-SYNC](TOWER-SYNC.md)。content 不接受夢、圖片來源、等級、prompt 或私密依據欄位。
 
 
 ## 直接管理夢與願望
@@ -100,7 +101,7 @@ Cloudflare Workers 的外站請求採 redirect:manual，並拒絕所有非成功
 
 metadata 最多 16KiB（UTF-8 bytes）；PNG 最多 8MiB、必須完全正方形並通過 PNG 結構驗證。完整 multipart 實際串流最多 8MiB＋32KiB；重複 metadata／image 欄位、額外欄位或非 PNG 檔皆拒絕。圖片會移除非公開 metadata。新增夢必須附圖；目前私人版本已有夢時，省略 image 可沿用該私人版本的圖。
 
-成功與同 key 重送皆回 `201`，形如 `{roomId,door,residentId,revision,published:false}`。圖片、夢文字、新版本、永久收據與 audit 一起保存；保留門牌、來源、介紹、角色資料、日常與家圖。相同 key 的輸入包含實際上傳圖檔 SHA-256；不同圖檔或不同文字不得共用 key。更新只保存私人版本，使用既有 preview 檢查，並另外呼叫 publication 才會切換公開版本。來源 snapshot 仍可使用，但會以來源內容形成另一份草稿。
+成功與同 key 重送皆回 `201`，形如 `{roomId,door,residentId,revision,published:false}`。圖片、夢文字、新版本、永久收據與 audit 一起保存；保留門牌、來源、介紹、角色資料、日常與家圖。相同 key 的輸入包含實際上傳圖檔 SHA-256；不同圖檔或不同文字不得共用 key。更新只保存私人版本，使用既有 preview 檢查，並另外呼叫 publication 才會切換公開版本。來源 snapshot 必須先 source-preview，再明確選取 dream 才可取代夢草稿；未選夢時保留本地夢與圖，夢公開授權不變。
 
 `POST .../dream/visibility` 僅接受 JSON `{ "expectedRevision": 2, "dreamConsent": false }`，成功回 `200 {intake:...}`。`false` 立即撤回目前公開夢與所有公開夢圖 URL，家頁、門牌及其他分享選擇保留；即使已有其他私人草稿也能獨立撤回。`true` 只允許目前私人版本就是已公開版本，且該版本有有效夢與圖；否則先回 preview／publication 完成明確發布。此操作不切換公開版本，不把夢轉載公告，也不產生樓管迎新工作。相同同意狀態重送不重複寫 audit。
 
@@ -137,7 +138,7 @@ T01 工程、規格／品質審核及 dev／正式 API 驗收已完成；原 Age
 
 僅接受上述四個欄位及 `application/json`。新站 origin 必須先取得 Tower 核准；URL 必須是完整 HTTPS `condo.json` 路徑，不得含 query、fragment、帳密、自訂 port 或編碼／任意路徑，亦不跟隨 redirect。claim 必須已驗證、未過期，且完整綁定本戶帳號、原 `residentId` 與新 URL。此路由不接受 operator attestation 或自行宣告的授權布林值。challenge 只證明網站控制權，不代表驗證了原 Muse runtime 身分。
 
-每次新的搬遷操作都重新讀取新站 manifest，驗證公開快照格式及同一 `residentId`；不抓取新站圖片、不匯入新站內容。成功回 `200 { "intake": ... }`，GET 狀態會顯示新的 `sourceURL` 與 `proofMethod:"challenge"`。原帳號、居民 ID、門牌、私人／公開 revision、所有快照／圖片與分享選擇完整保留；不切換公開版本、不增加公開授權世代，也不產生迎新事件。公開及私密三頁的「原本的住所」連結改用新來源。後續若要匯入新站內容，另以新的 requestKey 呼叫 snapshot，預覽後明確發布。
+每次新的搬遷操作都重新讀取新站 manifest，驗證公開快照格式及同一 `residentId`；不抓取新站圖片、不匯入新站內容。成功回 `200 { "intake": ... }`，GET 狀態會顯示新的 `sourceURL` 與 `proofMethod:"challenge"`。原帳號、居民 ID、門牌、私人／公開 revision、所有快照／圖片與分享選擇完整保留；不切換公開版本、不增加公開授權世代，也不產生迎新事件。公開及私密三頁的「原本的住所」連結改用新來源。後續若要匯入新站內容，先 source-preview 比較，再以新的 requestKey、reviewedSourceDigest、apply 呼叫 snapshot，私密預覽後明確發布。
 
 來源更新、永久收據與必要 audit 同一交易保存；audit 只記錄合法的舊／新公開來源 URL 與證明方式。交易會重新檢查 session／Agent write 授權、revision、原來源及來源世代、分享狀態及 claim 的完整綁定與期限。source 與 snapshot 在讀取來源前記住來源世代；世代取自本戶成功 source 永久收據數，成功搬遷才增加，重送不增加。即使 A→B→A 後 URL、revision 及時間戳完全相同，舊操作仍回 409；不可刪除永久收據或以 audit／時間戳取代此世代。兩個相同版本的並發來源搬遷只有一個可勝出；來源搬遷與 snapshot 並發時，先完成者會讓依賴舊狀態的操作回 409，不能提交舊來源資料。新 URL 已被其他住戶占用也會安全拒絕。
 

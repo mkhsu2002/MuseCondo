@@ -385,10 +385,11 @@ test("snapshot optimistic lock keeps published revision stable and rejects parti
     const changed = structuredClone(f.raw);
     changed.home.name = "Updated";
     f.setManifest(changed);
+    const review = await f.data(f.req("/source-preview", "POST", { expectedRevision: 1 }));
     const update = await f.data(
       f.req("/snapshot", "POST", {
         expectedRevision: 1,
-        requestKey: "snapshot-2",
+        requestKey: "snapshot-2", reviewedSourceDigest: review.sourceDigest, apply: ["intro", "profile", "daily", "home", "dream"],
       }),
       201,
     );
@@ -402,7 +403,7 @@ test("snapshot optimistic lock keeps published revision stable and rejects parti
       (
         await f.req("/snapshot", "POST", {
           expectedRevision: 1,
-          requestKey: "stale-update",
+          requestKey: "stale-update", reviewedSourceDigest: review.sourceDigest, apply: ["intro"],
         })
       )?.status,
       409,
@@ -423,12 +424,13 @@ test("snapshot optimistic lock keeps published revision stable and rejects parti
       )?.status,
       404,
     );
+    const nextReview = await f.data(f.req("/source-preview", "POST", { expectedRevision: 2 }));
     f.badImage();
     assert.equal(
       (
         await f.req("/snapshot", "POST", {
           expectedRevision: 2,
-          requestKey: "bad-image-update",
+          requestKey: "bad-image-update", reviewedSourceDigest: nextReview.sourceDigest, apply: ["home"],
         })
       )?.status,
       400,
@@ -672,9 +674,10 @@ test("concurrent distinct snapshot updates allow exactly one winning revision", 
   const f = await fixture();
   try {
     await f.importHome();
+    const review = await f.data(f.req("/source-preview", "POST", { expectedRevision: 1 }));
     const responses = await Promise.all(
       ["snapshot-first", "snapshot-second"].map((requestKey) =>
-        f.req("/snapshot", "POST", { expectedRevision: 1, requestKey }),
+        f.req("/snapshot", "POST", { expectedRevision: 1, requestKey, reviewedSourceDigest: review.sourceDigest, apply: ["intro"] }),
       ),
     );
     assert.deepEqual(responses.map((r) => r!.status).sort(), [201, 409]);
@@ -786,6 +789,7 @@ test("published JSON contains strict public projection and updates never change 
       JSON.stringify(publicData),
       /source_url|sourceURL|account_id|token|seed|evidence|rating|proofMethod/,
     );
+    const review = await f.data(f.req("/source-preview", "POST", { expectedRevision: 1 }));
     const changed = structuredClone(f.raw);
     changed.home.id = "d".repeat(16);
     f.setManifest(changed);
@@ -793,7 +797,7 @@ test("published JSON contains strict public projection and updates never change 
       (
         await f.req("/snapshot", "POST", {
           expectedRevision: 1,
-          requestKey: "identity-changed-1",
+          requestKey: "identity-changed-1", reviewedSourceDigest: review.sourceDigest, apply: ["intro"],
         })
       )?.status,
       409,
@@ -816,6 +820,7 @@ test("revocation during remote fetch prevents every delegated snapshot write", a
   try {
     await f.importHome();
     const grant = await f.data(f.req("/tokens", "POST", {}), 201);
+    const review = await f.data(f.req("/source-preview", "POST", { expectedRevision: 1 }));
     f.beforeFetch(async () => {
       f.db.sqlite
         .prepare("UPDATE tower_tokens SET revoked=1 WHERE id=?")
@@ -824,7 +829,7 @@ test("revocation during remote fetch prevents every delegated snapshot write", a
     const response = await f.req(
       "/api/v1/agent/tower-intake/snapshot",
       "POST",
-      { expectedRevision: 1, requestKey: "revocation-race-1" },
+      { expectedRevision: 1, requestKey: "revocation-race-1", reviewedSourceDigest: review.sourceDigest, apply: ["intro"] },
       "",
       { Authorization: "Bearer " + grant.token },
     );

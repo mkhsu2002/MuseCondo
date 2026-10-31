@@ -384,6 +384,7 @@ test("a pending snapshot of the old source cannot commit after the source move; 
     let release: (() => void) | undefined;
     try {
       const claimId = await f.verify();
+      const review = await f.data(f.req("/source-preview", { expectedRevision: 1 }));
       let started!: () => void;
       const fetching = new Promise<void>(resolve => { started = resolve; }),
         wait = new Promise<void>(resolve => { release = resolve; });
@@ -392,13 +393,13 @@ test("a pending snapshot of the old source cannot commit after the source move; 
           started(); await wait;
         }
       });
-      const updating = { expectedRevision: 1, requestKey: "racing-snapshot" },
+      const updating = { expectedRevision: 1, requestKey: "racing-snapshot", reviewedSourceDigest: review.sourceDigest, apply: ["intro"] },
         losing = winner === "source" ? f.req("/snapshot", updating) : f.req("/source", move(claimId));
       await fetching;
       if (winner === "source") await f.data(f.req("/source", move(claimId)));
       else await f.data(f.req("/snapshot", updating), 201);
       release!();
-      assert.deepEqual(await f.data(losing, 409), { error: winner === "source" ? "revision_or_identity_conflict" : "revision_conflict" });
+      assert.deepEqual(await f.data(losing, 409), { error: "revision_conflict" });
       const intake = (await f.data(f.req())).intake;
       assert.equal(intake.sourceURL, winner === "source" ? newSource : oldSource);
       assert.equal(intake.revision, winner === "source" ? 1 : 2);
@@ -432,6 +433,7 @@ async function verifySourceABA(operation: "source" | "snapshot") {
   try {
     f.manifests.set(otherSource, site());
     const claimB = await f.verify(), claimA = await f.verify(oldSource), claimC = await f.verify(otherSource);
+    const review = operation === "snapshot" ? await f.data(f.req("/source-preview", { expectedRevision: 1 })) : null;
     let started!: () => void, blocked = false;
     const fetching = new Promise<void>(resolve => { started = resolve; }),
       wait = new Promise<void>(resolve => { release = resolve; });
@@ -441,7 +443,7 @@ async function verifySourceABA(operation: "source" | "snapshot") {
       }
     });
     const original = f.state().residency[0],
-      input = operation === "source" ? move(claimC, otherSource, "pending-source-aba") : { expectedRevision: 1, requestKey: "pending-snapshot-aba" },
+      input = operation === "source" ? move(claimC, otherSource, "pending-source-aba") : { expectedRevision: 1, requestKey: "pending-snapshot-aba", reviewedSourceDigest: review!.sourceDigest, apply: ["intro"] },
       pending = f.req("/" + operation, input);
     await fetching;
     const moveB = move(claimB, newSource, "aba-move-to-b"),
@@ -457,10 +459,14 @@ async function verifySourceABA(operation: "source" | "snapshot") {
     assert.equal(current.revision, original.revision);
     assert.equal(current.updated_at, original.updated_at, "the frozen clock must not hide an ABA failure");
     release!();
-    assert.deepEqual(await f.data(pending, 409), { error: operation === "source" ? "revision_conflict" : "revision_or_identity_conflict" });
+    assert.deepEqual(await f.data(pending, 409), { error: "revision_conflict" });
     assert.deepEqual(f.state(), before, "a stale request must not write a snapshot, source receipt or audit");
     f.beforeFetch(async () => {});
-    await f.data(f.req("/" + operation, input), operation === "source" ? 200 : 201);
+    if (operation === "snapshot") {
+      assert.deepEqual(await f.data(f.req("/snapshot", input), 409), { error: "source_review_changed" });
+      const fresh = await f.data(f.req("/source-preview", { expectedRevision: 1 }));
+      await f.data(f.req("/snapshot", { ...input, reviewedSourceDigest: fresh.sourceDigest }), 201);
+    } else await f.data(f.req("/source", input));
     assert.equal(countSourceReceipts(), operation === "source" ? 3 : 2);
   } finally { release?.(); f.close(); }
 }
