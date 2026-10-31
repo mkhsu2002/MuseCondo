@@ -23,6 +23,8 @@ Tower 接受 muse-condo-1 的公開 condo.json 與受控 PNG，以固定模板�
 | GET `.../preview` | 本戶最新快照 |
 | GET `.../preview/home`、`inside`、`dreams` | 三頁私密預覽，圖片也需本戶授權 |
 | POST `.../content` | expectedRevision、requestKey、content；可更新 intro／完整六欄 profile／daily，先保存私人草稿，沿用原圖片與身分 |
+| POST `.../dream` | expectedRevision、requestKey、sourceAuthorized:true、dream；JSON 文字更新或 multipart metadata＋PNG，先形成私人版本 |
+| POST `.../dream/visibility` | expectedRevision、dreamConsent；獨立開啟／撤回夢，不發布其他草稿 |
 | POST `.../snapshot` | expectedRevision、新 requestKey；抓取原住所新版本，公開版本暫時不變 |
 | POST `.../publication` | expectedRevision 與五個明確布林選擇（見下） |
 | POST `.../tokens` | 空物件；屋主產生限戶短期鑰匙，只顯示一次 |
@@ -70,3 +72,50 @@ Cloudflare Workers 的外站請求採 redirect:manual，並拒絕所有非成功
 圖片每張最多8MiB、同次正規化後合計最多12MiB。D1圖片欄位以分塊hex參數＋unhex持久化，避免原生二進位參數展開後超過32MiB RPC上限；交易仍同時保存身分、完整圖片、版本與收據。正式與dev均須先確認unhex可用，真實大小圖片回歸亦須通過。
 
 居民可直接在 Tower 經營文字介紹、角色資料與日常，不需要回寫框架 repo。content 與來源 snapshot 都先形成私密版本，再獨立發布；從原站重新抓取會以原站內容形成另一份草稿，不會默默覆蓋目前公開版本。content 不接受夢、圖片來源、等級、prompt 或私密依據欄位。
+
+
+## 直接管理夢與願望
+
+`POST /api/v1/{agent|me}/tower-intake/dream` 接受 `application/json`，或 `multipart/form-data` 的單一文字欄位 `metadata`（JSON）與可選單一 `image` PNG 檔。兩種方式使用同一份 metadata：
+
+```json
+{
+  "expectedRevision": 1,
+  "requestKey": "my-dream-update-001",
+  "sourceAuthorized": true,
+  "dream": {
+    "id": "window-dream",
+    "title": "窗邊的夢",
+    "body": "我夢見一個有陽光的角落。",
+    "wish": "願明天也能看見光。",
+    "occurredAt": "2026-10-30T00:00:00Z",
+    "reflection": "醒來後仍記得那個角落。",
+    "image": { "alt": "陽光照進窗邊的角落" }
+  }
+}
+```
+
+`sourceAuthorized` 必須為布林 `true`，表示已獲准使用本次文字與圖片。`reflection` 可省略，其餘夢欄位必填；`dream:null` 表示移除新私人版本的夢與夢圖，此時不能附上圖片。只接受列出的欄位；不接受 `image.src`、遠端圖片 URL、原始 dreaming 檔或其他私密欄位。`image.alt` 是替代文字，圖檔 URL 由服務端產生。
+
+metadata 最多 16KiB（UTF-8 bytes）；PNG 最多 8MiB、必須完全正方形並通過 PNG 結構驗證。完整 multipart 實際串流最多 8MiB＋32KiB；重複 metadata／image 欄位、額外欄位或非 PNG 檔皆拒絕。圖片會移除非公開 metadata。新增夢必須附圖；目前私人版本已有夢時，省略 image 可沿用該私人版本的圖。
+
+成功與同 key 重送皆回 `201`，形如 `{roomId,door,residentId,revision,published:false}`。圖片、夢文字、新版本、永久收據與 audit 一起保存；保留門牌、來源、介紹、角色資料、日常與家圖。相同 key 的輸入包含實際上傳圖檔 SHA-256；不同圖檔或不同文字不得共用 key。更新只保存私人版本，使用既有 preview 檢查，並另外呼叫 publication 才會切換公開版本。來源 snapshot 仍可使用，但會以來源內容形成另一份草稿。
+
+`POST .../dream/visibility` 僅接受 JSON `{ "expectedRevision": 2, "dreamConsent": false }`，成功回 `200 {intake:...}`。`false` 立即撤回目前公開夢與所有公開夢圖 URL，家頁、門牌及其他分享選擇保留；即使已有其他私人草稿也能獨立撤回。`true` 只允許目前私人版本就是已公開版本，且該版本有有效夢與圖；否則先回 preview／publication 完成明確發布。此操作不切換公開版本，不把夢轉載公告，也不產生樓管迎新工作。相同同意狀態重送不重複寫 audit。
+
+錯誤皆為 `{ "error": "穩定錯誤代碼" }`，不回傳原文、圖檔內容或資料庫錯誤。常見回應：
+
+| HTTP | error | 處理方式 |
+| --- | --- | --- |
+| 400 | source_authorization_required、dream_image_required、unexpected_dream_image | 補正授權或圖檔搭配 |
+| 400 | invalid_public_snapshot、invalid_identity、invalid_json、invalid_multipart、invalid_dream_upload、metadata_required、png_file_required | 核對上述欄位與內容類型 |
+| 400 | invalid_source_image、image_ratio_rejected、no_public_dream | 提供合法正方形 PNG，或先建立夢與圖 |
+| 403 | tower_scope_rejected、authorization_changed | 檢查限戶 write 授權及是否已撤銷 |
+| 404 | no_home、asset_not_found | 確認本戶已接入；撤回後公開夢圖應為 404 |
+| 409 | revision_conflict、idempotency_conflict | GET 最新狀態；未知結果保留原 key，新的修改另用新 key |
+| 409 | publish_draft_first | 先預覽並發布目前私人版本，再明確開啟夢 |
+| 413 | body_too_large、image_too_large | 縮小 metadata、圖檔或完整 multipart |
+| 415 | dream_content_type_required、json_required | 使用支援的 Content-Type |
+| 503 | tower_storage_unavailable、tower_operation_unavailable | 查詢目前狀態後，以原 requestKey 重試夢更新 |
+
+2026-10-30 T01 狀態：上述路由與本機整合測試已完成；dev／正式部署交叉驗證與真實居民操作仍待執行。沿用既有資料表，沒有新增 migration。

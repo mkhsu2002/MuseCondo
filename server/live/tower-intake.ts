@@ -439,9 +439,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       fail(400, "invalid_source_json");
     }
   }
-  async function body(req: Request) {
-    if (!req.headers.get("Content-Type")?.startsWith("application/json"))
-      fail(415, "json_required");
+  async function readBody(req: Request, max: number) {
     const reader = req.body?.getReader();
     if (!reader) fail(400, "body_required");
     let size = 0;
@@ -450,8 +448,8 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       const { done, value } = await reader!.read();
       if (done) break;
       size += value.length;
-      if (size > 12000) {
-        await reader!.cancel();
+      if (size > max) {
+        await reader!.cancel().catch(() => {});
         fail(413, "body_too_large");
       }
       parts.push(value);
@@ -462,8 +460,26 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       bytes.set(b, p);
       p += b.length;
     }
+    return bytes;
+  }
+  function parseJSON(bytes: Uint8Array) {
     try {
-      return object(JSON.parse(new TextDecoder().decode(bytes)), [
+      return JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+      ) as unknown;
+    } catch {
+      fail(400, "invalid_json");
+    }
+  }
+  async function body(req: Request, keys?: readonly string[], max = 12000) {
+    if (
+      req.headers.get("Content-Type")?.split(";")[0].trim() !==
+      "application/json"
+    )
+      fail(415, "json_required");
+    return object(
+      parseJSON(await readBody(req, max)),
+      keys ?? [
         "sourceURL",
         "residentId",
         "requestKey",
@@ -477,11 +493,59 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         "snapshotConsent",
         "rotate",
         "content",
-      ]);
-    } catch (e) {
-      if (e instanceof TowerError) throw e;
-      fail(400, "invalid_json");
+      ],
+    );
+  }
+  async function dreamBody(req: Request) {
+    const type = req.headers.get("Content-Type")?.split(";")[0].trim();
+    const keys = [
+      "expectedRevision",
+      "requestKey",
+      "sourceAuthorized",
+      "dream",
+    ];
+    if (type === "application/json")
+      return { input: await body(req, keys, 16 * 1024), image: null };
+    if (type !== "multipart/form-data")
+      fail(415, "dream_content_type_required");
+    // Bound actual streamed bytes before invoking the multipart parser. Header sizes
+    // and Content-Length are not trusted as an upload limit.
+    const bytes = await readBody(req, 8 * 1024 * 1024 + 32 * 1024);
+    let form: FormData;
+    try {
+      form = await new Response(bytes, {
+        headers: { "Content-Type": req.headers.get("Content-Type")! },
+      }).formData();
+    } catch {
+      fail(400, "invalid_multipart");
     }
+    if (
+      Array.from(form!.keys()).some(
+        (k) => !["metadata", "image"].includes(k),
+      ) ||
+      form!.getAll("metadata").length !== 1 ||
+      form!.getAll("image").length > 1
+    )
+      fail(400, "invalid_dream_upload");
+    const metadata = form!.get("metadata"),
+      image = form!.get("image");
+    if (typeof metadata !== "string") fail(400, "metadata_required");
+    const metadataBytes = new TextEncoder().encode(metadata as string);
+    if (metadataBytes.length > 16 * 1024) fail(413, "body_too_large");
+    if (
+      image !== null &&
+      (!(image instanceof File) || image.type !== "image/png")
+    )
+      fail(400, "png_file_required");
+    if (image && (image as File).size > 8 * 1024 * 1024)
+      fail(413, "image_too_large");
+    return {
+      input: object(parseJSON(metadataBytes), keys),
+      image:
+        image === null
+          ? null
+          : new Uint8Array(await (image as File).arrayBuffer()),
+    };
   }
   async function authenticate(
     req: Request,
@@ -1214,6 +1278,211 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             receipt(identity,key,"content",inputHash,result),audit(accountId,r!.room_id,"resident-content-updated",rev,{fields:Object.keys(content)}),
           ]);}catch(error){if(error instanceof TowerError)throw error;const saved=await prior(identity,key,"content",inputHash);if(saved)return json(saved,201);const latest=await residency(accountId);if(latest?.revision!==expected)fail(409,"revision_conflict");fail(503,"tower_storage_unavailable");}
           return json(result,201);
+        }
+        if (route === "dream" && req.method === "POST") {
+          if (!r) fail(404, "no_home");
+          const { input, image } = await dreamBody(req),
+            expected = revision(input.expectedRevision),
+            key = requestKey(input.requestKey);
+          if (input.sourceAuthorized !== true)
+            fail(400, "source_authorization_required");
+          let dream: PublicCondoSite["dream"] = null;
+          if (input.dream !== null) {
+            const d = object(input.dream, [
+                "id",
+                "title",
+                "body",
+                "wish",
+                "occurredAt",
+                "reflection",
+                "image",
+              ]),
+              im = object(d.image, ["alt"]);
+            dream = {
+              id: id(d.id),
+              title: string(d.title, 120),
+              body: string(d.body, 5000),
+              wish: string(d.wish),
+              occurredAt: date(d.occurredAt),
+              ...(d.reflection === undefined
+                ? {}
+                : { reflection: string(d.reflection) }),
+              image: { src: "./assets/dream.png", alt: string(im.alt, 500) },
+            };
+          } else if (image !== null) fail(400, "unexpected_dream_image");
+          const inputHash = await hash(
+              JSON.stringify({
+                expected,
+                dream,
+                sourceAuthorized: true,
+                imageDigest: image === null ? null : await hash(image),
+              }),
+            ),
+            replay = await prior(identity, key, "dream", inputHash);
+          if (replay) return json(replay, 201);
+          if (r!.revision !== expected) fail(409, "revision_conflict");
+          const previous = await getSite(r!, false);
+          if (
+            dream &&
+            image === null &&
+            (!previous.dream ||
+              !(await one(
+                "SELECT 1 FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose='dream' LIMIT 1",
+                r!.room_id,
+                expected,
+              )))
+          )
+            fail(400, "dream_image_required");
+          const site = validateTowerSnapshot(
+              {
+                ...previous,
+                dream,
+                home: {
+                  ...previous.home,
+                  dreams: dream
+                    ? [
+                        {
+                          id: dream.id,
+                          type: "dream",
+                          title: dream.title,
+                          body: dream.body,
+                          occurredAt: dream.occurredAt,
+                          image: "./assets/dream.png",
+                          ...(dream.reflection === undefined
+                            ? {}
+                            : { reflection: dream.reflection }),
+                        },
+                      ]
+                    : [],
+                },
+              },
+              r!.resident_id,
+            ),
+            rev = expected + 1,
+            cleaned = image === null ? null : await cleanPNG(image, "dream"),
+            result = {
+              roomId: r!.room_id,
+              door: `/home/${r!.room_id}`,
+              residentId: r!.resident_id,
+              revision: rev,
+              published: false,
+            };
+          const statements = [
+            db
+              .prepare(
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=?) THEN 1 ELSE json('tower-revision-conflict') END",
+              )
+              .bind(r!.room_id, accountId, expected),
+            ...snapshotStatements(
+              r!.room_id,
+              rev,
+              {
+                site,
+                images:
+                  cleaned === null
+                    ? []
+                    : [
+                        {
+                          purpose: "dream",
+                          bytes: cleaned,
+                          digest: await hash(cleaned),
+                        },
+                      ],
+              },
+              await hash(JSON.stringify(site)),
+            ),
+            db
+              .prepare(
+                "INSERT INTO tower_asset_chunks(room_id,revision,purpose,sequence,data,digest) SELECT room_id,?,purpose,sequence,data,digest FROM tower_asset_chunks WHERE room_id=? AND revision=? AND (purpose='home' OR (purpose='dream' AND ?))",
+              )
+              .bind(
+                rev,
+                r!.room_id,
+                expected,
+                dream !== null && cleaned === null ? 1 : 0,
+              ),
+            db
+              .prepare(
+                "UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=? AND account_id=? AND revision=?",
+              )
+              .bind(rev, stamp(), r!.room_id, accountId, expected),
+            receipt(identity, key, "dream", inputHash, result),
+            audit(accountId, r!.room_id, "resident-dream-updated", rev, {
+              sourceAuthorized: true,
+              removed: dream === null,
+              imageReplaced: cleaned !== null,
+            }),
+          ];
+          try {
+            await write(identity, statements);
+          } catch (error) {
+            if (error instanceof TowerError) throw error;
+            const saved = await prior(identity, key, "dream", inputHash);
+            if (saved) return json(saved, 201);
+            if ((await residency(accountId))?.revision !== expected)
+              fail(409, "revision_conflict");
+            fail(503, "tower_storage_unavailable");
+          }
+          return json(result, 201);
+        }
+        if (route === "dream/visibility" && req.method === "POST") {
+          if (!r) fail(404, "no_home");
+          const input = await body(req, ["expectedRevision", "dreamConsent"]),
+            expected = revision(input.expectedRevision);
+          if (typeof input.dreamConsent !== "boolean")
+            fail(400, "explicit_consent_required");
+          if (r!.revision !== expected) fail(409, "revision_conflict");
+          if (input.dreamConsent) {
+            if (r!.public_revision !== expected || !r!.snapshot_consent)
+              fail(409, "publish_draft_first");
+            if (
+              !(await getSite(r!, false)).dream ||
+              !(await one(
+                "SELECT 1 FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose='dream' LIMIT 1",
+                r!.room_id,
+                expected,
+              ))
+            )
+              fail(400, "no_public_dream");
+          }
+          if (!!r!.dream_consent === input.dreamConsent)
+            return json({ intake: safe(r!) });
+          try {
+            await write(identity, [
+              // A concurrent publication must not make a visibility approval apply
+              // to a different public snapshot while retaining the same revision.
+              db
+                .prepare(
+                  "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=? AND public_revision IS ? AND dream_consent=?) THEN 1 ELSE json('tower-revision-conflict') END",
+                )
+                .bind(
+                  r!.room_id,
+                  accountId,
+                  expected,
+                  r!.public_revision,
+                  r!.dream_consent,
+                ),
+              db
+                .prepare(
+                  "UPDATE tower_residencies SET dream_consent=?,updated_at=? WHERE room_id=?",
+                )
+                .bind(input.dreamConsent ? 1 : 0, stamp(), r!.room_id),
+              audit(accountId, r!.room_id, "dream-visibility-updated", expected, {
+                dreamConsent: input.dreamConsent,
+              }),
+            ]);
+          } catch (error) {
+            if (error instanceof TowerError) throw error;
+            const latest = await residency(accountId);
+            if (
+              latest?.revision !== expected ||
+              latest.public_revision !== r!.public_revision ||
+              latest.dream_consent !== r!.dream_consent
+            )
+              fail(409, "revision_conflict");
+            fail(503, "tower_storage_unavailable");
+          }
+          return json({ intake: safe((await residency(accountId))!) });
         }
         if (route === "publication" && req.method === "POST") {
           if (!r) fail(404, "no_home");
