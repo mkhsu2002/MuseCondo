@@ -77,6 +77,23 @@ export function createLobbyTheme(options:Options){
    const proof:Screenshot={index,...view,artifactId:a.id,objectKey,sha256:await hashThemeBytes(bytes),bytes:bytes.length,...size,callId:id,manifestHash:a.sha256,htmlHash,rendererVersion:LOBBY_RENDERER_VERSION,rendererBuildHash:LOBBY_RENDERER_BUILD_HASH};await readScreen(proof);await event(e.cycle_id,'lobby-theme-rendered',proof);await advance(e,index===3?'verify':`render-${index+1}`);
   }catch(error){if(!settled)await run("UPDATE tower_autonomy_calls SET state='unknown',completed_at=? WHERE id=?",clock().toISOString(),id);throw error;}
  }
+ // Read-only diagnosis of an already rejected zero-cost receipt. Never invokes claimRender or Browser.
+ async function diagnoseRender(receiptId:string){
+  let phase='schema';const checks:Record<string,boolean>={};
+  try{
+   if(!/^[0-9a-f-]{36}$/.test(receiptId))throw Error('theme_diagnostic_denied');
+   checks.schemaReady=await themeSchemaReady(db);if(!checks.schemaReady)throw Error('theme_schema_not_ready');
+   phase='receipt';const receipt=await db.prepare("SELECT cycle_id,state,actual_micro,model,purpose FROM tower_autonomy_calls WHERE id=?").bind(receiptId).first<{cycle_id:string;state:string;actual_micro:number;model:string;purpose:string}>();
+   checks.knownRejected=!!receipt&&receipt.state==='rejected'&&receipt.actual_micro===0&&receipt.model==='tool:browser-screenshot'&&/^lobby-theme-v1:render-[0-3]$/.test(receipt.purpose);if(!checks.knownRejected)throw Error('theme_diagnostic_denied');
+   phase='extension';const row=await db.prepare('SELECT * FROM tower_autonomy_extensions WHERE cycle_id=?').bind(receipt!.cycle_id).first<Extension>();if(!row)throw Error('theme_extension_missing');
+   checks.claimAbsent=!await db.prepare('SELECT 1 FROM tower_autonomy_events WHERE id=?').bind(`theme-render-dispatch:${receiptId}`).first();
+   checks.blocked=row.state==='blocked'&&row.error_code==='theme_render_not_dispatched';checks.inWindow=inWindow(row);
+   phase='artifact';await artifact(row);checks.artifactValid=true;
+   phase='original';await original(row,'day');checks.originalValid=true;
+   phase='native-read';checks.nativeRead=!!await db.prepare(`SELECT ${native} AS native_now`).first();
+   return {diagnosticVersion:1,phase:'complete',checks};
+  }catch(error){return {diagnosticVersion:1,phase,checks,errorCode:error instanceof Error&&/^theme_[a-z_]{1,70}$/.test(error.message)?error.message:'diagnostic_read_failed',exceptionKind:error instanceof TypeError?'TypeError':error instanceof RangeError?'RangeError':'Error'};}
+ }
  async function claimRender(receiptId:string){
   if(!/^[0-9a-f-]{36}$/.test(receiptId)||!await themeSchemaReady(db))throw Error('theme_render_claim_denied');
   const row=await db.prepare("SELECT e.* FROM tower_autonomy_extensions e JOIN tower_autonomy_calls p ON p.cycle_id=e.cycle_id WHERE p.id=? AND p.model='tool:browser-screenshot' AND p.state='dispatching' AND p.purpose='lobby-theme-v1:'||e.state AND p.step_key=e.cycle_id||':'||e.step_seq||':'||p.purpose").bind(receiptId).first<Extension>();if(!row)throw Error('theme_render_claim_denied');
@@ -153,6 +170,6 @@ export function createLobbyTheme(options:Options){
   }catch(error){const code=error instanceof Error&&/^[a-z_]+$/.test(error.message)?error.message:'theme_step_failed';await block(e,code).catch(()=>{});}
   const current=await db.prepare('SELECT state FROM tower_autonomy_extensions WHERE id=?').bind(e.id).first<{state:string}>();return {handled:true,pending:await pending(),state:current?.state??'blocked'};
  }
- return {enable,ensureDue,step,pending,claimRender,async inspect(){if(!await themeSchemaReady(db))return {schemaReady:false};return {schemaReady:true,rendererBuildHash:LOBBY_RENDERER_BUILD_HASH,rendererConfigured:!!options.renderer,policyEnabled:!!await db.prepare("SELECT 1 FROM tower_autonomy_events WHERE id='lobby-theme-policy:v1'").first(),extensions:(await db.prepare('SELECT * FROM tower_autonomy_extensions ORDER BY created_at DESC LIMIT 31').all()).results,artifacts:(await db.prepare('SELECT * FROM tower_theme_artifacts ORDER BY created_at DESC LIMIT 62').all()).results,current:await db.prepare('SELECT * FROM tower_theme_current WHERE id=1').first()};}};
+ return {enable,ensureDue,step,pending,claimRender,diagnoseRender,async inspect(){if(!await themeSchemaReady(db))return {schemaReady:false};return {schemaReady:true,rendererBuildHash:LOBBY_RENDERER_BUILD_HASH,rendererConfigured:!!options.renderer,policyEnabled:!!await db.prepare("SELECT 1 FROM tower_autonomy_events WHERE id='lobby-theme-policy:v1'").first(),extensions:(await db.prepare('SELECT * FROM tower_autonomy_extensions ORDER BY created_at DESC LIMIT 31').all()).results,artifacts:(await db.prepare('SELECT * FROM tower_theme_artifacts ORDER BY created_at DESC LIMIT 62').all()).results,current:await db.prepare('SELECT * FROM tower_theme_current WHERE id=1').first()};}};
 }
 export async function readBoundedBytes(response:Response,max:number){const reader=response.body?.getReader();if(!reader)throw Error('theme_body_missing');const chunks:Uint8Array[]=[];let length=0;for(;;){const part=await reader.read();if(part.done)break;length+=part.value.length;if(length>max){await reader.cancel();throw Error('theme_body_too_large');}chunks.push(part.value);}const bytes=new Uint8Array(length);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}return bytes;}

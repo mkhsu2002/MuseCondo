@@ -119,3 +119,7 @@ Renderer build digest涵蓋正式CSS、共用markup、scene文案、generic them
 獨立 `scripts/test-tower-theme-native-guards.mjs` 另驗11組真D1邊界：並發render claim、dispatch receipt後window／lease／mandate／budget／base revision變化，以及extension建立最後邊界／disable。原cost account、budget、receipts及R2bytes SHA保留。enable的native同batch讓首次fresh及commit後立即到來的cron／外部wake看到新版policy。若某舊版付費思考在此次scope授權**之前已送出**，升版不改其歷史context／budget；不足新版reserve時native拒絕授權並保留費用與blocked duty，不盲重跑、不宣稱已替所有in-flight舊任務補足預算。
 
 Meta tool契約小修：私密submit_lobby_theme parameters與planning manifestContract共用完整nested JSON Schema，top level精確version/day/night/layout/decoration；兩景九色、exact required／additionalProperties:false、layout/frame enums、色碼與數值範圍均明列。跨欄對比另列manifestRules並保留現有deterministic validator。官方Tool calling此輪重查確認strict省略時schema accepted as-is；本修沒有增加strict／tool_choice旗標、不改migration／預算／guard／renderer／public schema。
+
+### 私密零派送診斷（2026-10-31）
+
+`GET /api/v1/operator/manager/autonomy?diagnoseThemeReceipt=<uuid>` 只接受 operator 授權，經既有 `MANAGER_RUNTIME` 的 `/theme/diagnose`，以相同固定 origin 回呼既有 `theme-render-claim` 路由的 `{receiptId, diagnostic:true}` 讀取模式。此模式只讀已知 `rejected / actual_micro=0` 的 Browser receipt、原 extension／artifact／原圖雜湊與 claim 是否存在；不寫帳本、event 或 lease，不 claim、不喚醒、不呼叫 Browser／Meta。回傳只含受限階段、布林檢查、HTTP status、content type、CF ray 與安全錯誤碼；HTML、原始 body、圖片與內部內容不回傳。此診斷不構成續跑授權，也不改寫舊 receipt。正常 render 流程與 renderer build digest 不變。

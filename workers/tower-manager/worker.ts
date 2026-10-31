@@ -1,3 +1,4 @@
+import {themeDiagnosticRoute} from './theme-diagnostics.ts';
 import {themeRendererRoute,type BrowserBinding} from './theme-renderer.ts';
 interface Stub {fetch(request:Request):Promise<Response>}
 interface ScheduleBindings {BROWSER?:BrowserBinding;PUBLIC_ORIGIN:string;MANAGER_SCHEDULE_TRIGGER_KEY:string;MANAGER_CLOCK?:{idFromName(name:string):unknown;get(id:unknown):Stub}}
@@ -19,10 +20,11 @@ export class ManagerClock {
 }
 export default {
  async fetch(request?:Request,env?:ScheduleBindings){
-  if(!request||!env||!['/wake','/theme/ready','/theme/render'].includes(new URL(request.url).pathname)||request.method!=='POST')return new Response('Not found',{status:404});
+  if(!request||!env||!['/wake','/theme/ready','/theme/render','/theme/diagnose'].includes(new URL(request.url).pathname)||request.method!=='POST')return new Response('Not found',{status:404});
   const provided=request.headers.get('X-Manager-Schedule-Key');if(!provided||!env.MANAGER_SCHEDULE_TRIGGER_KEY)return new Response('Unauthorized',{status:401});
   const hash=async(v:string)=>new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)));const [a,b]=await Promise.all([hash(provided),hash(env.MANAGER_SCHEDULE_TRIGGER_KEY)]);let mismatch=0;for(let i=0;i<a.length;i++)mismatch|=a[i]^b[i];if(mismatch)return new Response('Unauthorized',{status:401});
   if(request.headers.has('Cookie')||request.headers.get('Sec-Fetch-Site')==='cross-site'||request.headers.has('Origin')&&request.headers.get('Origin')!==env.PUBLIC_ORIGIN)return new Response('Unauthorized',{status:401});
+  if(new URL(request.url).pathname==='/theme/diagnose')return themeDiagnosticRoute(request,id=>fetch(new URL('/api/v1/manager/autonomy/theme-render-claim',configuration(env)),{method:'POST',redirect:'manual',headers:{'Content-Type':'application/json','X-Manager-Schedule-Key':env.MANAGER_SCHEDULE_TRIGGER_KEY},body:JSON.stringify({receiptId:id,diagnostic:true}),signal:AbortSignal.timeout(30000)}));
   if(new URL(request.url).pathname.startsWith('/theme/'))return themeRendererRoute(request,env,id=>dispatch(env,'/api/v1/manager/autonomy/theme-render-claim',{receiptId:id}));
   if(!env.MANAGER_CLOCK)return new Response('Unavailable',{status:503});return env.MANAGER_CLOCK.get(env.MANAGER_CLOCK.idFromName('manager-daily')).fetch(new Request('https://clock.internal/wake',{method:'POST'}));
  },

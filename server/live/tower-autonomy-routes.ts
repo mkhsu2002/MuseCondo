@@ -18,9 +18,12 @@ export function createAutonomyRoutes(options:Options){
   try{
    if(!await autonomySchemaReady(options.db))return json({error:'autonomy_schema_not_ready'},503);
    if(asset){const bytes=await manager.asset(asset[1],asset[2]);return bytes?new Response(request.method==='HEAD'?null:bytes,{headers:{'Content-Type':'image/png','Cache-Control':'public, max-age=60, must-revalidate','X-Content-Type-Options':'nosniff'}}):json({error:'not_found'},404);}
-   if(renderClaim){const raw=await request.text();if(raw.length>1024)return json({error:'body_too_large'},413);const command=JSON.parse(raw);if(!command||typeof command!=='object'||Object.keys(command).length!==1||typeof command.receiptId!=='string')return json({error:'invalid_render_claim'},400);return json(await theme.claimRender(command.receiptId));}
+   if(renderClaim){const raw=await request.text();if(raw.length>1024)return json({error:'body_too_large'},413);const command=JSON.parse(raw);if(!command||typeof command!=='object'||typeof command.receiptId!=='string'||!(Object.keys(command).length===1||Object.keys(command).length===2&&command.diagnostic===true))return json({error:'invalid_render_claim'},400);if(command.diagnostic===true)return json(await theme.diagnoseRender(command.receiptId));return json(await theme.claimRender(command.receiptId));}
    if(step){await manager.prepareDaily();await theme.ensureDue();const result=await theme.step();if(result.handled)return json({...result,pending:result.pending||await manager.pending()});const daily=await manager.step();await theme.ensureDue();return json({...daily,pending:daily.pending||await theme.pending()});}
-   if(request.method==='GET')return json({...await manager.inspect(),theme:await theme.inspect()});
+   if(request.method==='GET'){
+    if(url.searchParams.has('diagnoseThemeReceipt')){const receiptId=url.searchParams.get('diagnoseThemeReceipt')!;if([...url.searchParams.keys()].join(',')!=='diagnoseThemeReceipt'||!/^[0-9a-f-]{36}$/.test(receiptId))return json({error:'invalid_diagnostic'},400);if(!options.runtime||!options.trigger)return json({error:'runtime_not_ready'},503);return options.runtime.fetch(new Request('https://manager.internal/theme/diagnose',{method:'POST',headers:{'X-Manager-Schedule-Key':options.trigger,'Content-Type':'application/json'},body:JSON.stringify({receiptId}),signal:AbortSignal.timeout(35000)}));}
+    return json({...await manager.inspect(),theme:await theme.inspect()});
+   }
    const raw=await request.text();if(raw.length>1024)return json({error:'body_too_large'},413);const command=JSON.parse(raw);if(!command||Object.keys(command).length!==1||!['enable','disable'].includes(command.action))return json({error:'invalid_command'},400);
    // A disabled development provider stays disabled; never copy the production key.
    if(command.action==='enable'&&(!options.apiKey||!options.bucket||!options.runtime||!options.trigger||!options.assets))return json({error:'autonomy_bindings_not_ready'},503);
