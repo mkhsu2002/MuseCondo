@@ -672,6 +672,15 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         JSON.stringify(response),
         stamp(),
       );
+  // Successful source receipts are permanent and append-only. Their count is
+  // a source generation even when URLs return to an old value and time stands
+  // still. Replays never insert another receipt or advance this generation.
+  const sourceGenerationSQL = "SELECT COUNT(*) AS generation FROM tower_requests WHERE account_id=? AND operation='source'";
+  const sourceGeneration = async (accountId: string) =>
+    (await one<{ generation: number }>(sourceGenerationSQL, accountId))!.generation;
+  const sourceGenerationGuard = (accountId: string, generation: number) =>
+    db.prepare("SELECT CASE WHEN (" + sourceGenerationSQL + ")=? THEN 1 ELSE json('tower-source-conflict') END")
+      .bind(accountId, generation);
   async function snapshot(url: URL, residentId: string) {
     const site = validateTowerSnapshot(await remoteJSON(url), residentId),
       images: {
@@ -1111,7 +1120,8 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             replay = await prior(identity, key, "source", inputHash);
           if (replay) return json(replay);
           if (r!.revision !== expected) fail(409, "revision_conflict");
-          const claimSQL = "SELECT id FROM tower_claims WHERE id=? AND account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?",
+          const generation = await sourceGeneration(accountId),
+            claimSQL = "SELECT id FROM tower_claims WHERE id=? AND account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?",
             claimArgs = () => [claimId, accountId, r!.resident_id, sourceURL.href, stamp()],
             occupied = () => one("SELECT room_id FROM tower_residencies WHERE source_url=? AND room_id<>?", sourceURL.href, r!.room_id);
           if (!(await one(claimSQL, ...claimArgs())))
@@ -1123,6 +1133,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           const result = { intake: safe({ ...r!, source_url: sourceURL.href, proof_method: "challenge" }) };
           try {
             await write(identity, [
+              sourceGenerationGuard(accountId, generation),
               db.prepare(
                 "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND resident_id=? AND revision=? AND source_url=? AND public_revision IS ? AND directory_consent=? AND announcement_consent=? AND dream_consent=? AND snapshot_consent=?) THEN 1 ELSE json('tower-source-conflict') END",
               ).bind(r!.room_id, accountId, r!.resident_id, expected, r!.source_url, r!.public_revision, r!.directory_consent, r!.announcement_consent, r!.dream_consent, r!.snapshot_consent),
@@ -1143,7 +1154,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             if (!latest || latest.revision !== expected || latest.source_url !== r!.source_url ||
               latest.public_revision !== r!.public_revision || latest.directory_consent !== r!.directory_consent ||
               latest.announcement_consent !== r!.announcement_consent || latest.dream_consent !== r!.dream_consent ||
-              latest.snapshot_consent !== r!.snapshot_consent)
+              latest.snapshot_consent !== r!.snapshot_consent || (await sourceGeneration(accountId)) !== generation)
               fail(409, "revision_conflict");
             if (!(await one(claimSQL, ...claimArgs())))
               fail(403, "verified_claim_required");
@@ -1225,7 +1236,8 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             )
               fail(403, "verified_claim_required");
           }
-          const data = await snapshot(sourceURL, residentId),
+          const generation = updating ? await sourceGeneration(accountId) : null,
+            data = await snapshot(sourceURL, residentId),
             roomId = r?.room_id ?? random(8),
             rev = (r?.revision ?? 0) + 1,
             result = {
@@ -1240,6 +1252,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             statements: Statement[] = [];
           if (updating)
             statements.push(
+              sourceGenerationGuard(accountId, generation!),
               db
                 .prepare(
                   "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=? AND source_url=?) THEN 1 ELSE json('tower-revision-conflict') END",
@@ -1313,7 +1326,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             const retry = await prior(identity, key, route, inputHash);
             if (retry) return json(retry, 201);
             const latest=await residency(accountId);
-            if(latest&&(updating?(latest.revision!==expected||latest.source_url!==sourceURL.href):true))fail(409,"revision_or_identity_conflict");
+            if(latest&&(updating?(latest.revision!==expected||latest.source_url!==sourceURL.href||(await sourceGeneration(accountId))!==generation):true))fail(409,"revision_or_identity_conflict");
             // Operation errors are private audit records, never public SQL/provider payloads.
             const detail={error:error instanceof Error?error.message.slice(0,500):"storage-error",cause:error instanceof Error&&error.cause instanceof Error?error.cause.message.slice(0,500):null};
             try{await db.batch([audit(accountId,r?.room_id??null,"storage-failed",expected,detail)]);}catch{/* Preserve the original safe error if audit storage is unavailable too. */}

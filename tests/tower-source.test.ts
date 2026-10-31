@@ -425,3 +425,50 @@ test("concurrent publication choices are preserved and require a fresh source mo
     assert.deepEqual(f.state().events, before.events);
   } finally { f.close(); }
 });
+
+async function verifySourceABA(operation: "source" | "snapshot") {
+  const f = await fixture();
+  let release: (() => void) | undefined;
+  try {
+    f.manifests.set(otherSource, site());
+    const claimB = await f.verify(), claimA = await f.verify(oldSource), claimC = await f.verify(otherSource);
+    let started!: () => void, blocked = false;
+    const fetching = new Promise<void>(resolve => { started = resolve; }),
+      wait = new Promise<void>(resolve => { release = resolve; });
+    f.beforeFetch(async url => {
+      if (url === (operation === "source" ? otherSource : oldSource) && !blocked) {
+        blocked = true; started(); await wait;
+      }
+    });
+    const original = f.state().residency[0],
+      input = operation === "source" ? move(claimC, otherSource, "pending-source-aba") : { expectedRevision: 1, requestKey: "pending-snapshot-aba" },
+      pending = f.req("/" + operation, input);
+    await fetching;
+    const moveB = move(claimB, newSource, "aba-move-to-b"),
+      moveA = move(claimA, oldSource, "aba-move-back-to-a"),
+      resultB = await f.data(f.req("/source", moveB));
+    await f.data(f.req("/source", moveA));
+    const countSourceReceipts = () => Number(f.db.sqlite.prepare("SELECT COUNT(*) n FROM tower_requests WHERE account_id=? AND operation='source'").get("a".repeat(16))!.n);
+    assert.equal(countSourceReceipts(), 2);
+    assert.deepEqual(await f.data(f.req("/source", moveB)), resultB);
+    assert.equal(countSourceReceipts(), 2, "receipt replay must not advance the source generation");
+    const before = f.state(), current = before.residency[0];
+    assert.equal(current.source_url, original.source_url);
+    assert.equal(current.revision, original.revision);
+    assert.equal(current.updated_at, original.updated_at, "the frozen clock must not hide an ABA failure");
+    release!();
+    assert.deepEqual(await f.data(pending, 409), { error: operation === "source" ? "revision_conflict" : "revision_or_identity_conflict" });
+    assert.deepEqual(f.state(), before, "a stale request must not write a snapshot, source receipt or audit");
+    f.beforeFetch(async () => {});
+    await f.data(f.req("/" + operation, input), operation === "source" ? 200 : 201);
+    assert.equal(countSourceReceipts(), operation === "source" ? 3 : 2);
+  } finally { release?.(); f.close(); }
+}
+
+test("a pending source move cannot survive A to B to A when revision and clock stay unchanged", async () => {
+  await verifySourceABA("source");
+});
+
+test("a pending snapshot cannot survive A to B to A when revision and clock stay unchanged", async () => {
+  await verifySourceABA("snapshot");
+});
