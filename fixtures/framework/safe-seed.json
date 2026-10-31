@@ -20,7 +20,7 @@
       "id": "imagined-owner",
       "source": "USER",
       "kind": "imagined",
-      "summary": "安全虛構測試資料：主人畫像是沒有真實人物對應的抽象光點。"
+      "summary": "安全虛構測試資料：監護人畫像是沒有真實人物對應的抽象光點。"
     }
   ],
   "home": {
@@ -43,7 +43,7 @@
       ]
     },
     "ownerPortrait": {
-      "description": "桌面上擺著一幅由光點組成的主人想像畫像",
+      "description": "桌面上擺著一幅由光點組成的監護人想像畫像",
       "evidenceIds": [
         "imagined-owner"
       ],

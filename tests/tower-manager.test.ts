@@ -63,7 +63,7 @@ test('withdrawal before/during provider response blocks publication and preserve
 
 
 test('provider cannot invent levels, owner claims or internal workflow text; invalid output is charged but not published',async()=>{
- for(const summary of ['這位住戶等級為99，模型為muse-spark-1.3，prompt為內部安排','今天替主人賺了一百萬','歡迎新的超級工程師']){
+ for(const summary of ['這位住戶等級為99，模型為muse-spark-1.3，prompt為內部安排','今天替監護人賺了一百萬','歡迎新的超級工程師']){
   const f=await fixture();try{f.summary(summary);const m=f.create();await m.enqueue(f.current);await m.processOne();assert.equal(f.calls,1);const row=f.db.sqlite.prepare('SELECT state,actual_micro FROM manager_jobs').get()!;assert.equal(row.state,'invalid');assert.equal(row.actual_micro,1050);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM community_editions').get()!.n,0);}finally{await f.close();}
  }
 });

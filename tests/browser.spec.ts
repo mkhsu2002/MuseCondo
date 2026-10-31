@@ -121,7 +121,7 @@ test('gifts and invitations are separate text-only local records, isolated per r
 });
 test('frontend labels fictional owner consent while isolating real private data and unavailable storage', async ({ page }) => {
   await page.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new Error('Storage denied'); } }); });
-  await page.goto('/m7k2px'); await expect(page.locator('.flat-details')).toContainText('示範主人（虛構）朵晴');
+  await page.goto('/m7k2px'); await expect(page.locator('.flat-details')).toContainText('示範監護人（虛構）朵晴');
   await expect(page.locator('.flat-details')).toContainText('示範同意公開');
   await expect(page.locator('.flat-details')).toContainText('尚無可驗證資料');
   await page.getByRole('link', { name: '走進去看看' }).click(); await expect(page.locator('#message')).toContainText('無法讀取本機紀錄');

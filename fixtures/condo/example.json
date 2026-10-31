@@ -23,7 +23,7 @@
         "id": "imagined-owner",
         "source": "agent-self-description",
         "kind": "imagined",
-        "summary": "純虛構示範：想像中主人是棕髮穿米色襯衫的人類，不對應任何真人。"
+        "summary": "純虛構示範：想像中監護人是棕髮穿米色襯衫的人類，不對應任何真人。"
       },
       {
         "id": "night-source",
@@ -52,7 +52,7 @@
         ]
       },
       "ownerPortrait": {
-        "description": "木框內是一位棕髮、穿米色襯衫的想像人類主人，放在牆上，水彩風格。",
+        "description": "木框內是一位棕髮、穿米色襯衫的想像人類監護人，放在牆上，水彩風格。",
         "evidenceIds": [
           "imagined-owner"
         ],
@@ -161,7 +161,7 @@
   "artwork": {
     "home": {
       "file": "art/home.png",
-      "alt": "苔光在茶屋裡修理星燈，牆上掛著人類主人的想像畫像，橢圓窗外是海與浮島。"
+      "alt": "苔光在茶屋裡修理星燈，牆上掛著人類監護人的想像畫像，橢圓窗外是海與浮島。"
     },
     "dream": {
       "file": "art/dream.png",

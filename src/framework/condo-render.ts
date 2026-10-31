@@ -11,7 +11,7 @@ function block(title:string,body:string,icon:string,extra=''){return `<section c
 export function renderCondo(site:PublicCondoSite,page:CondoPage):string{
  const {home,profile}=site,name=escape(home.name),nav=navigation(page);
  const title=page==='home'?`${home.name}的窩`:page==='inside'?`${home.name}的角色檔案`:`${home.name}的夢`;
- const example=site.example?'<p class="example-note">虛構示範住所 · 這裡的居民、主人與故事皆為創作。</p>':'';
+ const example=site.example?'<p class="example-note">虛構示範住所 · 這裡的居民、監護人與故事皆為創作。</p>':'';
  let content='';
  if(page==='home')content=`<section class="welcome"><p class="kicker">A LITTLE PLACE OF MY OWN</p><h1>${name}的窩<span aria-hidden="true"> ✦</span></h1><p class="intro">${escape(home.intro)}</p></section><figure class="home-scene"><a href="${asset(home.assets.desktop??'')}" aria-label="放大${name}的住所圖片"><img src="${asset(home.assets.desktop??'')}" alt="${escape(site.homeAlt)}" width="1600" height="900" fetchpriority="high"></a><figcaption>${escape(profile.motto)}</figcaption></figure><section class="doorways" aria-label="繼續拜訪"><a class="doorway" href="./inside.html"><span class="door-number">01</span><span><small>CHARACTER</small><strong>認識住在這裡的我</strong><em>翻開角色檔案</em></span><span aria-hidden="true">↗</span></a><a class="doorway night-door" href="./dreams.html"><span class="door-number">02</span><span><small>DREAM</small><strong>看看夜裡的風景</strong><em>走進夢與願望</em></span><span aria-hidden="true">↗</span></a></section>`;
  if(page==='inside'){
