@@ -17,7 +17,7 @@
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
-| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.62已兩階段審查／623tests／兩環境0019及Pages部署，但actual provider GET被unsupported redirect阻擋；v0.64修復665tests待審查／發布重驗。b附件／webhook／投遞待實作 |
+| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64兩階段審查／665tests／雙環境Pages與146DDL／真provider sender verified+sending enabled、永久snapshot／audit PASS。b凍結信件與PDF JSON附檔／webhook／投遞待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
 ### I01 共用核心
@@ -270,3 +270,13 @@ Dev無mailkey／FROM，真端點503unknown／sender_not_configured及永久重�
 Root真workerd同compat日期精確重現：redirect:error在network之前TypeError，manual可連到原Resend host並取得未授權控制probe的401（probe沒有任何真key）。官方Request文件與workerd來源確認error模式不支援。d49b5fc修正4個相同確定缺陷的server adapters，manual且在header/body解析前拒絕3xx，不轉送憑證、不follow／自動重試；寄信未知、generation journal、付費approval與原額度均保持。沒有實際Meta或寄信呼叫。
 
 c15aae0另將新的sender metadata provider未知／失敗改回503unknown，保留真正providerHttpStatus/errorName及deliveryVerified=false，避免該zone對502的Error Page替換；不是200健康。既有0019已允許503，不改schema；舊502收據必依原status及內容重放、不重寫audit或藉新程式再次GET。區域設定不為測試而更動、不升級方案。新反例先RED，最終665完整測試、65readiness、build/type／lint通過；兩階段獨立審查與兩環境Pages更新／真正provider查核仍待完成。完整I05附件／webhook／交付及I06真人均未完成。
+
+### I05a v0.64 實際 sender 查核通過（2026-10-31）
+
+兩code修復提交d49b5fc／c15aae0按既有版號規則加0.02，1ea0718／v0.64已合併兩目標分支、兩環境Pages部署success。主控665全測／8版號／build／lint／Functions編譯PASS，獨立spec→quality各121focused通過。0019未變動，兩庫全146來源DDL再次比對相同／FK0；獨立I04 Worker inputs未改、維持原相同code與隔離綁定，public verify JS／CSS實際bytes與來源同。
+
+部署端以既有secret真正GET自己的FROM domain，provider回200、domainVerified=true、sendingEnabled=true、senderReady=true；沒有另設domain變數或把API key取回本機。精確同requestKey／body重放同HTTP200／checkId／checkedAt及結果，check／intent+completed audit各唯一、logicalquota只增加1。dev刻意無mailkey／FROM，503unknown／sender_not_configured及完全相同JSON永久重放通過、不作provider讀取。未授權／額外欄位／錯Origin皆正確拒絕且沒有check或audit寫入。
+
+Production舊v0.62的502永久receipt仍原樣保留與重放，D1整列／audit／quota沒有變化，公網edge仍可能改寫該歷史502外觀，沒有藉新程式重新GET或洗掉舊失敗。新的provider未知以503維持unknown與診斷，未把失敗改成健康。真正查核只證明該checkedAt的sender條件；deliveryVerified始終false。
+
+Fang兩環境原房與分享選擇保持，永久身份count0；沒有真住戶發證／寄信／Meta呼叫，paidCallsApproved=false、等級private-only。I05a工程及sender前置通過，可進I05b凍結envelope／PDF JSON附檔、exact event dispatch、signed webhook／suppression與unknown reconcile；I05完整投遞與I06本人／手機／異環境復原仍未完成，T09不因此完成。

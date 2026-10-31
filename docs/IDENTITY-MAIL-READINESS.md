@@ -41,3 +41,7 @@ reservation、`rate_limits` 的 `identity-mail-provider:global` 10／小時 coun
 新增診斷 schema 缺失時僅此端點 fail closed；不把它加入全平台 `requiredTables`，不阻塞無關 API。發布仍必須在 dev／正式各自實際套用 0019、比對兩表四 triggers、外鍵與 deployed Pages code／bindings，再用同環境 operator key 驗證未授權、配置缺失、查核／重放、去敏 audit 與 quota。dev 刻意無 mail provider 配置時應保持 unknown/no network。此文件不是已套 migration／已部署／已完成 live readback 的聲明。
 
 官方契約已於本切片實作時重新查閱：[List Domains](https://resend.com/docs/api-reference/domains/list-domains)、[Retrieve Domain](https://resend.com/docs/api-reference/domains/get-domain)、[Resend OpenAPI](https://github.com/resend/resend-openapi/blob/main/resend.yaml)。安全架構沿用全域 `newsletter-worker-standard`，沒有另造寄送機制。
+
+## 官方實踐回讀
+
+2026-10-31 v0.64已兩環境部署、0019／146來源DDL比對與實際診斷驗收。正式sender的provider metadata已回verified＋sending enabled；dev保留無配置／unknown。永久snapshot重放、quota與intent/completed audit通過；未寄信，deliveryVerified=false。這是官方本次已查證結果，其他部署者仍需自行執行上述gate，不能沿用此結果宣告自己的寄件能力。歷史v0.62的502與後續修復範圍見[階段紀錄](plans/AGENT-IDENTITY.md)。
