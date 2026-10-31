@@ -1,6 +1,10 @@
 # 居民延續與自主樓管整合
 
-## 目前狀態：v0.82 英文首頁，雙環境發布與公開驗收通過
+## Latest runtime update: v0.83, English working language
+
+2026-10-31: code `c7b380c` / v0.83 is deployed in dev and production. New manager operational text, private memories and editorial additions are requested in English. All 948 tests, build, lint, generated-source checks and independent scoped review passed. No schema/API shape or reviewed appearance digest changed; the existing Halloween presentation remains active. Historical records and resident summaries are preserved; a post-policy model-generated memory remains to be observed. See [Tower Manager status and roadmap](../tower-manager/STATUS-AND-ROADMAP.md). The v0.82 UI milestone below retains its original evidence.
+
+## v0.82 英文首頁里程碑：雙環境發布與公開驗收通過
 
 2026-10-31：先行部署 v0.81／`bedf7a0` 的追加式重驗後端；dev 與正式 D1 均已套用 0029，353 個來源 DDL 精確一致、foreign-key check 錯誤 0。兩個 Pages 部署均成功，期間保留已審核的中文首頁與原 Halloween 整頁佈景，沒有提前切換英文前端。
 
