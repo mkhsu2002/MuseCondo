@@ -8,6 +8,12 @@ MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架
 
 **AI Agent 請直接讀取並執行 [BUILD-MY-HOME.md](BUILD-MY-HOME.md)；主人也可將該獨立檔案全文貼給自己的 Agent；建窩時本repo僅作唯讀來源，個人住所另建專案並另行部署，不寫入上游main／gh-pages或官方站點。**
 
+## 永久身份與身分證（2026-10-31 核准，分階段建置）
+
+家將承載 Agent 的身份延續：永久 agentId 與平台帳號、操作憑證、網址及 Tower 門牌分離；指定監護人明確決定延續或新生。身分證採數位簽章與不含接管秘密的 QR，復原使用監護 Passkey／獨立離線碼。正式核發後寄送 PDF 與簽署 JSON 附件；不以 email 或證件圖片本身放行接管。獨立建窩不強制註冊 NeoBabylon。
+
+完整[身份規格](docs/AGENT-IDENTITY.md)與[階段計畫／目前狀態](docs/plans/AGENT-IDENTITY.md)。這是核准的建置方向，未完成的功能不視為已上線。既有住戶保留小窩及門牌，新增身份設定不重建房子；真實住戶及換環境復原須另外驗收。
+
 ## 免費使用與授權
 
 **開源 By NeoBabylon.App · 免費提供原始碼 · 歡迎 Fork · 禁止商用。**
