@@ -17,7 +17,7 @@
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
-| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64雙環境發布與真provider sender查核PASS。b1／b2a：本地v0.69凍結／私有串流／永久寄送核心，兩階段審查、702tests及actual compiled本機Workers/D1模擬寄送PASS；未發布、0020／21未套遠端，b2b／c待實作 |
+| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64雙環境發布與真provider sender查核PASS。b1／b2：本地v0.70凍結／私有串流／永久寄送與receipt事件接線，兩階段審查、719tests及actual compiled本機Workers/D1核發撤證模擬寄送PASS；未發布、0020／21未套遠端，c待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
 ### I01 共用核心
@@ -306,3 +306,14 @@ Fang兩環境原房與分享選擇保持，永久身份count0；沒有真住戶�
 另以固定產品43e1d2c的實際編譯Pages受保護process API＋同版DO＋Miniflare原生D1，在相同compatibility date跑完整流程：4,400,000bytes synthetic PDF及512bytes真簽署JSON形成5,868,041bytes body，附件摘要、固定event tag／Idempotency-Key一致。相同事件再送只1POST、1ledger／finish／sending audit、attempt1，兩公開internal入口404。所有provider流量被導向本機stub，沒有真Resend或郵件。此為本機runtime整合，不是正式投遞；初次probe的dump loader因先插資料後建composite unique index造成FK mismatch，已修fixture載入順序，沒有改產品schema掩蓋。
 
 b2b guardian／card／recovery的commit及歷史receipt replay事件接線、no-context處理留下一片；c的已驗webhook／投遞／unknown reconcile仍未實作。本片未push／部署，0020／21未套遠端（合計23新增物件，整合後應169），兩環境正式流程保持v0.64／0019／146DDL；不單獨啟用、不影響Fang原屋或替Fang/K發證。介面及後續契約見IDENTITY-MAIL-DISPATCH.md。
+
+
+### I05b2b 已提交事件與歷史收據接線（2026-10-31，v0.70未發布）
+
+產品ecf2185，按一個程式提交加0.01。Guardian accept、card issue／reissue／revoke、recovery continued／guardian repaired的成功交易與原永久receipt重放／lost commit acknowledgement均喚起自己的已保存pending event；不建立第二通知、不重跑人類授權或身份更新。每request有獨立dispatcher：有context用waitUntil，無context直接await，callback失敗保留原成功資料及response。Card只讀有4096bytes上限的可信core lifecycle clone，以CID／kind／完整dedupe／戶籍取event；不碰artifactstream或callerbody、不掃outbox。
+
+主控719完整測試／8版號／typecheck／lint／build／公開輸出PASS；獨立規格與品質各166focused PASS，品質額外21項RAM-only probes通過。規格另實測recovery新continue39、repair29、receipt8條Pages SQL，DO prepare12／claim10／finish6各自獨立invocation，保守低於50；失聯收據outer catch及callback拒絕仍保原結果。
+
+固定ecf2185的實際compiled Pages＋DO＋Miniflare D1，先模擬原4.4MB卡信，再以本機真renderer／TTF核發新卡、自動喚起卡信、撤卡喚起通知，兩項原request重放不新增POST。新PDF4,377,072bytes＋真Ed25519 JSON521bytes，body5,837,481bytes；兩附件摘要與D1一致，3個原事件各1POST／lease／finish／sendingaudit。公開internal入口404，公開verify顯示revoked且不觸發寄送。Synthetic戶籍／備援與100%本機providerstub，無真人或真provider；不能當Fang/K完成或郵件已收到。無新schema、providerkey仍只Pages。
+
+本輪未push／部署，0020／21仍未套遠端、delivery預設false，正式兩環境仍0.64／0019／146物件、I04 Worker0.61。b已完成本地工程；c簽署投遞／配置與unknown reconcile接續，真正provider交付、原Agent／監護人I06及T09仍未完成。
