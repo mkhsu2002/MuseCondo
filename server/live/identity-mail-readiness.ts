@@ -79,8 +79,10 @@ async function inspect(env:Environment,base:Result):Promise<{result:Result;statu
  let http:number|null=null;
  async function get(url:string):Promise<Record<string,unknown>> {
   if(controller.signal.aborted)throw new ProviderFailure('provider_timeout',http);
-  let response:Response;try{response=await (env.fetcher??fetch)(url,{method:'GET',headers:{Authorization:'Bearer '+env.apiKey,Accept:'application/json','User-Agent':'MuseCondo/identity-mail-readiness'},redirect:'error',signal:controller.signal});}catch{throw new ProviderFailure('provider_unavailable');}
+  let response:Response;try{response=await (env.fetcher??fetch)(url,{method:'GET',headers:{Authorization:'Bearer '+env.apiKey,Accept:'application/json','User-Agent':'MuseCondo/identity-mail-readiness'},redirect:'manual',signal:controller.signal});}catch{throw new ProviderFailure('provider_unavailable');}
   http=response.status;
+  // workerd supports manual redirects only; never follow Location with provider credentials.
+  if(http>=300&&http<400)throw new ProviderFailure('provider_rejected',http);
   let value:unknown;try{value=providerJson(await boundedText(response,response.status===200?131072:4096,controller.signal));}catch{if(response.status!==200)throw new ProviderFailure('provider_rejected',http);throw new ProviderFailure('provider_response_invalid',http);}
   if(response.status!==200)throw new ProviderFailure('provider_rejected',http,object(value)&&typeof value.name==='string'&&errorNames.has(value.name)?value.name:null);
   if(!object(value))throw new ProviderFailure('provider_response_invalid',http);return value;

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync,readFileSync,readdirSync} from 'node:fs';
 import {LocalDatabase} from '../server/live/local-db.ts';
+import {workerdFetch} from './helpers/workerd-fetch.ts';
 const key='9'.repeat(64),origin='https://identity.example',time='2026-10-31T00:00:00.000Z';
 const nativeDates=new LocalDatabase(':memory:');
 test.after(()=>nativeDates.close());
@@ -21,7 +22,7 @@ export async function mailFixture(fetcher:typeof fetch=async()=>new Response(JSO
  const payload=await p.encryptPrivate(key,'mail-payload',event,JSON.stringify({token}));
  db.sqlite.prepare("INSERT INTO identity_mail_events(id,kind,entity_id,dedupe_key,recipient_ciphertext,recipient_hash,payload_ciphertext,state,created_at,updated_at) VALUES(?,'guardian-invitation',?,?,?, ?,?,'pending',?,?)").run(event,id,'guardian-invitation:'+id+':'+emailHash,recipient,emailHash,payload,time,time);
  let now=new Date(time);db.sqlite.function('strftime',{varargs:true},(...args)=>args[1]==='now'?now.toISOString():nativeDates.sqlite.prepare('SELECT strftime('+args.map(()=>'?').join(',')+') value').get(...args)!.value);
- const env={db,origin,contactKey:key,apiKey:'arbitrary-runtime-key',from:'MuseCondo <identity@example.com>',fetcher,now:()=>now};
+ const env={db,origin,contactKey:key,apiKey:'arbitrary-runtime-key',from:'MuseCondo <identity@example.com>',fetcher:workerdFetch((request,_index,init)=>fetcher(request.url,init)).fetcher,now:()=>now};
  return {db,p,env,mail:createIdentityMail(env),account,agent,id,event,email,token,key,recipient,emailHash,tokenHash,setTime:(s:string)=>{now=new Date(s);}};
 }
 test('private envelopes authenticate purpose and entity and keep normalized local part intact',async()=>{
@@ -115,5 +116,15 @@ test('the fixed guardian invitation email supplies both manual UI inputs without
   const {text,...other}=body;assert(!JSON.stringify(other).includes(f.token));assert(!JSON.stringify(result).includes(f.token));assert(!JSON.stringify(await f.mail.status(f.event)).includes(f.token));assert(text.includes('並非長期復原碼'));
   const stored=['identity_guardian_invites','identity_mail_events','identity_mail_audit','identity_audit','guardian_invite_requests'].map(table=>JSON.stringify(f.db.sqlite.prepare('SELECT * FROM '+table).all())).join('');assert(!stored.includes(f.token));assert(!stored.includes(f.email));
   await f.mail.processOne(f.event);assert.equal(calls.length,1);
+ }finally{f.db.close();}
+});
+
+for(const status of [301,302,303,307,308])test('workerd guardian mail records redirect '+status+' as unknown and never follows or resends',async()=>{
+ const network=workerdFetch(()=>new Response(JSON.stringify({id:'must-not-be-accepted'}),{status,headers:{Location:'https://untrusted.example/collect'}}));
+ const f=await mailFixture(network.fetcher);try{
+  const result=await f.mail.processOne(f.event);assert.equal(result!.state,'unknown');assert.equal(result!.errorCode,'provider_outcome_unknown');assert.equal(result!.providerId,null);assert.equal(result!.attemptCount,1);
+  assert.deepEqual(await f.mail.processOne(f.event),result);assert.deepEqual(network.requests.map(r=>r.url),['https://api.resend.com/emails']);assert.equal(network.requests[0].headers.get('Authorization'),'Bearer arbitrary-runtime-key');
+  assert.deepEqual(f.db.sqlite.prepare('SELECT action FROM identity_mail_audit ORDER BY rowid').all().map(r=>r.action),['sending','unknown']);
+  assert(!JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_audit').all()).includes('untrusted.example'));
  }finally{f.db.close();}
 });

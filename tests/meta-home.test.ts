@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createMetaHomeGenerator,databaseJournal,type Stage,type RequestJournal} from '../server/live/meta-home.ts';
 import {LocalDatabase} from '../server/live/local-db.ts';
+import {workerdFetch} from './helpers/workerd-fetch.ts';
 const desktop=readFileSync(new URL('../public/prototype-assets/momo-desktop.png',import.meta.url));
 const mobile=readFileSync(new URL('../public/prototype-assets/momo-mobile.png',import.meta.url));
 const key='provider-fixture-1234567890';
@@ -14,10 +15,10 @@ function journal(){const claims=new Set<string>(),entries:{id:string;state:strin
 test('documented Meta HTTP contracts use privacy-safe analysis, paired generation/edit and truthful IDs',async()=>{
  const j=journal(),requests:{url:string;init:RequestInit}[]=[];
  const transport:typeof fetch=async(url,init)=>{requests.push({url:String(url),init:init!});return json(requests.length===1?analysis():image(requests.length===2?desktop:mobile),200,requests.length===2?{'x-request-id':'actual-provider-request-fixture'}:{});};
- const generator=createMetaHomeGenerator({apiKey:'TEST_ONLY_NOT_REAL',approvedPaidCalls:true,textModel:'muse-spark-1.3',journal:j.value,transport});
+ const generator=createMetaHomeGenerator({apiKey:'TEST_ONLY_NOT_REAL',approvedPaidCalls:true,textModel:'muse-spark-1.3',journal:j.value,transport:workerdFetch((request,_index,init)=>transport(request.url,init)).fetcher});
  const result=await generator.generate(input);assert.equal(result.length,2);assert.deepEqual(requests.map(r=>r.url),['https://api.meta.ai/v1/responses','https://api.meta.ai/v1/images/generations','https://api.meta.ai/v1/images/edits']);
  const bodies=requests.map(r=>JSON.parse(String(r.init.body)));assert.equal(bodies[0].store,false);assert.equal(bodies[0].model,'muse-spark-1.3');assert.equal(bodies[1].n,1);assert.equal(bodies[1].size,'1600x900');assert.equal(bodies[2].size,'900x1600');assert.equal(bodies[1].tool_enablement.enable_image_search,false);assert.equal(bodies[1].response_format,'b64_json');assert(bodies[2].images[0].image_url.startsWith('data:image/png;base64,'));assert(!JSON.stringify(bodies.slice(1)).includes('PRIVATE'));assert(!JSON.stringify(result).includes('PRIVATE'));
- assert.equal(result[0].provenance.generationIdKind,'provider-request');assert.equal(result[1].provenance.generationIdKind,'client-request');assert.equal(result[0].provenance.prompt,'');assert.deepEqual(result[0].bytes,new Uint8Array(desktop));assert(requests.every(r=>r.init.redirect==='error'));assert.equal(j.entries.length,3);
+ assert.equal(result[0].provenance.generationIdKind,'provider-request');assert.equal(result[1].provenance.generationIdKind,'client-request');assert.equal(result[0].provenance.prompt,'');assert.deepEqual(result[0].bytes,new Uint8Array(desktop));assert(requests.every(r=>r.init.redirect==='manual'));assert.equal(j.entries.length,3);
  await assert.rejects(generator.generate(input));assert.equal(requests.length,3);
 });
 test('missing approval/key makes no journal or paid request; network uncertainty never retries',async()=>{
@@ -36,4 +37,18 @@ test('durable database journal requires active consent, claims each stage once a
  const j=databaseJournal(db);const id=await j.begin(key,'personality','muse-spark-1.3');await j.finish(id,'received','resp-fixture');await assert.rejects(j.begin(key,'personality','muse-spark-1.3'));assert(!JSON.stringify(db.sqlite.prepare('SELECT * FROM provider_requests').all()).includes('PRIVATE'));
  db.sqlite.exec('UPDATE private_profiles SET analysis_consent=0');await assert.rejects(j.begin(key,'desktop' as Stage,'muse-image-1.0'));assert.equal(db.sqlite.prepare('SELECT count(*) AS n FROM provider_requests').get()!.n,1);
  }finally{db.close();}
+});
+
+for(const status of [301,302,303,307,308])for(const stage of ['personality','desktop','mobile'] as const)test('workerd Meta '+stage+' redirect '+status+' stays unknown without follow or retry',async()=>{
+ const j=journal(),stages=['personality','desktop','mobile'];const network=workerdFetch((_request,index)=>index===stages.indexOf(stage)?new Response(JSON.stringify(analysis()),{status,headers:{Location:'https://untrusted.example/collect'}}):json(index===0?analysis():image(desktop)));
+ const generator=createMetaHomeGenerator({apiKey:'TEST_ONLY',approvedPaidCalls:true,textModel:'muse-spark-1.3',journal:j.value,transport:network.fetcher});
+ await assert.rejects(generator.generate(input),/requires operator verification/);assert.equal(network.requests.length,stages.indexOf(stage)+1);assert(network.requests.every(r=>new URL(r.url).origin==='https://api.meta.ai'&&r.headers.get('Authorization')==='Bearer TEST_ONLY'));
+ assert.equal(j.entries.at(-1)!.id,stage);assert.equal(j.entries.at(-1)!.state,'unknown');assert.equal(j.entries.filter(r=>r.state==='unknown').length,1);
+ const count=network.requests.length;await assert.rejects(generator.generate(input));assert.equal(network.requests.length,count);
+});
+
+test('workerd fixture rejects unsupported error before network and manual returns the original redirect',async()=>{
+ const network=workerdFetch(()=>new Response(null,{status:302,headers:{Location:'https://untrusted.example/collect'}}));
+ await assert.rejects(network.fetcher('https://api.meta.ai/v1/responses',{redirect:'error'}),{name:'TypeError',message:'Invalid redirect value, must be one of "follow" or "manual"'});assert.equal(network.requests.length,0);
+ const response=await network.fetcher('https://api.meta.ai/v1/responses',{redirect:'manual'});assert.equal(response.status,302);assert.equal(network.requests.length,1);
 });

@@ -26,7 +26,9 @@ export function createFrameworkHomeGenerator(config:MetaHomeConfig):HomeGenerato
   async function request(stage:Stage,endpoint:string,model:string,payload:Record<string,unknown>){
    const clientId=await config.journal.begin(input.providerKey,stage,model);let providerId:string|undefined;
    try{
-    const response=await transport(`https://api.meta.ai/v1/${endpoint}`,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${config.apiKey}`,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(config.timeoutMs??120000)});
+    const response=await transport(`https://api.meta.ai/v1/${endpoint}`,{method:'POST',redirect:'manual',headers:{Authorization:`Bearer ${config.apiKey}`,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(config.timeoutMs??120000)});
+    // workerd requires manual redirects; keep every provider request at its original URL.
+    if(response.status>=300&&response.status<400)throw new Error('provider redirect rejected');
     const header=response.headers.get('x-request-id');if(header&&/^[A-Za-z0-9_.:-]{1,160}$/.test(header))providerId=header;
     const result=await readJSON(response,stage==='personality'?64000:12*1024*1024);await config.journal.finish(clientId,'received',providerId);return {result,clientId,providerId};
    }catch{try{await config.journal.finish(clientId,'unknown',providerId);}catch{/* Existing receipt forbids a blind retry. */}throw Error('Meta outcome requires operator verification; no automatic retry');}

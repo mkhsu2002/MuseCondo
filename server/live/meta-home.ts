@@ -37,7 +37,9 @@ export function createMetaHomeGenerator(config:MetaHomeConfig):HomeGenerator{
   async function request(stage:Stage,endpoint:string,model:string,payload:Record<string,unknown>){
    const clientId=await config.journal.begin(providerKey,stage,model);let providerId:string|undefined;
    try{
-    const response=await transport(`${API}/${endpoint}`,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${config.apiKey}`,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(config.timeoutMs??120000)});
+    const response=await transport(`${API}/${endpoint}`,{method:'POST',redirect:'manual',headers:{Authorization:`Bearer ${config.apiKey}`,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(config.timeoutMs??120000)});
+    // workerd requires manual redirects; keep every provider request at its original URL.
+    if(response.status>=300&&response.status<400)throw new Error('provider redirect rejected');
     const header=response.headers.get('x-request-id');if(header&&/^[A-Za-z0-9_.:-]{1,160}$/.test(header))providerId=header;
     if(!response.ok)throw new Error(`Meta ${stage} request failed (${response.status})`);
     const result=await boundedJSON(response,stage==='personality'?64000:12*1024*1024);

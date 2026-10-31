@@ -61,7 +61,9 @@ export function createIdentityMail(env:IdentityMailEnvironment){
   if(!await one<Invitation>(validSql+' AND g.invite_token_hash=?',event.entity_id,stamp(),stamp(),event.recipient_hash,event.recipient_ciphertext,invite.invite_token_hash)){await finish(id,'cancelled','invitation_unavailable');return status(id);}
   let state='unknown',error:string|null='provider_outcome_unknown',provider:string|null=null;
   try{
-   const response=await (env.fetcher??fetch)('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.apiKey,'Content-Type':'application/json','Idempotency-Key':id},body:JSON.stringify({from:env.from,to:[email],subject:'MuseCondo 監護人確認邀請',text:'你收到一份 MuseCondo 監護人邀請。\n\nAgent ID：'+invite.agent_id+'\n\n邀請識別碼：'+event.entity_id+'\n\n短效初次確認碼：'+token+'\n\n請僅在官方入口 '+env.origin+'/identity 分別貼上以上兩組代碼。確認碼最長有效 24 小時，並非長期復原碼。若你未預期收到此邀請，請忽略此信。'}),signal:AbortSignal.timeout(15000),redirect:'error'});
+   const response=await (env.fetcher??fetch)('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.apiKey,'Content-Type':'application/json','Idempotency-Key':id},body:JSON.stringify({from:env.from,to:[email],subject:'MuseCondo 監護人確認邀請',text:'你收到一份 MuseCondo 監護人邀請。\n\nAgent ID：'+invite.agent_id+'\n\n邀請識別碼：'+event.entity_id+'\n\n短效初次確認碼：'+token+'\n\n請僅在官方入口 '+env.origin+'/identity 分別貼上以上兩組代碼。確認碼最長有效 24 小時，並非長期復原碼。若你未預期收到此邀請，請忽略此信。'}),signal:AbortSignal.timeout(15000),redirect:'manual'});
+   // A redirect is ambiguous, not acceptance; never forward credentials or retry it.
+   if(response.status>=300&&response.status<400)throw new Error('provider redirect rejected');
    if(response.ok){const data=await response.json() as {id?:unknown};if(data&&typeof data.id==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(data.id)){state='accepted';error=null;provider=data.id;}}
    else if(response.status>=400&&response.status<500&&![408,409,425,429].includes(response.status)){state='failed';const name=await rejectionName(response);error='provider_rejected_'+response.status+(name?':'+name:'');}
   }catch{/* Provider response may be ambiguous; do not retain its body or retry automatically. */}

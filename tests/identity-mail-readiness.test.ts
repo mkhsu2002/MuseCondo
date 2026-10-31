@@ -4,6 +4,7 @@ import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {LocalDatabase} from '../server/live/local-db.ts';
 import type {Database} from '../server/live/db.ts';
 import runtime from '../server/live/worker.ts';
+import {workerdFetch} from './helpers/workerd-fetch.ts';
 
 const origin='https://identity.example',path='/api/v1/operator/identity/mail-readiness';
 const sender='合成寄件人 <sender@mail.example>',key='synthetic-provider-credential';
@@ -17,7 +18,7 @@ async function fixture(t:test.TestContext,options:Options={}){
  const db=new LocalDatabase(':memory:');t.after(()=>db.close());
  for(const f of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')&&(!options.oldSchema||!f.startsWith('0019'))).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8'));
  options.before?.(db);let calls=0;const urls:string[]=[],signals:AbortSignal[]=[];
- const fetcher:typeof fetch=async(input,init)=>{calls++;const url=String(input);urls.push(url);assert.equal(init?.method,'GET');assert.equal(init?.redirect,'error');assert.equal(new URL(url).origin,'https://api.resend.com');assert.match(new URL(url).pathname,/^\/domains(?:\/[A-Za-z0-9_-]+)?$/);assert.equal(new Headers(init?.headers).get('Authorization'),'Bearer '+(options.apiKey??key));assert(init?.signal);signals.push(init.signal);return options.fetcher?options.fetcher(input,init):url.includes('/domains/')?reply({object:'domain',...target}):page();};
+ const fetcher:typeof fetch=workerdFetch(async(request,_index,init)=>{const input=request.url;calls++;const url=String(input);urls.push(url);assert.equal(init?.method,'GET');assert.equal(init?.redirect,'manual');assert.equal(new URL(url).origin,'https://api.resend.com');assert.match(new URL(url).pathname,/^\/domains(?:\/[A-Za-z0-9_-]+)?$/);assert.equal(new Headers(init?.headers).get('Authorization'),'Bearer '+(options.apiKey??key));assert(init?.signal);signals.push(init.signal);return options.fetcher?options.fetcher(input,init):url.includes('/domains/')?reply({object:'domain',...target}):page();}).fetcher;
  const env={db:options.db?.(db)??db,origin:options.origin??origin,from:Object.hasOwn(options,'from')?options.from:sender,apiKey:Object.hasOwn(options,'apiKey')?options.apiKey:key,fetcher,now:()=>new Date('2026-11-01T00:00:00.000Z'),operator:async(request:Request)=>request.headers.get('X-Tower-Operator-Key')==='synthetic-operator'};
  const make=()=>createIdentityMailReadiness(env);
  const send=(requestKey='readiness-key',extra:RequestInit={},url=origin+path)=>make().fetch(new Request(url,{method:'POST',headers:{'Content-Type':'application/json','X-Tower-Operator-Key':'synthetic-operator',...extra.headers},body:JSON.stringify({requestKey}),...extra}));
@@ -114,4 +115,14 @@ test('missing body and malformed UTF-8 are invalid JSON, while declared or strea
 });
 test('the exact printable ASCII bounds and escaped JSON strings are accepted and deduplicated',async t=>{
  const f=await fixture(t,{fetcher:async()=>page([],false)});for(const requestKey of [' '.repeat(8),'x'.repeat(96),'quoted"\\key']){assert.equal((await f.send(requestKey))?.status,200);assert.equal((await f.send(requestKey))?.status,200);}assert.equal((await f.send('ignored',{body:'{"\\u0072equestKey":"abcdefgh"}'}))?.status,200);assert.equal(f.calls,4);
+});
+
+for(const status of [301,302,303,307,308])test('workerd readiness rejects redirect '+status+' without following, disclosing credentials or retrying',async t=>{
+ const network=workerdFetch(()=>new Response('redirect must not be parsed',{status,headers:{Location:'https://untrusted.example/collect'}}));
+ const f=await fixture(t,{fetcher:network.fetcher});const response=await f.send(),value=await response!.json();
+ assert.equal(response!.status,502);assert.equal(value.state,'unknown');assert.equal(value.reason,'provider_rejected');assert.equal(value.providerHttpStatus,status);assert.equal(value.senderReady,null);assert.equal(value.domainVerified,null);assert.equal(value.sendingEnabled,null);assert.equal(value.deliveryVerified,false);
+ assert.deepEqual(network.requests.map(r=>r.url),['https://api.resend.com/domains?limit=100']);assert.equal(network.requests[0].headers.get('Authorization'),'Bearer '+key);
+ assert.deepEqual(await (await f.send())!.json(),value);assert.equal(f.calls,1);assert.equal(network.requests.length,1);assert.equal(f.count('identity_mail_provider_audit'),2);
+ const stored=f.db.sqlite.prepare('SELECT result_json FROM identity_mail_provider_checks').get()!;assert.deepEqual(JSON.parse(String(stored.result_json)),value);
+ assert(!JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_provider_audit').all()).includes('untrusted.example'));
 });
