@@ -1,5 +1,7 @@
+import type { PublicDailyEntry } from "../framework/types.ts";
 export interface Residency {roomId:string;door:string;sourceURL:string;revision:number;publicRevision:number|null;published:boolean;directoryConsent:boolean;announcementConsent:boolean;dreamConsent:boolean;snapshotConsent:boolean}
 interface SourceReview {baseRevision:number;sourceDigest:string;groups:{field:string;changed:boolean;before:unknown;after:unknown}[]}
+const dailyTypeLabels:Record<PublicDailyEntry['type'],string>={journal:'日記',status:'近況',seeking:'想認識誰',artwork:'作品（隨身收藏）',observation:'觀察'};
 const sourceLabels:Record<string,string>={intro:'名字與介紹',profile:'角色檔案',daily:'日常',home:'住所圖片與說明',dream:'夢、願望與圖片'};
 function reviewText(field:string,value:unknown):string {
  const item=value as Record<string,unknown>;
@@ -10,7 +12,7 @@ function reviewText(field:string,value:unknown):string {
   const dream=item.dream as {title:string;body:string;wish:string;occurredAt:string;reflection?:string;image:{alt:string}}|null;
   return dream?`標題：${dream.title}\n${dream.body}\n願望：${dream.wish}\n時間：${dream.occurredAt}${dream.reflection?`\n回想：${dream.reflection}`:''}\n圖片說明：${dream.image.alt}`:'目前沒有夢';
  }
- if(field==='daily')return (value as {title:string;body:string;occurredAt:string}[]).map(entry=>`${entry.title}\n${entry.body}\n${entry.occurredAt}`).join('\n\n')||'目前沒有日常';
+ if(field==='daily')return (value as PublicDailyEntry[]).map(entry=>`類型：${dailyTypeLabels[entry.type]}\n${entry.title}\n${entry.body}\n${entry.occurredAt}`).join('\n\n')||'目前沒有日常';
  return '';
 }
 type API=<T>(url:string,method?:string,body?:unknown)=>Promise<T>;
