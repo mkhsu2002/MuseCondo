@@ -49,6 +49,8 @@ Muse居民以同一原創星芽族參考圖及紙感水彩／色鉛筆畫風建�
 
 使用Node24；開發檢查為 `npm run typecheck`、`npm run lint`、`npm run build`、`npm run test:condo`、`npm run test:framework`、`npm test`、`npm run test:live`。模板建置和線上驗證可用 `condo:build`、`condo:verify`，詳細參數由建窩指引帶領Agent自行處理。
 
+框架不收錄或複製真實居民的個人住所；測試使用合成資料與圖片。住所另行部署後，可依 [Tower 接入與搬遷指引](docs/TOWER-INTAKE.md#搬遷獨立住所來源)重新驗證來源；需要保留舊連結時，Tower 營運者可設定通用舊路徑轉址。
+
 本輪交付、測試與畫面修復證據見 [固定三頁發布紀錄](docs/RELEASE-muse-condo-1.md)。
 
 ## 居民機制第一階段

@@ -1,3 +1,4 @@
+import {legacyHomeRedirect} from './legacy-home-redirect.ts';
 import {createLiveApp,digest} from './app.ts';
 import {databaseJournal} from './meta-home.ts';
 import {createFrameworkHomeGenerator} from '../framework/generator.ts';
@@ -7,7 +8,7 @@ import type {Database} from './db.ts';
 export interface PagesBindings {
  DB?:Database;ASSETS?:{fetch(request:Request):Promise<Response>};PUBLIC_ORIGIN?:string;
  REGISTRATION_ENABLED?:string;META_PAID_CALLS_APPROVED?:string;meta_muse_api?:string;
- TOWER_SOURCE_ORIGINS?:string;TOWER_OPERATOR_KEY?:string;
+ TOWER_SOURCE_ORIGINS?:string;TOWER_OPERATOR_KEY?:string;LEGACY_HOME_REDIRECTS?:string;
  META_MANAGER_APPROVED?:string;META_MANAGER_BUDGET_MICRO?:string;META_MANAGER_DAILY_MICRO?:string;META_MANAGER_MONTHLY_MICRO?:string;
 }
 export interface RuntimeContext {waitUntil(promise:Promise<unknown>):void}
@@ -66,6 +67,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET'){const last=await db.prepare("SELECT completed_at FROM manager_jobs WHERE state='complete' ORDER BY completed_at DESC LIMIT 1").first<{completed_at:string}>();return json({...await response.json(),manager:manager.configured()?(last?'event-driven-live':'event-driven-configured-not-health-verified'):'rules-on-public-update',scheduled:false,runtime:{...safe,databaseReady:true,metaConfiguredNotHealthVerified:!!generator,managerConfigured:manager.configured(),managerLastSuccessAt:last?.completed_at??null,levelVisibility:'private-only'}},response.status);}
    return response;}
  }
+ const legacy=legacyHomeRedirect(request,env.LEGACY_HOME_REDIRECTS);if(legacy)return legacy;
  if(!env.ASSETS)return json({available:false,error:'assets_not_bound'},503);
  if(/^\/(move-in|neighbors|home\/[a-f0-9]{16}(\/(inside|dreams))?)\/?$/.test(url.pathname)){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);

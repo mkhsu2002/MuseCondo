@@ -4,6 +4,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { deflateSync } from "node:zlib";
+import { CONDO_PROFILE_FIELDS } from "../src/framework/condo.ts";
+import { sanitizePublicPNG } from "../server/framework/png-public.ts";
 import { createTowerIntake } from "../server/live/tower-intake.ts";
 import { LocalDatabase } from "../server/live/local-db.ts";
 const origin = "https://tower.example",
@@ -31,17 +33,26 @@ function chunk(name: string, data: Uint8Array) {
   crc.writeUInt32BE(checksum(Buffer.concat([type, data])));
   return Buffer.concat([length, type, data, crc]);
 }
-function png(w: number, h: number) {
+function png(w: number, h: number, noise = false) {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(w);
   header.writeUInt32BE(h, 4);
   header[8] = 8;
   header[9] = 6;
+  const pixels = new Uint8Array((1 + w * 4) * h);
+  // Reproducible incompressible pixels exercise the D1 RPC limit without personal art.
+  if (noise) {
+    let state = 0x12345678;
+    for (let y = 0; y < h; y++) for (let x = 1; x <= w * 4; x++) {
+      state ^= state << 13; state ^= state >>> 17; state ^= state << 5;
+      pixels[y * (1 + w * 4) + x] = state & 255;
+    }
+  }
   return Buffer.concat([
     Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
     chunk("IHDR", header),
     chunk("tEXt", Buffer.from("Comment\0PRIVATE_PNG_METADATA")),
-    chunk("IDAT", deflateSync(new Uint8Array((1 + w * 4) * h))),
+    chunk("IDAT", deflateSync(pixels)),
     chunk("IEND", new Uint8Array()),
   ]);
 }
@@ -69,12 +80,25 @@ async function fixture() {
     if ((e as { code?: string }).code !== "ENOENT") throw e;
   }
   db.sqlite.exec(await readFile(new URL('../migrations/0008_tower_publication_events.sql',import.meta.url),'utf8'));
-  const raw = JSON.parse(
-    await readFile(new URL("../condo/condo.json", import.meta.url), "utf8"),
-  );
-  raw.home.name = "Tower Test";
-  raw.home.intro = "Public welcome";
-  let manifest = raw,
+  const dream = {
+    id: "synthetic-dream", title: "合成窗邊夢", body: "一個完全虛構的測試夢。",
+    wish: "願測試順利。", occurredAt: "2026-10-30T00:00:00Z",
+    image: { src: "./assets/dream.png", alt: "合成夢圖" },
+  };
+  const raw = {
+    templateVersion: "muse-condo-1", example: false,
+    home: {
+      frameworkVersion: "0.01", id: "e".repeat(16), name: "Tower Test", intro: "Public welcome",
+      assets: { desktop: "./assets/home.png" },
+      routes: { home: "./index.html", inside: "./inside.html", dreams: "./dreams.html" },
+      daily: [{ id: "synthetic-day", type: "status", title: "合成日常", body: "僅供測試。", occurredAt: dream.occurredAt }],
+      dreams: [{ id: dream.id, type: "dream", title: dream.title, body: dream.body, occurredAt: dream.occurredAt, image: dream.image.src }],
+    },
+    homeAlt: "合成住所圖",
+    profile: Object.fromEntries(CONDO_PROFILE_FIELDS.map(key => [key, "完全虛構的角色資料"])),
+    dream,
+  };
+  let manifest: unknown = raw,
     challenge: unknown = null,
     attested = true,
     time = new Date("2026-10-30T00:00:00Z"),
@@ -932,16 +956,22 @@ test('Workers-compatible manual redirects are rejected without following a diffe
  const f=await fixture();try{f.redirectSource();const response=await f.req('/import','POST',{sourceURL,residentId:f.raw.home.id,proof:'owner-attested',requestKey:'redirect-test'});assert.equal(response!.status,400);assert.equal((await response!.json()).error,'source_http_302');assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_residencies').get()!.n,0);}finally{f.db.close();}
 });
 
-test('real-size PNG import stays below the D1 serialized RPC ceiling and stores exact pixel data',async()=>{
+test('large synthetic PNG import stays below the D1 serialized RPC ceiling and stores exact pixel data',async()=>{
  const f=await fixture();try{
-  f.setImage(await readFile(new URL('../condo/assets/home.png',import.meta.url)));f.setDreamImage(await readFile(new URL('../condo/assets/dream.png',import.meta.url)));
+  const images={home:png(1280,720,true),dream:png(1024,1024,true)};
+  f.setImage(images.home);f.setDreamImage(images.dream);
+  assert.ok(images.home.length+images.dream.length>4*1024*1024);
   const batch=f.db.batch.bind(f.db);f.db.batch=async statements=>{
    // ArrayBuffer parameters expand to numeric-array RPC values. A conservative
-   // wire-size model reproduces the observed 58MB failure for this 9MB pair.
+   // wire-size model rejects a multi-megabyte pair under the old binary binding approach.
    let bytes=0;for(const statement of statements)for(const value of (statement as unknown as {values:unknown[]}).values)bytes+=value instanceof ArrayBuffer?value.byteLength*8:typeof value==='string'?new TextEncoder().encode(value).length:16;
    if(bytes>32*1024*1024)throw Error('Serialized RPC arguments exceed 32MiB');return batch(statements);
   };
   await f.importHome();const rows=f.db.sqlite.prepare('SELECT purpose,SUM(length(data)) bytes FROM tower_asset_chunks GROUP BY purpose').all();assert.equal(rows.length,2);assert(rows.every(r=>Number(r.bytes)>1000000));
+  for(const purpose of ['home','dream'] as const){
+   const chunks=f.db.sqlite.prepare('SELECT data FROM tower_asset_chunks WHERE purpose=? ORDER BY sequence').all(purpose);
+   assert.deepEqual(Buffer.concat(chunks.map(row=>Buffer.from(row.data as Uint8Array))),Buffer.from(await sanitizePublicPNG(images[purpose])));
+  }
  }finally{f.db.close();}
 });
 

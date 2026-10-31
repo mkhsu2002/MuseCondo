@@ -158,3 +158,29 @@ T01 工程、規格／品質審核及 dev／正式 API 驗收已完成；原 Age
 | 503 | tower_storage_unavailable、tower_operation_unavailable | GET 查狀態後，以原 key 重試，勿另建住所 |
 
 2026-10-30 T02a：通用來源搬遷與 snapshot 競爭防護已在本機合成 fixture 驗證；沒有新增 migration。此段僅記本機工程範圍，不代表 dev／正式已部署或實際住戶已完成搬遷。
+
+
+## 舊連結過渡
+
+個人住所應在獨立專案及部署中管理；框架建置不再讀取、複製或發布 repo 根目錄的 `condo/`。合成測試資料及大型合成 PNG 取代個人來源，虛構模板範例仍保留。移除目前追蹤檔案不會改寫 Git 歷史；若舊歷史含敏感內容，須另外評估並處理。
+
+舊站使用 Pages Functions 時，營運者可在部署環境設定可選的 `LEGACY_HOME_REDIRECTS`，不把居民專屬網域寫入框架：
+
+```json
+{ "/old-home": "https://independent-home.example" }
+```
+
+此設定將 `/old-home` 及 `/old-home/` 導向新 origin 的 `/`，`/old-home/inside.html` 導向 `/inside.html`；其餘相對子路徑同樣去除 prefix。只接受 GET／HEAD，以 308 空回應及 `Cache-Control: no-store`、`Referrer-Policy: no-referrer` 轉址。request query／fragment 不轉送；不能靠此轉送登入資料。prefix 採完整路徑邊界，`/old-home-other` 不匹配；多個符合項目採最長 prefix。
+
+設定必須是 JSON object，最多 20 項、完整設定最多 16KiB（UTF-8 bytes）。prefix 只能含 ASCII 英數字、底線、連字號及分隔用 `/`，必須以 `/` 起頭，不得是根目錄、尾斜線、空區段或編碼路徑。目標必須是完整且標準化的 HTTPS origin，不得有 path、尾斜線、帳密、query、fragment、控制字元或其他額外內容。任一項不合法，整份設定停用，不套用部分對照；省略、空字串或 `{}` 都不啟用轉址。設定值及驗證細節不回傳公開訪客。
+
+API、Tower 門牌、接待／管理／登入路徑（reception／admin／manage／login）、入住／鄰居／關於頁面、歷史示範門牌、內建資產／社區／範例路徑及根目錄檔案均保留給 Tower，不接受覆寫。無法解碼、控制字元、空白、反斜線、雙斜線及雙重 percent 編碼的 request pathname 不會轉址。目標以 pathname 屬性附加剩餘路徑，不能透過 `//` 或編碼路徑逃離指定 origin。
+
+搬遷依序執行：
+
+1. 將本人有權使用的三頁、兩張圖及公開 `condo.json` 部署到獨立站，核對相對路徑、居民 ID、公開文字與圖片；先確認完整新站可用。
+2. 核准新 origin，分別在所需的 dev／正式環境完成 prepare → 新站 challenge → claim → source；讀回居民 ID、門牌、私人／公開 revision、分享選擇及永久收據，不能只驗新站 HTTP 200。
+3. 在需要保留舊連結的環境設定上述對照，與對應 Functions 版本一起部署；再讀回舊家／角色／夢／圖片的 Location、新站內容，以及 API／Tower 門牌仍由原環境處理。靜態上傳不會自動提供此 runtime 功能；來源抓取也不跟隨 redirect，必須先完成 source 搬遷。
+4. 確認兩環境已改用獨立來源後，才移除框架中的個人檔案與測試依賴。轉址期限及後續撤除由營運者管理；停用設定後舊路徑回復原有靜態路由處理。保留搬遷與回讀證據於適當的受保護營運紀錄。
+
+2026-10-30 T02b：通用舊連結設定、建置去除個人住所、合成 fixture／大型 PNG 回歸及文件已加入本機工作分支。沒有新增 migration。本段不代表本輪 Functions 已部署、轉址設定已啟用或外站已重新驗收；各環境須依上列步驟交叉查核。

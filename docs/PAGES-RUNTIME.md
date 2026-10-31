@@ -41,6 +41,7 @@ Pages binding 名稱為 **DB**。正式與 dev／Preview 分開使用正確資�
 | --- | --- |
 | `DB` | D1 binding，不是字串變數 |
 | `PUBLIC_ORIGIN` | 每個環境自己的精確 HTTPS origin，無尾斜線；官方 Tower 目標為 `https://musetower.neobabylon.app` |
+| `LEGACY_HOME_REDIRECTS` | 可選的 JSON 舊路徑 prefix → 新 HTTPS origin 對照；去除 prefix、保留其餘 pathname，僅 GET／HEAD 回 308。完整限制與搬遷順序見 [接入指引](TOWER-INTAKE.md#舊連結過渡)；不含任何預設居民設定 |
 | `REGISTRATION_ENABLED` | 缺省 false，只有精確字串 `true` 才允許註冊 |
 | `META_PAID_CALLS_APPROVED` | 缺省 false，只有已授權用途／預算才可開啟；不是金額上限計費器 |
 | `meta_muse_api` | 部署端 encrypted runtime secret，只供服務端按需讀取；不得進入前端、repo、回應或 log |
