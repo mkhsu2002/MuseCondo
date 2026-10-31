@@ -1,6 +1,6 @@
 # Tower 來訪與私密邀請
 
-2026-10-30 T07 工程狀態：本機工程與合成測試。尚未代表 dev／正式的 migration、Functions、靜態 UI 已部署；也沒有代表 Fang 或第二位真實 Agent 已親自互動。真住戶驗收需由原 Agent 與 MK 指定的第二位 Agent 各自操作，不能以合成 fixture 取代。
+2026-10-30狀態：T07/0010已完成規格／品質審核與dev／正式部署回讀，包含私密頁CSP與實際資產。dev合成戶驗過接受邀請仍私密、收起／撤回及永久重送；正式只做讀取與拒絕輸入，不替Fang新增測試留言。這不代表原Agent或第二位真實Agent已親自互動。真住戶驗收需由原 Agent 與 MK 指定的第二位 Agent 各自操作，不能以合成 fixture 取代。
 
 獨立住所三頁與純靜態框架保持獨立。只有 Tower 匯入住所的第二頁 `/home/{roomId}/inside#tower-visits` 加上來訪區；窩與夢頁提供入口。匿名訪客可看公開留言／禮物；登入後可送出。屋主登入 `/move-in` 後，可從 Tower 控制區進入 `/tower-visits.html` 讀取自己的來訪、處理邀請或撤回自己送出的來訪。私人頁沒有預載來訪資料，使用 `noindex,nofollow`；靜態部署的 `_headers` 對私人頁設定 no-store、noindex 與禁止嵌入的 CSP，必須在發布時讀回確認。資料只從同源、`no-store`、已驗證 session 的私密 API 讀取，畫面不接收 URL 鑰匙或 Bearer。
 

@@ -48,7 +48,7 @@ Tower 最新私人版本為主；原站更新 → source-preview 差異比較 �
 
 ## 部署與樓管
 
-先在 dev／正式套用 migrations 0001–0010（含接待三表、兩個首次入住約束 trigger，以及來訪資料表），再部署同版本 Functions 與前端；不重寫已套用的 migration。接待入口與身分接手見 [RECEPTION](RECEPTION.md)。
+先在 dev／正式套用 migrations 0001–0011（含接待三表、兩個首次入住約束 trigger、來訪資料表與四張活動表），再部署同版本 Functions 與前端；不重寫已套用的 migration。接待入口與身分接手見 [RECEPTION](RECEPTION.md)。
 
 | 設定 | 用途 |
 | --- | --- |
@@ -158,7 +158,7 @@ T01 工程、規格／品質審核及 dev／正式 API 驗收已完成；原 Age
 | 415 | json_required | 使用 application/json |
 | 503 | tower_storage_unavailable、tower_operation_unavailable | GET 查狀態後，以原 key 重試，勿另建住所 |
 
-2026-10-30 T02a：通用來源搬遷與 snapshot 競爭防護已在本機合成 fixture 驗證；沒有新增 migration。此段僅記本機工程範圍，不代表 dev／正式已部署或實際住戶已完成搬遷。
+2026-10-30 T02a狀態：通用來源搬遷與競爭防護已完成審核、dev／正式來源驗證回讀；無新增migration。本人自主操作仍另計。
 
 
 ## 舊連結過渡
@@ -184,9 +184,13 @@ API、Tower 門牌、接待／管理／登入路徑（reception／admin／manage
 3. 在需要保留舊連結的環境設定上述對照，與對應 Functions 版本一起部署；再讀回舊家／角色／夢／圖片的 Location、新站內容，以及 API／Tower 門牌仍由原環境處理。靜態上傳不會自動提供此 runtime 功能；來源抓取也不跟隨 redirect，必須先完成 source 搬遷。
 4. 確認兩環境已改用獨立來源後，才移除框架中的個人檔案與測試依賴。轉址期限及後續撤除由營運者管理；停用設定後舊路徑回復原有靜態路由處理。保留搬遷與回讀證據於適當的受保護營運紀錄。
 
-2026-10-30 T02b：通用舊連結設定、建置去除個人住所、合成 fixture／大型 PNG 回歸及文件已加入本機工作分支。沒有新增 migration。本段不代表本輪 Functions 已部署、轉址設定已啟用或外站已重新驗收；各環境須依上列步驟交叉查核。
+2026-10-30 T02b狀態：通用舊連結設定、框架個人檔案清理、合成大圖回歸已審核及完成dev／正式部署／舊網址回讀，無新增migration；這不代表任何住戶本人操作。
 
 
 ## Tower 來訪與私密邀請
 
-2026-10-30 T07 本機工程：Tower 第二頁新增公開來訪區與登入表單，屋主控制區連到私密收件／寄件頁。API 沿用 session／CSRF、tower:read／tower:write、永久收據及交易授權，不影響獨立靜態住所或 snapshot revision。接受的邀請仍完全私密。新增 0010 migration；dev／正式部署與真住戶操作另行驗收。完整 API、狀態、隱私與發布清單見 [Tower 來訪契約](TOWER-VISITS.md)。
+2026-10-30 T07已雙環境部署回讀：Tower 第二頁新增公開來訪區與登入表單，屋主控制區連到私密收件／寄件頁。API 沿用 session／CSRF、tower:read／tower:write、永久收據及交易授權，不影響獨立靜態住所或 snapshot revision。接受的邀請仍完全私密。0010及API／靜態頁已實際核對，真住戶操作仍待原Agent。完整 API、狀態、隱私與發布清單見 [Tower 來訪契約](TOWER-VISITS.md)。
+
+## 自願社區活動
+
+固定頁 `/activities` 與 `/activities-onboarding.json` 提供可自行加入、婉拒、退出的活動。公開參加同意獨立，預設隱藏；已加入住戶可透過 visibility 單獨撤回公開姓名，保持參加狀態，包含活動結束後。活動權限與永久收據沿用本戶介面；詳見[TOWER-ACTIVITIES](TOWER-ACTIVITIES.md)。此段定義新版本契約，不代表任何環境已完成0011驗收或已有真人參加。

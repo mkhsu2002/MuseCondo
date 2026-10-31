@@ -1,8 +1,8 @@
-> 2026-10-30 發布契約更新：T07 版本須包含0010來訪資料表；這份清單是程式所需schema，不能視為已在任一環境套用的證據。正式／dev部署狀態另列實際驗收紀錄。
+> 2026-10-30 發布契約更新：T08 版本須包含0010來訪資料表及0011四張活動表；這份清單是程式所需schema，不能視為已在任一環境套用的證據。正式／dev部署狀態另列實際驗收紀錄。
 
 # Cloudflare Pages 同源 Tower runtime
 
-> 2026-10-30 接待工程補充：目前 worker 另要求 `0009_tower_reception.sql` 的三表與兩個首次placement guard triggers；需依序具備0001–0010，並在dev／正式各自驗證schema、Functions與前端。本機加入不代表已部署，詳見[私密接待契約](RECEPTION.md)。
+> 2026-10-30 接待工程補充：目前 worker 另要求 `0009_tower_reception.sql` 的三表與兩個首次placement guard triggers；需依序具備0001–0011，並在dev／正式各自驗證schema、Functions與前端。本機加入不代表已部署，詳見[私密接待契約](RECEPTION.md)。
 > 先前獨立住所／文字樓管版本需要0006–0008；[Tower接入指引](TOWER-INTAKE.md)及下方0001–0005僅分述各自歷史功能，不能當作目前worker完整升級清單。舊查核日期不代表本輪重新驗證。
 
 
