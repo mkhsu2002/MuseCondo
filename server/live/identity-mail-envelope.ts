@@ -168,6 +168,14 @@ export function createIdentityMailEnvelope(env:IdentityMailEnvelopeEnvironment){
  }
  return {
   async prepare(eventId:string):Promise<IdentityMailEnvelopeDescriptor>{return (await resolve(eventId)).descriptor;},
+  /** PRIVATE small control data only; body is rebuilt exclusively by materialize. */
+  async metadata(eventId:string){
+   const {q,email,template}=await qualify(eventId);const row=await stored(eventId);if(!row)fail('envelope_unavailable');
+   let metadata:Metadata;try{metadata=JSON.parse(await decryptPrivate(env.contactKey,'mail-envelope',eventId,row.metadata_ciphertext)) as Metadata;}catch{fail('envelope_unavailable');}
+   if(metadata.version!==1||metadata.origin!==env.origin||metadata.binding!==q.binding||metadata.to!==email||metadata.templateVersion!==template||row.template_version!==template||!senderDomain(metadata.from)||JSON.stringify(metadata.attachmentRefs)!==row.attachment_refs)fail('envelope_context_blocked');
+   try{await db.batch([contextGuard(q)]);}catch{fail('event_qualification_blocked');}
+   return {descriptor:descriptor(row),recipient:metadata.to,from:metadata.from};
+  },
   /** PRIVATE: body/from/recipient and guards must never be returned by a public endpoint or logged. */
   materialize:resolve,
  };

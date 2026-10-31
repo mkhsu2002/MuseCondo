@@ -1,5 +1,7 @@
 # I05b1 私有凍結封套核心
 
+2026-10-31 本地後續：b2a 私有 dispatch／Pages 串流核心見 [技術契約](IDENTITY-MAIL-DISPATCH.md)。尚未部署、未啟用投遞；下文原切片狀態為歷史範圍，不可據此沿用舊直寄路徑。
+
 狀態：2026-10-31，本地 dormant core；`0020_identity_mail_envelopes.sql` 尚未套用任何遠端資料庫。本片沒有 HTTP、DO、Pages、provider dispatch、sending lease 或排程接線，沒有改動既有 `processOne`。不能據此宣稱郵件已投遞。
 
 `createIdentityMailEnvelope({db, origin, contactKey, from, trustedKeys, now})` 只接收後端明確提供的公開 Ed25519 `CryptoKey` trust map。沒有 provider secret、fetcher、磁碟住戶資料或模型依賴。`origin` 必須是完整 HTTPS origin；`from` 沿用 readiness 的嚴格 parser。

@@ -19,6 +19,7 @@ export async function cardShard(request:Request):Promise<string>{
 }
 const unavailable=()=>new Response(JSON.stringify({error:'identity_cards_not_bound'}),{status:503,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex, nofollow','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
 export async function proxyIdentityCard(request:Request,binding?:IdentityCardNamespace):Promise<Response>{
+ if(!isIdentityCardPath(new URL(request.url).pathname))return new Response(JSON.stringify({error:'not_found'}),{status:404,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
  if(!binding||typeof binding.idFromName!=='function'||typeof binding.get!=='function')return unavailable();
  try{return await binding.get(binding.idFromName(await cardShard(request))).fetch(request);}catch{return unavailable();}
 }

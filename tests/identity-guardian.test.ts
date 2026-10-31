@@ -4,6 +4,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { LocalDatabase } from '../server/live/local-db.ts';
 import type { Statement } from '../server/live/db.ts';
 import { hashIdentityInput } from '../server/live/identity-private.ts';
+import {createIdentityMailCoordinator} from '../server/live/identity-mail-coordinator.ts';
 import runtime from '../server/live/worker.ts';
 const origin = 'https://identity.example', time = '2026-10-31T00:00:00.000Z', contactKey = '9'.repeat(64), base = '/api/v1/agent/identity/guardian-invitations', operatorBase = '/api/v1/operator/identity/guardian-invitations';
 const nativeDates = new LocalDatabase(':memory:');
@@ -24,7 +25,8 @@ async function fixture() {
     let now = new Date(time), operatorEnabled = true;
     db.sqlite.function('strftime', { varargs: true }, (...args) => args[1] === 'now' ? now.toISOString() : nativeDates.sqlite.prepare('SELECT strftime(' + args.map(() => '?').join(',') + ') value').get(...args)!.value);
     const dispatched: string[] = [], providerCalls: RequestInit[] = [];
-    const env = { db, origin, contactKey, apiKey: 'runtime-key', from: 'MuseCondo <identity@example.com>', now: () => now, operator: async (r: Request) => operatorEnabled && r.headers.get('X-Tower-Operator-Key') === 'operator-key', onMailEvent: (id: string) => { dispatched.push(id); }, fetcher: async (_url: unknown, init?: RequestInit) => { providerCalls.push(init!); return new Response(JSON.stringify({ id: 'provider-one' })); } };
+    const coordinator={idFromName:(n:string)=>n,get:()=>({fetch:(request:Request)=>createIdentityMailCoordinator({db,origin,contactKey,from:'MuseCondo <identity@example.com>',trustedKeys:new Map(),now:()=>now}).fetch(request)})};
+    const env = { db, origin, contactKey, coordinator,deliveryEnabled:'true', apiKey: 'runtime-key', from: 'MuseCondo <identity@example.com>', now: () => now, operator: async (r: Request) => operatorEnabled && r.headers.get('X-Tower-Operator-Key') === 'operator-key', onMailEvent: (id: string) => { dispatched.push(id); }, fetcher: async (_url: unknown, init?: RequestInit) => { if(String(_url).includes('/suppressions/'))return new Response(null,{status:404});providerCalls.push({...init,body:await new Response(init!.body).text()}); return new Response(JSON.stringify({ id: 'provider-one' })); } };
     assert(existsSync(new URL('../server/live/identity-guardian.ts', import.meta.url)), 'guardian invitation handler is implemented');
     const { createIdentityGuardian } = await import('../server/live/identity-guardian.ts');
     let handler = createIdentityGuardian(env);
@@ -413,11 +415,11 @@ test('protected mail processing only consumes its persisted event and returns no
 test('Pages dispatch persists before waitUntil sends the exact event, and unreleased confirmation routes remain closed', async () => {
     const f = await fixture(), original = globalThis.fetch, pending: Promise<unknown>[] = [];
     let calls = 0;
-    globalThis.fetch = async (_url, init) => { calls++; assert.equal(f.count('identity_mail_events'), 1); assert.equal(f.count('guardian_invite_requests'), 2); assert.deepEqual(JSON.parse(String(init!.body)).to, ['Guardian.Local@example.com']); return new Response(JSON.stringify({ id: 'runtime-provider' })); };
+    globalThis.fetch = async (_url, init) => { if(String(_url).includes('/suppressions/'))return new Response(null,{status:404});calls++; assert.equal(f.count('identity_mail_events'), 1); assert.equal(f.count('guardian_invite_requests'), 2); assert.deepEqual(JSON.parse(await new Response(init!.body).text()).to, ['Guardian.Local@example.com']); return new Response(JSON.stringify({ id: 'runtime-provider' })); };
     try {
         f.db.sqlite.function('strftime', { varargs: true }, (...args) => nativeDates.sqlite.prepare('SELECT strftime(' + args.map(() => '?').join(',') + ') value').get(...args)!.value);
         f.db.sqlite.prepare("UPDATE tower_tokens SET expires_at='2099-01-01T00:00:00.000Z'").run();
-        const env = { DB: f.db, PUBLIC_ORIGIN: origin, TOWER_OPERATOR_KEY: 'operator-key', IDENTITY_CONTACT_KEY: contactKey, IDENTITY_MAIL_API_KEY: 'runtime-key', IDENTITY_MAIL_FROM: 'MuseCondo <identity@example.com>' };
+        const env = { DB: f.db, PUBLIC_ORIGIN: origin, TOWER_OPERATOR_KEY: 'operator-key', IDENTITY_CONTACT_KEY: contactKey, IDENTITY_MAIL_API_KEY: 'runtime-key', IDENTITY_MAIL_FROM: 'MuseCondo <identity@example.com>',IDENTITY_CARDS:{idFromName:(n:string)=>n,get:()=>({fetch:(request:Request)=>createIdentityMailCoordinator({db:f.db,origin,contactKey,from:f.env.from,trustedKeys:new Map()}).fetch(request)})},IDENTITY_MAIL_DELIVERY_ENABLED:'true' };
         const req = (path: string, method = 'GET', body?: unknown, operator = false) => new Request(origin + path, { method, headers: { ...(operator ? { 'X-Tower-Operator-Key': 'operator-key' } : { Authorization: 'Bearer ' + 'a'.repeat(64) }), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
         const proposal = await runtime.fetch(req(operatorBase, 'POST', f.input, true), env);
         assert.equal(proposal.status, 201);
