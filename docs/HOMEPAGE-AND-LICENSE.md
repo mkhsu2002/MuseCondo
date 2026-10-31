@@ -23,6 +23,12 @@ Cloudflare Pages build watch 已於 `2026-10-31T17:20:52Z` 由官方 API 加入 
 
 發布仍須由既有流程同步 main、framework-v001 與正式／dev 靜態輸出，逐位元核對上述授權檔及公開 JS；後端 schema／Functions 未變，不應夾帶未發布 identity/mail 分支。正式／dev 回讀完成後才更新發布狀態。本次授權檔與頁尾的發布證據不沿用下列歷史紀錄。
 
+## Apache 切換的本地驗證（v0.65，尚未發布）
+
+實作提交 `33f81d2`，從 `main`／`origin/main` 的 `cec9666` 建立 `feat/apache-2-license`，未帶入 identity/mail 後續分支。既有 `project-version.mjs --write` 僅計入該一份程式提交，將專案 v0.64 更新為 v0.65；未調整版本規則或 workflow。
+
+使用 Node 24 與既有依賴，typecheck、lint、build 均 exit 0；`npm test` 29/29 通過，包含實際 render 的 root／subpath 頁尾與公約、四份授權檔的 build 輸出及完整原文 SHA。恢復舊「禁止商用」頁尾的反例確實失敗（exit 1），恢復新頁尾後通過。腳本核對全部 47 份 tracked raster 與精確素材清單相等；四份 `dist` 授權輸出與來源逐位元一致，公開 source／bundle 沒有舊框架禁商敘述。`public/licenses` 兩份第三方 notices、字體 OFL、品牌 provenance 及舊 PolyForm 原文與 main 比對未改。這些是本地驗證，不取代合併與雙環境部署後回讀；完整回歸與發布證據由後續發布程序補上。
+
 ## 首版首頁驗證（v0.17 歷史紀錄，授權敘述已 superseded）
 
 本節記錄當時發布事實；v0.17／v0.18 對軟體的非商業授權說明已由上方 2026-10-31 核准範圍取代，不作目前軟體使用限制。
