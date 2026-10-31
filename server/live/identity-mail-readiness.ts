@@ -25,7 +25,7 @@ function domainName(value:unknown):string|null {
  return labels.length>=2&&labels.every(label=>/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))&&/^(?:[a-z]{2,63}|xn--[a-z0-9-]+)$/.test(labels.at(-1)!)?valueLower:null;
 }
 /** Conservative single dot-atom mailbox, optionally one display name. Never guess a parent domain. */
-function senderDomain(value:unknown):string|null {
+export function senderDomain(value:unknown):string|null {
  if(typeof value!=='string'||value.length>320||value!==value.trim()||Array.from(value).some(c=>c.charCodeAt(0)<=31||c.charCodeAt(0)>=127&&c.charCodeAt(0)<=159)||/[\u202a-\u202e\u2066-\u2069]/.test(value))return null;
  const match=value.match(/^(?:([^<>]+) <([^<>]+)>|([^<>\s]+))$/);if(!match)return null;
  if(match[1]&&(match[1]!==match[1].trim()||Array.from(match[1]).some(c=>'(),:;@"\\[]'.includes(c))))return null;
