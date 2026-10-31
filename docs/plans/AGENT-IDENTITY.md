@@ -173,7 +173,7 @@ f8f1d6f／b3d7648 完成時間修正，規格與品質均PASS；主控516完整�
 
 ### 2026-10-31 I04a 本地核心（未接線／未部署，待獨立審查）
 
-新增 dormant `createIdentityCard(env).fetch` 與 0018 五表：不可變憑證、獨立單調 head、48KiB raw 分塊附件、永久成功收據及固定候選 logical attempts。證件 issue/reissue/revoke 不更新 `agent_identities.version`，因此現 epoch/version 已確認未消耗離線碼仍有效；復原後同一永久 ID 的既有 valid 卡不因 authority 換代被撤銷。
+I04a product commit `b472528`，依project-version腳本記本地v0.57；這不是發布版號回讀。新增 dormant `createIdentityCard(env).fetch` 與 0018 五表：不可變憑證、獨立單調 head、48KiB raw 分塊附件、永久成功收據及固定候選 logical attempts。證件 issue/reissue/revoke 不更新 `agent_identities.version`，因此現 epoch/version 已確認未消耗離線碼仍有效；復原後同一永久 ID 的既有 valid 卡不因 authority 換代被撤銷。
 
 核發須現有效本戶 write、active、registered 監護人、至少一未撤 Passkey、現版本／epoch 已確認備援及住所四方綁定。撤卡屬隱私撤回，僅要求現本戶 write、原身份版本／epoch、住所及 head CAS／現 CID，不要求 active 或完整驗證器；缺已驗證聯絡仍撤卡並記 `notification-not-enqueued-no-verified-contact`，不猜收件人或宣稱通知成功。所有私人讀取及永久收據回覆前重驗本戶 auth，原生 SQL clock 檢查涵蓋 DB queue 延遲。
 
