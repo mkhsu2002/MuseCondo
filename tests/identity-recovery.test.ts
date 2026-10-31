@@ -24,7 +24,7 @@ const origin = "https://identity.example",
   candidate = "1".repeat(64);
 const native = new LocalDatabase(":memory:");
 test.after(() => native.close());
-async function fixture() {
+async function fixture(onMailEvent?: (id: string) => void | Promise<void>) {
   const db = new LocalDatabase(":memory:");
   for (const name of readdirSync(new URL("../migrations/", import.meta.url))
     .filter((x) => x.endsWith(".sql"))
@@ -135,6 +135,7 @@ async function fixture() {
   const { createIdentityRecovery } =
     await import("../server/live/identity-recovery.ts");
   const handler = createIdentityRecovery({
+    onMailEvent,
     db,
     origin,
     contactKey,
@@ -3210,3 +3211,40 @@ for (const kind of ["requests", "challenges"]) {
     } finally { f.db.close(); }
   });
 }
+
+for (const lostAck of [false,true]) for (const method of ['passkey','offline']) for(const decision of ['continue','new']) {
+ test((lostAck?'lost-ack ':'new-commit ')+'committed '+method+' '+decision+' recovery dispatches only its durable notice on new, lost-ack and authorized historical receipt',async()=>{
+  const seen:string[]=[];
+  const f=await fixture(async id=>{await Promise.resolve();assert.equal(f.count('identity_recovery_receipts'),1);assert.equal(f.db.sqlite.prepare('SELECT kind FROM identity_mail_events WHERE id=?').get(id)!.kind,'security-notice');seen.push(id);throw Error('private dispatch failure');});
+  try {
+   const start=method==='offline'?await offlineStart(f,decision):await f.begin(decision),body=method==='offline'?start.body:await f.body(start),path='guardian/recovery/'+(method==='offline'?'offline/':'')+'complete';
+   const batch=f.db.batch.bind(f.db);let lost=false;
+   f.db.batch=async rows=>{const r=await batch(rows);if(lostAck&&!lost&&rows.some(s=>(s as unknown as {sql:string}).sql.startsWith('INSERT INTO identity_recovery_receipts'))){lost=true;throw Error('lost commit ack');}return r;};
+   const result=await f.send(path,body);assert.equal(result.status,200,await result.clone().text());const value=await result.json();
+   const expected=method==='passkey'&&decision==='new'?[]:[String(f.db.sqlite.prepare("SELECT id FROM identity_mail_events WHERE dedupe_key=?").get('identity-recovery:'+body.requestId)!.id)];
+   assert.deepEqual(seen,expected);const before=JSON.stringify(f.db.sqlite.prepare('SELECT * FROM agent_identities').all());
+   assert.deepEqual(await (await f.send(path,body)).json(),value);assert.deepEqual(seen,[...expected,...expected]);assert.equal(JSON.stringify(f.db.sqlite.prepare('SELECT * FROM agent_identities').all()),before);assert.equal(f.count('identity_recovery_receipts'),1);assert.equal(f.count('identity_mail_events'),expected.length);
+   assert([403,409].includes((await f.send(path,{...body,requestKey:'different-body-key'})).status));assert.deepEqual(seen,[...expected,...expected]);
+  }finally{f.db.close();}
+ });
+}
+
+for(const decision of ['continue','new']) test('Pages automatically dispatches the authorized '+decision+' offline recovery receipt after default gate and provider failures leave the completed transaction intact',async t=>{
+ const f=await fixture();try{
+ const {default:runtime}=await import('../server/live/worker.ts'),{IdentityCardCoordinator}=await import('../workers/identity-card/worker.ts');
+ f.setTime(new Date().toISOString());f.db.sqlite.function('strftime',{varargs:true},(...args)=>native.sqlite.prepare('SELECT strftime('+args.map(()=>'?').join(',')+') v').get(...args)!.v);
+ const start=await offlineStart(f,decision),pair=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']),publicJwk=await crypto.subtle.exportKey('jwk',pair.publicKey);
+ const coordinator=new IdentityCardCoordinator({}, {DB:f.db,PUBLIC_ORIGIN:origin,IDENTITY_CONTACT_KEY:contactKey,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>',IDENTITY_PUBLIC_KEYS:JSON.stringify({synthetic:publicJwk})});
+ const env={DB:f.db,PUBLIC_ORIGIN:origin,IDENTITY_CONTACT_KEY:contactKey,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>',IDENTITY_MAIL_API_KEY:'synthetic-runtime-key',IDENTITY_CARDS:{idFromName:(n:string)=>n,get:()=>({fetch:(r:Request)=>coordinator.fetch(r)})}};
+ const request=()=>new Request(origin+'/api/v1/identity/guardian/recovery/offline/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(start.body)});
+ let suppressionFails=true,posts=0;const notices:string[]=[];
+ t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL,init?:RequestInit)=>{assert(String(url).startsWith('https://api.resend.com/'));if(String(url).includes('/suppressions/'))return new Response(null,{status:suppressionFails?503:404});posts++;notices.push(await new Response(init!.body).text());return new Response(JSON.stringify({id:'synthetic-recovery-provider'}));});
+ const completed=await runtime.fetch(request(),env);assert.equal(completed.status,200,await completed.clone().text());const result=await completed.json(),event=f.db.sqlite.prepare('SELECT id,state FROM identity_mail_events').get()!;
+ assert.equal(event.state,'pending');assert.equal(posts,0);const before=JSON.stringify(f.db.sqlite.prepare('SELECT * FROM agent_identities').all());
+ const enabled={...env,IDENTITY_MAIL_DELIVERY_ENABLED:'true'};
+ assert.deepEqual(await (await runtime.fetch(request(),enabled)).json(),result);assert.equal(posts,0);assert.equal(f.count('identity_mail_dispatches'),0);
+ suppressionFails=false;assert.deepEqual(await (await runtime.fetch(request(),enabled)).json(),result);assert.equal(posts,1);assert.equal(f.db.sqlite.prepare('SELECT state FROM identity_mail_events WHERE id=?').get(event.id)!.state,'accepted');
+ assert.deepEqual(await (await runtime.fetch(request(),enabled)).json(),result);assert.equal(posts,1);assert.equal(f.count('identity_mail_dispatches'),1);assert.equal(f.count('identity_mail_finish_receipts'),1);assert.equal(f.count('identity_mail_events'),1);assert.equal(JSON.stringify(f.db.sqlite.prepare('SELECT * FROM agent_identities').all()),before);
+ const payload=JSON.parse(notices[0]);assert.equal(payload.attachments,undefined);assert(!JSON.stringify(result).includes('lease'));assert(!JSON.stringify(result).includes('recipient'));assert(!JSON.stringify(result).includes('synthetic-runtime-key'));
+ }finally{f.db.close();}
+});

@@ -82,7 +82,7 @@ test('both parties consent before one encrypted mail event; identity remains pro
         f.db.close();
     }
 });
-test('permanent exact receipts replay without another version, charge, dispatch, audit or provider attempt', async () => {
+test('permanent exact receipts redispatch the original event without another version, charge, audit or provider attempt', async () => {
     const f = await fixture();
     try {
         const first = (await f.propose())!, p = await first.json();
@@ -91,7 +91,7 @@ test('permanent exact receipts replay without another version, charge, dispatch,
         const accept = (await f.accept(p.invitation.id))!, a = await accept.json();
         assert.deepEqual(await (await f.accept(p.invitation.id))!.json(), a);
         assert.equal((await f.accept(p.invitation.id, { requestKey: 'accept-0001', expectedVersion: 2, guardianConsent: true }))!.status, 409);
-        assert.equal(f.dispatched.length, 1);
+        assert.equal(f.dispatched.length, 2);
         assert.equal(f.count('guardian_invite_requests'), 2);
         assert.equal(f.count('guardian_invite_rate_attempts'), 2);
         assert.equal(f.count('identity_audit'), 2);
@@ -213,7 +213,7 @@ test('competing requests cannot partially designate or enqueue twice', async () 
             assert.equal(f.count('identity_guardian_invites'), 1);
             assert.equal(f.count('identity_mail_events'), 1);
             assert.equal(f.count('guardian_invite_requests'), 2);
-            assert.equal(f.dispatched.length, 1);
+            assert.equal(f.dispatched.length, same ? 2 : 1);
         }
         finally {
             f.db.close();
@@ -379,7 +379,7 @@ test('proposal and acceptance use permanent per-input reservations and exact rep
         assert.equal((await f.accept(p.id))!.status, 200);
         assert.equal((await f.propose({ ...f.input, requestKey: 'new-rate-key', expectedVersion: 3 }))!.status, 429);
         assert.equal(f.count('guardian_invite_rate_attempts'), 2);
-        assert.equal(f.dispatched.length, 1);
+        assert.equal(f.dispatched.length, 2);
     }
     finally {
         f.db.close();
@@ -431,6 +431,7 @@ test('Pages dispatch persists before waitUntil sends the exact event, and unrele
         assert.equal(pending.length, 1);
         await Promise.all(pending);
         assert.equal(calls, 1);
+        const replay = await runtime.fetch(req(base + '/' + p.invitation.id + '/accept', 'POST', {requestKey:'accept-runtime',expectedVersion:1,guardianConsent:true}), env);assert.deepEqual(await replay.json(),accepted);assert.equal(calls,1);
         const status = await runtime.fetch(req('/api/v1/operator/identity/mail/' + accepted.mailEvent.id, 'GET', undefined, true), env);
         assert.equal((await status.json()).state, 'accepted');
         assert.equal((await runtime.fetch(req(base + '/confirm', 'POST', {}), env)).status, 404);
@@ -518,5 +519,17 @@ test('queued proposal CAS and failed cancellation audit never create partial aut
     }
 });
 test('JSON property order cannot change an otherwise identical permanent request', async () => {
- const f=await fixture();try{const p=await proposed(f);const reordered={email:f.input.email,attestGuardianDesignated:true,expectedVersion:1,agentId:f.input.agentId,requestKey:f.input.requestKey};assert.equal((await f.propose(reordered))!.status,201);await f.accept(p.id);assert.equal((await f.accept(p.id,{guardianConsent:true,expectedVersion:1,requestKey:'accept-0001'}))!.status,200);assert.equal(f.count('identity_guardian_invites'),1);assert.equal(f.count('guardian_invite_requests'),2);assert.equal(f.dispatched.length,1);}finally{f.db.close();}
+ const f=await fixture();try{const p=await proposed(f);const reordered={email:f.input.email,attestGuardianDesignated:true,expectedVersion:1,agentId:f.input.agentId,requestKey:f.input.requestKey};assert.equal((await f.propose(reordered))!.status,201);await f.accept(p.id);assert.equal((await f.accept(p.id,{guardianConsent:true,expectedVersion:1,requestKey:'accept-0001'}))!.status,200);assert.equal(f.count('identity_guardian_invites'),1);assert.equal(f.count('guardian_invite_requests'),2);assert.equal(f.dispatched.length,2);}finally{f.db.close();}
+});
+
+for(const lostAck of [false,true]) test((lostAck?'lost-ack ':'new-commit ')+'guardian dispatch awaits callback after commit; historical receipt uses the same event despite callback failure', async () => {
+ const f=await fixture();try {
+ const p=await proposed(f),seen:string[]=[];
+ f.reconfigure({onMailEvent:async id=>{await Promise.resolve();assert.equal(f.count('guardian_invite_requests'),2);assert.equal(f.db.sqlite.prepare('SELECT entity_id FROM identity_mail_events WHERE id=?').get(id)!.entity_id,p.id);seen.push(id);throw Error('private callback failure');}});
+ const batch=f.db.batch.bind(f.db);let lost=false;
+ f.db.batch=async statements=>{const r=await batch(statements);if(lostAck&&!lost&&statements.some(s=>(s as unknown as {sql:string}).sql.startsWith('INSERT INTO identity_mail_events'))){lost=true;throw Error('lost commit ack');}return r;};
+ const r=(await f.accept(p.id))!;assert.equal(r.status,200);const value=await r.json();assert.deepEqual(seen,[value.mailEvent.id]);
+ assert.deepEqual(await (await f.accept(p.id))!.json(),value);assert.deepEqual(seen,[value.mailEvent.id,value.mailEvent.id]);
+ assert.equal((await f.accept(p.id,undefined,'b'))!.status,404);assert.equal(seen.length,2);assert.equal(f.count('identity_mail_events'),1);assert.equal(f.count('guardian_invite_requests'),2);
+ }finally{f.db.close();}
 });

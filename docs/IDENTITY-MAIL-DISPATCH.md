@@ -1,6 +1,6 @@
 # I05b2a 私有 dispatch 與串流核心
 
-2026-10-31：本地實作與 mock 驗證，未 push、部署、遠端 migration、讀取 provider secret、呼叫真 provider 或寄信。這是 b2 的核心切片；完整三類 receipt/event 接線留 b2b，signed webhook／投遞 readiness／reconcile 留 I05c。不可單獨發布或啟用這一片。歷史 b1 核心文件描述的是無 transport 的單獨 factory，不代表目前 Pages transport 仍沿舊直寄路徑。
+2026-10-31：b2a 私有串流核心與 b2b 三類成功交易／receipt exact-event 接線已在本地實作，provider 全為固定 mock。未 push、部署、遠端 migration、讀取 provider secret、呼叫真 provider 或寄信。signed webhook／真正投遞 readiness／reconcile 留 I05c；不可單獨發布或啟用這一片。歷史 b1 核心文件描述的是無 transport 的單獨 factory，不代表目前 Pages transport 仍沿舊直寄路徑。
 
 `IDENTITY_MAIL_DELIVERY_ENABLED` 必須精確等於 `true` 才能執行寄送，預設關閉。即使有 key／FROM，缺 namespace、contact key、合法 origin 或 schema 仍不得呼叫 provider。同步 `configured()` 只檢查執行配置；`processOne` 在任何 provider HTTP 前實查必要 schema，DO 每個控制請求再查同一份 `identityMailSchema`。此開關與 schema 檢查均不是 signed webhook、live health 或收件驗證；I05c 必須補上真正驗證過的 delivery readiness，不能只設定布林即宣稱已完成。
 
@@ -41,6 +41,18 @@ finish 不會把已有 accepted／delivered／bounced／failed／cancelled 降�
 
 最大 8 MiB 路徑捕捉實際 Pages＋DO prepare／claim／finish SQL 與 bindings，逐 statement 保守計數為正常 44、lost prepare acknowledgement 47，不超過 Free 50；每 query 最多 100 binds、SQL <100 KB、單參數 <1 MB。完整 synthetic DB 經 stdin 交給 Python 3.11+ 標準 SQLite，以原生 setlimit 對 function 32 args、100 binds、SQL 100 KB、row 2 MB、compound SELECT 5 編譯實際 SQL。沒有依賴寬鬆 Node SQLite 預設或只對 helper 字串計數。
 
-此片已移除 production 直寄舊路徑；既有 guardian 新交易 callback 使用新 transport。b2b 尚須完成 guardian receipt replay、recovery commit／receipt replay、card issue／reissue／revoke 的可信 CID/event dispatch、無 RuntimeContext 的明確安全處理，以及完整事件串接測試。目前 guardian accept 的既有 `mail.configured()` 前置條件仍保留，因此預設 delivery gate 關閉時不提前消耗接受交易。b2b 需明確處理這個產品門檻，不能把配置完整誤稱已投遞。
+此片已移除 production 直寄舊路徑；b2b 的三類成功／receipt 接線如下。監護人 accept 的既有 `mail.configured()` 前置條件仍保留，因此預設 delivery gate 關閉時新 accept 仍回原 503，並不消耗接受交易；已完成的歷史 receipt 不受此新交易門檻攔截。這項配置檢查不代表已投遞，真正 readiness 留 I05c。
 
-local-server migration inventory 已含 0018–0021，仍沒有 provider config／namespace／寄送。後續發布必須先完成 b2b/c 必要閘門，將兩環境的 0020／0021、普通 FROM、DO、Pages 與 deployed schema／code／live behavior 一起核對；不可只發前端或其中一環境。本片新增 cron／polling／CI 寄送觸發數與空跑數皆為零。
+## b2b 已提交事件的接線
+
+`identityMailEventDispatcher` 每個 Pages request 各自捕捉自己的 environment 與 context。有 context 時，將同一 event 的 `processOne` promise 傳給 `waitUntil`；沒有 context 時直接 await 同一 process。所有錯誤都由 dispatch 邊界捕獲，不能把成功戶籍／卡片交易改回 503、撤銷或重跑。它不列舉 outbox、不新建 event、lease 或 idempotency key；sending／unknown／accepted 等永久結果仍由 b2a ledger 決定，不會第二次 POST。
+
+- 監護人 accept：新 commit 與 `prior()` 的 exact permanent receipt（含 lost commit acknowledgement 讀回）都從已提交結果取原 invitation ID／mailEvent ID；再以本次授權 account、原邀請、kind 與完整 dedupe key 核對既存 event，才安全 await callback。propose／cancel／錯誤與不同 scope 沒有 dispatch。callback 可回 void 或 Promise，reject 不影響原 receipt／response。
+- 復原：新 commit 與 central receipt（含 inner batch catch、authenticatedRetry outer catch）只在原 proof／input hash 已授權後，用該 request ID＋`security-notice`＋`identity-recovery:<requestId>` 查原事件；join 原 request、其 Agent 與既有 receipt，`LIMIT 2` 且必須恰有一筆。passkey 的 new-admission-required 原分支沒有 event，不補造通知；offline repair 會喚起原 security notice。保留原 epoch、token、instance、Passkey 與離線碼永久結果。
+- 卡片：Pages 只在 exact POST issue／revoke 且可信 Coordinator response 成功後讀 clone；JSON 上限 4096 UTF-8 bytes，拒絕超限／非 JSON／非法 shape。CID 僅取自 core `card.credentialId` 或 `revokedCredentialId`，從未讀 caller body 選 event。SQL 以 CID、kind、`card:identity-card:<CID>`／`card:security-notice:<CID>`、pending 與 credential／本戶四方 tuple 查原 event，`LIMIT 2` 且必須恰有一筆。issue／reissue／revoke 舊 receipt 成功時沿同一路徑喚起原 pending event；條件式撤證未排通知時不建 event。公開 verify、keys、metadata、PDF／JSON GET 與失敗寫入皆不讀 lifecycle clone／dispatch。
+
+沒有把 per-request callback 掛入長存的 card factory 或 in-flight cache；core／DO 仍沒有 provider key。公開 HTTP body、status、headers 與永久 receipt shape 不變，沒有加入 mail 控制、raw 地址、lease、正文或 provider raw result。default false、缺配置、schema／provider dependency 失敗均保留既存 pending；provider accepted 與真正 delivered 仍分開。
+
+b2b 本地測試先重現監護人重播漏 callback、復原漏 callback、卡片 0 POST／0 waitUntil、real-render 卡信仍 pending，再驗證成功 dispatch。整合含 synthetic 戶籍／監護人資料、本機真正 Coordinator renderer＋repo TTF 產生超過 4 MB PDF、真 Ed25519 signed JSON、凍結附件→Pages stream→固定 provider stub；這是本機 real-render 證據，不是 Fang／K／真人住戶、正式平台、真 provider 或收件驗收。另以小 synthetic PDF adapter 的真 card core 驗證 issue／reissue／lost-ack revoke 各原 receipt 單 POST；復原 continue／repair 在 Pages＋實際 Coordinator 上驗證 default false、suppression 503 仍成功且 pending，再由原 receipt 喚起單次 POST。callback reject、new／lost-ack／historical receipts、跨戶／不同 body、無通知分支、有 context／無 context、並發單 lease 及非 lifecycle routes 均有回歸。
+
+local-server migration inventory 已含 0018–0021，仍沒有 provider config／namespace／寄送。後續發布必須先完成 I05c 必要閘門，將兩環境的 0020／0021、普通 FROM、DO、Pages 與 deployed schema／code／live behavior 一起核對；不可只發前端或其中一環境。本片新增 cron／polling／CI 寄送觸發數與空跑數皆為零。

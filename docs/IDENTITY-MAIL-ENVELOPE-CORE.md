@@ -1,6 +1,6 @@
 # I05b1 私有凍結封套核心
 
-2026-10-31 本地後續：b2a 私有 dispatch／Pages 串流核心見 [技術契約](IDENTITY-MAIL-DISPATCH.md)。尚未部署、未啟用投遞；下文原切片狀態為歷史範圍，不可據此沿用舊直寄路徑。
+2026-10-31 本地後續：b2a 私有 dispatch／Pages 串流核心與 b2b 成功交易／receipt exact-event 接線見 [技術契約](IDENTITY-MAIL-DISPATCH.md)。尚未部署、未啟用投遞；下文原切片狀態為歷史範圍，不可據此沿用舊直寄路徑。
 
 狀態：2026-10-31，本地 dormant core；`0020_identity_mail_envelopes.sql` 尚未套用任何遠端資料庫。本片沒有 HTTP、DO、Pages、provider dispatch、sending lease 或排程接線，沒有改動既有 `processOne`。不能據此宣稱郵件已投遞。
 
@@ -18,7 +18,7 @@
 
 身分證包含真正既存 PDF 與 signed JSON 兩個附件，檔名固定。附件從 D1 48 KiB raw chunks 讀取，核對 canonical base64、索引／數量、manifest 長度／SHA256、PDF magic、JSON bytes 與 stored signed JSON 完全一致，再用 caller trust map 真驗 Ed25519、issuer／Agent ID／CID。上限維持 PDF 8 MiB、JSON 16 KiB，完整 JSON body 12 MiB。大 base64 不存封套 metadata，也不存單一大型 D1 row；交易 guard 每個參數最多 14 chunks、單參數小於 1 MB；每種附件用一條 SELECT 核對全部 groups，最大 PDF 55 binds、小於 100，上限不使用 compound UNION。8 MiB 附件的 materialize 加 b2 再核對 guards／claim／audit，以及 lost-ack 讀回重驗，均有免費 D1 50 queries invocation 預算回歸。
 
-本地測試 fixture 全為 synthetic。小 PDF 僅測 lifecycle；4.4 MB synthetic bytes 測完整 body/base64/chunk/digest 大小路徑，不是正式 PDF raster／QR／字型驗收。正式 rendering 證據沿用 I04 的獨立驗收，本片沒有重繪或取得真實住戶資料。I05b2／I05c 尚須完成私有 stream dispatch、lease、suppression、signed webhook、unknown reconciliation 與雙環境發布/readback。
+本地測試 fixture 全為 synthetic。小 PDF 僅測 lifecycle；4.4 MB synthetic bytes 測完整 body/base64/chunk/digest 大小路徑，不是正式 PDF raster／QR／字型驗收。原 b1 rendering 證據沿用 I04 的獨立驗收，原切片沒有重繪或取得真實住戶資料；b2b 另以 synthetic 戶籍資料重跑真 renderer 的整合證據見 dispatch 技術契約。I05b2a／b2b 已在本地完成私有 stream dispatch、永久 lease、suppression 與成功交易／receipt 接線；I05c 尚須完成 signed webhook、真正 readiness、unknown reconciliation 與雙環境發布/readback。
 
 SQL 快照使用每個 table alias 一個 nested object；內層最多 12 pairs（24 function arguments），外層最多 8 pairs（16 arguments），未來任何層超過 16 pairs 會在組 SQL 前 fail closed。這符合 [D1 官方限制](https://developers.cloudflare.com/d1/platform/limits/) 的每 function 32 arguments、每 query 100 binds、SQL 100 KB、row 2 MB 及 Free invocation 50 queries。本地回歸捕捉五模板 `prepare`／`materialize`／returned guards 的實際 SQL，將完整 synthetic DB 經 stdin 複製給 Python 標準 SQLite，透過原生 `setlimit` 與 `EXPLAIN` 驗證上述編譯限制及至多 5 compound SELECT；不以 Node SQLite 較寬的預設當作 D1 相容證明。8 MiB 附件測試另核對實際 bound values、最多 55 binds、單參數小於 1 MB 及完整路徑預算；逐 statement 計數比官方將一次 batch 計為一次 query 更保守。這是官方保障範圍的相容性修復，不表示已證明當前兩個遠端資料庫拒絕原 SQL。
 
