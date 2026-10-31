@@ -172,3 +172,128 @@ export async function verifyGuardianRegistration(
     aaguid: info.aaguid,
   };
 }
+
+/** Discoverable authentication never enumerates a household's credential IDs. */
+export async function authenticationOptions(origin: string) {
+  const url = new URL(origin);
+  if (url.origin !== origin || url.protocol !== "https:")
+    throw new Error("invalid_webauthn_origin");
+  const { generateAuthenticationOptions } = await import(
+    "@simplewebauthn/server"
+  );
+  return generateAuthenticationOptions({
+    rpID: url.hostname,
+    timeout: 300000,
+    userVerification: "required",
+  });
+}
+/** Verify immutable stored public material and exact userHandle, including for historical receipts.
+ * A zero comparison counter verifies proof without confusing a legitimate receipt replay with a new use.
+ * Fresh writes separately verify the current counter and atomically compare it in the DB transaction. */
+export async function verifyGuardianAssertion(
+  value: unknown,
+  challenge: string,
+  origin: string,
+  rpID: string,
+  credential: {
+    credential_id: string;
+    webauthn_user_id: string;
+    public_key: string;
+    counter: number;
+  },
+) {
+  if (
+    !record(value) ||
+    Object.keys(value).some(
+      (k) =>
+        ![
+          "id",
+          "rawId",
+          "type",
+          "response",
+          "clientExtensionResults",
+          "authenticatorAttachment",
+        ].includes(k),
+    ) ||
+    value.id !== credential.credential_id ||
+    value.rawId !== value.id ||
+    value.type !== "public-key" ||
+    !record(value.response) ||
+    !record(value.clientExtensionResults)
+  )
+    throw new Error("invalid_webauthn_response");
+  canonical(value.id, 1364);
+  canonical(value.rawId, 1364);
+  if (
+    value.authenticatorAttachment !== undefined &&
+    !["platform", "cross-platform"].includes(
+      String(value.authenticatorAttachment),
+    )
+  )
+    throw new Error("invalid_webauthn_response");
+  // No assertion extensions are needed. Reject nested application/private metadata.
+  if (Object.keys(value.clientExtensionResults).length)
+    throw new Error("invalid_webauthn_response");
+  const response = value.response;
+  if (
+    Object.keys(response).length !== 4 ||
+    Object.keys(response).some(
+      (k) =>
+        ![
+          "clientDataJSON",
+          "authenticatorData",
+          "signature",
+          "userHandle",
+        ].includes(k),
+    ) ||
+    response.userHandle !== credential.webauthn_user_id
+  )
+    throw new Error("invalid_webauthn_response");
+  const client = JSON.parse(
+    new TextDecoder("utf-8", { fatal: true }).decode(
+      isoBase64URL.toBuffer(canonical(response.clientDataJSON, 8192)),
+    ),
+  ) as unknown;
+  if (
+    !record(client) ||
+    Object.keys(client).some(
+      (k) =>
+        !["type", "challenge", "origin", "crossOrigin", "topOrigin"].includes(
+          k,
+        ),
+    ) ||
+    (client.crossOrigin !== undefined && client.crossOrigin !== false) ||
+    (client.topOrigin !== undefined && client.topOrigin !== origin)
+  )
+    throw new Error("invalid_webauthn_response");
+  canonical(response.authenticatorData, 2048);
+  canonical(response.signature, 256);
+  canonical(response.userHandle, 64);
+  const { verifyAuthenticationResponse } = await import(
+    "@simplewebauthn/server"
+  );
+  const result = await verifyAuthenticationResponse({
+    response:
+      value as unknown as import("@simplewebauthn/server").AuthenticationResponseJSON,
+    expectedChallenge: challenge,
+    expectedOrigin: origin,
+    expectedRPID: rpID,
+    expectedType: "webauthn.get",
+    requireUserVerification: true,
+    credential: {
+      id: credential.credential_id,
+      publicKey: isoBase64URL.toBuffer(credential.public_key),
+      counter: credential.counter,
+    },
+  });
+  if (
+    !result.verified ||
+    !result.authenticationInfo.userVerified ||
+    result.authenticationInfo.credentialID !== credential.credential_id ||
+    !Number.isSafeInteger(result.authenticationInfo.newCounter) ||
+    result.authenticationInfo.newCounter < 0 ||
+    result.authenticationInfo.newCounter > 0xffffffff
+  )
+    throw new Error("invalid_webauthn_response");
+  return result.authenticationInfo;
+}

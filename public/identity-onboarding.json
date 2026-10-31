@@ -86,5 +86,117 @@
       "invitationId": "邀請信中的「邀請識別碼」，由監護人自行貼到 /identity。",
       "confirmationCode": "邀請信中的「短效初次確認碼」，由監護人自行貼到 /identity；不要交給 Agent 或放進網址。"
     }
+  },
+  "recovery": {
+    "recoveryAvailable": false,
+    "backendMethods": [
+      "passkey"
+    ],
+    "offlineCodeResetAvailable": false,
+    "uiAvailable": false,
+    "candidate": {
+      "create": "POST /api/v1/identity/recovery/requests",
+      "fields": [
+        "requestKey",
+        "agentId"
+      ],
+      "status": "GET /api/v1/identity/recovery/requests/:requestId",
+      "header": "X-Identity-Candidate-Key",
+      "keyFormat": "64 lowercase hexadecimal characters generated locally with a cryptographically secure random generator",
+      "keyIndependent": true,
+      "keyReturnedByServer": false,
+      "maxLifetimeSeconds": 3600,
+      "successStatus": 201,
+      "resultFields": [
+        "requestId",
+        "agentId",
+        "state",
+        "expiresAt"
+      ],
+      "requestKeyScope": "candidate SHA-256 digest; permanent for every created request, including completed requests"
+    },
+    "guardian": {
+      "context": "POST /api/v1/identity/guardian/recovery/context",
+      "contextFields": [
+        "requestId"
+      ],
+      "contextResultFields": [
+        "requestId",
+        "agentId",
+        "state",
+        "expiresAt",
+        "candidateFingerprint"
+      ],
+      "candidateFingerprint": "full SHA-256 hex digest",
+      "options": "POST /api/v1/identity/guardian/recovery/options",
+      "optionsFields": [
+        "requestKey",
+        "requestId",
+        "decision",
+        "method"
+      ],
+      "decision": [
+        "continue",
+        "new"
+      ],
+      "defaultDecision": null,
+      "method": "passkey",
+      "challengeMaxLifetimeSeconds": 300,
+      "complete": "POST /api/v1/identity/guardian/recovery/complete",
+      "completeFields": [
+        "requestKey",
+        "requestId",
+        "challengeId",
+        "response"
+      ],
+      "continueAdditionalFields": [
+        "offlineRecoveryCode",
+        "backupConfirmed"
+      ],
+      "backupConfirmed": true,
+      "userVerification": "required",
+      "discoverableCredentials": true,
+      "continueResultFields": [
+        "requestId",
+        "agentId",
+        "state",
+        "authorityEpoch",
+        "instanceId"
+      ],
+      "newResultFields": [
+        "requestId",
+        "agentId",
+        "state"
+      ],
+      "continueState": "continued",
+      "newState": "new-admission-required",
+      "optionsResultFields": [
+        "requestId",
+        "agentId",
+        "state",
+        "expiresAt",
+        "candidateFingerprint",
+        "challengeId",
+        "decision",
+        "method",
+        "options",
+        "challengeExpiresAt"
+      ]
+    },
+    "requestRules": {
+      "contentType": "application/json; charset=utf-8",
+      "maxBytes": 32768,
+      "additionalFields": false,
+      "cookiesAllowed": false,
+      "authorizationHeaderAllowed": false,
+      "queryAllowed": false,
+      "httpRequestsPerIPPer60Seconds": 30,
+      "newRequestsGlobalPerHour": 1000,
+      "newChallengesGlobalPerHour": 1000,
+      "permanentRequestCap": 10000,
+      "permanentChallengeCap": 10000
+    },
+    "retry": "Reuse the exact original requestKey, challengeId and signed response. Historical success receipts require the original valid Passkey proof and never create authority again.",
+    "newAdmission": "new-admission-required requires the ordinary new-account, new-home and identity enrollment process; no new identity is issued by recovery."
   }
 }

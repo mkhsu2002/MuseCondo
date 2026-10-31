@@ -570,7 +570,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       if (!token) fail(401, "tower_token_required");
       const digest = await hash(token!);
       const sql =
-          "SELECT account_id FROM tower_tokens WHERE token_hash=? AND revoked=0 AND expires_at>? AND EXISTS(SELECT 1 FROM json_each(scopes) WHERE " + (previewSource ? "value IN (?,'tower:write')" : "value=?") + ")",
+          "SELECT account_id FROM tower_tokens WHERE token_hash=? AND revoked=0 AND expires_at>? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND EXISTS(SELECT 1 FROM json_each(scopes) WHERE " + (previewSource ? "value IN (?,'tower:write')" : "value=?") + ")",
         scope = previewSource ? "tower:read" : mutate ? "tower:write" : "tower:read";
       const row = await one<{ account_id: string }>(
         sql,
@@ -621,7 +621,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       guard: async () =>
         db
           .prepare(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM sessions WHERE token_hash=? AND account_id=? AND expires_at>?) THEN 1 ELSE json('tower-session-expired') END",
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM sessions WHERE token_hash=? AND account_id=? AND expires_at>? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')) THEN 1 ELSE json('tower-session-expired') END",
           )
           .bind(digest, session!.account_id, stamp()),
     };

@@ -1,3 +1,4 @@
+import {installDatabaseClock} from './helpers/database-clock.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
@@ -18,7 +19,7 @@ const asset=(purpose:GeneratedAsset['purpose']):GeneratedAsset=>({purpose,mime:'
 async function setup(generator?:HomeGenerator){
  const dir=await mkdtemp(join(tmpdir(),'muse-agent-grants-'));const db=new LocalDatabase(join(dir,'db.sqlite'));
  const migrations=new URL('../migrations/',import.meta.url);for(const name of (await readdir(migrations)).filter(x=>x.endsWith('.sql')).sort())db.sqlite.exec(await readFile(new URL(name,migrations),'utf8'));
- let time=new Date('2026-10-29T00:00:00.000Z');const app=createLiveApp({db,origin,registrationEnabled:true,localTest:true,generator,now:()=>time});
+ let time=new Date('2026-10-29T00:00:00.000Z');installDatabaseClock(db,()=>time);const app=createLiveApp({db,origin,registrationEnabled:true,localTest:true,generator,now:()=>time});
  const req=(path:string,method='GET',body?:unknown,owner?:Owner,bearer?:string,headers:Record<string,string>={})=>app.fetch(new Request(origin+'/api/v1'+path,{method,headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...(method==='GET'?{}:{Origin:origin}),...(owner?{Cookie:owner.cookie,'X-CSRF-Token':owner.csrf}:{}),...(bearer?{Authorization:'Bearer '+bearer}:{}),...headers},...(body===undefined?{}:{body:JSON.stringify(body)})}),'test-ip');
  const data=async<T>(response:Promise<Response>|Response,status=200):Promise<T>=>{const r=await response,raw=await r.text();assert.equal(r.status,status,raw);return JSON.parse(raw) as T;};
  async function owner(){const r=await req('/accounts','POST',{});const d=await data<{csrf:string;credential:string}>(r,201);return {...d,cookie:r.headers.get('set-cookie')!.split(';')[0]};}

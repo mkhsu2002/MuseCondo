@@ -1,3 +1,4 @@
+import {installDatabaseClock} from './helpers/database-clock.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -17,7 +18,7 @@ function testGenerator(onCall=()=>{}):HomeGenerator{return {kind:'local-test',as
 async function fixture(generator?:HomeGenerator, localTest=true) {
  const dir=await mkdtemp(join(tmpdir(),'muse-live-test-')),file=join(dir,'db.sqlite');
  let db=new LocalDatabase(file);for(const file of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql'])db.sqlite.exec(await readFile(new URL('../migrations/'+file,import.meta.url),'utf8'));
- let time=new Date('2026-10-29T00:00:00.000Z');
+ let time=new Date('2026-10-29T00:00:00.000Z');installDatabaseClock(db,()=>time);
  let app=createLiveApp({db,origin,localTest,registrationEnabled:true,generator,now:()=>time});
  const req=(path:string,method='GET',body?:unknown,identity?:Identity,headers:Record<string,string>={})=>app.fetch(new Request(origin+'/api/v1'+path,{method,headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...(method==='GET'?{}:{Origin:origin}),...(identity?{Cookie:identity.cookie,'X-CSRF-Token':identity.csrf}:{}),...headers},...(body===undefined?{}:{body:JSON.stringify(body)})}),'test-ip');
  const data=async<T>(response:Promise<Response>|Response,status=200):Promise<T>=>{const r=await response;const body=await r.text();assert.equal(r.status,status,body);return JSON.parse(body) as T;};
@@ -25,7 +26,7 @@ async function fixture(generator?:HomeGenerator, localTest=true) {
  async function onboard(i:Identity,name='Cloud'){return data<Home>(req('/me/onboarding','POST',profile(name),i),201);}
  async function generate(i:Identity){return data<{job:Job}>(req('/me/generation','POST',{},i));}
  async function publish(i:Identity){return data(req('/me/publication','POST',{published:true},i));}
- return {req,data,account,onboard,generate,publish,get db(){return db;},advance(ms:number){time=new Date(time.getTime()+ms);},restart(){db.close();db=new LocalDatabase(file);app=createLiveApp({db,origin,localTest,registrationEnabled:true,generator,now:()=>time});},async close(){db.close();await rm(dir,{recursive:true,force:true});}};
+ return {req,data,account,onboard,generate,publish,get db(){return db;},advance(ms:number){time=new Date(time.getTime()+ms);},restart(){db.close();db=new LocalDatabase(file);installDatabaseClock(db,()=>time);app=createLiveApp({db,origin,localTest,registrationEnabled:true,generator,now:()=>time});},async close(){db.close();await rm(dir,{recursive:true,force:true});}};
 }
 
 test('real SQLite auth: secure sessions, separate login, logout and expiry, CSRF/origin denied',async()=>{

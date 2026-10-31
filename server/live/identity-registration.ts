@@ -310,8 +310,8 @@ export function createIdentityRegistration(env: Environment) {
     return json(optionsResult(c));
   }
   const collisionSQL =
-    "SELECT 1 FROM accounts WHERE login_hash=? UNION ALL SELECT 1 FROM tower_tokens WHERE token_hash=? UNION ALL SELECT 1 FROM tower_reception_cases WHERE token_hash=? UNION ALL SELECT 1 FROM onboarding_grants WHERE token_hash=? UNION ALL SELECT 1 FROM agent_tokens WHERE token_hash=? UNION ALL SELECT 1 FROM sessions WHERE token_hash=?";
-  const collisionArgs = (hash: string) => Array(6).fill(hash);
+    "SELECT 1 FROM accounts WHERE login_hash=? UNION ALL SELECT 1 FROM tower_tokens WHERE token_hash=? UNION ALL SELECT 1 FROM tower_reception_cases WHERE token_hash=? UNION ALL SELECT 1 FROM onboarding_grants WHERE token_hash=? UNION ALL SELECT 1 FROM agent_tokens WHERE token_hash=? UNION ALL SELECT 1 FROM sessions WHERE token_hash=? UNION ALL SELECT 1 FROM identity_secret_history WHERE secret_hash=? UNION ALL SELECT 1 FROM identity_recovery_requests WHERE candidate_hash=?";
+  const collisionArgs = (hash: string) => Array(8).fill(hash);
   async function offlineSafe(sha: string, hash: string) {
     if (
       (await one(collisionSQL, ...collisionArgs(sha))) ||

@@ -41,6 +41,8 @@ export function createIdentityMail(env:IdentityMailEnvironment){
   if(!/^[a-f0-9]{32}$/.test(id))return null;
   const event=await one<MailRow>('SELECT * FROM identity_mail_events WHERE id=?',id);if(!event)return null;
   if(event.state!=='pending'||!configured())return status(id);
+  // Reserved I05 templates stay pending; pending never means notification delivered.
+  if(event.kind==='security-notice'||event.kind==='identity-card')return status(id);
   if(event.kind!=='guardian-invitation'){await cancelPending(id,'unsupported_event');return status(id);}
   const invite=await one<Invitation>(validSql,event.entity_id,stamp(),stamp(),event.recipient_hash,event.recipient_ciphertext);
   if(!invite){await cancelPending(id,'invitation_unavailable');return status(id);}

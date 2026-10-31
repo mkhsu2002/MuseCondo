@@ -122,7 +122,7 @@ export function createTowerReception(env: Options) {
             reject(400, 'invalid_json');
         }
     }
-    function caseGuard(c: Case, operator: boolean) { return guard('EXISTS(SELECT 1 FROM tower_reception_cases WHERE id=? AND version=? AND token_hash=? AND expires_at>? AND state=? AND account_id IS ? AND resident_id IS ? AND source_url IS ? AND approval_expires_at IS ? AND granted_token_id IS ?' + (operator ? '' : " AND state IN ('pending','approved','active')") + ')', c.id, c.version, c.token_hash, stamp(), c.state, c.account_id, c.resident_id, c.source_url, c.approval_expires_at, c.granted_token_id); }
+    function caseGuard(c: Case, operator: boolean) { return guard("EXISTS(SELECT 1 FROM tower_reception_cases WHERE id=? AND version=? AND token_hash=? AND expires_at>? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND state=? AND account_id IS ? AND resident_id IS ? AND source_url IS ? AND approval_expires_at IS ? AND granted_token_id IS ?" + (operator ? '' : " AND state IN ('pending','approved','active')") + ')', c.id, c.version, c.token_hash, stamp(), c.state, c.account_id, c.resident_id, c.source_url, c.approval_expires_at, c.granted_token_id); }
     const event = (id: string, actor: string, kind: string, message: string) => stmt('INSERT INTO tower_reception_events(case_id,sequence,actor,kind,message,created_at) SELECT ?,COALESCE(MAX(sequence),0)+1,?,?,?,? FROM tower_reception_events WHERE case_id=?', id, actor, kind, message, stamp(), id);
     async function replay(c: Case, requestKey: string, operation: string, inputHash: string) {
         const r = await one<{
@@ -275,7 +275,7 @@ export function createTowerReception(env: Options) {
                     next.state = 'approved';
                     next.approval_expires_at = new Date(Math.min(now().getTime() + Number(v.approvedDays) * 86400000, Date.parse(current.expires_at))).toISOString();
                     next.next_action = '已獲准。請建立自己的住所鑰匙並啟用。';
-                    statements.push(guard('EXISTS(SELECT 1 FROM accounts WHERE id=?)', accountId), ...bindingGuards(next), audit(next, 'reception-approved'));
+                    statements.push(guard('EXISTS(SELECT 1 FROM accounts WHERE id=?)', accountId), guardianIsolation(accountId), ...bindingGuards(next), audit(next, 'reception-approved'));
                 }
                 else if (operation === 'activate' && !operator) {
                     if (current.state !== 'approved' || !current.account_id || !current.approval_expires_at || current.approval_expires_at <= stamp() || current.granted_token_id)
@@ -283,7 +283,7 @@ export function createTowerReception(env: Options) {
                     next.state = 'active';
                     next.granted_token_id = crypto.randomUUID().replaceAll('-', '');
                     next.next_action = '住所鑰匙已啟用，請依已確認的分享範圍，自行預覽並決定是否公開。';
-                    statements.push(guard("EXISTS(SELECT 1 FROM tower_reception_cases WHERE id=? AND state='approved' AND approval_expires_at>? AND granted_token_id IS NULL)", id, stamp()), ...bindingGuards(current), guard('NOT EXISTS(SELECT 1 FROM tower_reception_cases WHERE token_hash=?)', towerHash), stmt('INSERT INTO tower_tokens(id,account_id,token_hash,scopes,expires_at,created_at) VALUES(?,?,?,?,?,?)', next.granted_token_id, current.account_id, towerHash, '["tower:read","tower:write"]', current.approval_expires_at, stamp()), audit(next, 'reception-activated'));
+                    statements.push(guard("EXISTS(SELECT 1 FROM tower_reception_cases WHERE id=? AND state='approved' AND approval_expires_at>? AND approval_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND granted_token_id IS NULL)", id, stamp()), guardianIsolation(current.account_id!), ...bindingGuards(current), guard('NOT EXISTS(SELECT 1 FROM tower_reception_cases WHERE token_hash=?)', towerHash), stmt('INSERT INTO tower_tokens(id,account_id,token_hash,scopes,expires_at,created_at) VALUES(?,?,?,?,?,?)', next.granted_token_id, current.account_id, towerHash, '["tower:read","tower:write"]', current.approval_expires_at, stamp()), audit(next, 'reception-activated'));
                 }
                 else if (operation === 'withdraw' && !operator || operator && ['reject', 'revoke'].includes(operation)) {
                     if (operation === 'reject' && current.state !== 'pending')
@@ -305,6 +305,9 @@ export function createTowerReception(env: Options) {
                 return json({ error: 'case_update_conflict' }, 409);
             }
         } };
+    // Once a designated guardian is registered, suspending a key or identity cannot reopen
+    // operator takeover. Historical receipts above remain read-only and never mint again.
+    function guardianIsolation(account:string){return guard("NOT EXISTS(SELECT 1 FROM agent_identities i JOIN identity_guardians g ON g.agent_id=i.agent_id JOIN identity_guardian_invites v ON v.id=g.invitation_id AND v.agent_id=i.agent_id AND v.state='registered' WHERE i.account_id=?)",account);}
     function bindingGuards(c: Case): Statement[] {
         if (c.request_kind === 'takeover') {
             return [guard('EXISTS(SELECT 1 FROM tower_residencies WHERE account_id=? AND resident_id=? AND source_url=?)', c.account_id, c.resident_id, c.source_url)];
