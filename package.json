@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build && node scripts/routes.mjs && node scripts/sanitize-public.mjs && node scripts/check-build.mjs",
+    "build": "node scripts/generate-lobby-css.mjs --write && tsc --noEmit && vite build && node scripts/routes.mjs && node scripts/sanitize-public.mjs && node scripts/check-build.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

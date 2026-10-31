@@ -4,6 +4,7 @@
   "main": "worker.ts",
   "compatibility_date": "2026-10-30",
   "workers_dev": false,
+  "browser": {"binding": "BROWSER"},
   "preview_urls": false,
   "durable_objects": {"bindings": [{"name": "MANAGER_CLOCK", "class_name": "ManagerClock"}]},
   "migrations": [{"tag": "manager-clock-v1", "new_sqlite_classes": ["ManagerClock"]}],
