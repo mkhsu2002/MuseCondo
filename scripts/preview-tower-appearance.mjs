@@ -1,3 +1,5 @@
+/* global Request */
+import {Buffer} from 'node:buffer';
 // Loopback-only synthetic visual fixture; never proxies production or accepts mutations.
 import {createServer} from 'node:http';
 import {readFile,readdir} from 'node:fs/promises';
