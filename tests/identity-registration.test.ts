@@ -741,51 +741,110 @@ test("Pages dispatches registration, gates every 0014 table/trigger, and derives
   }
 });
 
-test("an exact completion delayed behind the winning commit reads its permanent historical receipt", async () => {
-  const f = await fixture();
-  try {
-    const start = await f.begin(),
-      body = {
-        ...f.input,
-        requestKey: "delayed-complete",
-        challengeId: start.challengeId,
-        response: await f.authenticator.registration(start.options, origin),
-        offlineRecoveryCode: "e".repeat(64),
-        backupConfirmed: true,
+for (const firstArrival of ["A", "B"] as const) {
+  test(
+    `an exact completion delayed behind the winning commit replays when ${firstArrival} reaches current first`,
+    { timeout: 10000 },
+    async (t) => {
+      const f = await fixture(),
+        pending: Promise<Response>[] = [];
+      let releaseWinner = () => {},
+        allowFirst = () => {},
+        reportFirst = () => {},
+        timer: ReturnType<typeof setTimeout> | undefined;
+      const unblock = () => {
+        releaseWinner();
+        allowFirst();
+        reportFirst();
       };
-    const prepare = f.db.prepare.bind(f.db);
-    let calls = 0,
-      release!: () => void;
-    const winner = new Promise<void>((r) => {
-      release = r;
-    });
-    f.db.prepare = (sql: string) => {
-      const statement = prepare(sql),
-        bind = statement.bind.bind(statement);
-      if (sql.startsWith("SELECT i.*,r.name")) {
-        statement.bind = (...args: unknown[]) => {
-          const bound = bind(...args),
-            first = bound.first.bind(bound);
-          bound.first = async <T>() => {
-            if (++calls === 2) await winner;
-            return first<T>();
+      t.signal.addEventListener("abort", unblock, { once: true });
+      try {
+        const start = await f.begin(),
+          body = {
+            ...f.input,
+            requestKey: "delayed-complete",
+            challengeId: start.challengeId,
+            response: await f.authenticator.registration(start.options, origin),
+            offlineRecoveryCode: "e".repeat(64),
+            backupConfirmed: true,
           };
-          return bound;
+        const firstReached = new Promise<void>((r) => {
+            reportFirst = r;
+          }),
+          firstMayProceed = new Promise<void>((r) => {
+            allowFirst = r;
+          }),
+          winnerCommitted = new Promise<void>((r) => {
+            releaseWinner = r;
+          });
+        const prepare = f.db.prepare.bind(f.db);
+        let calls = 0;
+        f.db.prepare = (sql: string) => {
+          const statement = prepare(sql),
+            bind = statement.bind.bind(statement);
+          if (sql.startsWith("SELECT i.*,r.name"))
+            statement.bind = (...args: unknown[]) => {
+              const bound = bind(...args),
+                first = bound.first.bind(bound);
+              bound.first = async <T>() => {
+                if (++calls === 1) {
+                  reportFirst();
+                  await firstMayProceed;
+                } else if (calls === 2) {
+                  allowFirst();
+                  await winnerCommitted;
+                }
+                return first<T>();
+              };
+              return bound;
+            };
+          return statement;
         };
+        // Admit the designated winner to current(), then admit the other request before
+        // permitting any commit. No scheduling delay determines which request wins.
+        t.signal.throwIfAborted();
+        const leader = f.send("/complete", body);
+        pending.push(leader);
+        await firstReached;
+        const follower = f.send("/complete", body);
+        pending.push(follower);
+        const a = firstArrival === "A" ? leader : follower,
+          b = firstArrival === "B" ? leader : follower;
+        const deadline = new Promise<undefined>((resolve) => {
+          timer = setTimeout(() => resolve(undefined), 5000);
+        });
+        try {
+          const first = await Promise.race([
+            a.then((response) => ({ name: "A" as const, response })),
+            b.then((response) => ({ name: "B" as const, response })),
+            deadline,
+          ]);
+          assert(
+            first,
+            "coordination must accept the completed request instead of waiting for A",
+          );
+          assert.equal(first.name, firstArrival);
+          assert.equal(first.response.status, 200);
+        } finally {
+          releaseWinner();
+        }
+        const responses = await Promise.all([a, b]);
+        assert.deepEqual(
+          responses.map((r) => r.status),
+          [200, 200],
+        );
+        assert.equal(calls, 2);
+        assert.equal(f.count("identity_audit"), 1);
+      } finally {
+        if (timer !== undefined) clearTimeout(timer);
+        unblock();
+        await Promise.allSettled(pending);
+        t.signal.removeEventListener("abort", unblock);
+        f.db.close();
       }
-      return statement;
-    };
-    const a = f.send("/complete", body),
-      b = f.send("/complete", body);
-    const first = await a;
-    release();
-    assert.equal(first.status, 200);
-    assert.equal((await b).status, 200);
-    assert.equal(f.count("identity_audit"), 1);
-  } finally {
-    f.db.close();
-  }
-});
+    },
+  );
+}
 test("SQL clock expires queued options without charging logical challenge quota", async () => {
   const f = await fixture();
   try {
