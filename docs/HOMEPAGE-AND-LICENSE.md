@@ -1,6 +1,6 @@
 # Tower 首頁與授權範圍
 
-狀態：2026-10-31 使用者核准將原創軟體與技術文件改為 Apache 2.0；本分支為待發布實作，不代表正式／dev 已更新。2026-10-30 的首頁發布證據保留於下方歷史段落。本輪不新增 API、資料欄位、migration、註冊權限或 Meta 工作。
+狀態：2026-10-31 原創軟體與技術文件已改為 Apache 2.0，v0.65／source `6178734` 已同步 main、framework-v001 及正式／dev，完成實際回讀。2026-10-30 的首頁發布證據保留於下方歷史段落。本輪不新增 API、資料欄位、migration、註冊權限或 Meta 工作。
 
 ## 首頁
 
@@ -21,13 +21,19 @@
 
 Cloudflare Pages build watch 已於 `2026-10-31T17:20:52Z` 由官方 API 加入 `ASSET-LICENSE.md` 與 `LICENSES/*` 並讀回一致；僅變更 watch metadata，未改 build／deployment 設定、未代表新程式已部署。
 
-發布仍須由既有流程同步 main、framework-v001 與正式／dev 靜態輸出，逐位元核對上述授權檔及公開 JS；後端 schema／Functions 未變，不應夾帶未發布 identity/mail 分支。正式／dev 回讀完成後才更新發布狀態。本次授權檔與頁尾的發布證據不沿用下列歷史紀錄。
+本輪已由既有流程同步 main、framework-v001 與正式／dev 靜態輸出，逐位元核對上述授權檔及公開 JS；後端 schema／Functions 原始碼未變，未夾帶未發布 identity/mail 分支。本次證據來自新部署後回讀，不沿用下列歷史紀錄。後續同類發布仍須完成相同檢查。
 
-## Apache 切換的本地驗證（v0.65，尚未發布）
+## Apache 切換的本地驗證（v0.65）
 
 實作提交 `33f81d2`，從 `main`／`origin/main` 的 `cec9666` 建立 `feat/apache-2-license`，未帶入 identity/mail 後續分支。既有 `project-version.mjs --write` 僅計入該一份程式提交，將專案 v0.64 更新為 v0.65；未調整版本規則或 workflow。
 
-使用 Node 24 與既有依賴，typecheck、lint、build 均 exit 0；`npm test` 29/29 通過，包含實際 render 的 root／subpath 頁尾與公約、四份授權檔的 build 輸出及完整原文 SHA。恢復舊「禁止商用」頁尾的反例確實失敗（exit 1），恢復新頁尾後通過。腳本核對全部 47 份 tracked raster 與精確素材清單相等；四份 `dist` 授權輸出與來源逐位元一致，公開 source／bundle 沒有舊框架禁商敘述。`public/licenses` 兩份第三方 notices、字體 OFL、品牌 provenance 及舊 PolyForm 原文與 main 比對未改。這些是本地驗證，不取代合併與雙環境部署後回讀；完整回歸與發布證據由後續發布程序補上。
+使用 Node 24 與既有依賴，typecheck、lint、build 均 exit 0；`npm test` 29/29 通過，包含實際 render 的 root／subpath 頁尾與公約、四份授權檔的 build 輸出及完整原文 SHA。恢復舊「禁止商用」頁尾的反例確實失敗（exit 1），恢復新頁尾後通過。腳本核對全部 47 份 tracked raster 與精確素材清單相等；四份 `dist` 授權輸出與來源逐位元一致，公開 source／bundle 沒有舊框架禁商敘述。`public/licenses` 兩份第三方 notices、字體 OFL、品牌 provenance 及舊 PolyForm 原文與 main 比對未改。這些是本地驗證，不取代合併與雙環境部署後回讀；本輪實際發布證據見下一節。
+
+## Apache 切換的發布驗證（2026-10-31）
+
+實作經獨立規格與品質審查，主責另驗相關測試與版號共 37/37。兩個目標分支已合併 `6178734`（v0.65），兩環境 Pages 均成功部署同一來源。於 `2026-10-31T17:27:07Z` 重新取得正式／dev 首頁、四份授權檔及編譯 JS／CSS，全部 HTTP 200 且與本地逐位元一致；首頁引用新 bundle，頁尾與公約採 Apache 2.0 及獨立素材條款，無舊框架禁商敘述。GitHub license API 也回讀 `Apache-2.0`。
+
+兩庫發布前後 DDL 摘要完全一致，保留 0019／146 來源物件，foreign-key check 無錯；既有住戶的門牌、revision、公開版本及分享選擇不變。API 回讀 databaseReady，等級仍 private-only；未寄信、核發身份、呼叫 Meta 或調整入住資格。此次只完成授權與呈現發布，不代表 I05c2、真實居民或 T09 驗收完成。
 
 ## 首版首頁驗證（v0.17 歷史紀錄，授權敘述已 superseded）
 
