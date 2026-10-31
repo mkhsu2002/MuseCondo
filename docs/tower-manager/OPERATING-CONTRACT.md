@@ -85,3 +85,33 @@ TaskAudit FAIL 可在同一原任務最多修一次；重新執行工具、驗�
 部署端step先重新讀回同R2 pair，然後以原生clock、lease／seq CAS、mandate、節慶窗、原task與今日daily餘額在同D1 batch更新audit狀態、deterministic ID永久event與state audit，最後再驗原生權限；任一SQL邊界失效整筆rollback，不消耗續跑receipt。原帳本與原失敗反省永久event保留，沒有重設預算／建立cycle／新增schema／生圖。新的audit使用fresh context看原圖與同組R2實際圖，PASS才走既有guard activate及另一次私密selfreview；續跑FAIL或再次incomplete只能blocked／selfreview，不能repair或二次resume。既有enable service wake可喚醒這條部署端恢復路徑，沒有公開／operator任意rollback、改D1或人工PASS入口。
 
 新增本機證據涵蓋known與唯一legacy case、併發wake一次、舊費用不變、images仍兩張／repair0、兩次selfreview、metadata不保存rawtext、unknown／dispatching／PASS／到期／mandate／雙預算／已續跑／legacy不符／R2損毀均不續；原生D1＋R2亦驗兩類cap續跑，全部使用synthetic provider而非真實付費生成。
+
+## 首頁整體呈現義務 extension v1（2026-10-31，本機實作，未宣稱部署）
+
+新增 `0027_tower_lobby_theme.sql`，保留已套用的0026與原cycle／authority／原圖audit／review／budget不變。`style-public-lobby-v1` 是新增範圍的版本義務；原任務已完成的紀錄不會重開或改寫。唯一extension沿用原cycle成本戶、永久appearance anchor與當前已審核generation（合法r0或r1）；沒有另一每日cycle／另一預算。既有3.5M任務只使用剩餘餘額；fresh enable若有新版policy，appearance planner最低4.5M（reserve不是charge，上限仍10M），0027 native guard要求已花＋舊後續1.7M＋theme2.1M，不得超部署task_limit。2.1M可覆蓋一次theme repair：7次最壞Spark輸出額1,363,712，加8次browser保守reservation720,000。
+
+公開theme只採嚴格 `LobbyThemeManifestV1`：兩景9個semantic色票、layout枚舉、受限程序背景／框飾／間距。沒有任意CSS／HTML／JS／URL／SVG／公開文案；沒有預製Halloween palette。Meta在私密獨立思考後原生呼叫 `submit_lobby_theme` 提交目的、驗收與manifest。validator驗確切欄位、色碼／數值範圍、正常文字對比、accent在canvas／surface／surfaceAlt焦點對比，以及圖樣decor／opacity混色後的文字對比。genericCSS只在首頁 `data-tower-lobby` scope，涵蓋header、main全部sections、cards、guide/covenant、footer；居民家／auth頁不套用。原logo以中性亮底保持可讀。
+
+新增狀態：`plan → render-0/1/2/3 → verify → tool-ack → audit → activate → selfreview → complete`；FAIL最多一次manifest repair回plan，絕不再生原兩張塔圖。unknown不重送，保留原reservation並走blocked反省。原cycle仍是原完成結果，extension另記新義務成敗。enable先持久化永久 `lobby-theme-policy:v1`；當時無basepair也保留權限。base任務完成的同一DO loop會ensureDue建立唯一extension並續跑，不需人再派單。已有pair時，extension transaction提交後再wake，避免舊idle alarm先結束而遺失新工作。disable使兩lane pending均false，保留既有state，停止alarm空跑。
+
+四視圖為desktop/mobile × day/night。部署Worker只接受receiptId，以固定受保護Pages callback原生驗原call／lease／window／mandate／pointer／雙預算及一次性dispatch event，再讀取已知原R2 image與不可變manifest。Worker用**正式首頁共用markup factory與正式CSS bytes**渲染；私密fixture包含固定masked cards及empty state，當前registration-closed chrome，不帶居民資料。這是同版chrome/layout/CSS的靜態視覺證據，**不是即時居民內容或JS互動的驗收**；互動另由DOM/native buttons測試及發布端canonical browser驗證。JS關閉，CSP default/script/connect/frame/object/base/form均禁止，圖片／原logo只用data URI；明確拒絕HTTP(S)/WS與script/xhr/fetch等資源。入口不接受任意URL或HTML。
+
+Renderer build digest涵蓋正式CSS、共用markup、scene文案、generic theme程式、notices、index、rendererWorker與原品牌bytes；artifact／render headers／screenshots／evidence都綁digest。source更新後 `scripts/generate-lobby-css.mjs --write` 重新產生共享bytes/digest，build亦執行；check/test禁止stale。公開投影發現存量theme與當前build不符時整組failclosed回一般外觀，不沿用舊模板審核結果。四張圖各存不可變artifact獨立R2 key，repair即使回相同manifest也不覆寫r0證據。截圖沒有公開route。
+
+獨立fresh Meta TaskAudit讀四張R2實際回讀圖，須判斷整頁可見Halloween氛圍、兩景／手機一致性、可讀及無遮蔽，僅換塔圖或合法token不構成PASS。deterministic gate驗四圖PNG／實際bytes／hash／viewport／renderer digest／same artifact及原圖讀回。native activation同筆batch綁原base revision、完整paid receipts與PASS、window／mandate／lease／雙預算；D1 depth100限制以同一BEFORE trigger多個獨立SELECT guard處理，沒有刪減驗證或拆交易。所有state／event最後做changes/CAS與native再驗。成功後另一次Meta私密selfreview；最近兩筆有界daily/theme memory與blocked extension最小摘要會進入下一次真正daily-thinking，不改舊review或混入raw tool replay。
+
+### 部署 binding／API 與費用
+
+沿用既有private `tower-manager` Worker、MANAGER_RUNTIME、scoped trigger；各env新增 `browser:{binding:"BROWSER"}`，不新增SDK／npm依賴、不增加CF runtime token，provider secret仍只有Pages。Worker與Pages都必須使用同一renderer build digest。
+
+- Worker `POST /theme/ready`：scoped trigger，僅Browser limits／binding及build hash。不能當Free當日quota充足證明。
+- Worker `POST /theme/render`：scoped trigger，body只有 `{receiptId}`；固定callback取受限輸入，回私密PNG與原始duration／安全狀態metadata。
+- Pages `POST /api/v1/manager/autonomy/theme-render-claim`：同scoped trigger，body只有 `{receiptId}`，原生永久一次claim。Cookie／跨站Origin拒絕。
+- 既有operator autonomy `{action:"enable"}`／`{action:"disable"}` 不新增權限或預算參數；GET inspect另有私密theme狀態、artifact、pointer。
+- 公開appearance可選 `presentation:{version:1,id:<canonical manifest SHA256>,revision,manifest}`；沒有prompt／模型／QA／記憶／截圖。無0027時維持舊圖片契約，不啟動theme；不相容／損壞／過期bundle整組回原圖與一般樣式。
+
+每個Meta count／paid與每次Browser呼叫均先寫原成本戶永久dispatch。Browser產品reservation每張90,000 microUSD（一小時費率的保守預留，**不是官方整程序hard timeout承諾**）。官方QuickAction phase timers明設goto10s／selector5s／action15s、JS與外網關閉，但各phase timer不等於總上限。成功或非2xx只要有有效官方 `X-Browser-Ms-Used`，均按ceil(ms/40)記duration-based tariff debit，**不是invoice**；PNG／HTTP失敗另blocked，不把已知費用改成零或unknown。無有效duration／不確定HTTP結果留90000 unknown，不能重送；本地受限guard確知未送Browser時才rejected／actual0。只保存安全upstream status／bounded code，不保存錯誤原文。Free tier每10秒一次由原生call guard與持久完成時間節流，DO只在有待辦時採wakeAfterMs續跑；429／quota不足保持blocked，不私自升級或換token。
+
+部署順序：dev/prod套0027 → 同版private Worker＋BROWSER binding → 同版Pages/API/frontend → 確認digest、schema、source、scope與實際binding limits → enable → 真Meta方案／真正Browser四PNG與duration → 獨立視覺PASS → 公開整頁與日夜／一般／expiry／SPA離頁讀回 → 私密selfreview及原帳本交叉驗證。未完成真provider及真Browser證據前，本機synthetic四圖不能稱正式樓管完成首頁佈置。
+
+本機命令：`node --experimental-strip-types --test tests/tower-theme*.test.ts tests/tower-autonomy.test.ts tests/tower-appearance-ui.test.ts tests/lobby-markup.test.ts`；原生 `node scripts/test-tower-theme-native.mjs <existing Wrangler node_modules>` 驗existing／fresh／合法base r1／unknown／native午夜activation rollback。既有 `test-tower-manager-native.mjs` 六群回歸仍必要。外網全部拒絕，Meta／Browser只用明確synthetic adapter；D1/R2/業務SQL是真workerd，隔離clock同時覆蓋migration與應用SQL，不替換guard。獨立guard proof另由發布端整合。
