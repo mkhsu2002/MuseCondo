@@ -38,19 +38,25 @@ export async function identityAuthenticator() {
         flags?: number;
         counter?: number;
         client?: Record<string, unknown>;
+        reverseClientKeys?: boolean;
         userHandle?: string;
         signingKey?: CryptoKey;
         signature?: Uint8Array;
       } = {},
     ): Promise<AuthenticationResponseJSON> {
+      const client = {
+        type: "webauthn.get",
+        challenge: overrides.challenge ?? options.challenge,
+        origin: overrides.origin ?? origin,
+        crossOrigin: false,
+        ...overrides.client,
+      };
       const clientDataJSON = isoBase64URL.fromUTF8String(
-        JSON.stringify({
-          type: "webauthn.get",
-          challenge: overrides.challenge ?? options.challenge,
-          origin: overrides.origin ?? origin,
-          crossOrigin: false,
-          ...overrides.client,
-        }),
+        JSON.stringify(
+          overrides.reverseClientKeys
+            ? Object.fromEntries(Object.entries(client).reverse())
+            : client,
+        ),
       );
       const authData = new Uint8Array(37);
       authData.set(

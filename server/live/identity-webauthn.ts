@@ -254,14 +254,10 @@ export async function verifyGuardianAssertion(
       isoBase64URL.toBuffer(canonical(response.clientDataJSON, 8192)),
     ),
   ) as unknown;
+  // CollectedClientData is browser-controlled and extensible. Ignore unknown members;
+  // the official verifier still verifies the original, unmodified clientDataJSON bytes.
   if (
     !record(client) ||
-    Object.keys(client).some(
-      (k) =>
-        !["type", "challenge", "origin", "crossOrigin", "topOrigin"].includes(
-          k,
-        ),
-    ) ||
     (client.crossOrigin !== undefined && client.crossOrigin !== false) ||
     (client.topOrigin !== undefined && client.topOrigin !== origin)
   )

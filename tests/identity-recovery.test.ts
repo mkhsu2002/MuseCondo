@@ -1524,3 +1524,101 @@ test("fixed global quotas count a concurrent logical create once and return 429 
     f.db.close();
   }
 });
+
+test("signed browser clientDataJSON tolerates extra members and key order for continue and new without persisting their values", async () => {
+  for (const decision of ["continue", "new"]) {
+    for (const extraKey of [
+      "other_keys_can_be_added_here",
+      "new_keys_may_be_added_here",
+    ]) {
+      const f = await fixture();
+      try {
+        const start = await f.begin(decision),
+          marker = "synthetic-browser-extension-must-not-be-persisted",
+          client = { [extraKey]: marker },
+          response = await f.auth.assertion(
+            start.options,
+            origin,
+            f.userHandle,
+            {
+              client,
+              reverseClientKeys: true,
+            },
+          ),
+          body = await f.body(start, { response });
+        const decoded = JSON.parse(
+          Buffer.from(response.response.clientDataJSON, "base64url").toString(),
+        );
+        assert.equal(Object.keys(decoded)[0], extraKey);
+        assert.equal(decoded[extraKey], marker);
+        for (const invalid of [
+          { origin: "https://evil.example" },
+          { challenge: "wrong-challenge" },
+          { client: { ...client, type: "webauthn.create" } },
+          { flags: 1 },
+          { client: { ...client, crossOrigin: true } },
+          { client: { ...client, topOrigin: "https://evil.example" } },
+        ]) {
+          const invalidResponse = await f.auth.assertion(
+            start.options,
+            origin,
+            f.userHandle,
+            {
+              client,
+              reverseClientKeys: true,
+              ...invalid,
+            },
+          );
+          assert.equal(
+            (
+              await f.send("guardian/recovery/complete", {
+                ...body,
+                response: invalidResponse,
+              })
+            ).status,
+            403,
+          );
+        }
+        // Changing even an ignored member after signing must invalidate the original signed bytes.
+        const tampered = structuredClone(body);
+        tampered.response.response.clientDataJSON = Buffer.from(
+          JSON.stringify({ ...decoded, [extraKey]: marker + "-changed" }),
+        ).toString("base64url");
+        assert.equal(
+          (await f.send("guardian/recovery/complete", tampered)).status,
+          403,
+        );
+        assert.equal(f.count("identity_recovery_receipts"), 0);
+        const accepted = await f.send("guardian/recovery/complete", body);
+        assert.equal(
+          accepted.status,
+          200,
+          decision + ": " + (await accepted.clone().text()),
+        );
+        assert.equal(
+          (await accepted.json()).state,
+          decision === "continue" ? "continued" : "new-admission-required",
+        );
+        assert.equal(
+          (await f.send("guardian/recovery/complete", body)).status,
+          200,
+        );
+        for (const table of [
+          "identity_recovery_receipts",
+          "identity_audit",
+          "tower_audit",
+          "identity_mail_audit",
+        ]) {
+          const stored = JSON.stringify(
+            f.db.sqlite.prepare("SELECT * FROM " + table).all(),
+          );
+          assert(!stored.includes(marker), table);
+          assert(!stored.includes(extraKey), table);
+          assert(!stored.includes(response.response.clientDataJSON), table);
+        }
+      } finally {
+        f.db.close();
+      }
+    }
+  }
+});
