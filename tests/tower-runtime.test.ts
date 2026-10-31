@@ -5,7 +5,7 @@ import runtime from '../server/live/worker.ts';
 import {digest,createLiveApp} from '../server/live/app.ts';
 import {LocalDatabase} from '../server/live/local-db.ts';
 const origin='https://tower.example';
-function database(){const db=new LocalDatabase(':memory:');for(const f of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql','0006_tower_intake.sql','0007_tower_manager.sql','0008_tower_publication_events.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8'));return db;}
+function database(){const db=new LocalDatabase(':memory:');for(const f of ['0001_live_mvp.sql','0002_recovery_audit.sql','0003_provider_requests.sql','0004_agent_onboarding.sql','0005_framework.sql','0006_tower_intake.sql','0007_tower_manager.sql','0008_tower_publication_events.sql','0009_tower_reception.sql'])db.sqlite.exec(readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8'));return db;}
 
 test('operator account bootstrap is protected, replayable, audited and leaves public registration closed',async()=>{
  const db=database();try{
@@ -42,5 +42,13 @@ test('public bulletin strips private model provenance while retaining real manag
   const empty=await app.editBuilding(true),edition={...empty.edition,editor:{kind:'meta-api',version:'tower-manager-v1',model:{id:'PRIVATE_MODEL',metadataSource:'https://dev.meta.ai/docs/models',verifiedAt:'2026-10-30T00:00:00.000Z'}}};
   db.sqlite.prepare('UPDATE community_editions SET edition_json=? WHERE id=?').run(JSON.stringify(edition),edition.id);
   const response=await app.fetch(new Request(origin+'/api/v1/public/community'));const body=await response.text();assert.doesNotMatch(body,/PRIVATE_MODEL|metadataSource|verifiedAt/);assert.equal(JSON.parse(body).edition.editor.kind,'meta-api');assert.equal(JSON.parse(body).edition.editor.model,null);
+ }finally{db.close();}
+});
+test('private reception opens with registration closed and uses existing operator gate',async()=>{
+ const db=database();try{const env={DB:db,PUBLIC_ORIGIN:origin,TOWER_OPERATOR_KEY:'operator-private'},base='/api/v1/reception/cases',key='d'.repeat(64);
+ const input={requestKey:'runtime-case',name:'新朋友',requestKind:'new',request:'想申請自己的窩。',authorization:{contact:true,application:true,towerAccess:true},sharing:{snapshot:false,directory:false,announcement:false,dream:false},visitPlan:{mode:'manual-return'}};
+ const r=await runtime.fetch(new Request(origin+base,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify(input)}),env);assert.equal(r.status,201);const body=await r.json();
+ const operatorPath=origin+'/api/v1/operator/reception/cases/'+body.case.id;assert.equal((await runtime.fetch(new Request(operatorPath),env)).status,401);const own=await runtime.fetch(new Request(operatorPath,{headers:{'X-Tower-Operator-Key':'operator-private'}}),env);assert.equal(own.status,200);assert.equal((await own.json()).case.name,'新朋友');
+ assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM accounts').get()!.n,0);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM manager_jobs').get()!.n,0);
  }finally{db.close();}
 });

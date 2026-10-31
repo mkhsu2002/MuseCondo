@@ -1,3 +1,4 @@
+import {createTowerReception} from './reception.ts';
 import {legacyHomeRedirect} from './legacy-home-redirect.ts';
 import {createLiveApp,digest} from './app.ts';
 import {databaseJournal} from './meta-home.ts';
@@ -12,7 +13,8 @@ export interface PagesBindings {
  META_MANAGER_APPROVED?:string;META_MANAGER_BUDGET_MICRO?:string;META_MANAGER_DAILY_MICRO?:string;META_MANAGER_MONTHLY_MICRO?:string;
 }
 export interface RuntimeContext {waitUntil(promise:Promise<unknown>):void}
-const requiredTables=['accounts','sessions','rooms','private_profiles','generation_jobs','assets','asset_chunks','posts','interactions','agent_tokens','rate_limits','community_editions','community_current','consent_events','recovery_audit','provider_requests','onboarding_grants','framework_profiles','dream_consent','dreams','asset_reviews','tower_residencies','tower_snapshots','tower_asset_chunks','tower_claims','tower_tokens','tower_requests','tower_audit','manager_jobs','manager_events'];
+const requiredTables=['accounts','sessions','rooms','private_profiles','generation_jobs','assets','asset_chunks','posts','interactions','agent_tokens','rate_limits','community_editions','community_current','consent_events','recovery_audit','provider_requests','onboarding_grants','framework_profiles','dream_consent','dreams','asset_reviews','tower_residencies','tower_snapshots','tower_asset_chunks','tower_claims','tower_tokens','tower_requests','tower_audit','manager_jobs','manager_events','tower_reception_cases','tower_reception_events','tower_reception_requests'];
+const requiredTriggers=['tower_reception_first_claim','tower_reception_first_home'];
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 function validOrigin(value:string|undefined){try{return !!value&&new URL(value).origin===value&&value.startsWith('https://');}catch{return false;}}
 const amount=(v:string|undefined)=>v&&/^\d{1,10}$/.test(v)?Number(v):0;
@@ -27,8 +29,8 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const safe={metaSecretConfigured,paidCallsApproved,registrationEnabled:env.REGISTRATION_ENABLED==='true'};
   const db=env.DB;if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')return json({available:false,error:'database_not_bound',runtime:safe},503);
   try{
-   const rows=(await db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all<{name:string}>()).results;
-   if(!requiredTables.every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
+   const rows=(await db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger')").all<{name:string}>()).results;
+   if(![...requiredTables,...requiredTriggers].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
   }catch{return json({available:false,error:'database_unavailable',runtime:safe},503);}
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
   const generator=metaSecretConfigured&&paidCallsApproved?createFrameworkHomeGenerator({apiKey:env.meta_muse_api,approvedPaidCalls:true,textModel:MANAGER_MODEL,journal:databaseJournal(db)}):undefined;
@@ -43,6 +45,8 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    const current=await app.editBuilding(true);await manager.enqueue({events:current.events,residentIds:current.events.map(e=>e.residentId),sourceDigest:current.edition.sourceDigest,asOf:current.edition.asOf});
    if(pending.length)await db!.batch(pending.map(e=>db!.prepare('UPDATE manager_events SET dispatched_at=? WHERE id=? AND dispatched_at IS NULL').bind(new Date().toISOString(),e.id)));
   }
+  const reception=createTowerReception({db,origin:env.PUBLIC_ORIGIN!,operator:async()=>operator()});
+  const receptionResponse=await reception.fetch(request);if(receptionResponse)return receptionResponse;
   if(url.pathname.startsWith('/api/v1/operator/')){
    if(request.headers.has('Cookie')||request.headers.has('Origin')&&request.headers.get('Origin')!==env.PUBLIC_ORIGIN||request.headers.get('Sec-Fetch-Site')==='cross-site')return json({error:'origin_rejected'},403);
    if(!await operator())return json({error:'operator_required'},401);
@@ -66,6 +70,11 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   if(api){const response=await app.fetch(request,request.headers.get('CF-Connecting-IP')??'unknown');
    if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET'){const last=await db.prepare("SELECT completed_at FROM manager_jobs WHERE state='complete' ORDER BY completed_at DESC LIMIT 1").first<{completed_at:string}>();return json({...await response.json(),manager:manager.configured()?(last?'event-driven-live':'event-driven-configured-not-health-verified'):'rules-on-public-update',scheduled:false,runtime:{...safe,databaseReady:true,metaConfiguredNotHealthVerified:!!generator,managerConfigured:manager.configured(),managerLastSuccessAt:last?.completed_at??null,levelVisibility:'private-only'}},response.status);}
    return response;}
+ }
+ if(/^\/reception\/?$/.test(url.pathname)){
+  if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
+  if(!env.ASSETS)return json({error:'assets_not_bound'},503);
+  return env.ASSETS.fetch(new Request(new URL('/reception.html',url),request));
  }
  const legacy=legacyHomeRedirect(request,env.LEGACY_HOME_REDIRECTS);if(legacy)return legacy;
  if(!env.ASSETS)return json({available:false,error:'assets_not_bound'},503);

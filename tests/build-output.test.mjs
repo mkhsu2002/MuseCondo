@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,writeFile,rm,access} from 'node:fs/promises';
+import {mkdtemp,mkdir,writeFile,readFile,rm,access} from 'node:fs/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {fileURLToPath} from 'node:url';
@@ -19,10 +19,11 @@ test('deployment guard accepts compiled root/subpath assets and rejects wrong ba
 test('route generation needs no personal residence and never publishes it',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'muse-routes-'));
  try{
-  await mkdir(join(dir,'dist'));await mkdir(join(dir,'src/framework'),{recursive:true});
-  for(const [file,text] of [['dist/index.html','<p>compiled fixture</p>'],['src/framework/condo.css','/* template */'],['LICENSE','license'],['NOTICE','notice']])await writeFile(join(dir,file),text);
+  await mkdir(join(dir,'dist'));await mkdir(join(dir,'public'));await mkdir(join(dir,'src/framework'),{recursive:true});
+  for(const [file,text] of [['dist/index.html','<p>compiled fixture</p>'],['src/framework/condo.css','/* template */'],['LICENSE','license'],['NOTICE','notice'],['public/reception.html','<p>reception fixture</p>']])await writeFile(join(dir,file),text);
   await promisify(execFile)(process.execPath,[fileURLToPath(new URL('../scripts/routes.mjs',import.meta.url))],{cwd:dir});
   await access(join(dir,'dist/about/index.html'));
+  assert.equal(await readFile(join(dir,'dist/reception/index.html'),'utf8'),'<p>reception fixture</p>');
   await access(join(dir,'dist/condo-template.css'));
   await assert.rejects(access(join(dir,'dist/condo')));
  }finally{await rm(dir,{recursive:true,force:true});}

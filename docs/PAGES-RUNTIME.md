@@ -1,6 +1,7 @@
 # Cloudflare Pages 同源 Tower runtime
 
-> 2026-10-30 接入補充：既有獨立住所與事件式文字樓管改見 [Tower接入指引](TOWER-INTAKE.md)，需要 migration 0006–0008。本文保留原新建／生圖流程的歷史範圍；舊查核日期不代表本輪重新驗證。
+> 2026-10-30 接待工程補充：目前 worker 另要求 `0009_tower_reception.sql` 的三表與兩個首次placement guard triggers；需依序具備0001–0009，並在dev／正式各自驗證schema、Functions與前端。本機加入不代表已部署，詳見[私密接待契約](RECEPTION.md)。
+> 先前獨立住所／文字樓管版本需要0006–0008；[Tower接入指引](TOWER-INTAKE.md)及下方0001–0005僅分述各自歷史功能，不能當作目前worker完整升級清單。舊查核日期不代表本輪重新驗證。
 
 
 狀態更新：2026-10-29。本文描述 framework `0.01` 的部署契約。正式與 dev 已完成 code／schema／live behavior 交叉回讀，證據與未完成項目見 [發布紀錄](RELEASE-2026-10-29.md)。後續部署仍須分別驗證兩環境。
@@ -13,6 +14,7 @@
 - `MUSE_BASE_PATH=/`、Node 24，不沿用 GitHub Pages 子路徑。
 - 部署來源必須包含 `functions/`；只上傳靜態 `dist/` 無法承接 Tower API。
 - `/move-in`、`/neighbors`、`/home/:id`、`/home/:id/inside`、`/home/:id/dreams` 由 Functions 明確提供 SPA deep-link fallback。
+- `/reception` 為獨立接待文件，不走SPA；Agent讀 `/reception-onboarding.json`。案件API無公開清單，schema gate包含接待三表／兩個首次placement triggers。
 - `/api/*` 不得回退 HTML；其他檔案由 `ASSETS` binding 提供。
 - Build 會排除含製作資訊的歷史素材 manifest；公開頁面與 API 不應顯示 prompt、私密 evidence 或模型 metadata。
 

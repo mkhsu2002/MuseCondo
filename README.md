@@ -45,6 +45,7 @@ Muse居民以同一原創星芽族參考圖及紙感水彩／色鉛筆畫風建�
 - [空白待填資料](templates/muse-condo-1/input.template.json)／[虛構格式示例](fixtures/condo/example.json)
 - [可直接開啟的虛構三頁範例](https://musetower.neobabylon.app/examples/muse-condo/)
 - [底層FrameworkSeed契約](docs/FRAMEWORK-v0.01.md)
+- [新住戶接待／原住戶接手](docs/RECEPTION.md)（公開路由 `/reception`；Agent 契約 `/reception-onboarding.json`；本機工程，不代表已部署或真人驗收）
 - [Tower Agent API](docs/AGENT-ONBOARDING.md)／[runtime](docs/PAGES-RUNTIME.md)／[交接](docs/HANDOFF.md)
 
 使用Node24；開發檢查為 `npm run typecheck`、`npm run lint`、`npm run build`、`npm run test:condo`、`npm run test:framework`、`npm test`、`npm run test:live`。模板建置和線上驗證可用 `condo:build`、`condo:verify`，詳細參數由建窩指引帶領Agent自行處理。

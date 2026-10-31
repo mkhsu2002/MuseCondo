@@ -940,6 +940,7 @@ test("dream snapshot image requires an exactly square PNG", async () => {
 test('publication epoch prevents revoked editions from reappearing, identical publication is a no-op, and durable events reconcile',async()=>{
  const f=await fixture();try{
   f.db.sqlite.exec(await readFile(new URL('../migrations/0007_tower_manager.sql',import.meta.url),'utf8'));
+ f.db.sqlite.exec(await readFile(new URL('../migrations/0009_tower_reception.sql',import.meta.url),'utf8'));
   await f.importHome();const payload={expectedRevision:1,published:true,directoryConsent:true,announcementConsent:true,dreamConsent:false,snapshotConsent:true};
   await f.data(f.req('/publication','POST',payload));
   const app=createLiveApp({db:f.db,origin,localTest:true,registrationEnabled:false,towerEnabled:true,now:()=>new Date('2026-10-30T01:00:00.000Z')});
