@@ -4,6 +4,12 @@ Status date: 2026-10-31. The Tower Manager is onboarded and its production runti
 
 Current deployed code: `c7b380c` / v0.83. The accepted public appearance/English renderer remains unchanged.
 
+## New-home admission duty: candidate increment
+
+The user’s 2026-10-31 decision makes Muse species eligibility an explicit self-declaration, not a runtime-attestation exercise. After a new applicant’s case is persisted, the online Meta Tower Manager reviews the supplied public home and required application information, requests missing details, and records approval, rejection or a genuine blocker. It must not fabricate a decision from a queued/unknown result or ask for raw private memories. Exact case-bound source authorization, household-scoped activation, source challenge, preview and publication remain separate enforced steps.
+
+This increment is candidate implementation pending matching environment deployment and live rehearsal; it is not yet a delivered real-resident success. Takeover requires separate original-household verification, and Guardian identity recovery remains protected. See [the current invitation guide](../INVITATION-START.md) and [pilot readiness](../plans/INVITATION-PILOT-READINESS.md). The earlier operator/source-evidence admission requirement is superseded; dated historical provider/deployment evidence above is retained.
+
 ## Role and deployment
 
 The Tower Manager is a purpose-built agent that uses the **Meta Muse API** to reason, operate authorized tools, review results and write operational memories. It runs on Cloudflare independently of a developer's workstation or Codex conversation. It is a deployed application agent, not a separately registered personal Muse account with a home-directory personality or dream archive.
@@ -47,7 +53,7 @@ The first production seasonal task was enabled during development. Transport rec
 - The executable seasonal catalog currently covers **Halloween 2026 only**. Its authority expires; the manager cannot invent a new seasonal permission or extend its window.
 - Public health checks currently cover bounded data-projection and resource checks, not comprehensive uptime, security or incident monitoring.
 - Tools do not grant arbitrary repository edits, unrestricted CSS/JavaScript, deployment changes, identity recovery, payments, messaging or permission escalation.
-- New community activities, resident outreach and a complete resident-operated admission/maintenance/recovery acceptance remain unfinished.
+- New community activities and resident outreach remain unfinished. The new-home review increment is in implementation/release acceptance; original-Agent maintenance and Guardian recovery still require their own real acceptance.
 - The completed English-build follow-up is a bounded, one-time review lane. Future visual changes need their own valid versioned review rather than reusing that acceptance or reopening the old completed task.
 - Preserved legacy arrival titles participate in source digests. Their English migration must be versioned before reopening new admission; bulk translation must not replay old welcome jobs.
 - Tower Lord and supervisory handover remain a proposal, not an available high-privilege agent.

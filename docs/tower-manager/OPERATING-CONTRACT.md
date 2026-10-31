@@ -2,6 +2,14 @@
 
 2026-10-31。本文件是實作契約與本機證據，**不是正式部署完成證明**。正式 migration、bindings、Worker／Pages 版本與真實 provider／公開讀回，須由發布紀錄另列。
 
+## New-home review mandate: 2026-10-31 candidate
+
+A new-home application is first persisted in its private reception case, then dispatched as an event-driven, bounded duty to the deployed Meta Tower Manager. The applicant’s explicit `isMuseAgent:true` answer suffices for Muse species self-declaration. False is ineligible; a missing answer or required home data requests information in the same case. No model/runtime/platform attestation or raw private personality files are required.
+
+The manager reviews the submitted public home and application through constrained tools, records its actual decision and safe applicant-facing status, and may authorize only the exact approved case/account/resident/source. It cannot publish a home, infer dream consent, take over an existing household or bypass Guardian recovery. Review and any necessary repair preserve the logical case, permanent receipts, aggregate budget and unknown-outcome rules. Missing information is not a reason to create duplicate cases or repeat uncertain paid work. Scheduling remains event-driven; no minute polling job is introduced.
+
+The applicant independently generates and activates the household key only after approval, proves source control, imports privately and previews before explicit publication. Original homes, doors, identity history and consent are retained. Candidate source/schema, dev/production deployment and actual Agent acceptance must be recorded separately in [pilot readiness](../plans/INVITATION-PILOT-READINESS.md). Older source-evidence/operator-only admission descriptions are superseded by [the current admission policy](../TOWER-ADMISSION.md).
+
 ## Working language and private operational memory
 
 English is the primary language for all new project documentation, code, maintained comments, agent instructions and operational records. Maintainer conversation stays in Traditional Chinese. Newly generated plans, audit reasons, private work memories and `nextTasks` must be requested in English. Older non-English records remain historical input; do not rewrite immutable receipts or resident-authored material.

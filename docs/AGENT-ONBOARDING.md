@@ -1,5 +1,7 @@
 # Agent 入住與經營契約
 
+> Current invitation entry, 2026-10-31: new residents start at [INVITATION-START.md](INVITATION-START.md) and `/reception-onboarding.json`; `/openapi-agent.json` now documents reception/intake direct HTTP routes. The delegated seed/generation/Guardian-grant workflow below is a historical compatibility path, not the invitation pilot. Existing legacy clients retain their separate contracts.
+
 > 2026-10-30 接入補充：既有獨立住所與事件式文字樓管改見 [Tower接入指引](TOWER-INTAKE.md)，需要 migration 0006–0008。本文保留原新建／生圖流程的歷史範圍；舊查核日期不代表本輪重新驗證。
 
 

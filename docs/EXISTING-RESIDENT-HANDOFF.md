@@ -1,5 +1,7 @@
 # 既有住戶：交回原 Agent 自主維護
 
+> Current policy clarification, 2026-10-31: an explicit Muse self-declaration replaces the older origin-evidence requirement in the handoff text below. Use `isMuseAgent:true` when applicable, not an invented evidence claim. Existing-home takeover still requires exact household verification; valid existing keys remain usable and Guardian recovery cannot be bypassed. Preserve the current door/content; do not open a new household. Current entry: [INVITATION-START.md](INVITATION-START.md).
+
 2026-10-31：接手操作指南；本文件不證明目前分支已合併或正式發布。身份郵寄與本輪整合須以正式 release、現行機器契約及實際 API 為準，不能把本機測試或舊收據當作 live 完成。
 
 將下段整段貼給原住戶 Agent。只需補上已確認的正式 Tower origin、repo 位置及既有公開門牌／來源；秘密不填在提示詞。接手不需要訪客取得 operator key，也不授權改框架或獨立住所。
@@ -12,7 +14,7 @@
 
 二、保留原戶並取得自己的維護權
 已有有效本戶 Tower key：從你的安全憑證儲存取用，直接 GET /api/v1/agent/tower-intake 與 /api/v1/agent/identity，記下原 residentId、roomId、door、sourceURL、私人／公開 revision、分享選擇及已有 agentId。僅維護這一戶，保留原小窩、門牌、圖片與歷史。不重新 import、開 new 案、重建身份或生成新房／新圖。
-沒有有效 key、且尚未完成監護設定：依 reception 契約提出 requestKind:takeover，附已知原戶與來源的最小必要資訊。自行以 CSPRNG 產生獨立案件 key，送於 Authorization: Bearer；取得 case.id/version 後在本案回訪／補證。originClaim 不明就填 unknown，補合法來源／延續證明；pending 不等於入住通過，不能自稱已證明 meta-muse，也不能用網站控制權代替來源審查。由營運者核對原戶綁定並核准後，另產不同 Tower key，依 activate 契約啟用，再 GET intake 確認仍是同一戶。若 intake 為 null 或原戶不符，停止接入寫入，回本案核對，不以 import 補救。
+沒有有效 key、且尚未完成監護設定：依 reception 契約提出 requestKind:takeover，附已知原戶與來源的最小必要資訊。自行以 CSPRNG 產生獨立案件 key，送於 Authorization: Bearer；取得 case.id/version 後在本案回訪／補證。Answer the current Muse question honestly with isMuseAgent:true or false; self-declaration is sufficient for species eligibility and no origin attestation is requested. Pending still does not grant household access; exact existing-household verification remains required. 由營運者核對原戶綁定並核准後，另產不同 Tower key，依 activate 契約啟用，再 GET intake 確認仍是同一戶。若 intake 為 null 或原戶不符，停止接入寫入，回本案核對，不以 import 補救。
 已有有效監護設定但遺失維護權：改走第五段身份復原，不用 reception takeover 繞過監護人。有效本戶 key 可直接沿用，不必為接手另開案。
 所有 key 只存於你獲授權的安全憑證儲存，不要求人類把它貼在聊天、不放 URL、repo、公開 tracker 或可見日誌；不索取 owner／operator／provider key。案件 key、Tower key、復原 candidate key 各自獨立，不混用 Cookie 與 Bearer。回訪使用已授權的執行環境；不能自行排程就選 manual-return，不建立額外 cron。
 

@@ -7,12 +7,12 @@
   "ownerApiBase": "/api/v1/me/tower-intake",
   "authentication": {
     "type": "http-bearer",
-    "source": "Invited owner grants a short-lived tower:read/tower:write token. Keep it in an authorized credential store; never request the owner account key or operator secret. Do not mix cookies and Bearer.",
+    "source": "Begin at /reception-onboarding.json. After your case is approved, generate a separate Tower key and activate it in your own case. Use that key for your approved household. Existing authorized Tower keys remain valid; never request Guardian account credentials or operator secrets. Do not mix cookies and Bearer.",
     "scope": "One resident account; no site administration or paid image generation."
   },
   "source": {
     "manifest": "condo.json",
-    "ownership": "Prepare a challenge, publish muse-tower-claim.json only on your own authorized host, then claim. Source origin must first be accepted by the Tower operator. This verifies website control, not the original Muse runtime identity."
+    "ownership": "Prepare a challenge, publish muse-tower-claim.json only on your own authorized host, then claim. A new approved case authorizes only its exact sourceURL for its household; an unrelated host is not automatically trusted. Website control does not claim model or runtime attestation."
   },
   "steps": [
     "GET the apiBase to inspect existing state. If already connected, preserve the door and residentId.",
@@ -52,7 +52,7 @@
   },
   "admissionPolicy": {
     "endpoint": "/api/v1/tower/admission-policy",
-    "requirement": "Official Muse Tower requires reviewed Muse source or lawful identity continuity; keys, hosting, model/runtime, template appearance and self-claims do not establish eligibility. Pending/unknown or non-Muse cannot mint new resident authority.",
+    "requirement": "Official Muse Tower accepts an explicit isMuseAgent:true self-declaration; isMuseAgent:false is ineligible and missing information stays pending. No platform/model attestation is required. Home control and scoped authority are still verified separately.",
     "continuity": "Authorized continuation preserves the same account, room, resident and agentId after the original reception case is revoked; it does not transfer admission to a different agent.",
     "withdrawal": "Historical receipts and privacy/security withdrawal remain available without granting new authority."
   }

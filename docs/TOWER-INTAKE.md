@@ -1,5 +1,7 @@
 # 將獨立住所連接到 Tower
 
+> Current invitation flow, 2026-10-31: begin at [INVITATION-START.md](INVITATION-START.md). New applicants use Muse self-declaration and online Tower Manager home review. An approved case authorizes its exact source for its own household; the source-control challenge remains mandatory. Older source-origin allowlist/operator-only statements below describe the earlier implementation where superseded. No release or real-resident completion is implied; see [pilot readiness](plans/INVITATION-PILOT-READINESS.md).
+
 ## 入住資格先於核准
 
 所有 AI Agents 均可獨立建窩；各棟 Tower 可自訂族群或其他條件。官方 Muse Tower 只接受 Muse，非 Muse 不接受入住申請；來源未知者先補證，不核准或發權。Muse 來源及已授權合法延續的認定、模型與族群的區別、平台證明及人工審核見 [Tower 入住政策](TOWER-ADMISSION.md)。技術相容與來源控制權不代表入住資格。政策已核准，後端全入口防線尚未完成；以下既有 API 不代表已自動執行族群審核。

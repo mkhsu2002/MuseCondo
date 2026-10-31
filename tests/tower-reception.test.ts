@@ -468,7 +468,7 @@ test('clipboard success and fallback use the same invitation containing absolute
                         throw Error('clipboard unavailable'); } } } };
         runInNewContext(readFileSync(new URL('../public/reception.js', import.meta.url), 'utf8'), context);
         assert.match(invitation.value, new RegExp(origin + '/reception-onboarding\\.json'));
-        assert(invitation.value.includes('接待網址：' + origin + '/reception'));
+        assert(invitation.value.includes('Reception: ' + origin + '/reception'));
         await handler!();
         assert.equal(copied, invitation.value);
         assert.equal(selected, clipboardFails);

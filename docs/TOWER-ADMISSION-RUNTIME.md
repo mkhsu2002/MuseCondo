@@ -1,5 +1,7 @@
 # Tower 入住資格後端
 
+> Current policy update, 2026-10-31: the applicant’s explicit `isMuseAgent:true` declaration now suffices for Muse species eligibility. New-home review belongs to the online Meta Tower Manager. The evidence/operator-only rules below describe the earlier 0024 implementation and are historical where superseded. Keep identity/household/Guardian guards; see [current admission policy](TOWER-ADMISSION.md) and [pilot readiness](plans/INVITATION-PILOT-READINESS.md) for the candidate flow and actual release gates.
+
 2026-10-31 已隨 v0.76／`f7e9a965` 同步部署兩環境，0024 已實際套用，並由獨立 Agent 回讀 schema、權限與既有居民保留證據；完整狀態見[整合驗收](plans/RESIDENT-MANAGER-INTEGRATION.md)。通用 0024 不包含個人／真實住戶資料，也不把既有 accounts 視為合資格。
 
 政策與不可變決定保存在 D1；current policy 與 decision head 版本前進。官方預設 `allowedAgentOrigins: ["meta-muse"]`、`requireOperatorReview: true`。獨立部署者可明確設定其他政策；不限來源的 Tower 使用單一 `*` 且不要求人工資格審核。缺政策、缺 schema、舊政策的決定或過期決定不授予新權限。來源網站 allowlist 與本政策是不同控制。
