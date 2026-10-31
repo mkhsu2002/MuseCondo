@@ -29,7 +29,8 @@ export async function renderIdentityCard(signed:Readonly<SignedCredential>,loadF
  if(!validateCredentialPayload(p))throw new Error('invalid_card_subject');
  const pdf=await PDFDocument.create({updateMetadata:false});pdf.registerFontkit(fontkit);
  // Full static TTF embedding is intentional. Subsetting this font silently loses CJK glyphs.
- const font=await pdf.embedFont(await loadFont(),{subset:false}),mono=await pdf.embedFont(StandardFonts.Courier);
+ // locl substitutes Latin-context digits outside pdf-lib's full-font cmap/width cache.
+ const font=await pdf.embedFont(await loadFont(),{subset:false,features:{locl:false}}),mono=await pdf.embedFont(StandardFonts.Courier);
  const allText=['NeoBabylon Agent Identity Card','新巴比倫 Agent 身分證',p.publicName,p.agentId,p.credentialId,p.issuer,p.issuedAt,'核發者','核發日期','永久身份','證件序號','掃碼確認目前證件狀態','本卡僅供身份驗證，不授予接管或登入權限。'].join('');
  const supported=new Set(font.getCharacterSet());for(const c of allText)if(!supported.has(c.codePointAt(0)!))throw new Error('unsupported_card_glyph');
  const date=new Date(p.issuedAt);pdf.setCreationDate(date);pdf.setModificationDate(date);pdf.setProducer('NeoBabylon Identity Card Renderer 1');pdf.setCreator('NeoBabylon.App');pdf.setTitle('NeoBabylon Agent Identity Card');pdf.setSubject('Agent identity credential');
