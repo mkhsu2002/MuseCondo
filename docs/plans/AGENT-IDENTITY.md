@@ -16,7 +16,7 @@
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
-| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.60工程通過：兩階段審查、563tests、兩環境同版Pages／Worker／0018，受控dev實際核發／PDF JSON／補發撤銷／跨DO永久收據與audit PASS；真人與手機實掃留I06 |
+| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.60部署／140DDL／563tests與生命週期PASS；額外PDF全文檢查發現issuer數字映射缺失，完整I04 gate暫緩、先修後重驗。I05尚未開始，真人另待I06 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
@@ -232,3 +232,9 @@ v0.59／53739fc 已合併兩目標分支，兩環境 Pages 及獨立證件 Worke
 另以同一受控戶兩把短效測試token進不同private DO shards，沿原requestKey回相同歷史receipt，沒有額外card／attempt／receipt／quota；歷史成功不恢復已失效卡。這不是刻意切斷平台commit ack；未知結果及render失敗原candidate恢復仍有本地真交易反例。測試結束身份停權、所有fixture token／Passkey撤銷，待送安全通知取消並保留audit，身份／附件／收據歷史不刪。
 
 Fang兩環境原小窩／門牌／revision／公開指標／分享選擇保持，未代Fang或K綁身份／發證。無provider／Meta／付費生圖呼叫。I04工程可進I05，但真實住戶、原Agent、真人硬體Passkey／離線備援、手機實掃、真正邀請收件與郵寄PDF＋JSON交付仍待I05／I06，第一階段T09不因此完成。
+
+### 2026-10-31 I04 額外 PDF 檢查發現缺口（取代上一節完成判定）
+
+上一節通過證據僅涵蓋所列範圍；完整issuer文字未被原測試驗證。對實際下載PDF進一步pdftotext檢查，含數字子網域的issuer遺失數字；QR仍為正確原網址，簽章／D1 immutable bytes未錯。根因為fontkit在Latin script對數字做locl替代glyph，而pdf-lib完整字體ToUnicode／width cache只包含cmap glyph；直接數字或CJK測試未覆蓋字母後數字。root probe原版重現，關calt或default availableFeatures無效，明確locl:false回baseglyph；修復版需真PDF全文反例及獨立審查後驗證，不用假成功或subset掩蓋。
+
+I05a當時僅讀官方契約與設計、無改檔或provider呼叫，已暫緩先修I04。沒有真實住戶證件／寄信／付費生成，不重寫已存歷史附件。新測試須驗完整issuer、混合英數名字及0–9、80字長名／ID／QR／字體／版面確定性；部署後重新核發受控卡實際抽取及肉眼檢查。I04與T09不標完成。
