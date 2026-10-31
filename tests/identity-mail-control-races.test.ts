@@ -37,3 +37,27 @@ test('a fresh reconcile failure still disables the same ready snapshot without e
   assert.equal(db.sqlite.prepare('SELECT state FROM identity_mail_webhook_setups').get()!.state,'unknown');assert.equal(posts,0);
  }finally{db.close();}
 });
+for(const failure of ['empty-body','oversize-body','finish-receipt'])test('provider '+failure+' leaves a safe setup outcome and atomic audit',async()=>{
+ const db=new LocalDatabase(':memory:');try{
+  for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+  let failed=false;const batch=db.batch.bind(db);db.batch=async rows=>{if(failed&&failure==='finish-receipt'&&rows.some(r=>(r as unknown as {sql:string}).sql.startsWith('INSERT INTO identity_mail_control_results')))throw Error('Synthetic lost finish');return batch(rows);};
+  const control=createIdentityMailControl({db,origin,contactKey:key,apiKey:'synthetic-key',operator:async()=>true,fetcher:async input=>{
+   if(failed)return failure==='empty-body'?new Response(null,{status:200}):failure==='oversize-body'?new Response('x'.repeat(65537),{status:200}):new Response(null,{status:503});
+   return String(input).includes('/webhooks/existing-hook')?Response.json({object:'webhook',id:'existing-hook',endpoint:origin+'/api/v1/identity/mail/webhook',events:IDENTITY_MAIL_WEBHOOK_EVENTS,status:'enabled',signing_secret:secret}):Response.json({object:'list',has_more:false,data:[{id:'existing-hook',endpoint:origin+'/api/v1/identity/mail/webhook'}]});
+  }});
+  const req=(action:string,requestKey:string)=>control.fetch(new Request(origin+'/api/v1/operator/identity/mail-delivery/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey})}));
+  await req('setup','first-valid-setup');failed=true;const response=await req('reconcile','reconcile-failure');
+  assert.equal(response!.status,failure==='finish-receipt'?503:200);assert.equal(db.sqlite.prepare('SELECT state FROM identity_mail_webhook_setups').get()!.state,'unknown');
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM identity_mail_control_audit WHERE request_key='reconcile-failure' AND action='setup-unknown'").get()!.n,1);
+ }finally{db.close();}
+});
+test('setup state changes roll back when their atomic outcome audit cannot be written',async()=>{
+ const db=new LocalDatabase(':memory:');try{
+  for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+  let failed=false;const control=createIdentityMailControl({db,origin,contactKey:key,apiKey:'synthetic-key',operator:async()=>true,fetcher:async input=>failed?new Response(null,{status:503}):String(input).includes('/webhooks/existing-hook')?Response.json({object:'webhook',id:'existing-hook',endpoint:origin+'/api/v1/identity/mail/webhook',events:IDENTITY_MAIL_WEBHOOK_EVENTS,status:'enabled',signing_secret:secret}):Response.json({object:'list',has_more:false,data:[{id:'existing-hook',endpoint:origin+'/api/v1/identity/mail/webhook'}]})});
+  const req=(action:string,requestKey:string)=>control.fetch(new Request(origin+'/api/v1/operator/identity/mail-delivery/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey})}));
+  await req('setup','first-audited-setup');const before=db.sqlite.prepare('SELECT * FROM identity_mail_webhook_setups').get();
+  db.sqlite.exec("CREATE TRIGGER synthetic_audit_failure BEFORE INSERT ON identity_mail_control_audit WHEN NEW.action='setup-unknown' BEGIN SELECT RAISE(ABORT,'synthetic audit failure');END");failed=true;
+  assert.equal((await req('reconcile','audit-rollback-reconcile'))!.status,503);assert.deepEqual(db.sqlite.prepare('SELECT * FROM identity_mail_webhook_setups').get(),before);
+ }finally{db.close();}
+});
