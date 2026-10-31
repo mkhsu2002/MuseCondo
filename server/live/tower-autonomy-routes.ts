@@ -1,4 +1,4 @@
-import {createLobbyTheme} from './tower-theme.ts';
+import {createLobbyTheme,themeSchemaReady} from './tower-theme.ts';
 import {LOBBY_RENDERER_BUILD_HASH} from '../../src/shared/lobby-base-css.ts';
 import {autonomySchemaReady,createManagerAutonomy,type AssetBucket} from './tower-autonomy.ts';
 import type {Database} from './db.ts';
@@ -24,7 +24,7 @@ export function createAutonomyRoutes(options:Options){
    const raw=await request.text();if(raw.length>1024)return json({error:'body_too_large'},413);const command=JSON.parse(raw);if(!command||Object.keys(command).length!==1||!['enable','disable'].includes(command.action))return json({error:'invalid_command'},400);
    // A disabled development provider stays disabled; never copy the production key.
    if(command.action==='enable'&&(!options.apiKey||!options.bucket||!options.runtime||!options.trigger||!options.assets))return json({error:'autonomy_bindings_not_ready'},503);
-   if(command.action==='enable'){const enabled=await manager.enable(),duty=await theme.enable();if(duty.theme==='due'&&options.runtime&&options.trigger){const queued=await options.runtime.fetch(new Request('https://manager.internal/wake',{method:'POST',headers:{'X-Manager-Schedule-Key':options.trigger}}));if(!queued.ok)throw Error('runtime_wake_failed');}return json({...enabled,...duty});}return json(await manager.disable());
+   if(command.action==='enable'){const enabled=await manager.enable({deferWake:true,lobbyThemePolicy:await themeSchemaReady(options.db)}),duty=await theme.enable();await manager.wake();return json({...enabled,...duty});}return json(await manager.disable());
   }catch{return json({error:'autonomy_unavailable'},503);}
  }};
 }
