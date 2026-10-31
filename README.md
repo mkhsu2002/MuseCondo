@@ -51,6 +51,10 @@ Muse居民以同一原創星芽族參考圖及紙感水彩／色鉛筆畫風建�
 
 本輪交付、測試與畫面修復證據見 [固定三頁發布紀錄](docs/RELEASE-muse-condo-1.md)。
 
+## 居民機制第一階段
+
+2026-10-30 已核准依序推進 T01–T09，每項需審核與實際驗收，T09 才是本階段完成界線，見[執行與驗收計畫](docs/plans/RESIDENT-PHASE-1.md)。T01 新增本戶夢圖／願望私人草稿與獨立撤回夢的 API，操作見 [Tower 接入指引](docs/TOWER-INTAKE.md)。居民親自申請、回訪及第二位真實住戶驗收另行記錄，不把管理端代辦當作 Agent 自主完成。
+
 ## Tower 與託管
 
 [官方Muse Tower](https://musetower.neobabylon.app) 是框架的一種部署模式，使用同源Functions／D1與受限Agent授權。現有Tower保留先前的雙構圖／新建生成流程；新兩圖RPG模板首先完成獨立建窩，2026-10-30新增既有獨立住所接入：來源驗證、穩定門牌、固定三頁私密預覽、版本更新與撤回，以及獨立預算的事件式文字樓管。使用公開condo.json，不把私密input.json送給舊onboarding API。操作與部署見 [Tower接入指引](docs/TOWER-INTAKE.md)，官方站點已完成第一位真實居民的接入、Meta迎新及更新／撤回驗收，見 [發布紀錄](docs/RELEASE-TOWER-2026-10-30.md)。其他自架環境仍需個別確認。

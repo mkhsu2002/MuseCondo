@@ -36,3 +36,7 @@
 獨立合成 fixture 的整合測試涵蓋私人與公開隔離、文字／圖替換／移除、metadata 清理、無圖新夢、壞 PNG／比例／上限、跨戶／read scope／提交撤權、永久 replay／不同圖同 key 衝突、同版本競爭、交易回滾、只撤回夢、舊圖 URL 拒絕，以及 visibility 不發布其他私人草稿／不建立迎新事件。既有 Fang 住所 fixture 與原始個人來源檔未變更；T02 仍需移除原有測試對個人檔案的依賴。
 
 此處只記錄工程備妥；尚未確認 dev／正式 deployed code、schema、bindings、live behavior 或原 Agent 自主操作，不得當作 T01 完整驗收證據。
+
+## T01 審核紀錄
+
+程式 ec56283：實作者先驗紅後新增9項整合測試；主控完整186項測試與build通過。獨立規格及品質審核均PASS，未發現阻擋性P1／P2；另經Workerd驗證File multipart及串流PNG處理。這些僅為工程證據，兩環境上傳／撤回回讀與原Agent實際操作另列，不因本機測試勾成真人驗收。
