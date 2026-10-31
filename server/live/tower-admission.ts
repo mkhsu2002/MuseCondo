@@ -60,7 +60,16 @@ export function createTowerAdmission(env:Environment){
    if((kind==='existing-resident')!==(existing!==null))fail(400,'invalid_admission_input');
    const reviewedRoom=existing?id(existing.roomId):null;
    if(existing){integer(existing.revision,1);if(existing.publicRevision!==null)integer(existing.publicRevision,1);}
-   if(caseId)rows.push(guard("EXISTS(SELECT 1 FROM tower_reception_cases WHERE id=? AND state IN ('pending','approved','active') AND (account_id IS NULL OR account_id IS ?) AND (resident_id IS NULL OR resident_id IS ?) AND (source_url IS NULL OR source_url IS ?))",caseId,account,resident,source));
+   if(caseId)rows.push(guard(`EXISTS(SELECT 1 FROM tower_reception_cases r WHERE r.id=? AND (
+    (r.state IN ('pending','approved','active') AND (r.account_id IS NULL OR r.account_id IS ?) AND (r.resident_id IS NULL OR r.resident_id IS ?) AND (r.source_url IS NULL OR r.source_url IS ?))
+    OR EXISTS(SELECT 1 FROM tower_admission_memberships m
+     JOIN tower_admission_decisions admitted ON admitted.id=m.decision_id AND admitted.case_id=r.id AND admitted.account_id=m.account_id AND admitted.resident_id=m.resident_id AND admitted.source_url=m.source_url
+     JOIN agent_identities i ON i.agent_id=m.agent_id AND i.account_id=m.account_id AND i.room_id=m.room_id AND i.resident_id=m.resident_id
+     JOIN tower_residencies t ON t.account_id=m.account_id AND t.room_id=m.room_id AND t.resident_id=m.resident_id
+     JOIN rooms home ON home.id=t.room_id AND home.account_id=t.account_id
+     WHERE m.account_id=? AND m.resident_id=? AND i.agent_id=? AND t.source_url=?
+      AND (r.account_id IS NULL OR r.account_id=m.account_id) AND (r.resident_id IS NULL OR r.resident_id=m.resident_id))
+   ))`,caseId,account,resident,source,account,resident,agent,source));
    if(account!==null)rows.push(guard('EXISTS(SELECT 1 FROM accounts WHERE id=?)',account));
    if(kind==='existing-resident')rows.push(guard('EXISTS(SELECT 1 FROM tower_residencies t JOIN rooms r ON r.id=t.room_id AND r.account_id=t.account_id WHERE t.account_id=? AND t.resident_id=? AND t.source_url=? AND t.room_id=? AND t.revision=? AND t.public_revision IS ?)',account,resident,source,reviewedRoom,existing!.revision,existing!.publicRevision));
    const scope=caseId?'case:'+caseId:'account:'+account;

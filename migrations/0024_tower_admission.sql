@@ -45,7 +45,8 @@ CREATE VIEW tower_admission_continuity AS
  JOIN tower_admission_memberships m ON m.account_id=d.account_id AND m.resident_id=d.resident_id
  JOIN tower_admission_decisions admitted ON admitted.id=m.decision_id
   AND admitted.account_id=m.account_id AND admitted.resident_id=m.resident_id
-  AND admitted.source_url=m.source_url AND admitted.case_id IS d.case_id
+  AND admitted.source_url=m.source_url
+  AND (admitted.case_id IS d.case_id OR (d.case_id IS NULL AND d.evidence_kind='existing-resident' AND d.reviewed_room_id=m.room_id))
  JOIN tower_residencies t ON t.account_id=m.account_id AND t.room_id=m.room_id AND t.resident_id=m.resident_id
  JOIN rooms r ON r.id=t.room_id AND r.account_id=t.account_id
  JOIN agent_identities i ON i.agent_id=m.agent_id AND i.account_id=m.account_id AND i.room_id=m.room_id AND i.resident_id=m.resident_id

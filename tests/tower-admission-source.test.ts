@@ -4,16 +4,18 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {LocalDatabase} from '../server/live/local-db.ts';
 import {createTowerIntake} from '../server/live/tower-intake.ts';
 import {CONDO_PROFILE_FIELDS} from '../src/framework/condo.ts';
+import {createTowerAdmission} from '../server/live/tower-admission.ts';
 
 const time='2026-10-31T00:00:00.000Z',account='a'.repeat(16),resident='b'.repeat(16),room='c'.repeat(16);
 const agent='mcid:'+'d'.repeat(64),original='https://original.example/condo.json',moved='https://moved.example/condo.json';
-function fixture(enroll=true){
+function fixture(enroll=true,caseBound=false){
  const db=new LocalDatabase(':memory:');
  for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
  db.sqlite.function('strftime',(_format,input)=>input==='now'?time:new Date(String(input)).toISOString());
  db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(account,'synthetic',time);
- db.sqlite.prepare("INSERT INTO tower_admission_decisions(id,policy_version,account_id,resident_id,source_url,state,agent_origin,evidence_kind,evidence_ref,operator_class,expires_at,created_at) VALUES('original',1,?,?,?,'eligible','meta-muse','operator-review','synthetic','shared-operator','2027-01-01T00:00:00.000Z',?)").run(account,resident,original,time);
- db.sqlite.prepare("INSERT INTO tower_admission_heads VALUES(?,'original',1)").run('account:'+account);
+ if(caseBound)db.sqlite.prepare("INSERT INTO tower_reception_cases VALUES(?,?,'pending',1,'Synthetic','new','request',?,?,NULL,NULL,NULL,'{}','{}','{}','pending','2027-01-01T00:00:00.000Z',?,?)").run('1'.repeat(32),'synthetic-case-key',original,resident,time,time);
+ db.sqlite.prepare("INSERT INTO tower_admission_decisions(id,policy_version,case_id,account_id,resident_id,source_url,state,agent_origin,evidence_kind,evidence_ref,operator_class,expires_at,created_at) VALUES('original',1,?,?,?,?,'eligible','meta-muse','operator-review','synthetic','shared-operator','2027-01-01T00:00:00.000Z',?)").run(caseBound?'1'.repeat(32):null,account,resident,original,time);
+ db.sqlite.prepare("INSERT INTO tower_admission_heads VALUES(?,'original',1)").run(caseBound?'case:'+'1'.repeat(32):'account:'+account);
  db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Synthetic','Synthetic','resident','external-ready',?)").run(room,account,time);
  db.sqlite.prepare("INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,created_at,updated_at) VALUES(?,?,?,?,'challenge',?,?)").run(room,account,resident,original,time,time);
  if(enroll)db.sqlite.prepare('INSERT INTO agent_identities(agent_id,account_id,room_id,resident_id,recovery_consent,created_at,updated_at) VALUES(?,?,?,?,1,?,?)').run(agent,account,room,resident,time,time);
@@ -35,6 +37,38 @@ test('permanent Muse identity survives two verified source moves without changin
    assert.deepEqual(db.sqlite.prepare('SELECT * FROM tower_admission_memberships').get(),membership);
   }
   assert.doesNotThrow(()=>mint(db));
+ }finally{db.close();}
+});
+
+test('case-based source changes support current-source renewal, including a reception case retired by recovery',async()=>{
+ const db=fixture(true,true);try{
+  claim(db,'first');db.sqlite.prepare('UPDATE tower_claims SET verified=1').run();move(db);
+  const service=createTowerAdmission({db,origin:'https://tower.example',operator:async()=>true,now:()=>new Date(time)});
+  const review=async(key:string,revision:number)=>{
+   const response=(await service.fetch(new Request('https://tower.example/api/v1/operator/tower-admission/decisions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey:key,expectedPolicyVersion:1,expectedHeadRevision:revision,caseId:'1'.repeat(32),accountId:account,residentId:resident,sourceURL:moved,continuityAgentId:agent,state:'eligible',agentOrigin:'meta-muse',evidenceKind:'operator-review',evidenceRef:'synthetic-current-source',expiresAt:'2027-01-01T00:00:00.000Z',existingResidency:null})})))!;
+   assert.equal(response.status,201,await response.text());
+  };
+  await review('current-source-renew',1);
+  db.sqlite.prepare("UPDATE tower_reception_cases SET state='revoked'").run();
+  await review('retired-case-renew',2);
+  assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_eligible').get()!.n,1);
+  assert.doesNotThrow(()=>mint(db));
+ }finally{db.close();}
+});
+
+test('an exact existing-resident review under a new policy preserves the old case membership and subsequent moves',async()=>{
+ const db=fixture(true,true);try{
+  claim(db,'first');db.sqlite.prepare('UPDATE tower_claims SET verified=1').run();move(db);
+  db.sqlite.prepare("INSERT INTO tower_admission_policies VALUES(2,'[\"meta-muse\"]',1,?)").run(time);
+  db.sqlite.exec('UPDATE tower_admission_current SET policy_version=2');
+  const service=createTowerAdmission({db,origin:'https://tower.example',operator:async()=>true,now:()=>new Date(time)});
+  const response=(await service.fetch(new Request('https://tower.example/api/v1/operator/tower-admission/decisions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey:'existing-resident-policy-renew',expectedPolicyVersion:2,expectedHeadRevision:0,caseId:null,accountId:account,residentId:resident,sourceURL:moved,continuityAgentId:agent,state:'eligible',agentOrigin:'meta-muse',evidenceKind:'existing-resident',evidenceRef:'synthetic-exact-current',expiresAt:'2027-01-01T00:00:00.000Z',existingResidency:{roomId:room,revision:1,publicRevision:null}})})))!;
+  assert.equal(response.status,201,await response.text());
+  const target='https://again.example/condo.json';claim(db,'second',target);
+  db.sqlite.prepare("UPDATE tower_claims SET verified=1 WHERE id='second'").run();
+  assert.doesNotThrow(()=>move(db,target));
+  assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_eligible').get()!.n,1);
+  assert.equal(db.sqlite.prepare('SELECT decision_id FROM tower_admission_memberships').get()!.decision_id,'original');
  }finally{db.close();}
 });
 test('source moves require permanent continuity and a current verified same-resident claim',()=>{
