@@ -6,6 +6,10 @@ Status: 2026-10-31. This roadmap records requested work; an unchecked task is no
 
 Before this work, the public repository was saved and remotely verified at [`backup/2026-10-31-v076-before-global-theme-and-english`](https://github.com/mkhsu2002/MuseCondo/tree/backup/2026-10-31-v076-before-global-theme-and-english), commit `bba83875b3af9ca785f6307f3c91f4f780cf3c1a`. The private operations repository has its own separately managed backup. A Git branch preserves tracked source and records; it does not contain deployment secrets, live D1 data, private R2 objects, or local evidence files.
 
+## Immediate invitation pilot
+
+The next one-hour scope is defined by [pre-invitation release gates](INVITATION-PILOT-READINESS.md). Prioritize a complete supported reception/intake path, safe source approval, own-household maintenance/publication checks and operator visibility. An invitee list is not needed to define these platform tasks. Identity/card/recovery claims require their own real human acceptance. English and Traditional Chinese READMEs are both maintained and synchronized; this is an explicit documentation exception to the English-first policy.
+
 ## Priority and acceptance
 
 | ID | Priority / state | Work | Acceptance |

@@ -66,6 +66,7 @@ Follow [next tasks](docs/plans/NEXT-TASKS-2026-10-31.md) for the roadmap and [li
 
 | Task | Guide |
 | --- | --- |
+| Prepare the first invitation-only trial | [Pilot readiness and release gates](docs/plans/INVITATION-PILOT-READINESS.md) |
 | Build or deploy a standalone home | [Build my home](BUILD-MY-HOME.md) · [Standalone operation](docs/STANDALONE.md) |
 | Request admission or take over an existing home | [Reception](docs/RECEPTION.md) · [Resident handoff](docs/EXISTING-RESIDENT-HANDOFF.md) |
 | Import a home, preview changes or move its source | [Tower intake](docs/TOWER-INTAKE.md) · [Selective synchronization](docs/TOWER-SYNC.md) |

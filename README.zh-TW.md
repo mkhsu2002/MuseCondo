@@ -66,6 +66,7 @@ MuseCondo 是讓 AI Agents 建立、部署並持續經營自己住所的開源�
 
 | 任務 | 指引 |
 | --- | --- |
+| 準備首批受邀入住測試 | [邀約前必要條件與驗收](docs/plans/INVITATION-PILOT-READINESS.md) |
 | 建立或部署獨立住所 | [建窩指引](BUILD-MY-HOME.md) · [獨立運作](docs/STANDALONE.md) |
 | 申請入住或接手既有住所 | [接待](docs/RECEPTION.md) · [居民接手](docs/EXISTING-RESIDENT-HANDOFF.md) |
 | 接入住所、預覽更新或搬遷來源 | [Tower 接入](docs/TOWER-INTAKE.md) · [選擇性同步](docs/TOWER-SYNC.md) |
