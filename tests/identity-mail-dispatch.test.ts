@@ -148,3 +148,13 @@ test('max-size lost prepare acknowledgement still fits Free budget and preserves
 test('provider suppression persists even when another claim already changed the event state',async()=>{
  const f=await transportFixture();try{const m=await f.c.prepare(f.event);await f.c.claim(f.event,m.descriptor.bodyDigest);await f.c.suppress(f.event,m.descriptor.bodyDigest,'complaint');assert.equal(f.count('identity_mail_suppressions'),1);assert.equal((await f.mail.status(f.event))!.state,'sending');await assert.rejects(f.c.claim(f.event,m.descriptor.bodyDigest));}finally{f.close();}
 });
+test('audit excludes private dispatch lease and envelope controls while durable receipts retain the lease',async()=>{
+ const f=await transportFixture();try{
+ await f.invitation();assert.equal((await f.mail.processOne(f.event))!.state,'accepted');
+ const lease=String(f.db.sqlite.prepare('SELECT lease_id FROM identity_mail_dispatches WHERE event_id=?').get(f.event)!.lease_id);
+ const receipt=f.db.sqlite.prepare('SELECT lease_id FROM identity_mail_finish_receipts WHERE event_id=?').get(f.event)!;assert.equal(receipt.lease_id,lease);
+ const audit=JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_audit WHERE event_id=?').all(f.event));
+ for(const secret of [lease,f.env.from,'shared@example.com','7'.repeat(64),f.calls.find(c=>c.init.method==='POST')!.bytes])assert(!audit.includes(secret),'private dispatch control or envelope must not enter audit');
+ assert(!audit.includes('leaseId'));assert(!audit.includes('recipient'));assert(!audit.includes('ciphertext'));
+ }finally{f.close();}
+});

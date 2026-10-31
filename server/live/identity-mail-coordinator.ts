@@ -37,7 +37,7 @@ export function createIdentityMailCoordinator(env:IdentityMailEnvelopeEnvironmen
    stmt("SELECT CASE WHEN EXISTS(SELECT 1 FROM identity_mail_events WHERE id=? AND state='pending' AND attempt_count=0) AND NOT EXISTS(SELECT 1 FROM identity_mail_dispatches WHERE event_id=?) AND NOT EXISTS(SELECT 1 FROM identity_mail_suppressions WHERE recipient_hash=?) THEN 1 ELSE json('mail-claim-blocked') END",eventId,eventId,key),
    stmt('INSERT INTO identity_mail_dispatches(event_id,lease_id,body_digest,body_length,created_at) VALUES(?,?,?,?,?)',eventId,leaseId,bodyDigest,materialized.descriptor.bodyLength,time),
    stmt("UPDATE identity_mail_events SET state='sending',attempt_count=1,lease_started_at=?,updated_at=? WHERE id=? AND state='pending' AND attempt_count=0",time,time,eventId),
-   stmt("INSERT INTO identity_mail_audit(id,event_id,action,detail_json,created_at) VALUES(?,?,'sending',?,?)",randomIdentityId(),eventId,JSON.stringify({leaseId,bodyDigest,bodyLength:materialized.descriptor.bodyLength}),time),
+   stmt("INSERT INTO identity_mail_audit(id,event_id,action,detail_json,created_at) VALUES(?,?,'sending',?,?)",randomIdentityId(),eventId,JSON.stringify({bodyDigest,bodyLength:materialized.descriptor.bodyLength}),time),
   ]);
   // The only lease delivery: a lost acknowledgement must leave sending; never reconstruct it.
   return new Response(materialized.body,{headers:{...headers,'X-Identity-Mail-Lease':leaseId}});
