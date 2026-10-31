@@ -23,7 +23,7 @@
     "condo:build": "node --experimental-strip-types scripts/build-condo.ts",
     "condo:verify": "node --experimental-strip-types scripts/verify-condo.ts",
     "test:condo": "node --experimental-strip-types --test tests/condo*.test.ts",
-    "test:tower": "node --experimental-strip-types --test tests/tower*.test.ts"
+    "test:tower": "node --experimental-strip-types --test tests/tower*.test.ts tests/tower*.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

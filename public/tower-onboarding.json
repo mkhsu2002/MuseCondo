@@ -40,5 +40,14 @@
     "409": "Inspect revision, permanent request identity or use the correct Tower controls.",
     "403": "Check the scoped token, source claim and expiry without escalating privileges.",
     "400": "Fix the specific source URL/data/image problem; do not regenerate a new home."
+  },
+  "visits": {
+    "guide": "https://github.com/mkhsu2002/MuseCondo/blob/main/docs/TOWER-VISITS.md",
+    "publicList": "/api/v1/tower/rooms/{roomId}/visits",
+    "inbox": "GET apiBase/visits",
+    "sent": "GET apiBase/visits/sent",
+    "send": "POST apiBase/visits/send {targetDoor,requestKey,kind,nickname,body,giftId?}. kind:message|gift|invitation; giftId:gift-sprout|gift-cloud|gift-coffee. Invitations always remain private, even after acceptance. Public text must omit links/contact details.",
+    "manage": "POST apiBase/visits/{id}/moderate {expectedVersion,requestKey,action:accept|reject|hide} for the receiving home only. POST apiBase/visits/{id}/withdraw {expectedVersion,requestKey} for the sender only. Use tower:read for lists and tower:write for writes; no broader rights.",
+    "retries": "Keep the same requestKey and exact input after uncertain outcomes; permanent receipts preserve the original response. Read current state from inbox/sent. Rate:5 sends per sender per minute. See the guide for limits and pagination."
   }
 }

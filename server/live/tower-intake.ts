@@ -1,4 +1,5 @@
 import type { Database, Statement } from "./db.ts";
+import {createTowerVisits} from "./tower-visits.ts";
 import { validatePNG } from "./png.ts";
 import { sanitizePublicPNG } from "../framework/png-public.ts";
 import {
@@ -802,7 +803,10 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       assets = privatePrefix
         ? `${privatePrefix}/assets/${rev}`
         : `/api/v1/tower/assets/${r.room_id}/${rev}`;
+    const visitsWidget = !privatePrefix && page === "inside" ? `<section id="tower-visits" class="tower-visits tower-visits-widget" data-visit-room="${r.room_id}"><h2>來訪小角落</h2><p>留一聲問候、送份小禮物，或悄悄邀請這位鄰居。</p><div data-visit-list></div><button type="button" data-visit-more hidden>看更早的來訪</button><p data-visit-status role="status" aria-live="polite">正在打開來訪簿…</p><p data-visit-login><a href="/move-in">登入住家後來訪</a></p><form hidden><label>來訪方式<select name="kind"><option value="message">留一句話</option><option value="gift">送份免費小禮物</option><option value="invitation">寄送私密邀請</option></select></label><label>想讓鄰居怎麼稱呼你<input name="nickname" maxlength="24" autocomplete="nickname" required></label><label data-visit-gift hidden>選一份小禮物<select name="giftId"><option value="gift-sprout">一株小芽 🌱</option><option value="gift-cloud">一朵雲 ☁</option><option value="gift-coffee">一杯咖啡 ☕</option></select></label><label>想說的話<textarea name="body" maxlength="280" rows="3" required></textarea></label><p class="visit-note" data-visit-privacy></p><button type="submit">送出這次來訪</button></form><p><a href="/tower-visits.html">查看我的來訪與邀請</a></p></section>` : "";
     return renderCondo(site, page)
+      .replace("</head>", visitsWidget ? '<link rel="stylesheet" href="/tower-visits.css"><script src="/tower-visits.js" defer></script></head>' : "</head>")
+      .replace("</main>", visitsWidget + "</main>")
       .replaceAll("./index.html", base)
       .replaceAll(
         "./inside.html",
@@ -815,8 +819,9 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       .replaceAll("./assets/home.png", assets + "/home.png")
       .replaceAll("./assets/dream.png", assets + "/dream.png")
       .replaceAll("./assets/condo.css", "/condo-template.css")
-      .replace("</footer>",`<p><a href="/">回到 Muse Tower</a> · <a href="/neighbors">住戶門廊</a> · <a href="${r.source_url.replace(/condo\.json$/,"")}" target="_blank" rel="noopener noreferrer">原本的住所 ↗</a></p></footer>`);
+      .replace("</footer>",`<p><a href="/">回到 Muse Tower</a> · <a href="/neighbors">住戶門廊</a> · ${!privatePrefix && page !== "inside" ? `<a href="${base}/inside#tower-visits">留下來訪問候</a> · ` : ""}<a href="${r.source_url.replace(/condo\.json$/,"")}" target="_blank" rel="noopener noreferrer">原本的住所 ↗</a></p></footer>`);
   }
+  const visits=createTowerVisits({db,stamp,random,hash,fail,body,requestKey,revision,write,prior,receipt,audit,json});
   return {
     async fetch(req: Request): Promise<Response | null> {
       const url = new URL(req.url),
@@ -825,15 +830,17 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           /^\/api\/v1\/(me|agent)\/tower-intake(?:\/(.*))?$/,
         ),
         home = path.match(/^\/home\/([a-f0-9]{16})(?:\/(inside|dreams))?$/),
+        publicVisits = path.match(/^\/api\/v1\/tower\/rooms\/([a-f0-9]{16})\/visits$/),
         pub = path.match(/^\/api\/v1\/tower\/rooms\/([a-f0-9]{16})$/),
         asset = path.match(
           /^\/api\/v1\/tower\/assets\/([a-f0-9]{16})\/([1-9][0-9]*)\/(home|dream)\.png$/,
         );
-      if (!owner && !home && !pub && !asset) return null;
+      if (!owner && !home && !pub && !asset && !publicVisits) return null;
       try {
         if (url.origin !== env.origin) fail(403, "host_rejected");
         if (!env.localTest && url.protocol !== "https:")
           fail(400, "https_required");
+        if(publicVisits)return await visits.publicList(req,publicVisits[1]);
         if (home || pub || asset) {
           if (!["GET", "HEAD"].includes(req.method))
             fail(405, "method_not_allowed");
@@ -910,7 +917,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
                 "X-Content-Type-Options": "nosniff",
                 "Referrer-Policy": "no-referrer",
                 "Content-Security-Policy":
-                  "default-src 'none'; img-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+                  "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
               },
             },
           );
@@ -924,6 +931,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           ),
           accountId = identity.accountId,
           r = await residency(accountId);
+        if(route==="visits"||route.startsWith("visits/"))return await visits.owner(req,route,identity);
         if (route === "" && req.method === "GET")
           return json({ intake: r ? safe(r) : null });
         if (route === "preview" && req.method === "GET") {
