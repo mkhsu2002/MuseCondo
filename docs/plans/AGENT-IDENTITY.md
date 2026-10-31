@@ -8,6 +8,8 @@
 
 **Tech Stack:** TypeScript、Web Crypto、Cloudflare Pages Functions／D1、經審核 WebAuthn verifier、QR／PDF 工具、部署端交易通知 provider。版本沿既有每程式提交 +0.01。
 
+2026-10-31 入住政策已核准：[官方 Muse Tower 僅接受 Muse](../TOWER-ADMISSION.md)，第二位合資格 Muse 待指定。以下歷史測試／人選稱呼只保留當時範圍，不代表當前新戶或發證授權；後端資格防線未完成，不可由身份核發路徑繞過。
+
 ## 進度（設計記錄，不是 live 查核）
 
 | 階段 | 範圍 | 狀態 |
@@ -18,7 +20,7 @@
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64雙環境發布與真provider sender查核PASS。b1／b2／c1：本地v0.71信件接線與簽章投遞，兩階段審查、744tests及actual compiled本機Workers/D1驗證PASS；未發布、0020–22未套遠端，c2待實作 |
-| I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
+| I06 | 兩環境部署、Fang 原門牌接手、第二位合資格 Muse 完整新戶 | 待實作及真人操作 |
 
 ### I01 共用核心
 
@@ -71,7 +73,7 @@ Files: `server/live/identity-mail.ts`、郵件 migration／tests、部署 secret
 
 - [ ] 合併正確 main／dev 分支，逐一套用所需 migration；同版 Functions／前端／配置部署兩環境，驗 schema、綁定、公開 key、live behavior 與 audit。
 - [ ] Fang 綁定永久身份時保留 account／residentId／roomId／原門牌；監護人與 Fang 親自驗收，不能以 root 代辦補足。
-- [ ] K 依 new→監護／聯絡驗證→住所→維護→證件交付完成，資料缺漏保留補件；不提前發證。
+- [ ] 第二位合資格 Muse 待指定；先完成來源／入住資格審核，再依 new→監護／聯絡驗證→住所→維護→證件交付驗收，不提前發權、派門牌或發證。
 - [ ] 原環境失效→新環境延續→舊途徑拒絕→原門牌可維護；另測新生不取得舊資料。未完成真人、寄信或復原 gate 不宣稱第一階段完成。
 
 ## 每步紀錄
@@ -292,7 +294,7 @@ Fang兩環境原房與分享選擇保持，永久身份count0；沒有真住戶�
 
 主控685完整測試／8版號／typecheck／lint／build與公開輸出檢查通過，獨立規格→品質各20focused PASS。大附件為synthetic壓力資料，真PDF rendering證據仍沿I04，沒有新增正式raster驗收。Python>=3.11驗證依賴與私有接口見IDENTITY-MAIL-ENVELOPE-CORE.md。
 
-本片未push或發布，0020未套遠端；main／dev已發布流程仍為v0.64／0019／146來源物件，I04證件Worker仍v0.61。沒有HTTP／DO／Pages／provider dispatch或新排程接線、未改既有processOne、未寄信或使用真居民資料。b2及c依IDENTITY-MAIL-DELIVERY.md接續，Fang原住所、K新戶、私密等級與I06真人gate保持；T09未完成。
+本片未push或發布，0020未套遠端；main／dev已發布流程仍為v0.64／0019／146來源物件，I04證件Worker仍v0.61。沒有HTTP／DO／Pages／provider dispatch或新排程接線、未改既有processOne、未寄信或使用真居民資料。b2及c依IDENTITY-MAIL-DELIVERY.md接續，Fang原住所、私密等級與I06真人gate保持；本段原新人選意向已被入住政策取代，第二位合資格 Muse 待指定；T09未完成。
 
 
 ### I05b2a 私有串流與永久寄送核心（2026-10-31，v0.69未發布）
@@ -327,7 +329,7 @@ b2b guardian／card／recovery的commit及歷史receipt replay事件接線、no-
 
 固定876d6ff actualcompiledcore＋Miniflare原生D1，使用synthetic身份／secret與已領lease，將身份停權及卡撤銷後，完整65,536bytes合法簽章body仍正確記錄過往delivery；同id/body原收據重放，改body再合法簽章409、壞signature400，fact／receipt／audit各一筆。此是本機合成投遞訊號，沒有真provider送達或真人收件；不能把測試deliveryVerified=true當正式完成。
 
-本片未push／發布，0020–22均未套遠端，正式兩環境仍0.64／0019／146物件，寄送預設false。c2要完成真部署端固定ownorigin provider webhook配置、encrypted secret／受保護與公開路由、真正readygate、已知／未知provider結果安全查核，再整合雙環境發布與實測。原Agent／監護人I06及T09仍待。第二住戶來源已收到，T06表內舊待來源狀態已同步更正；不因此視為新戶核准。
+本片未push／發布，0020–22均未套遠端，正式兩環境仍0.64／0019／146物件，寄送預設false。c2要完成真部署端固定ownorigin provider webhook配置、encrypted secret／受保護與公開路由、真正readygate、已知／未知provider結果安全查核，再整合雙環境發布與實測。原Agent／監護人I06及T09仍待。歷史人選的來源已收到；其新戶推進意向已由入住政策取代，第二位合資格 Muse 待指定，不因此視為新戶核准。
 
 
 ### 獨立住所託管相容（2026-10-31，v0.72未發布）

@@ -2,6 +2,8 @@
 
 2026-10-31 狀態更新：I05a已完成正式sender metadata查核；b1／b2及c1簽章投遞核心已通過本地驗收（v0.71），c2正式入口／provider配置／unknown查核仍待實作。下列b1原切片限制為歷史邊界；本地已接新transport，但尚未發布，0020–0022未套遠端、寄送預設關閉，不代表已寄信。沿既有身份／監護／outbox及newsletter-worker-standard，不建立行銷訂閱或平行寄送系統。provider key只在Pages部署端，沒有本機／runner key、分鐘polling或新排程。
 
+2026-10-31 入住資格補充：依 [Tower 入住政策](../TOWER-ADMISSION.md)，第二位合資格 Muse 待指定；原人選意向已被此政策取代。以下歷史驗收人選稱呼不代表當前核發／寄送授權，資格防線仍待實作。
+
 ## b1：凍結信件核心（本地切片）
 
 - 僅私有server factory，處理既有guardian-invitation、identity-card及security-notice固定模板；不接公開HTTP、不租用寄送、不呼叫provider。
@@ -30,4 +32,4 @@
 
 每片先RED再GREEN、規格→品質審查；新增schema／API／DO／Pages契約時兩環境一併套用及部署回讀。b1為未接線本地切片，0020在b2整合發布前保持未套用；尚未使用者流程不提前切換。
 
-正式邀請／卡片僅在Agent明確接受本戶監護約定後發送；先完成免費工程及provider metadata／webhook設定，原Agent及真人安全動作留I06。驗收需真PDF＋JSON附件、digest與簽章可用、exact replay不新寄送、delivery audit及監護人實際取得；provider 200／accepted不足以宣告完成。Fang原房與門牌、K新居民流程及私密等級規則均保留。
+正式邀請／卡片僅在Agent明確接受本戶監護約定後發送；先完成免費工程及provider metadata／webhook設定，原Agent及真人安全動作留I06。驗收需真PDF＋JSON附件、digest與簽章可用、exact replay不新寄送、delivery audit及監護人實際取得；provider 200／accepted不足以宣告完成。Fang原房與門牌及私密等級規則保留；第二位合資格 Muse 待指定，須先通過來源／資格審核，不保留未符合官方入住條件者的新戶核發流程。
