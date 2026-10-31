@@ -124,3 +124,23 @@ test('unknown contact remains pending without rights, explicit non-Muse is rejec
  const policy=await service.fetch(new Request('https://tower.example/api/v1/tower/admission-policy',{headers:{Cookie:'muse_session=existing'}}));assert.equal(policy!.status,200);
  }finally{db.close();}
 });
+test('a renewed head keeps the original membership anchor but cannot borrow another case or bypass a negative review',async()=>{
+ for(const mode of ['same-case','other-case','ineligible','expired']){
+ const db=fixture();try{
+  const {createTowerAdmission}=await import('../server/live/tower-admission.ts'),origin='https://tower.example',caseId='1'.repeat(32),other='2'.repeat(32),agent='mcid:'+'d'.repeat(64);
+  for(const id of [caseId,other])db.sqlite.prepare("INSERT INTO tower_reception_cases VALUES(?,?,'pending',1,'Synthetic','new','request',?,?,NULL,NULL,NULL,'{}','{}','{}','pending','2027-01-01T00:00:00.000Z',?,?)").run(id,'hash:'+id,source,resident,now,now);
+  const service=createTowerAdmission({db,origin,now:()=>new Date(now),operator:async()=>true});
+  const review=(requestKey:string,id:string,revision:number,continuity:string|null,state='eligible',expiresAt='2027-01-01T00:00:00.000Z')=>service.fetch(new Request(origin+'/api/v1/operator/tower-admission/decisions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey,expectedPolicyVersion:1,expectedHeadRevision:revision,caseId:id,accountId:account,residentId:resident,sourceURL:source,continuityAgentId:continuity,state,agentOrigin:'meta-muse',evidenceKind:'operator-review',evidenceRef:'evidence:synthetic',expiresAt,existingResidency:null})}));
+  assert.equal((await review('initial-case-review',caseId,0,null,'eligible','2026-10-31T00:01:00.000Z'))!.status,201);
+  db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Synthetic','Synthetic','resident','external-ready',?)").run(room,account,now);
+  db.sqlite.prepare("INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,created_at,updated_at) VALUES(?,?,?,?,'challenge',?,?)").run(room,account,resident,source,now,now);
+  db.sqlite.prepare("INSERT INTO agent_identities(agent_id,account_id,room_id,resident_id,recovery_consent,created_at,updated_at) VALUES(?,?,?,?,1,?,?)").run(agent,account,room,resident,now,now);
+  const membership=db.sqlite.prepare('SELECT * FROM tower_admission_memberships').get();
+  assert.equal((await review('renewed-case-review',mode==='other-case'?other:caseId,mode==='other-case'?0:1,agent,mode==='ineligible'?'ineligible':'eligible',mode==='expired'?'2026-10-31T00:01:00.000Z':undefined))!.status,201);
+  db.sqlite.prepare("UPDATE tower_reception_cases SET state='revoked'").run();
+  db.sqlite.function('strftime',(_format,input)=>input==='now'?'2026-10-31T00:02:00.000Z':new Date(String(input)).toISOString());
+  assert.deepEqual(db.sqlite.prepare('SELECT * FROM tower_admission_memberships').get(),membership);
+  if(mode==='same-case'){assert.doesNotThrow(()=>token(db));assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_eligible').get()!.n,1);}
+  else {assert.throws(()=>token(db),/admission_required/,mode);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_eligible').get()!.n,0,mode);}
+ }finally{db.close();}}
+});

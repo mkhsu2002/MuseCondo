@@ -3261,13 +3261,22 @@ for(const decision of ['continue','new']) test('Pages automatically dispatches t
  }finally{f.db.close();}
 });
 
-test('reviewed case admission survives the native guardian recovery sequence revoking the original case before minting a new key',async()=>{
+for(const reReview of [false,true]) test((reReview?'renewed':'first')+' reviewed case admission survives the native guardian recovery sequence revoking the original case before minting a new key',async()=>{
  const f=await fixture(undefined,true);try{
   const before=f.db.sqlite.prepare('SELECT * FROM tower_residencies').get();
+  const membership=f.db.sqlite.prepare('SELECT * FROM tower_admission_memberships').get();
+  if(reReview){
+   const {createTowerAdmission}=await import('../server/live/tower-admission.ts');
+   const service=createTowerAdmission({db:f.db,origin,now:()=>new Date(time),operator:async()=>true});
+   const response=await service.fetch(new Request(origin+'/api/v1/operator/tower-admission/decisions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey:'renewed-case-review',expectedPolicyVersion:3,expectedHeadRevision:1,caseId:'c'.repeat(32),accountId:account,residentId:account,sourceURL:'https://source.example/a/condo.json',continuityAgentId:agentId,state:'eligible',agentOrigin:'meta-muse',evidenceKind:'operator-review',evidenceRef:'evidence:synthetic-renewal',expiresAt:'2027-01-01T00:00:00.000Z',existingResidency:null})}));
+   assert.equal(response!.status,201,await response!.clone().text());
+   assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_eligible').get()!.n,1);
+  }
   const start=await f.begin();const completed=await f.send('guardian/recovery/complete',await f.body(start));
   assert.equal(completed.status,200,await completed.clone().text());
   assert.equal(f.db.sqlite.prepare('SELECT state FROM tower_reception_cases').get()!.state,'revoked');
   assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM identity_recovery_instances').get()!.n,1);
   assert.deepEqual(f.db.sqlite.prepare('SELECT * FROM tower_residencies').get(),before);
+  assert.deepEqual(f.db.sqlite.prepare('SELECT * FROM tower_admission_memberships').get(),membership);
  }finally{f.db.close();}
 });
