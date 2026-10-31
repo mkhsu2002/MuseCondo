@@ -10,6 +10,7 @@ import {
 } from "../server/live/identity-private.ts";
 import { isoCBOR, isoBase64URL } from "@simplewebauthn/server/helpers";
 import { identityAuthenticator } from "./helpers/identity-authenticator.ts";
+import { replaceCreationClock } from "./helpers/identity-clock.ts";
 const origin = "https://identity.example",
   time = "2026-10-31T00:00:00.000Z",
   contactKey = "9".repeat(64),
@@ -170,6 +171,36 @@ async function fixture(compoundSelectLimit?: number) {
     },
   };
 }
+test("registration creation uses the earlier canonical clock without extending its challenge lifetime", async () => {
+  for (const ahead of [true, false]) {
+    const f = await fixture();
+    try {
+      const later = "2026-10-31T00:00:00.050Z";
+      f.setTime(ahead ? later : time, ahead ? time : later);
+      const start = await f.begin();
+      const row = f.db.sqlite.prepare("SELECT created_at,expires_at FROM identity_guardian_challenges").get()!;
+      assert.equal(row.created_at, time);
+      assert.equal(row.expires_at, "2026-10-31T00:05:00.000Z");
+      assert.equal(start.expiresAt, row.expires_at);
+    } finally { f.db.close(); }
+  }
+});
+
+test("registration rejects unavailable or noncanonical creation clocks without logical quota or challenge writes", async () => {
+  for (const clock of [null, {}, {identity_now:null}, {identity_now:42}, {identity_now:"2026-10-31T00:00:00Z"}, {identity_now:"2026-02-30T00:00:00.000Z"}, "throw"]) {
+    const f = await fixture();
+    try {
+      replaceCreationClock(f.db, async () => {
+        if (clock === "throw") throw new Error("synthetic clock unavailable");
+        return clock;
+      });
+      assert.equal((await f.options()).status,503);
+      assert.equal(f.count("identity_guardian_challenges"),0);
+      assert.equal(f.db.sqlite.prepare("SELECT count(*) n FROM rate_limits WHERE key NOT LIKE 'registration:http-ip:%'").get()!.n,0);
+    } finally { f.db.close(); }
+  }
+});
+
 test("registration completes with a five-term compound SELECT limit", async () => {
   const f = await fixture(5);
   try {

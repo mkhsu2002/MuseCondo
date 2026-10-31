@@ -14,6 +14,7 @@ import {
   hashPrivate,
 } from "../server/live/identity-private.ts";
 import { identityAuthenticator } from "./helpers/identity-authenticator.ts";
+import { replaceCreationClock } from "./helpers/identity-clock.ts";
 const origin = "https://identity.example",
   time = "2026-10-31T00:00:00.000Z",
   contactKey = "9".repeat(64),
@@ -597,6 +598,104 @@ test("continue rejects reused backup generations and candidate keys without cons
     f.db.close();
   }
 });
+test("recovery creation uses the earlier clock for requests and both challenge methods", async () => {
+  for (const ahead of [true, false]) {
+    const f = await fixture();
+    try {
+      const later = "2026-10-31T00:00:00.050Z";
+      f.setTime(ahead ? later : time,ahead ? time : later);
+      const created = await f.create();
+      assert.equal(created.status,201,await created.clone().text());
+      const r = await created.json();
+      assert.equal(r.expiresAt,"2026-10-31T01:00:00.000Z");
+      assert.equal(f.db.sqlite.prepare("SELECT created_at FROM identity_recovery_requests").get()!.created_at,time);
+      for (const offline of [false,true]) {
+        const response = await f.send("guardian/recovery/" + (offline ? "offline/" : "") + "options",{
+          requestKey: "clock-options-" + offline,requestId:r.requestId,decision:"continue",
+          ...(offline ? {currentOfflineRecoveryCode:"e".repeat(64)} : {method:"passkey"}),
+        });
+        assert.equal(response.status,200,await response.clone().text());
+        assert.equal((await response.json()).challengeExpiresAt,"2026-10-31T00:05:00.000Z");
+        assert.equal(f.db.sqlite.prepare("SELECT created_at FROM " + (offline ? "identity_offline_recovery_challenges" : "identity_recovery_challenges")).get()!.created_at,time);
+      }
+    } finally { f.db.close(); }
+  }
+});
+
+test("recovery rejects invalid creation clocks before request or challenge quota writes", async () => {
+  for (const action of ["create","passkey","offline"]) for (const clock of [null,{}, {identity_now:null},{identity_now:42},{identity_now:"2026-10-31T00:00:00Z"},{identity_now:"2026-02-30T00:00:00.000Z"},"throw"]) {
+    const f = await fixture();
+    try {
+      const r = action === "create" ? null : await (await f.create()).json();
+      const quota = JSON.stringify(f.db.sqlite.prepare("SELECT * FROM rate_limits WHERE key NOT LIKE '%:http-ip:%' ORDER BY key").all());
+      replaceCreationClock(f.db,async () => {
+        if (clock === "throw") throw new Error("synthetic clock unavailable");
+        return clock;
+      });
+      const response = action === "create" ? await f.create() : await f.send("guardian/recovery/" + (action === "offline" ? "offline/" : "") + "options",{
+        requestKey:"invalid-clock-options",requestId:r.requestId,decision:"continue",
+        ...(action === "offline" ? {currentOfflineRecoveryCode:"e".repeat(64)} : {method:"passkey"}),
+      });
+      assert.equal(response.status,503,action + " " + await response.clone().text());
+      assert.equal(f.count("identity_recovery_requests"),r ? 1 : 0);
+      assert.equal(f.count("identity_recovery_challenges"),0);
+      assert.equal(f.count("identity_offline_recovery_challenges"),0);
+      assert.equal(JSON.stringify(f.db.sqlite.prepare("SELECT * FROM rate_limits WHERE key NOT LIKE '%:http-ip:%' ORDER BY key").all()),quota);
+    } finally { f.db.close(); }
+  }
+});
+
+test("recovery creation does not share pending clock samples across concurrent calls", {timeout:5000}, async (t) => {
+  const f = await fixture();
+  let release = () => {};
+  const blocked = new Promise<void>(resolve => { release = resolve; });
+  const pending: Promise<Response>[] = [];
+  t.signal.addEventListener("abort",release,{once:true});
+  try {
+    let calls = 0;
+    replaceCreationClock(f.db,async () => {
+      const index = calls++;
+      if (index === 0) { await blocked; return {identity_now:"2026-10-30T23:59:59.950Z"}; }
+      release();
+      return {identity_now:"2026-10-30T23:59:59.900Z"};
+    });
+    pending.push(f.create({requestKey:"clock-concurrent-a",agentId},"2".repeat(64)),f.create({requestKey:"clock-concurrent-b",agentId},"3".repeat(64)));
+    const responses = await Promise.all(pending);
+    assert.deepEqual(responses.map(r => r.status),[201,201]);
+    assert.equal(calls,2);
+    assert.deepEqual(f.db.sqlite.prepare("SELECT created_at FROM identity_recovery_requests ORDER BY created_at").all().map(r => r.created_at),["2026-10-30T23:59:59.900Z","2026-10-30T23:59:59.950Z"]);
+  } finally {
+    release();
+    await Promise.allSettled(pending);
+    t.signal.removeEventListener("abort",release);
+    f.db.close();
+  }
+});
+
+test("cross-instance app clock rollback and queued creation expiry remain fail closed", async () => {
+  const f = await fixture();
+  try {
+    const r = await (await f.create()).json();
+    f.setTime("2026-10-30T23:59:59.950Z",time);
+    const response = await f.send("guardian/recovery/options",{requestKey:"clock-rollback-options",requestId:r.requestId,decision:"continue",method:"passkey"});
+    assert.equal(response.status,409);
+    assert.equal(f.count("identity_recovery_challenges"),0);
+    for (const app of ["2026-10-31T02:00:00.000Z","2026-10-30T22:00:00.000Z"]) {
+      f.setTime(app,time);
+      assert.equal((await f.create({requestKey:"large-skew-" + app,agentId},"4".repeat(64))).status,409);
+      assert.equal(f.count("identity_recovery_requests"),1);
+    }
+    f.setTime(time);
+    const batch = f.db.batch.bind(f.db);
+    f.db.batch = async rows => {
+      f.setTime(time,"2026-10-31T01:00:00.000Z");
+      return batch(rows);
+    };
+    assert.equal((await f.create({requestKey:"clock-queued-expiry",agentId},"2".repeat(64))).status,409);
+    assert.equal(f.count("identity_recovery_requests"),1);
+  } finally { f.db.close(); }
+});
+
 test("DB execution clocks, guardian/counter/tuple changes and two simultaneous requests revalidate inside the transaction", async () => {
   for (const mutation of [
     "clock",

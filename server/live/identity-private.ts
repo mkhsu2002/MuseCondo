@@ -1,3 +1,12 @@
+import type { Database } from './db.ts';
+/** New lifetimes start no later than either clock; commit guards still check both clocks. */
+export async function identityCreationStamp(db: Database, stamp: () => string): Promise<string> {
+ const row = await db.prepare("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now') AS identity_now").first<{identity_now:unknown}>();
+ const app = stamp(), native = row?.identity_now;
+ const canonical = (value: unknown): value is string => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
+ if (!canonical(app) || !canonical(native)) throw new Error('identity_clock_unavailable');
+ return app < native ? app : native;
+}
 /** Private identity contacts use authenticated, purpose- and entity-bound encryption. */
 const encoder=new TextEncoder(),decoder=new TextDecoder('utf-8',{fatal:true});
 const hex=(bytes:Uint8Array)=>Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');

@@ -15,7 +15,7 @@
 | I00 | 兩 repo 規格、計畫、現有 T04／T06 gate 調整 | 已自審、兩 repo main 文件已同步 |
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
-| I03 | Passkey／離線碼復原與舊授權全面失效 | v0.54已雙環境發布；dev合成註冊遇D1 compound SELECT限制而阻塞。等價EXISTS修復與回歸測試完成，待修復審核、再發布及完整live驗收 |
+| I03 | Passkey／離線碼復原與舊授權全面失效 | v0.55雙環境發布、dev合成註冊200；復原建立／options受Worker與D1新建時間偏差阻塞。保守建立時間修復完成，待審查、再發布及完整live驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | 待實作 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
@@ -149,3 +149,13 @@ v0.54 已合併 main／framework-v001，兩環境部署成功，0013–0017 sche
 修復僅將同一碰撞查詢改為八個有索引的EXISTS，以原參數順序同時供預檢及原11-statement原子batch guard使用；另有offline HMAC碰撞檢查不變。沒有migration、API格式、授權或交易邊界變更。記憶體Database wrapper模擬compound最多5個term，實際handler正常註冊與九來源（八個SHA來源加offline HMAC）在預檢／提交前的碰撞測試先RED（503）再GREEN，逐項確認拒絕且無guardian／passkey／收據／audit或challenge消耗。runtime全文搜尋只找到此次一處UNION，已移除。
 
 此修復仍待規格／品質審查、同版雙環境發布與完整合成live流程回讀（註冊、Passkey延續、全Passkey撤銷後離線修復、新生、舊權拒絕、收據／audit及住所保持）。沒有把本地測試或已部署v0.54記作修復已上線。
+
+### 2026-10-31 I03 建立時間跨時鐘相容性修復（待審查／發布）
+
+前節為當時阻塞紀錄：v0.55其後已雙環境部署，dev真HTTP合成註冊200，但復原create／options間歇409，故I03仍未完成。Node handler經remote D1 adapter通過不能證明hosted Worker同樣通過；同source的remote Cloudflare Worker已重現。
+
+只在隔離scratch preview以test-only合成戶及假聯絡金鑰診斷，沒有寄信／發權或操作真住戶。原lifetime guard的false分支僅增加固定診斷label及native時鐘，predicate不變；同一失敗SQL的D1時鐘為 `2026-10-31T11:33:34.669Z`，綁定created與app檢查時間均為 `.671Z`，expires為 `11:38:34.671Z`。D1比新建時間早2ms，故created<=native now拒絕；隨後未改狀態重查guards均通過。這是已證實的建立時間根因，不以重試或誤差寬限掩蓋。
+
+共用helper每次局部讀取D1 UTC毫秒時間，await後再讀app時間；兩者均須固定canonical UTC格式及Date roundtrip，缺值、壞值或讀取失敗不fallback。新request／兩類recovery options／registration options的created取較早者，expires仍由該created加原1h／5min並受原邀請／申請期限上限；不延長TTL。complete、CAS、雙時鐘原子到期檢查、授權與限流均不改，沒有migration或API格式變更；既有有界過期清理順序保留。
+
+實際handler反例先RED後GREEN：app領先50ms、落後50ms；缺失／非canonical／無效日期／失敗的DB時間不配置新request或challenge、不扣logicalquota；同handler並發時鐘讀取交錯仍保存各自時間；queued到期仍拒絕。跨instance app時鐘回退即使很小，既有stored.created<=app檢查仍可能保守拒絕；大偏差也維持fail closed，未宣稱全面跨時鐘容錯。本地驗證仍須由兩階段審查及雙環境同版完整live流程回讀接續，不能當成正式復原已可用。

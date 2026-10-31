@@ -4,6 +4,7 @@ import {
   hashPrivate,
   randomIdentityId,
   validContactKey,
+  identityCreationStamp,
 } from "./identity-private.ts";
 import {
   registrationOptions,
@@ -396,7 +397,7 @@ export function createIdentityRegistration(env: Environment) {
               i.agent_id,
               i.home_name,
             ),
-            created = stamp(),
+            created = await identityCreationStamp(db, stamp),
             expires = new Date(
               Math.min(Date.parse(created) + 300000, Date.parse(g.expires_at)),
             ).toISOString();

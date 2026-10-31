@@ -13,6 +13,7 @@ import {
   randomIdentityId,
   randomIdentitySecret,
   validContactKey,
+  identityCreationStamp,
 } from "./identity-private.ts";
 interface Environment {
   db: Database;
@@ -483,7 +484,7 @@ export function createIdentityRecovery(env: Environment) {
               supplied!,
             ),
             i = await ready(agent),
-            created = stamp(),
+            created = await identityCreationStamp(db, stamp),
             expires = new Date(Date.parse(created) + 3600000).toISOString();
           const r: RecoveryRequest = {
             id: randomIdentityId(),
@@ -586,7 +587,7 @@ export function createIdentityRecovery(env: Environment) {
           const options = offline
               ? await registrationOptions(env.origin, r!.agent_id, "MuseCondo")
               : await authenticationOptions(env.origin),
-            created = stamp(),
+            created = await identityCreationStamp(db, stamp),
             expires = new Date(
               Math.min(Date.parse(created) + 300000, Date.parse(r!.expires_at)),
             ).toISOString();
