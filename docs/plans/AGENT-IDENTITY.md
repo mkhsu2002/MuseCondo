@@ -192,7 +192,7 @@ Node24 本地身份測試198／198（其中新增card25組）、typecheck及全r
 D1容量邊界參照2026-10-31實際讀取的[官方limits](https://developers.cloudflare.com/d1/platform/limits/)：單string／BLOB／row 2,000,000 bytes、SQL100KB／100bound params；db.batch整批僅計一次invocation query。原有部署尚未驗0018／大附件交易，這些本地容量檢查不能替代deployed D1回讀。
 
 
-### I04a 規格審查 P2 修正（本地未發布）
+### I04a 規格審查 P2 修正（75a1f22，本地v0.58，未發布）
 
 規格review實際重現兩項隱私撤回阻塞：核發配額耗盡會讓正確撤卡429，且撤卡提交失敗後只改監護邀請／聯絡設定，原body/key重送409。這不是核准取捨。已先反例RED，再分離issue配額與revoke snapshot／guard；revoke僅保留本戶current auth、永久identity version／epoch、住所四方binding及head revision／current CID CAS。真正token撤權、期限、identity／epoch／住所變動仍拒絕並整批rollback。
 
