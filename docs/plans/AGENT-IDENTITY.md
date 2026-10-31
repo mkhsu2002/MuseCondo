@@ -17,7 +17,7 @@
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
 | I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。v0.61工程PASS：數字映射真PDF反例修復、兩階段審查／564tests、兩環境Worker更新、實際新卡完整名／issuer／QR／字距與生命週期重驗；原Pages輸入未改且接線相容。郵寄I05、真人I06另驗 |
-| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64雙環境發布與真provider sender查核PASS。b1：本地v0.67凍結核心、兩階段審查／685tests PASS，未發布，0020未套遠端；b2寄送接線／c投遞待實作 |
+| I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | a：v0.64雙環境發布與真provider sender查核PASS。b1／b2a：本地v0.69凍結／私有串流／永久寄送核心，兩階段審查、702tests及actual compiled本機Workers/D1模擬寄送PASS；未發布、0020／21未套遠端，b2b／c待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
 ### I01 共用核心
@@ -293,3 +293,16 @@ Fang兩環境原房與分享選擇保持，永久身份count0；沒有真住戶�
 主控685完整測試／8版號／typecheck／lint／build與公開輸出檢查通過，獨立規格→品質各20focused PASS。大附件為synthetic壓力資料，真PDF rendering證據仍沿I04，沒有新增正式raster驗收。Python>=3.11驗證依賴與私有接口見IDENTITY-MAIL-ENVELOPE-CORE.md。
 
 本片未push或發布，0020未套遠端；main／dev已發布流程仍為v0.64／0019／146來源物件，I04證件Worker仍v0.61。沒有HTTP／DO／Pages／provider dispatch或新排程接線、未改既有processOne、未寄信或使用真居民資料。b2及c依IDENTITY-MAIL-DELIVERY.md接續，Fang原住所、K新戶、私密等級與I06真人gate保持；T09未完成。
+
+
+### I05b2a 私有串流與永久寄送核心（2026-10-31，v0.69未發布）
+
+產品6faac9a與最小audit修復43e1d2c；兩個程式提交按規則加0.02。新0021三表與16來源物件保存一次性lease、exact finish receipt、獨立purpose／完整ASCII地址casefold的HMAC負面policy及永久audit；原0013–20未改。prepare／claim／suppress／finish僅私有DO binding可用，公開Worker與Pages internal路徑404。Pages只持provider key、特定地址suppression GET後轉送DO的大body stream；移除舊直寄旁路，預設false。不把同步configured當schema／provider／delivery健康。
+
+補齊metadata授權撤回競態、last-nativeguard＋lease同交易、sending／取消後仍保存已知負面封鎖、早到webhook已有providerID而POSTtimeout仍記unknown receipt且不降級，以及不可刪改ledger／receipt／audit。sending audit不保存lease控制，僅bodyDigest／length；lease保留在私有ledger／receipt。大body仍HMAC，附件仍SHA256，沒有明文地址、body或token進audit。
+
+主控702完整測試／8版號／typecheck／lint／build／公開輸出檢查PASS，規格／品質各自focused驗證通過（最終品質75／75及6項額外反例）。8MiB完整路徑保守逐statement計normal44／lost prepare ack47，實際SQL／bindings經原生SQLite官方限制校準與編譯。
+
+另以固定產品43e1d2c的實際編譯Pages受保護process API＋同版DO＋Miniflare原生D1，在相同compatibility date跑完整流程：4,400,000bytes synthetic PDF及512bytes真簽署JSON形成5,868,041bytes body，附件摘要、固定event tag／Idempotency-Key一致。相同事件再送只1POST、1ledger／finish／sending audit、attempt1，兩公開internal入口404。所有provider流量被導向本機stub，沒有真Resend或郵件。此為本機runtime整合，不是正式投遞；初次probe的dump loader因先插資料後建composite unique index造成FK mismatch，已修fixture載入順序，沒有改產品schema掩蓋。
+
+b2b guardian／card／recovery的commit及歷史receipt replay事件接線、no-context處理留下一片；c的已驗webhook／投遞／unknown reconcile仍未實作。本片未push／部署，0020／21未套遠端（合計23新增物件，整合後應169），兩環境正式流程保持v0.64／0019／146DDL；不單獨啟用、不影響Fang原屋或替Fang/K發證。介面及後續契約見IDENTITY-MAIL-DISPATCH.md。
