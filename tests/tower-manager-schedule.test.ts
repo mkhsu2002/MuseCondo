@@ -5,7 +5,7 @@ import {LocalDatabase} from '../server/live/local-db.ts';
 import {calendarPeriods,createManagerSchedule} from '../server/live/tower-manager-schedule.ts';
 import scheduler from '../workers/tower-manager/worker.ts';
 function database(){const db=new LocalDatabase(':memory:');for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(x=>x.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));return db;}
-test('Vancouver periods hold across UTC month boundary, Monday and DST repetition',()=>{
+test('Vancouver periods hold across UTC month boundary, Monday and permanent Pacific time',()=>{
  assert.deepEqual(calendarPeriods(new Date('2026-11-01T06:59:59Z')),{day:'2026-10-31',week:'2026-10-26',month:'2026-10'});
  assert.deepEqual(calendarPeriods(new Date('2026-11-01T07:00:00Z')),{day:'2026-11-01',week:'2026-10-26',month:'2026-11'});
  assert.deepEqual(calendarPeriods(new Date('2026-11-01T08:30:00Z')),calendarPeriods(new Date('2026-11-01T09:30:00Z')));
@@ -24,4 +24,17 @@ test('native scheduler uses only scoped trigger, no public execution, network re
  await scheduler.scheduled({scheduledTime:Date.parse('2026-11-01T16:00:00Z')},{PUBLIC_ORIGIN:'https://tower.example',MANAGER_SCHEDULE_TRIGGER_KEY:'synthetic-schedule-key'});
  assert.equal(calls.length,1);assert.equal(calls[0].redirect,'manual');assert.equal(calls[0].url,'https://tower.example/api/v1/manager/run-due');assert.equal(calls[0].headers.get('X-Manager-Schedule-Key'),'synthetic-schedule-key');assert.equal(calls[0].headers.get('X-Tower-Operator-Key'),null);
  }finally{globalThis.fetch=original;}
+});
+import {MANAGER_CALENDAR_POLICY,managerLocalDay,managerLocalDaySQL} from '../server/live/tower-calendar.ts';
+test('versioned BC permanent Pacific policy keeps JS and compiled native SQL aligned through winter and year boundary',()=>{
+ const db=database();try{
+ const policySQL=db.sqlite.prepare("SELECT sql FROM sqlite_master WHERE name='tower_autonomy_call_billing_guard'").get()!.sql as string;assert.ok(policySQL.includes(managerLocalDaySQL('NEW.created_at')));assert.equal(MANAGER_CALENDAR_POLICY.id,'bc-pct-2026-10-30');
+ for(const [at,day] of [
+ ['2026-03-08T09:59:59.999Z','2026-03-08'],['2026-03-08T10:00:00.000Z','2026-03-08'],
+ ['2026-11-01T06:59:59.999Z','2026-10-31'],['2026-11-01T07:00:00.000Z','2026-11-01'],
+ ['2026-11-02T07:30:00.000Z','2026-11-02'],['2026-12-01T06:59:59.999Z','2026-11-30'],
+ ['2026-12-01T07:00:00.000Z','2026-12-01'],['2027-01-01T07:30:00.000Z','2027-01-01'],
+ ]){assert.equal(managerLocalDay(new Date(at)),day);assert.equal(db.sqlite.prepare(`SELECT ${managerLocalDaySQL('instant')} day FROM (SELECT ? instant)`).get(at)!.day,day);assert.equal(calendarPeriods(new Date(at)).day,day);}
+ assert.equal(calendarPeriods(new Date('2026-11-02T07:30:00Z')).week,'2026-11-02');assert.equal(calendarPeriods(new Date('2027-01-01T07:30:00Z')).month,'2027-01');
+ }finally{db.close();}
 });

@@ -22,9 +22,9 @@ M03 的「Codex 預製 Halloween SVG/CSS、operator 手動 activate 即交付」
 
 `enable standing mandate → daily thinking → execute function tool → image-day → image-night → deterministic verify → function_call_output acknowledgement → independent TaskAudit → activate → independent daily selfreview → complete`。`noop/health` 仍有實際公開健康讀回、獨立 TaskAudit 與另一次每日反省。各模型 context 分開；只有 executor 使用 `store:false` encrypted reasoning replay 完成同一工具迴圈，不把 executor 自稱完成當獨立審核。
 
-任務在每日思考中自定目的、驗收、預算與受限 permissions。每日最多一個邏輯任務（每日例行與該日外觀行動共用同一成本戶），總預算不超過 US$10，包含思考、executor、圖、審核、一次修復、反省；模型只能降低計畫預算，不能提升部署上限。計畫完成前檢查足以涵蓋後續有界階段的保留空間。每日 aggregate 另限制 US$10，DB 永久限制 task 數一筆，repair 沿用原 cycle／budget。task 的 day 是任務歸屬，不作付費日：所有 token count／paid call 另存不可變 `billing_day`，按每次真正 dispatch 的 Vancouver 當地日累計；跨午夜的舊 task audit／反省使用今日 daily cap，同時仍計入原 task cap。DB 從不可變 created_at 精算 Vancouver DST 當地日，拒絕錯日、超出原生 UTC36小時容差或任一預算超限的 reservation。固定 `appearance:halloween:2026` 永久 anchor 防止將同一外觀任務隔日重 key、拆任務或重設預算。
+任務在每日思考中自定目的、驗收、預算與受限 permissions。每日最多一個邏輯任務（每日例行與該日外觀行動共用同一成本戶），總預算不超過 US$10，包含思考、executor、圖、審核、一次修復、反省；模型只能降低計畫預算，不能提升部署上限。計畫完成前檢查足以涵蓋後續有界階段的保留空間。每日 aggregate 另限制 US$10，DB 永久限制 task 數一筆，repair 沿用原 cycle／budget。task 的 day 是任務歸屬，不作付費日：所有 token count／paid call 另存不可變 `billing_day`，按每次真正 dispatch 的 Vancouver 當地日累計；跨午夜的舊 task audit／反省使用今日 daily cap，同時仍計入原 task cap。DB 從不可變 created_at 依版本化 `bc-pct-2026-10-30` 政策精算 Vancouver 當地日：2026-03-08T10:00Z 起固定 UTC−7，11月不回撥；更早的2007–2025歷史日期才用當時的季節邊界。拒絕錯日、超出原生 UTC36小時容差或任一預算超限的 reservation。UTC容差只用於資料時間合理性，不代替送出當下的日界檢查。固定 `appearance:halloween:2026` 永久 anchor 防止將同一外觀任務隔日重 key、拆任務或重設預算。
 
-每一次 Meta HTTP（含 input token count、獨立 TaskAudit、每日反省）先有永久 dispatch 記錄與 step key；Spark 先呼叫官方 input token count，拒絕超出 128,000 input，再按 Standard $1.25/M input、$4.25/M output 與 max output 2,400 保留費用；圖每張固定 $0.01。usage／provider id 確認後結帳。網路中斷、5xx、redirect、無法確認 usage 均保留原 reservation，不盲重試、不換 key。原生 lease 到期而尚在 dispatch 的 call 轉 unknown；不能再次送付費請求。HTTP 4xx 明確拒絕不視為完成。
+每一次 Meta HTTP（含 input token count、獨立 TaskAudit、每日反省）先有永久 dispatch 記錄與 step key；Spark 先呼叫官方 input token count，拒絕超出 128,000 input，再按 Standard $1.25/M input、$4.25/M output 與 max output 2,400 保留費用；圖每張固定 $0.01。usage／provider id 確認後結帳。網路中斷、5xx、redirect、無法確認 usage 均保留原 reservation，不盲重試、不換 key。原生 lease 到期而尚在 dispatch 的 call 轉 unknown；不能再次送付費請求。HTTP 4xx 明確拒絕不視為完成。免費 count 與 paid request 都會在 await D1 claim 完成、body 預先序列化之後、真正 HTTP 前最後同步檢查當地日；若期間跨午夜，尚未送出的 receipt 明確記 rejected／actual0 並寫私密 audit。daily-thinking 轉 missed/selfreview；其他階段也 fail closed 轉原任務反省，本版不重 key 補送。已送出的 unknown 永遠保留 reservation，不與這種「確知未送出」混淆。
 
 驗證實際從 **R2 重新讀取**已生成圖：存在、bytes、SHA256、PNG CRC／chunk 順序／解壓 scanline、最低解析度與16:9、day/night 完整且 hash 不同。後續獨立 Spark TaskAudit 使用兩張原圖與兩張 R2 實際讀回圖，做畫面與方案比對；單純模型字串 PASS 不足以 activation。D1 guard 同時驗證 PASS 對應獨立 paid receipt、deterministic evidence generation、兩圖 provider provenance、固定 permission、有效 mandate、native clock／lease、CAS revision；immutable records 阻擋 UPDATE／DELETE／INSERT OR REPLACE。
 
@@ -43,7 +43,7 @@ TaskAudit FAIL 可在同一原任務最多修一次；重新執行工具、驗�
 - `GET /api/v1/tower/appearance/assets/{generation}/{day|night}.png`：僅當前且有效 window 之 runtime pair；私密 R2 無 public bucket，無任意 key/path fetch。
 - 舊 appearance、schedule inspect、run-due APIs 保留；run-due registry 是免費 DB hygiene，不是自主工作的完成證明。
 
-每日 UTC 16:00 cron（Vancouver 夏令09:00／冬令08:00）各環境每月28–31次；每次都需要當日判斷，並非空輪詢。原生 DO alarm 只在有待續跑工作時 event-driven 接下一階段，完成／blocked即清除 alarm；網路 recovery 最多3次，每次6分鐘，僅續已持久工作且 DB 防止付費重送。沒有分鐘級常態 polling、Codex automation、GitHub cron 或CI呼叫provider。safe DB jobs失敗也仍喚醒自主思考。
+每日 UTC 16:00 cron（依BC2026永久Pacific政策，Vancouver全年09:00）各環境每月28–31次；每次都需要當日判斷，並非空輪詢。原生 DO alarm 只在有待續跑工作時 event-driven 接下一階段，完成／blocked即清除 alarm；網路 recovery 最多3次，每次6分鐘，僅續已持久工作且 DB 防止付費重送。沒有分鐘級常態 polling、Codex automation、GitHub cron 或CI呼叫provider。safe DB jobs失敗也仍喚醒自主思考。
 
 發布順序：dev/prod 依順序套至0026（0024/25由其他分支提供）→ 同版本 Pages／前端 → private R2 與DO Worker／servicebinding／scoped secret → 逐環境 native／deployed schema與code／readiness → enable mandate → 讀回每日思考、tool、paid ledger、R2產物、deterministic evidence、獨立TaskAudit、pointer、公開圖片與私密selfreview。任何層未驗證，不能標記自主樓管或萬聖節交付完成。commit／本機測試不等於正式發布。
 
@@ -56,3 +56,9 @@ TaskAudit FAIL 可在同一原任務最多修一次；重新執行工具、驗�
 官方契約重查2026-10-31：[Responses](https://dev.meta.ai/docs/protocols/responses)、[token count](https://dev.meta.ai/docs/api-reference/responses/count-input-tokens)、[tools](https://dev.meta.ai/docs/tool-calling)、[images](https://dev.meta.ai/docs/image-generation)。tool_choice僅auto；函式回合上限由應用限制；images JSON edits、WxH aspect ratio、tool_enablement／reasoning_strength以官方契約為準，不能套用其他供應商參數假設。
 
 `scripts/preview-tower-appearance.mjs` 為 loopback-only wiring fixture，以兩張既有原圖回應 synthetic runtime URL，僅驗證 UI 圖源切換、排版與到期，不是 Meta 生成產物，也不寫 R2／正式 pointer。
+
+## 日曆政策與日界審查修正（2026-10-31）
+
+[BC官方說明](https://www2.gov.bc.ca/gov/content/governments/celebrating-british-columbia/daylight-saving-time) publication2026-10-30、此輪實際重新讀回2026-10-31：March8是最後調鐘，November1不回撥。先前把Vancouver當作持續美國季節切換的假設已取代。`server/live/tower-calendar.ts` 為單一版本化政策，JS不依host tzdata判斷；migration中的SQL編譯式有parity測試，runtime readiness也驗實際trigger包含當前政策式，避免同名舊guard被當成ready。未來政策變更須明確更新版本、migration、原生證據，不能靜默假設。
+
+新測例覆蓋count reservation await／paid reservation await跨午夜，確知未送出的call實際HTTP為0且永久rejected／actual0；舊task audit不重新派送。原生D1實際await seam亦通過。Node、compiledworkerd、D1原生日曆式已對照Nov1／Nov2、冬季00:00–00:59、月底／月首、跨年；並讀回host Intl比較（此輪差異0），但正式邏輯採版本化政策，不依舊tzdata碰運氣。
