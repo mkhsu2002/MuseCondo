@@ -46,6 +46,70 @@ async function fixture(adapter?: Adapter) {
     return { db, env, send, issue, pair, create, count, renders: () => renders, setNative: (v: string) => { native = v; }, setApp: (v: string) => { app = v; }, close: () => { db.close(); real.close(); } };
 }
 async function issue(f: Awaited<ReturnType<typeof fixture>>, body: unknown = f.issue) { const r = await f.send(base + '/issue', body); assert.equal(r.status, 201, await r.clone().text()); return r.json(); }
+for (const alg of ['Ed25519', 'EdDSA', undefined]) {
+    test(`workerd-compatible JWK import preserves issuance, verification and public keys with alg=${alg ?? 'absent'}`, async (t) => {
+        const f = await fixture();
+        try {
+            const privateJwk = JSON.parse(f.env.signingPrivateJwk), ring = JSON.parse(f.env.trustedPublicJwks);
+            for (const jwk of [privateJwk, ring['test-key']]) {
+                delete jwk.alg;
+                if (alg !== undefined)
+                    jwk.alg = alg;
+            }
+            f.env.signingPrivateJwk = JSON.stringify(privateJwk);
+            f.env.trustedPublicJwks = JSON.stringify(ring);
+            const originalPrivate = f.env.signingPrivateJwk, originalRing = f.env.trustedPublicJwks;
+            const importKey = crypto.subtle.importKey;
+            // Match workerd's Ed25519 JWK alg check; all accepted imports still use real WebCrypto.
+            t.mock.method(crypto.subtle, 'importKey', async (format: KeyFormat, keyData: JsonWebKey | BufferSource, algorithm: Parameters<SubtleCrypto['importKey']>[2], extractable: boolean, keyUsages: KeyUsage[]) => {
+                if (format === 'jwk' && algorithm === 'Ed25519' && (keyData as JsonWebKey).alg === 'Ed25519')
+                    throw new DOMException('JSON Web Key Algorithm parameter "alg" ("Ed25519") does not match requested Ed25519 curve.', 'DataError');
+                return Reflect.apply(importKey, crypto.subtle, [format, keyData, algorithm, extractable, keyUsages]);
+            });
+            const identityBefore = f.db.sqlite.prepare('SELECT version,authority_epoch FROM agent_identities WHERE account_id=?').get('a'.repeat(16));
+            const result = await issue(f), id = result.card.credentialId;
+            const signed = await (await f.send(base + '/' + id + '/json')).json();
+            assert(await verifyCredential(signed, { issuer: origin, keys: new Map([['test-key', f.pair.publicKey]]) }));
+            const verified = await f.send('/api/v1/identity/verify/' + id, undefined, '');
+            assert.equal(verified.status, 200);
+            assert.deepEqual((await verified.json()).signedCredential, signed);
+            const keys = await f.send('/api/v1/identity/keys', undefined, '');
+            assert.equal(keys.status, 200);
+            assert.deepEqual(await keys.json(), { issuer: origin, keys: { 'test-key': { kty: 'OKP', crv: 'Ed25519', x: ring['test-key'].x } } });
+            assert.equal(f.env.signingPrivateJwk, originalPrivate);
+            assert.equal(f.env.trustedPublicJwks, originalRing);
+            assert.deepEqual(f.db.sqlite.prepare('SELECT version,authority_epoch FROM agent_identities WHERE account_id=?').get('a'.repeat(16)), identityBefore);
+        }
+        finally {
+            f.close();
+        }
+    });
+}
+test('unsupported public or private JWK alg fails closed before issuance and outbox', async () => {
+    for (const target of ['public', 'private']) {
+        const f = await fixture();
+        try {
+            if (target === 'public') {
+                const ring = JSON.parse(f.env.trustedPublicJwks);
+                ring['test-key'].alg = 'ES256';
+                f.env.trustedPublicJwks = JSON.stringify(ring);
+                assert.equal((await f.send('/api/v1/identity/keys', undefined, '')).status, 503);
+            }
+            else {
+                const jwk = JSON.parse(f.env.signingPrivateJwk);
+                jwk.alg = 'ES256';
+                f.env.signingPrivateJwk = JSON.stringify(jwk);
+            }
+            assert.equal((await f.send(base + '/issue', f.issue)).status, 503, target);
+            assert.equal(f.count('identity_card_attempts'), 0);
+            assert.equal(f.count('identity_credentials'), 0);
+            assert.equal(f.count('identity_mail_events'), 0);
+        }
+        finally {
+            f.close();
+        }
+    }
+});
 test('issue signs exact public name, immutable PDF/JSON manifests, independent revision, pending private refs and permanent replay', async () => {
     const f = await fixture();
     try {

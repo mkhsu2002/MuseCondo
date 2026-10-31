@@ -112,7 +112,11 @@ function parseJwk(value: unknown, privateKey: boolean): JsonWebKey {
         throw new Error('key');
     if (value.key_ops !== undefined && (!Array.isArray(value.key_ops) || value.key_ops.length !== 1 || value.key_ops[0] !== (privateKey ? 'sign' : 'verify')))
         throw new Error('key');
-    return value as JsonWebKey;
+    // Both accepted alg labels describe this curve, but runtimes disagree on the JWK metadata.
+    // Import the validated key material with the explicit Ed25519 algorithm without mutating configuration.
+    const jwk = { ...value };
+    delete jwk.alg;
+    return jwk as JsonWebKey;
 }
 async function trust(env: IdentityCardEnvironment) {
     if (typeof env.trustedPublicJwks !== 'string' || env.trustedPublicJwks.length > 32768)
