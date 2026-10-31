@@ -13,7 +13,8 @@
     "recoveryConfigured": false,
     "issuanceReady": false,
     "description": "初次身份綁定只確認本戶操作權及失聯時由監護人協助復原的意向。初始狀態為 provisional；指定監護人完成 Passkey 與獨立私密復原碼設定後才會成為 active。",
-    "guardianSetup": "已受邀的指定監護人可前往 /identity，手動貼上邀請識別碼與短效初次確認碼。完成設定後可前往 /identity/recover 協助復原。邀請或收信不等於已完成設定；證件領取尚未開放。"
+    "guardianSetup": "已受邀的指定監護人可前往 /identity，手動貼上邀請識別碼與短效初次確認碼。完成設定後可前往 /identity/recover 協助復原。邀請或收信不等於已完成設定；active 住戶依 identityCards 契約及實際 API 狀態核發證件，附件郵寄尚未開通。",
+    "scope": "Only the initial enroll result described by top-level mode/status/privacy; not a global card-runtime health claim. Active identities use identityCards contract and actual API results."
   },
   "steps": [
     "GET apiBase。回傳 {identity:null} 表示尚未綁定；已有身份時保留原 agentId。",
@@ -85,7 +86,8 @@
     "invitationMailFields": {
       "invitationId": "邀請信中的「邀請識別碼」，由監護人自行貼到 /identity。",
       "confirmationCode": "邀請信中的「短效初次確認碼」，由監護人自行貼到 /identity；不要交給 Agent 或放進網址。"
-    }
+    },
+    "issuanceReadyMeaning": "Legacy registration metadata does not assert card runtime availability. This false field is not an instruction to remain blocked after becoming active; use identityCards and actual API response. A namespace binding alone is not health."
   },
   "recovery": {
     "recoveryAvailable": true,
@@ -250,5 +252,29 @@
     },
     "uiPath": "/identity/recover"
   },
-  "modeScope": "enrollment"
+  "modeScope": "enrollment",
+  "identityCards": {
+    "apiBase": "/api/v1/agent/identity/card",
+    "verificationPage": "/identity/verify/:credentialId",
+    "verificationAPI": "/api/v1/identity/verify/:credentialId",
+    "trustedKeys": "/api/v1/identity/keys",
+    "availability": "Use the card API response to determine availability. HTTP 503 means card service is unavailable; a namespace status or key presence alone does not establish health. This contract is not a live availability assertion.",
+    "methods": {
+      "GET apiBase": "Current {revision,card}; tower:read, null if no head.",
+      "POST apiBase/issue": "Exact {requestKey,expectedIdentityVersion,expectedCardRevision,publicName,publicVerificationConsent:true}; tower:write; active configured identity. Revision 0 issues; later revision reissues with a new CID, superseding previous card.",
+      "POST apiBase/revoke": "Exact {requestKey,expectedIdentityVersion,expectedCardRevision,credentialId}; tower:write privacy withdrawal; does not revoke permanent identity or Tower authority.",
+      "GET apiBase/:credentialId/pdf": "Original immutable agent-identity-card.pdf; tower:read limited to own household.",
+      "GET apiBase/:credentialId/json": "Original signed agent-identity-credential.json; tower:read limited to own household."
+    },
+    "publicSubject": "Only publicName, full agentId, CID, issuer, issuedAt and signed credential when current status is valid. Revoked/superseded/suspended/withdrawn responses remove subject fields. No public directory.",
+    "limits": {
+      "publicNameUnicodeCharacters": 80,
+      "pdfBytes": 8388608,
+      "jsonBytes": 16384
+    },
+    "retry": "After unknown outcome/503 use identical body/requestKey. Durable permanent attempt fixes CID and signed input; successful receipt is permanent. Different input with same key is 409. Never change the key to blindly retry. Current authorization is rechecked on receipt/download.",
+    "renderFailure": "Unsupported font glyphs or unavailable pinned font fail closed without changing publicName. Preserve input and await support; do not silently rename.",
+    "security": "QR and PDF link contain only the payload official HTTPS verificationURL. They are not login, recovery or takeover credentials. Trust only preconfigured issuer keys from same issuer keys endpoint; never follow an arbitrary credential URL. Offline signatures do not prove latest revocation status.",
+    "mail": "Card creation does not confirm email delivery. PDF/JSON email delivery is not available yet; download the original attachments through the authenticated API."
+  }
 }

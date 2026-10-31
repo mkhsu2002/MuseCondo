@@ -20,14 +20,29 @@ test('route generation needs no personal residence and never publishes it',async
  const dir=await mkdtemp(join(tmpdir(),'muse-routes-'));
  try{
   await mkdir(join(dir,'dist'));await mkdir(join(dir,'public'));await mkdir(join(dir,'src/framework'),{recursive:true});
-  for(const [file,text] of [['dist/index.html','<p>compiled fixture</p>'],['src/framework/condo.css','/* template */'],['LICENSE','license'],['NOTICE','notice'],['public/reception.html','<p>reception fixture</p>'],['public/activities.html','<p>activities fixture</p>'],['public/identity.html','<p>identity fixture</p>'],['public/identity-recovery.html','<p>identity recovery fixture</p>']])await writeFile(join(dir,file),text);
+  for(const [file,text] of [['dist/index.html','<p>compiled fixture</p>'],['src/framework/condo.css','/* template */'],['LICENSE','license'],['NOTICE','notice'],['public/reception.html','<p>reception fixture</p>'],['public/activities.html','<p>activities fixture</p>'],['public/identity.html','<p>identity fixture</p>'],['public/identity-recovery.html','<p>identity recovery fixture</p>'],['public/identity-verify.html','<p>identity verify fixture</p>']])await writeFile(join(dir,file),text);
   await promisify(execFile)(process.execPath,[fileURLToPath(new URL('../scripts/routes.mjs',import.meta.url))],{cwd:dir});
   await access(join(dir,'dist/about/index.html'));
   assert.equal(await readFile(join(dir,'dist/reception/index.html'),'utf8'),'<p>reception fixture</p>');
   assert.equal(await readFile(join(dir,'dist/identity/index.html'),'utf8'),'<p>identity fixture</p>');
   assert.equal(await readFile(join(dir,'dist/identity/recover/index.html'),'utf8'),'<p>identity recovery fixture</p>');
   assert.equal(await readFile(join(dir,'dist/activities/index.html'),'utf8'),'<p>activities fixture</p>');
+  assert.equal(await readFile(join(dir,'dist/identity/verify/index.html'),'utf8'),'<p>identity verify fixture</p>');
+  await assert.rejects(access(join(dir,'dist/MuseCondoTC-Regular.ttf')));
   await access(join(dir,'dist/condo-template.css'));
   await assert.rejects(access(join(dir,'dist/condo')));
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('identity-card build guard requires the standalone route/resources/privacy headers and excludes Worker font',async()=>{
+ const {checkIdentityCardBuild}=await import('../scripts/check-build.mjs');
+ const dir=await mkdtemp(join(tmpdir(),'muse-card-build-'));
+ try{
+  await assert.rejects(checkIdentityCardBuild(dir));
+  await mkdir(join(dir,'identity/verify'),{recursive:true});await mkdir(join(dir,'licenses'));
+  for(const [source,target] of [['identity-verify.html','identity/verify/index.html'],['identity-verify.js','identity-verify.js'],['identity-verify.css','identity-verify.css'],['identity.css','identity.css'],['_headers','_headers'],['identity-onboarding.json','identity-onboarding.json'],['licenses/identity-card.txt','licenses/identity-card.txt']])await writeFile(join(dir,target),await readFile(new URL('../public/'+source,import.meta.url)));
+  assert.equal((await checkIdentityCardBuild(dir)).route,'/identity/verify/:credentialId');
+  const headers=await readFile(join(dir,'_headers'),'utf8');await writeFile(join(dir,'_headers'),headers.replace('/identity/verify/*','/wrong-route/*'));await assert.rejects(checkIdentityCardBuild(dir),/privacy/);await writeFile(join(dir,'_headers'),headers);
+  await writeFile(join(dir,'MuseCondoTC-Regular.ttf'),'font');await assert.rejects(checkIdentityCardBuild(dir),/Worker font/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });

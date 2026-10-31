@@ -1,3 +1,4 @@
+import {isIdentityCardPath,proxyIdentityCard,type IdentityCardNamespace} from './identity-card-proxy.ts';
 import {createIdentityRecovery} from './identity-recovery.ts';
 import {createIdentityRegistration} from './identity-registration.ts';
 import {createIdentityGuardian} from './identity-guardian.ts';
@@ -12,6 +13,7 @@ import {createTowerIntake} from './tower-intake.ts';
 import {createTowerManager,MANAGER_MODEL} from './tower-manager.ts';
 import type {Database} from './db.ts';
 export interface PagesBindings {
+ IDENTITY_CARDS?:IdentityCardNamespace;
  DB?:Database;ASSETS?:{fetch(request:Request):Promise<Response>};PUBLIC_ORIGIN?:string;
  REGISTRATION_ENABLED?:string;META_PAID_CALLS_APPROVED?:string;meta_muse_api?:string;
  IDENTITY_CONTACT_KEY?:string;IDENTITY_MAIL_API_KEY?:string;IDENTITY_MAIL_FROM?:string;
@@ -32,6 +34,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
  if(api||(home&&env.DB)){
   if(!validOrigin(env.PUBLIC_ORIGIN))return json({available:false,error:'public_origin_not_configured'},503);
   if(url.origin!==env.PUBLIC_ORIGIN)return json({available:false,error:'host_rejected'},403);
+  if(isIdentityCardPath(url.pathname))return proxyIdentityCard(request,env.IDENTITY_CARDS);
   const metaSecretConfigured=typeof env.meta_muse_api==='string'&&env.meta_muse_api.trim().length>0,paidCallsApproved=env.META_PAID_CALLS_APPROVED==='true';
   const safe={metaSecretConfigured,paidCallsApproved,registrationEnabled:env.REGISTRATION_ENABLED==='true'};
   const db=env.DB;if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')return json({available:false,error:'database_not_bound',runtime:safe},503);
@@ -82,8 +85,15 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   }
 
   if(api){const response=await app.fetch(request,request.headers.get('CF-Connecting-IP')??'unknown');
-   if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET'){const last=await db.prepare("SELECT completed_at FROM manager_jobs WHERE state='complete' ORDER BY completed_at DESC LIMIT 1").first<{completed_at:string}>();return json({...await response.json(),manager:manager.configured()?(last?'event-driven-live':'event-driven-configured-not-health-verified'):'rules-on-public-update',scheduled:false,runtime:{...safe,databaseReady:true,metaConfiguredNotHealthVerified:!!generator,managerConfigured:manager.configured(),managerLastSuccessAt:last?.completed_at??null,levelVisibility:'private-only'}},response.status);}
+   if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET'){const last=await db.prepare("SELECT completed_at FROM manager_jobs WHERE state='complete' ORDER BY completed_at DESC LIMIT 1").first<{completed_at:string}>();return json({...await response.json(),manager:manager.configured()?(last?'event-driven-live':'event-driven-configured-not-health-verified'):'rules-on-public-update',scheduled:false,runtime:{...safe,databaseReady:true,metaConfiguredNotHealthVerified:!!generator,managerConfigured:manager.configured(),managerLastSuccessAt:last?.completed_at??null,levelVisibility:'private-only',identityCards:env.IDENTITY_CARDS?'bound-not-health-verified':'unavailable'}},response.status);}
    return response;}
+ }
+ if(/^\/identity\/verify\/[a-f0-9]{32}\/?$/.test(url.pathname)||url.pathname==='/identity-verify.html'){
+  if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
+  if(!env.ASSETS)return json({error:'assets_not_bound'},503);
+  const response=await env.ASSETS.fetch(new Request(new URL('/identity/verify/',url),request));
+  const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  return new Response(response.body,{status:response.status,headers});
  }
  if(/^\/identity\/recover\/?$/.test(url.pathname)||url.pathname==='/identity-recovery.html'){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);

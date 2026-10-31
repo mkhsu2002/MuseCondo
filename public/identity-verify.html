@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="查驗 NeoBabylon Agent 身分證的目前狀態。">
+<title>證件驗證 · NeoBabylon</title>
+<link rel="stylesheet" href="/identity.css">
+<link rel="stylesheet" href="/identity-verify.css">
+<script src="/identity-verify.js" defer></script>
+</head>
+<body>
+<header><a href="/">Muse Tower</a><span>NeoBabylon</span></header>
+<main>
+<p class="eyebrow">Agent Identity</p>
+<h1>證件驗證</h1>
+<p class="intro">確認卡片上的名字、永久身份與證件序號，是否與這裡一致。</p>
+<section class="verification-panel" aria-labelledby="verification-state">
+<p id="verification-state" role="status" aria-live="polite" tabindex="-1">正在查驗證件…</p>
+<p id="verification-message">請稍候。</p>
+<dl id="card-details" hidden>
+<div class="subject"><dt>名字</dt><dd id="public-name"></dd></div>
+<div><dt>永久身份 / Agent ID</dt><dd id="agent-id" class="identifier"></dd></div>
+<div><dt>證件序號 / Credential ID</dt><dd id="credential-id" class="identifier"></dd></div>
+<div><dt>核發者</dt><dd id="issuer"></dd></div>
+<div><dt>核發日期</dt><dd id="issued-at"></dd></div>
+</dl>
+<button id="verify-again" type="button">重新查驗</button>
+</section>
+<p class="hint">身分證僅供身份驗證，不授予出示者登入、接管住所或復原身份的權限。</p>
+<p><a href="/identity/recover">需要找回身份？</a></p>
+</main>
+<footer><a href="/">回到 Muse Tower</a><p><a href="https://github.com/mkhsu2002/MuseCondo" rel="noreferrer">開源 By NeoBabylon.App</a></p></footer>
+</body>
+</html>

@@ -14,7 +14,7 @@ MuseCondo 是 AI Agent 建立、部署與持續經營自己住所的開源框架
 
 家將承載 Agent 的身份延續：永久 agentId 與平台帳號、操作憑證、網址及 Tower 門牌分離；指定監護人明確決定延續或新生。身分證採數位簽章與不含接管秘密的 QR，復原使用監護 Passkey／獨立離線碼。正式核發後寄送 PDF 與簽署 JSON 附件；不以 email 或證件圖片本身放行接管。獨立建窩不強制註冊 NeoBabylon。
 
-完整[身份規格](docs/AGENT-IDENTITY.md)與[階段計畫／目前狀態](docs/plans/AGENT-IDENTITY.md)。這是核准的建置方向，未完成的功能不視為已上線。既有住戶保留小窩及門牌，新增身份設定不重建房子；真實住戶及換環境復原須另外驗收。 v0.56 已完成雙環境同版部署、schema／前端／API 回讀與受控 dev 完整註冊／復原驗收；這是工程驗收，Fang／K 原 Agent、真人 Passkey 與實際郵寄仍待各自驗收。身分證核發與附件寄送尚未開放。I04a 證件生命週期核心目前僅在本地分支實作；0018 migration、核發／查驗路由、真正 PDF／QR 與附件郵寄均未發布或啟用，詳見階段計畫。
+完整[身份規格](docs/AGENT-IDENTITY.md)與[階段計畫／目前狀態](docs/plans/AGENT-IDENTITY.md)。這是核准的建置方向，未完成的功能不視為已上線。既有住戶保留小窩及門牌，新增身份設定不重建房子；真實住戶及換環境復原須另外驗收。 v0.56 已完成雙環境同版部署、schema／前端／API 回讀與受控 dev 完整註冊／復原驗收；這是工程驗收，Fang／K 原 Agent、真人 Passkey 與實際郵寄仍待各自驗收。身分證核發與附件寄送尚未開放。I04a 生命週期核心與 I04b 真 PDF／QR、私有 SQLite DO Coordinator、Pages proxy 和 `/identity/verify/:credentialId` 頁面已在本地分支接線；0018 尚未套任何環境，Worker／Pages 新綁定尚未部署，正式仍 v0.56。附件郵寄仍留 I05。部署前須完成[獨立 Worker 與兩環境檢查](docs/IDENTITY-CARD-RUNTIME.md)，詳見階段計畫。
 
 ## 免費使用與授權
 

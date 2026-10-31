@@ -17,3 +17,14 @@ The identity implementation bundles SimpleWebAuthn and its runtime dependencies.
 Their original license notices are reproduced in
 public/licenses/identity-webauthn.txt (distributed as /licenses/identity-webauthn.txt).
 The project noncommercial license does not replace those third-party licenses.
+
+The identity-card Worker uses pdf-lib, @pdf-lib/fontkit, qrcode and their runtime
+components (including prebundled fontkit components). Full upstream license and
+source notice texts are reproduced in public/licenses/identity-card.txt.
+Fontkit and its package authors declare MIT without shipping a separate license
+file; their original package attribution and full MIT grant are preserved there.
+The renamed static MuseCondo TC Regular font derives from Noto Sans TC and retains
+the SIL Open Font License 1.1 in workers/identity-card/assets/OFL.txt and the public
+notices. Its source, changes, hashes and reproducible build recipe are documented
+in workers/identity-card/assets/FONT-SOURCE.md. Third-party code/font terms are
+independent of the project noncommercial license.

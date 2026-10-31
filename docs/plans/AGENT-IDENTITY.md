@@ -16,7 +16,7 @@
 | I01 | 可攜永久身份及簽署憑證核心 | f8d1941＋7edcd36；14測試、typecheck、規格／品質複審PASS；v0.35雙環境部署／bundle回讀完成 |
 | I02 | Tower 身份綁定與 provisional 狀態 | v0.37／60c4a06；330測試、規格／品質及雙環境schema/API/合成dev驗收PASS |
 | I03 | Passkey／離線碼復原與舊授權全面失效 | v0.56 雙環境同版、0013–0017 schema／靜態／API 回讀與完整受控 dev 註冊／復原／撤舊權／歷史重送 PASS；真人另於I06驗收 |
-| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 本地生命週期核心與 0018／反例測試完成，待兩階段審查；未接 Worker／readiness／公開機器契約、未套 schema 或部署。I04b 真 PDF／QR／字體／驗證頁接線未完成 |
+| I04 | 證件核發、QR／PDF、驗證／補發／撤銷 | I04a 核心 b472528／75a1f22 規格與品質審查 PASS。I04b 真 PDF／QR／靜態繁中字體、獨立 SQLite DO／Pages proxy／驗證頁本地接線完成，待整體兩階段審查及雙環境部署；0018未套、正式仍v0.56 |
 | I05 | 收件驗證、事件驅動附檔寄送與投遞追蹤 | 待實作 |
 | I06 | 兩環境部署、Fang 原門牌接手、K 完整新戶 | 待實作及真人操作 |
 
@@ -51,7 +51,7 @@ Files: `server/live/identity-guardian.ts`、`server/live/identity-recovery.ts`�
 
 Files: `server/live/identity-card.ts`、`migrations/0018_identity_cards.sql`、`tests/identity-card.test.ts`；I04b 另補真 PDF／QR renderer、驗證頁及核發者公鑰端點接線。
 
-I04a 在 `feat/agent-permanent-identity` 僅提供可直接測試的 factory；I04 整體完成規格與品質審查前，不接 Worker／readiness／machine、不套 migration、不發布。正式仍為前節已回讀的 v0.56。第一版使用固定品牌圖樣，不抓取或裁取監護人肖像。
+I04a 當時僅提供可測試 factory；I04b 依已審核心完成本地 Worker／Pages proxy／machine 及公開驗證頁接線，整體規格與品質審查完成前不套 migration、不發布。正式仍為前節已回讀的 v0.56。第一版固定品牌圖樣，不抓取或裁取監護人肖像。原早期「不接 Worker」限制已由本地接線切片取代，未取代正式部署／真人 gate。
 
 - [ ] 檢查 signer 配置只用部署 secret、歷史 keyId 公鑰可驗證；卡片照片素材只取已授權本戶內容。
 - [ ] 核發限 active＋已綁住所＋監護／備援確認；原子證件、supersede、outbox、receipt、audit。
@@ -201,3 +201,18 @@ D1容量邊界參照2026-10-31實際讀取的[官方limits](https://developers.c
 新增反例涵蓋一張成功卡加九次renderer失敗令accountquota10、globalquota1000仍可撤；submit失敗後移除／替換contact或guardian版本更新仍可原key撤；提交瞬間移除／替換聯絡不寫stale event或孤立mail audit；commit ack失落後變更聯絡重送只回原receipt、不重扣核發quota或新增event。這些修正仍未接Worker／未套0018／未部署／未寄信，正式仍v0.56。
 
 本輪Node24身份測試202／202（card29組）、typecheck／全repo lint PASS；沒有build／dist／remote變更，主控另做完整gate與規格複審。
+
+
+### 2026-10-31 I04b 真 PDF／QR 與私有 DO 接線（本地，未發布）
+
+依已審 I04a 核心接線；`server/live/identity-card.ts` 安全／CAS／配額與 i.version 完全未改，0018 仍未套任何環境。新增獨立 SQLite DO Coordinator Worker，完整核心 factory 在 DO 執行；Pages 僅以原 Request／Response 代理 exact card／keys／verify API，不 import PDF／font 或讀大附件。private/public固定256shards、未授權與keys固定object，routing不是授權。Worker public fetch一律404、assets run_worker_first:true、停workers.dev與preview、無cron/alarm/provider。根config只有資源placeholder；雙環境實際配置／binding／schema／部署驗證留主控，見[runtime指南](../IDENTITY-CARD-RUNTIME.md)。DO每次lifecycle檢查0018表／trigger／index（含critical `identity_card_one_issued`）；缺index反例RED401→GREEN503，keys仍可讀且不需signer/contact/font。
+
+真renderer使用pdf-lib1.17.1、fontkit1.1.1及qrcode1.5.4 core matrix，固定品牌幾何／完整80 Unicode名字、69字永久ID、CID／issuer／issuedAt。QR與可點連結只含簽署verificationURL、黑白與4module靜區；public-only frozen snapshot、Creation／Modification取issuedAt、producer固定。合法OFL靜態TTF 7,149,128bytes、SHA d20595e7…18325e5、subset:false且內部ASSETS固定路徑SHA驗證；缺glyph／字體缺失或壞hash皆fail closed不改名。字體來源、改名、pinned FontTools4.68.0重製腳本／hash及原OFL全文保留，主控全新重製sameSHA；runtime依賴與fontkit prebundled上游原license／notice全文見public/licenses/identity-card.txt，project NOTICE明列不重授權。fontkit上游未附獨立LICENSE的實情及原package作者／MIT聲明亦保留，未捏造copyright。
+
+公開 `/identity/verify/:cid`／尾slash為固定standalone頁；CSP self/no-store/noindex/no-referrer、同origin API fetch omit/no-store/redirect:error、pathname限定32hex，無query／storage／任意issuer follow。嚴格public schema及真Ed25519驗簽，API subject與payload完整比對後才顯有效；revoked/superseded/suspended/withdrawn/404/壞回應都清除舊name及ID。DOM textContent、generic復原入口、開源repofooter，不自動issue或新增admin表單。machine明確區分enroll初始provisional／legacyissuanceReady=false與active卡API，binding只報bound-not-health-verified，郵寄仍待I05。
+
+Node24本地身份／UI／build focused 263項全PASS，另57項card／verify／Pages／build組（有重疊，不相加）PASS；typecheck包含workers、全repo lint、Vite build／route資產與privacy guard、Wrangler4.156 flags[]下Worker dry-run與Pages functions編譯PASS。真PDF經Poppler單頁／embedded font／80字完整抽取、jsQR對實際raster獨立解碼與4module四邊靜區PASS，主控與實作者肉眼看80字與完整IDs無裁字／黑框或重疊。Pages→真Coordinator→真renderer→本地SQLite整合：先缺字體503，再以新DO及原key同body恢復同candidate CID／signed_json、真PDF>4MB分塊下載／JSON簽驗一致；移除font再重建仍可讀永久receipt，quota1／outbox1pending、i.version不變、跨戶拒絕。這是localSQLite結構binding測試，不是hosted DO／D1證據。
+
+本地workerd另在SQLite DO內實際跑同renderer與內部ASSETS，兩次4,377,114-byte PDF SHA `03e201f7f78004db36429f1bce24111fbf99809f7065a7ea4e70b690f347fc90`完全一致；1頁／日期固定，Swift Vision獨立掃碼回完整官方fixtureURL。GET walltime554ms／463ms只是local smoke，不是Free hostedCPU保證；fixture為未核發合成樣本，不是真居民證件。localserver已停止，scratch不入repo。npm audit --omit=dev無已知漏洞；未修改既有開發工具依賴警示。
+
+尚未push／合併／套0018／部署新Worker或Pages綁定，正式仍v0.56。I04b仍待固定hash規格→品質審查、主控完整gate、雙環境deployed code/schema/live behavior與canonicalbrowser390px／桌機驗收；Fang／K真人與原Agent未操作。未寄信、未付費、未新建真戶；I05附件交付及I06真人gate保持未完成。

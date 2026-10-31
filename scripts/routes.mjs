@@ -12,6 +12,8 @@ await mkdir('dist/activities', { recursive: true });
 await copyFile('public/activities.html', 'dist/activities/index.html');
 await mkdir('dist/identity', { recursive: true });
 await copyFile('public/identity.html', 'dist/identity/index.html');
+await mkdir('dist/identity/verify', { recursive: true });
+await copyFile('public/identity-verify.html', 'dist/identity/verify/index.html');
 await mkdir('dist/identity/recover', { recursive: true });
 await copyFile('public/identity-recovery.html', 'dist/identity/recover/index.html');
 await mkdir('dist/reception', { recursive: true });

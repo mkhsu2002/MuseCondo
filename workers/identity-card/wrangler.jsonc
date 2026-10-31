@@ -1,0 +1,14 @@
+{
+  // Template only. Generate private environment configs with the actual account/D1 IDs.
+  "name": "musecondo-identity-card",
+  "main": "worker.ts",
+  "compatibility_date": "2026-10-29",
+  "compatibility_flags": [],
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {"directory": "assets", "binding": "ASSETS", "run_worker_first": true},
+  "durable_objects": {"bindings": [{"name": "IDENTITY_CARDS", "class_name": "IdentityCardCoordinator"}]},
+  "migrations": [{"tag": "v1", "new_sqlite_classes": ["IdentityCardCoordinator"]}],
+  "d1_databases": [{"binding": "DB", "database_name": "REPLACE_WITH_ENV_DATABASE", "database_id": "00000000-0000-0000-0000-000000000000"}],
+  "vars": {"PUBLIC_ORIGIN": "https://replace-environment.invalid"}
+}
