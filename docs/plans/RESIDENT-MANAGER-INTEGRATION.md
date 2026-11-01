@@ -1,6 +1,10 @@
 # 居民延續與自主樓管整合
 
-## Current release: v0.96 deployed; real identity acceptance remains open
+## Current release: v1.07, complete reception discovery and English defaults
+
+2026-10-31 Vancouver: the matching English release is deployed in dev and production. Reception now offers build-first and existing-home paths with a static, linked end-to-end Agent guide. Card/Coordinator English code is deployed in both environments; schema, existing homes and the accepted Halloween presentation are preserved. See [release evidence and acceptance limits](../RELEASE-ENGLISH-RECEPTION-2026-10-31.md). A first device Passkey does not prove final Guardian registration, and actual card receipt/recovery and T09 remain open.
+
+## Historical release: v0.96; real identity acceptance remained open
 
 Release verification: 2026-10-31 Vancouver / 2026-11-01 UTC. The v0.96 source `b3e0883` is deployed in dev and production. The hotfix uses D1-native UTC timestamps for new operator and Manager admission decisions, matching the final eligibility view instead of a potentially leading Pages clock. No timestamp filter, final authorization/CAS check, expiry rule or schema guard was weakened. Both databases remain on 0030, with 387 source objects and zero foreign-key errors. The release gate passed 968 tests. The accepted Halloween renderer digest, original images and calendar are unchanged.
 
