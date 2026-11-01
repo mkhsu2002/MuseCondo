@@ -147,10 +147,17 @@ export function createTowerReception(env: Options) {
     async function commit(req: Request, c: Case, operator: boolean, requestKey: string, operation: string, inputHash: string, next: Case, statements: Statement[], message: string, status = 200) {
         if (operator && !await env.operator(req))
             reject(401, 'operator_required');
-        next.review_case_version=next.is_muse_agent!==c.is_muse_agent||next.source_url!==c.source_url||next.resident_id!==c.resident_id||next.request_text!==c.request_text?next.version:c.review_case_version??1;
+        const retryFreeReview=next.review_case_version===next.version;
+        next.review_case_version=retryFreeReview?next.version:next.is_muse_agent!==c.is_muse_agent||next.source_url!==c.source_url||next.resident_id!==c.resident_id||next.request_text!==c.request_text?next.version:c.review_case_version??1;
         const response = { case: safe(next) };
         await db.batch([caseGuard(c, operator), ...(['withdraw', 'revoke', 'reject'].includes(operation) ? [] : [guard('(SELECT COUNT(*) FROM tower_reception_events WHERE case_id=?)<100', c.id)]), ...statements,
             stmt('UPDATE tower_reception_cases SET state=?,version=?,review_case_version=?,is_muse_agent=?,request_text=?,source_url=?,resident_id=?,account_id=?,approval_expires_at=?,granted_token_id=?,visit_plan_json=?,next_action=?,updated_at=? WHERE id=?', next.state, next.version,next.review_case_version??1, next.is_muse_agent??null,next.request_text,next.source_url, next.resident_id, next.account_id, next.approval_expires_at, next.granted_token_id, next.visit_plan_json, next.next_action, next.updated_at, next.id),
+            ...(retryFreeReview?[
+                stmt('INSERT INTO manager_admission_declarations SELECT id,version,is_muse_agent,updated_at FROM tower_reception_cases WHERE id=?',next.id),
+                stmt("INSERT INTO manager_admission_jobs(id,case_id,case_version,policy_version,snapshot_json,created_at) SELECT c.id||':v'||c.review_case_version,c.id,c.review_case_version,p.policy_version,json_object('name',c.name,'request',c.request_text,'sourceURL',c.source_url,'residentId',c.resident_id,'isMuseAgent',c.is_muse_agent),c.updated_at FROM tower_reception_cases c JOIN tower_admission_current p ON p.id=1 WHERE c.id=?",next.id),
+                guard('changes()=1'),
+                stmt("INSERT INTO manager_admission_audit VALUES(?,?,?,'free-precheck-retry',?,?)",crypto.randomUUID(),next.id+':v'+next.version,next.id,JSON.stringify({priorCaseVersion:c.review_case_version??1,noPreviousProviderCall:true}),next.updated_at),
+            ]:[]),
             event(c.id, operator ? 'operator' : 'applicant', operation, message), requestReceipt(next,requestKey,operation,inputHash,response,status)]);
         await notify(next.id);
         return committed(next.id,requestKey);
@@ -283,7 +290,16 @@ export function createTowerReception(env: Options) {
                     if(operation==='details'&&v.isMuseAgent===undefined&&v.sourceURL===undefined&&v.homeURL===undefined&&v.residentId===undefined)reject(400,'details_required');
                     message = operation==='details'?'Application details updated.':text(v.message, 2000);
                     if(!operator&&(v.isMuseAgent!==undefined||v.sourceURL!==undefined||v.homeURL!==undefined||v.residentId!==undefined)){if(current.state!=='pending')reject(409,'case_state_conflict');if(v.isMuseAgent!==undefined){if(typeof v.isMuseAgent!=='boolean')reject(400,'invalid_muse_declaration');if(v.isMuseAgent===false){next.is_muse_agent=0;}else next.is_muse_agent=1;}const resolved=await homeDetails(v,next.is_muse_agent===0?false:next.is_muse_agent===1?true:undefined);if(resolved.sourceURL!==undefined)next.source_url=resolved.sourceURL;if(resolved.residentId!==undefined)next.resident_id=resolved.residentId;}
+                    // An explicit URL retry can resume a known free technical failure after
+                    // the source is repaired in place. Never repeat count/paid/unknown work.
+                    const sameHome=!operator&&current.state==='pending'&&current.request_kind==='new'&&current.is_muse_agent===1&&(v.homeURL!==undefined||v.sourceURL!==undefined)&&next.source_url===current.source_url&&next.resident_id===current.resident_id&&next.is_muse_agent===current.is_muse_agent;
+                    if(sameHome){
+                        const condition="EXISTS(SELECT 1 FROM manager_admission_jobs WHERE case_id=? AND case_version=? AND state='complete' AND decision='needs-info') AND NOT EXISTS(SELECT 1 FROM manager_admission_calls WHERE case_id=?) AND (SELECT COUNT(*) FROM manager_admission_jobs WHERE case_id=?)<3";
+                        const args=[current.id,current.review_case_version??1,current.id,current.id];
+                        if(await one('SELECT 1 WHERE '+condition,...args)){next.review_case_version=next.version;statements.push(guard(condition,...args));}
+                    }
                     next.next_action = next.state==='rejected'?'You indicated that you are not a Muse agent. This application is closed.':operator ? 'Reception has replied. Please read your case messages.' : 'Reception will reply here. Return according to your visit plan.';
+                    if(sameHome)next.next_action=next.review_case_version===next.version?'Your home URL was resubmitted for a fresh technical check. Keep the same case and read its result.':'The home address is unchanged. No new review was queued. Read the existing review result; do not create another case or blindly repeat an uncertain request.';
                 }
                 else if (operation === 'visit-plan' && !operator) {
                     next.visit_plan_json = JSON.stringify(visit(v.visitPlan));

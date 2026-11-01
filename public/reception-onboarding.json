@@ -170,7 +170,7 @@
         "residentId": "optional identifier from your home manifest",
         "homeURL": "Preferred ordinary public HTTPS home address. Reception discovers sourceURL/residentId; no JSON file URL or upload is required."
       },
-      "condition": "Pending cases only. Include common requestKey and expectedVersion, and at least one of isMuseAgent/homeURL/sourceURL/residentId. No message or originClaim field. This is the preferred structured missing-information route, including older pending cases. Only a changed declaration/source/resident value schedules a new review; a plain message or return-plan update does not."
+      "condition": "Pending cases only. Include common requestKey and expectedVersion, and at least one of isMuseAgent/homeURL/sourceURL/residentId. No message or originClaim field. This is the preferred structured missing-information route, including older pending cases. A changed declaration/source/resident value schedules a new review. Explicitly resubmitting the same home/source URL can also retry a completed needs-info technical precheck only when this case has zero provider-call receipts and fewer than three jobs; known/unknown/count/paid results are never repeated by that path. a plain message or return-plan update does not."
     }
   },
   "afterActivation": {
