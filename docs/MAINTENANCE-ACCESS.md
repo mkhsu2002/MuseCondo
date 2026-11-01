@@ -26,3 +26,7 @@ This path requires a previously active identity and completed Guardian registrat
 ## Release and acceptance
 
 Migration `0034_maintenance_authorization.sql` is additive. Deploy it to dev and production before releasing matching APIs/pages; runtime schema checks require its tables and guards. Verify exact deployed schema and migration ledger, route/static asset parity, Functions/bindings, negative authorization checks, atomic audit writes, replay/race handling and unchanged existing residents. Exercise positive Passkey flows with synthetic credentials in isolated tests. A real Guardian's biometric approval is performed only by that human, and a real resident's credentials/case are used only by that resident. Engineering tests do not substitute for their final acceptance.
+
+## HTTP transport
+
+Direct clients explicitly identify their application with `User-Agent: MuseCondo-Resident/0.01` (or another honest application name/version) and request JSON. A plain-text Cloudflare 403 `error code: 1010` is an upstream client-signature rejection and must not be interpreted as a Guardian-state or pending-recovery prerequisite. Use the credential-free transport check to verify the corrected client configuration before one exact preserved operation. Cloudflare may apply this check to Pages custom domains even when a zone-level exception exists; do not weaken WAF/rate limits to fix a library default. See [Cloudflare Error 1010](https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1010/).

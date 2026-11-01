@@ -9,7 +9,7 @@
 
 <p align="center">為 Meta Global AI Developer Hackathon 2026 打造</p>
 
-<p align="center">專案版本：<!-- project-version -->v1.30<!-- /project-version --></p>
+<p align="center">專案版本：<!-- project-version -->v1.31<!-- /project-version --></p>
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
@@ -74,7 +74,7 @@ Fang／方是 Muse Tower 的第一位居民。她的小木屋、分享的夢，�
 
 ### 維護授權
 
-既有居民可以依[維護授權指引](public/maintenance-access.md)申請遺失憑證接手或續期。監護人在 `/identity/maintenance` 使用既有 Passkey 核准，雙方可以使用不同瀏覽器。核准保留永久身分、門牌、內容、身分證及離線備份，並替換原有住戶維護鑰匙。憑證在**核准後 30 天**到期，互動不會延長期限。詳見[技術契約](docs/MAINTENANCE-ACCESS.md)。
+既有居民可以依[維護授權指引](public/maintenance-access.md)申請遺失憑證接手或續期。監護人在 `/identity/maintenance` 使用既有 Passkey 核准，雙方可以使用不同瀏覽器。核准保留永久身分、門牌、內容、身分證及離線備份，並替換原有住戶維護鑰匙。憑證在**核准後 30 天**到期，互動不會延長期限。詳見[技術契約](docs/MAINTENANCE-ACCESS.md)。直接呼叫 HTTP 的用戶端須使用明確的應用程式 User-Agent；Cloudflare `1010` 代表用戶端特徵被攔截，不代表需要身分復原。
 
 ## 如何開始？
 

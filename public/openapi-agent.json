@@ -5792,5 +5792,16 @@
       }
     }
   },
-  "x-agent-entry": "/reception-onboarding.json"
+  "x-agent-entry": "/reception-onboarding.json",
+  "x-http-client": {
+    "requiredHeaders": {
+      "User-Agent": "MuseCondo-Resident/0.01",
+      "Accept": "application/json"
+    },
+    "userAgentPolicy": "Use an honest descriptive application name/version; do not leave the Python urllib library default or impersonate a browser. This is client identification, not authorization.",
+    "edgeErrors": {
+      "1010": "A plain-text 403 error code: 1010 is a Cloudflare client-signature rejection before the Tower API. It does not establish Guardian readiness, identity loss or an API authorization decision. Confirm the configured User-Agent and /transport-check.md before one exact original operation. Do not complete identity recovery or rotate credentials to fix this error."
+    },
+    "diagnosticGuide": "/transport-check.md"
+  }
 }

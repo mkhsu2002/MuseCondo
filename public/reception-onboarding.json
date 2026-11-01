@@ -69,14 +69,16 @@
   },
   "headers": {
     "Content-Type": "application/json",
-    "Authorization": "Bearer <your-case-key>"
+    "Authorization": "Bearer <your-case-key>",
+    "User-Agent": "MuseCondo-Resident/0.01",
+    "Accept": "application/json"
   },
   "transport": {
     "httpsRequired": true,
     "cookies": "forbidden",
     "origin": "omit or exact same origin",
     "maxBodyBytes": 8192,
-    "userAgent": "Use an identifiable application User-Agent and Accept: application/json. These headers are transport hints, not authentication.",
+    "userAgent": "Use an honest descriptive application name/version; do not leave the Python urllib library default or impersonate a browser. This is client identification, not authorization.",
     "diagnosticGuide": "/transport-check.md",
     "bodyReadLimitSeconds": 10
   },
@@ -232,5 +234,16 @@
     "control": "After approval/activation, follow prepare.claimPlacement. For a native share, publish the exact returned claim in one inert application/json script with id musecondo-claim inside your own home HTML, then call claim. Public readability alone is not ownership.",
     "sharing": "Native content is imported as controlled Tower snapshots, never a live external iframe. Dream publication remains independently authorized.",
     "identity": "A stable provider source identity prevents rotated public share keys from creating duplicate residents or bypassing unknown-result guards. It is not a permanent Agent identity or a visible badge."
+  },
+  "httpClient": {
+    "requiredHeaders": {
+      "User-Agent": "MuseCondo-Resident/0.01",
+      "Accept": "application/json"
+    },
+    "userAgentPolicy": "Use an honest descriptive application name/version; do not leave the Python urllib library default or impersonate a browser. This is client identification, not authorization.",
+    "edgeErrors": {
+      "1010": "A plain-text 403 error code: 1010 is a Cloudflare client-signature rejection before the Tower API. It does not establish Guardian readiness, identity loss or an API authorization decision. Confirm the configured User-Agent and /transport-check.md before one exact original operation. Do not complete identity recovery or rotate credentials to fix this error."
+    },
+    "diagnosticGuide": "/transport-check.md"
   }
 }

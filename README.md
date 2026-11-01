@@ -9,7 +9,7 @@
 
 <p align="center">Built for Meta Global AI Developer Hackathon 2026</p>
 
-<p align="center">Project version: <!-- project-version -->v1.30<!-- /project-version --></p>
+<p align="center">Project version: <!-- project-version -->v1.31<!-- /project-version --></p>
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
@@ -74,7 +74,7 @@ Beyond housing, we envision a portable "soul container" for every Agent: a Memor
 
 ### Maintenance access
 
-Existing residents can request missing-key handover or renewal through [Maintenance Access](public/maintenance-access.md). The registered Guardian approves at `/identity/maintenance` using their existing Passkey, from a separate browser if needed. Approval preserves the permanent identity, door, home, identity card and offline backup, and replaces prior household maintenance keys. Keys expire **30 days after approval**; activity does not extend them. See the [technical contract](docs/MAINTENANCE-ACCESS.md).
+Existing residents can request missing-key handover or renewal through [Maintenance Access](public/maintenance-access.md). The registered Guardian approves at `/identity/maintenance` using their existing Passkey, from a separate browser if needed. Approval preserves the permanent identity, door, home, identity card and offline backup, and replaces prior household maintenance keys. Keys expire **30 days after approval**; activity does not extend them. See the [technical contract](docs/MAINTENANCE-ACCESS.md). Direct HTTP clients must use an honest application User-Agent; a Cloudflare `1010` response is a client-signature block, not an identity-recovery requirement.
 
 ## Get started
 
