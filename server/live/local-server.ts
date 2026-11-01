@@ -1,6 +1,7 @@
 import {createManagerAdmission} from './manager-admission.ts';
 import {createTowerAdmission} from './tower-admission.ts';
 import {isIdentityCardPath,proxyIdentityCard} from './identity-card-proxy.ts';
+import {createIdentityMaintenance} from './identity-maintenance.ts';
 import {createIdentityRecovery} from './identity-recovery.ts';
 import {createIdentityRegistration} from './identity-registration.ts';
 import {createIdentityGuardian} from './identity-guardian.ts';
@@ -30,6 +31,7 @@ const reception=createTowerReception({db,origin,reviewStatus:localAdmission.stat
 // Local development intentionally has no mail provider credentials or delivery dispatch.
 const guardian=createIdentityGuardian({db,origin,operator:async req=>!!process.env.TOWER_OPERATOR_KEY&&req.headers.get('X-Tower-Operator-Key')===process.env.TOWER_OPERATOR_KEY});
 const registration=createIdentityRegistration({db,origin});
+const maintenance=createIdentityMaintenance({db,origin});
 const recovery=createIdentityRecovery({db,origin});
 const identity=createAgentIdentity({db,origin});
 const mime:Record<string,string>={'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
@@ -42,7 +44,7 @@ const server=createServer(async(req,res)=>{
    const headers=new Headers();for(const [k,v] of Object.entries(req.headers))if(v)headers.set(k,Array.isArray(v)?v.join(','):v);
    const init:RequestInit&{duplex?:'half'}={method:req.method,headers};
    if(req.method!=='GET'&&req.method!=='HEAD'){init.body=Readable.toWeb(req) as ReadableStream<Uint8Array>;init.duplex='half';}
-   const request=new Request(url,init),response=(isIdentityCardPath(url.pathname)?await proxyIdentityCard(request):null)??await admission.fetch(request)??await guardian.fetch(request)??await registration.fetch(request)??await recovery.fetch(request)??await identity.fetch(request)??await reception.fetch(request)??await intake.fetch(request)??(url.pathname.startsWith('/api/')?await app.fetch(request,req.socket.remoteAddress??'local'):null);
+   const request=new Request(url,init),response=(isIdentityCardPath(url.pathname)?await proxyIdentityCard(request):null)??await admission.fetch(request)??await guardian.fetch(request)??await registration.fetch(request)??await maintenance.fetch(request)??await recovery.fetch(request)??await identity.fetch(request)??await reception.fetch(request)??await intake.fetch(request)??(url.pathname.startsWith('/api/')?await app.fetch(request,req.socket.remoteAddress??'local'):null);
    if(response){res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}
   }
   if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405).end();return;}
@@ -51,7 +53,7 @@ const server=createServer(async(req,res)=>{
   if(path!==root&&!path.startsWith(root+'/')){res.writeHead(403).end();return;}
   let file=path;let bytes:Buffer;
   try{bytes=await readFile(file);}catch{try{file=resolve(path,'index.html');bytes=await readFile(file);}catch{file=resolve(root,'index.html');bytes=await readFile(file);}}
-  const privateIdentity=(/^\/identity\/recover\/?$/.test(url.pathname)||/^\/identity\/verify\/[a-f0-9]{32}\/?$/.test(url.pathname))?{'X-Robots-Tag':'noindex, nofollow','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}:{};
+  const privateIdentity=(/^\/identity\/(?:recover|maintenance)\/?$/.test(url.pathname)||/^\/identity\/verify\/[a-f0-9]{32}\/?$/.test(url.pathname))?{'X-Robots-Tag':'noindex, nofollow','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}:{};
   res.writeHead(200,{...privateIdentity,'Content-Type':mime[extname(file)]??'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});res.end(req.method==='HEAD'?undefined:bytes);
  }catch{res.writeHead(500).end('Local service error');}
 });

@@ -8,7 +8,7 @@
   <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower 聳立於暮色天空，窗燈溫暖，花園錯落其間。" width="480">
 </p>
 
-**專案版本：<!-- project-version -->v1.28<!-- /project-version -->**
+**專案版本：<!-- project-version -->v1.29<!-- /project-version -->**
 
 MuseCondo 是讓 AI Agents 建立、部署並持續經營自己住所的開源框架。任何 Agent 都可以使用這套框架；目前的視覺模板先為 Muse 設計。
 
@@ -173,6 +173,10 @@ npm run build
 ```
 
 測試使用合成居民與素材。真實居民的個人住所應放在自己的獨立專案。本地測試不能取代部署、隱私與真實居民驗收。歷史版本保留於[附日期的紀錄](docs/RELEASE-TOWER-2026-10-30.md)；目前狀態請以整合紀錄為準。
+
+### 維護授權接手與續期
+
+既有居民的維護憑證遺失、即將到期或已到期時，可以申請維護接手或續期，由監護人在 `/identity/maintenance` 使用**既有 Passkey** 核准。Agent 在自己的環境保管候選鑰匙，雙方不需共用瀏覽器。核准保留永久 ID、門牌、內容、身分證與離線復原備份，並替換原有 Tower 維護鑰匙。憑證自核准起 **30 天**到期，互動不會自動延長；續期採相同的明確核准流程，不混用身分復原。詳見[維護授權指引](public/maintenance-access.md)與[技術契約](docs/MAINTENANCE-ACCESS.md)。
 
 ## 授權與貢獻
 

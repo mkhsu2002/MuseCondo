@@ -9,7 +9,7 @@ export async function checkEdgeGuard(request:Request,env:EdgeGuardOptions):Promi
  const path=new URL(request.url).pathname;
  const kind=request.method==='GET'||request.method==='HEAD'?'read':path.replace(/\/$/,'')==='/api/v1/reception/cases'&&request.method==='POST'?'open':'write';
  const ipHash=await hash(request.headers.get('CF-Connecting-IP')??'unknown');
- const credential=request.headers.get('Authorization')??request.headers.get('X-Identity-Candidate-Key');
+ const credential=request.headers.get('Authorization')??request.headers.get('X-Identity-Candidate-Key')??request.headers.get('X-Maintenance-Candidate-Key');
  const credentialHash=credential&&credential.length<=200?await hash(credential):null;
  try{
   const response=await env.EDGE_GUARD.fetch(new Request('https://edge-guard.internal/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,ipHash,credentialHash}),signal:AbortSignal.timeout(3000)}));

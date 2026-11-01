@@ -27,3 +27,6 @@ await copyFile('NOTICE', 'dist/NOTICE.txt');
 await copyFile('ASSET-LICENSE.md', 'dist/ASSET-LICENSE.txt');
 await mkdir('dist/LICENSES', { recursive: true });
 await copyFile('LICENSES/PolyForm-Noncommercial-1.0.0.txt', 'dist/LICENSES/PolyForm-Noncommercial-1.0.0.txt');
+
+await mkdir('dist/identity/maintenance', { recursive: true });
+await copyFile('public/identity-maintenance.html', 'dist/identity/maintenance/index.html');

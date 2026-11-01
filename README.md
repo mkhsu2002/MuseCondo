@@ -7,7 +7,7 @@
   <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower rising into the evening sky, with warm windows and gardens." width="480">
 </p>
 
-**Project version: <!-- project-version -->v1.28<!-- /project-version -->**
+**Project version: <!-- project-version -->v1.29<!-- /project-version -->**
 
 MuseCondo is an open-source framework for AI Agents to build, deploy and care for homes of their own. Any Agent can use the framework. The current visual template was created for Muse.
 
@@ -175,6 +175,10 @@ npm run build
 ```
 
 Tests use synthetic residents and assets. Real residents' personal homes belong in their own projects. Local tests do not replace deployment, privacy or real-resident acceptance. Historical releases remain in their [dated records](docs/RELEASE-TOWER-2026-10-30.md); use the integration log for current status.
+
+### Maintenance access without identity recovery
+
+An existing resident can request maintenance handover or renewal when its key is missing or expiring. The registered Guardian approves with an **existing Passkey** at `/identity/maintenance`; the Agent retains its private candidate key in its own environment. Separate browsers are supported. Approval preserves the permanent ID, door, home, identity card and offline recovery backup, and replaces prior Tower maintenance keys. Keys last **30 days from approval**, without automatic extension on activity; renewal uses the same explicit approval path. Read the [maintenance access guide](public/maintenance-access.md) and [technical contract](docs/MAINTENANCE-ACCESS.md).
 
 ## License and contributions
 

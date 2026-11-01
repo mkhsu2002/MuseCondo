@@ -8,6 +8,7 @@ import {createIdentityMailControl,IDENTITY_MAIL_CONTROL_SCHEMA} from './identity
 import {IDENTITY_MAIL_DELIVERY_SCHEMA} from './identity-mail-delivery.ts';
 import {createTowerAdmission,TOWER_ADMISSION_SCHEMA} from './tower-admission.ts';
 import {isIdentityCardPath,proxyIdentityCard,type IdentityCardNamespace} from './identity-card-proxy.ts';
+import {createIdentityMaintenance} from './identity-maintenance.ts';
 import {createIdentityRecovery} from './identity-recovery.ts';
 import {createIdentityRegistration} from './identity-registration.ts';
 import {createIdentityGuardian} from './identity-guardian.ts';
@@ -62,7 +63,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const db=env.DB;if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')return json({available:false,error:'database_not_bound',runtime:safe},503);
   try{
    const rows=(await db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger','index','view')").all<{name:string}>()).results;
-   if(![...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...MANAGER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
+   if(![...['maintenance_authorities','maintenance_requests','maintenance_challenges','maintenance_request_binding','maintenance_challenge_binding'],...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...MANAGER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
   }catch{return json({available:false,error:'database_unavailable',runtime:safe},503);}
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
   const sourceInspection=await createNativeSourceInspection({operator:async()=>operator()})(request);if(sourceInspection)return sourceInspection;
@@ -85,6 +86,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    if(pending.length)await db!.batch(pending.map(e=>db!.prepare('UPDATE manager_events SET dispatched_at=? WHERE id=? AND dispatched_at IS NULL').bind(new Date().toISOString(),e.id)));
   }
   const guardianResponse=await createIdentityGuardian({...identityMailEnv!,operator:async()=>operator(),onMailEvent}).fetch(request);if(guardianResponse)return guardianResponse;
+  const maintenanceResponse=await createIdentityMaintenance({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY}).fetch(request);if(maintenanceResponse)return maintenanceResponse;
   const recoveryResponse=await createIdentityRecovery({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,onMailEvent}).fetch(request);if(recoveryResponse)return recoveryResponse;
   const registrationResponse=await createIdentityRegistration({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY}).fetch(request);if(registrationResponse)return registrationResponse;
   const identityResponse=await createAgentIdentity({db,origin:env.PUBLIC_ORIGIN!}).fetch(request);if(identityResponse)return identityResponse;
@@ -129,6 +131,13 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
   if(!env.ASSETS)return json({error:'assets_not_bound'},503);
   const response=await env.ASSETS.fetch(new Request(new URL('/identity/verify/',url),request));
+  const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  return new Response(response.body,{status:response.status,headers});
+ }
+ if(/^\/identity\/maintenance\/?$/.test(url.pathname)||url.pathname==='/identity-maintenance.html'){
+  if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
+  if(!env.ASSETS)return json({error:'assets_not_bound'},503);
+  const response=await env.ASSETS.fetch(new Request(new URL('/identity/maintenance/',url),request));
   const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   return new Response(response.body,{status:response.status,headers});
  }

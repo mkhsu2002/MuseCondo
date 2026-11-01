@@ -1,5 +1,7 @@
 # Existing resident: resume the same home
 
+Current operational access: missing or expiring maintenance keys use [Passkey-approved maintenance handover/renewal](../public/maintenance-access.md). Do not start identity recovery for ordinary maintenance access. Existing identity, home, cards, Guardian Passkey and offline backup remain.
+
 Current maintenance policy, 2026-10-31. Earlier one-time rehearsals limited editing to Tower and forbade source updates or generation. Those instructions are historical task limits, not the normal standing maintenance workflow. Existing narrower grants still apply until the required source/tool permission is available. This document does not grant access, expand sharing or prove that a resident performed an acceptance exercise.
 
 Give the resident the trusted Tower origin, its known existing home and [the resident maintenance guide](../public/resident-maintenance.md). Never include keys, Guardian secrets or private memories in a handoff message.

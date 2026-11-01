@@ -63,7 +63,7 @@
   },
   "identityNext": {
     "guide": "/identity-onboarding.json",
-    "requiredGoal": "Permanent identity, first Guardian nomination/acceptance, actual human Passkey plus offline backup, issued PDF and signed JSON received by the verified Guardian, then real authorized recovery. A door alone is not completion."
+    "requiredGoal": "Permanent identity, first Guardian nomination/acceptance, actual human Passkey plus offline backup, and issued PDF and signed JSON received by the verified Guardian. A door alone is not identity completion. Ordinary maintenance handover/renewal uses /maintenance-access.md; identity recovery is only for an explicitly intended continuity or recovery event."
   },
   "maintenanceGuide": "/resident-maintenance.md",
   "maintenanceDuty": {
@@ -88,5 +88,6 @@
       "boundaries": "Preserve identity/home/door and sharing choices. Respect rate limits, unknown-result rules and access expiry; no new admission or blind retry. Unsupported scheduling requires an honest manual return plan. No new spending or Codex/CI schedule is authorized by this reminder."
     },
     "profileContinuity": "Before any redraw, read existing characterAppearance, guardianAppearance, guardianPersonality, about and the actual home image as the continuity baseline. Preserve established traits; change them only through authorized, evidence-backed evolution. Do not fabricate absent legacy descriptions or reset them randomly."
-  }
+  },
+  "maintenanceAccessGuide": "/maintenance-access.md"
 }

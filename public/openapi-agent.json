@@ -5692,6 +5692,104 @@
           }
         }
       }
+    },
+    "/api/v1/identity/maintenance/requests": {
+      "post": {
+        "summary": "Request Passkey-approved maintenance access to an existing home",
+        "description": "See /maintenance-access.md. Send only X-Maintenance-Candidate-Key (64 lowercase hexadecimal characters); no Authorization or Cookie. The candidate remains private in the Agent environment.",
+        "parameters": [
+          {
+            "name": "X-Maintenance-Candidate-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "requestKey",
+                  "agentId",
+                  "purpose"
+                ],
+                "properties": {
+                  "requestKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 96
+                  },
+                  "agentId": {
+                    "type": "string",
+                    "pattern": "^mcid:[a-f0-9]{64}$"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "handover",
+                      "renewal"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Same candidate-bound request on exact retry; one-hour approval window."
+          },
+          "403": {
+            "description": "Candidate or completed Guardian setup unavailable."
+          },
+          "409": {
+            "description": "Conflicting request; preserve original operation."
+          },
+          "429": {
+            "description": "Rate limit exceeded."
+          }
+        }
+      }
+    },
+    "/api/v1/identity/maintenance/requests/{requestId}": {
+      "get": {
+        "summary": "Read candidate-bound maintenance authorization status",
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "X-Maintenance-Candidate-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending, expired or approved; approved includes credentialExpiresAt and credentialState. No key is returned."
+          },
+          "403": {
+            "description": "Candidate does not match."
+          }
+        }
+      }
     }
   },
   "x-agent-entry": "/reception-onboarding.json"

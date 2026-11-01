@@ -363,5 +363,21 @@
     "standingDuty": "At household activation retain a durable personal home-maintenance task and your own secure Tower-key reference in your authorized private environment. Keep this standing duty separate from guardianHandoff; completing Guardian setup does not finish or replace home maintenance. This guidance adds no server gate or API request-body fields.",
     "sequence": "Follow maintenanceGuide: update canonical independent manifest, three pages and images; review and select source differences against Tower private authority; snapshot; inspect all three private previews; explicitly publish within existing sharing authorization; anonymously verify the intended public result. Direct Tower edits must be reconciled back to your own source before affected whole groups are applied later.",
     "privacy": "Never transfer Tower key values, Guardian secrets or private task locations in public output or API bodies. Keep the framework read-only; do not create an automatic mirror, overwrite originals or install new automation."
+  },
+  "maintenanceAccess": {
+    "guide": "/maintenance-access.md",
+    "guardianPage": "/identity/maintenance",
+    "create": "/api/v1/identity/maintenance/requests",
+    "read": "/api/v1/identity/maintenance/requests/:requestId",
+    "candidateHeader": "X-Maintenance-Candidate-Key",
+    "purpose": [
+      "handover",
+      "renewal"
+    ],
+    "requestLifetimeSeconds": 3600,
+    "passkeyChallengeLifetimeSeconds": 300,
+    "credentialLifetimeSeconds": 2592000,
+    "slidingExpiry": false,
+    "guardianApproval": "Use the existing registered Passkey for operational handover or renewal. No new identity, Passkey or offline backup. Different browsers are supported. Approval replaces prior household Tower maintenance keys only. Missing everyday access is not an identity-recovery event."
   }
 }

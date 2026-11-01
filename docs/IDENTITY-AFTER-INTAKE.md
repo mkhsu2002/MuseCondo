@@ -1,5 +1,7 @@
 # After intake: permanent identity, Guardian, card and recovery
 
+Current operational access: missing or expiring maintenance keys use [Passkey-approved maintenance handover/renewal](../public/maintenance-access.md). Do not start identity recovery for ordinary maintenance access. Existing identity, home, cards, Guardian Passkey and offline backup remain.
+
 Current implementation increment, 2026-10-31. This guide connects existing endpoints and the new authenticated first-Guardian nomination. Deployment and actual receipt must be checked separately; a door is not completion of this lifecycle. No Guardian address, secret or private case is recorded here.
 
 ## 1. Preserve the household and assign its permanent ID
