@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer">
+  <title>Tower Lord · Steward Console</title>
+  <link rel="stylesheet" href="/tower-lord/console.css">
+  <script src="/tower-lord/console.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to console</a>
+  <div class="shell">
+    <aside class="rail" aria-label="Console identity">
+      <a class="wordmark" href="/tower-lord/" aria-label="Tower Lord console"><span class="tower-mark" aria-hidden="true">╷</span><span>MUSE TOWER<br><strong>Tower Lord</strong></span></a>
+      <div class="rail-rule"></div>
+      <p class="eyebrow">Stewardship / 01</p>
+      <p class="rail-title">A clear view<br>of the Tower.</p>
+      <p class="rail-copy">Residents, recorded work and resources in one private place.</p>
+      <div class="role-block"><span class="status-dot" aria-hidden="true"></span><span id="session-role">Role unverified</span><span class="read-only">Read only</span></div>
+      <div class="handover"><span class="eyebrow">Future governance</span><button type="button" disabled aria-describedby="handover-note">Formal Handover <span aria-hidden="true">⌑</span></button><p id="handover-note">Project direction established; feature under development</p></div>
+    </aside>
+    <main id="main" tabindex="-1">
+      <header class="page-header"><div><p class="eyebrow">Private steward console</p><h1>Tower at a glance</h1><p class="subtitle">A record of what is here, what happened, and what remains open.</p></div><span class="environment" id="environment">Environment unverified</span></header>
+      <form class="toolbar" id="range-form"><div class="date-field"><label for="from">From <span>(UTC)</span></label><input type="date" id="from" name="from" required></div><div class="date-field"><label for="to">Through <span>(UTC)</span></label><input type="date" id="to" name="to" required></div><button class="primary" type="submit" id="refresh">Refresh records <span aria-hidden="true">↻</span></button><div class="freshness"><span id="observed-at">No records loaded</span><span id="freshness">Manual refresh only</span></div></form>
+      <p id="global-status" class="notice" role="status" aria-live="polite">Loading protected records…</p>
+      <section aria-labelledby="overview-heading"><div class="section-heading"><h2 id="overview-heading">Overview</h2><span class="muted">Current lifecycle · selected-period work</span></div><div id="overview" class="overview-grid" aria-busy="true"></div><div id="coverage" class="coverage"></div></section>
+      <section class="records" aria-labelledby="records-heading"><div class="section-heading"><h2 id="records-heading">Tower records</h2><span class="muted">UTC timestamps</span></div><div class="tabs" role="tablist" aria-label="Record type"><button id="tab-residents" role="tab" aria-selected="true" aria-controls="record-panel" data-tab="residents">Residents</button><button id="tab-applications" role="tab" aria-selected="false" aria-controls="record-panel" tabindex="-1" data-tab="applications">Applications</button><button id="tab-history" role="tab" aria-selected="false" aria-controls="record-panel" tabindex="-1" data-tab="history">Manager history</button><button id="tab-usage" role="tab" aria-selected="false" aria-controls="record-panel" tabindex="-1" data-tab="usage">Usage &amp; cost</button></div><div id="history-filters" class="history-filters" hidden><div><label for="duty">Duty</label><input id="duty" type="text" maxlength="100" placeholder="All duties" form="range-form"></div><div><label for="state">State</label><input id="state" type="text" maxlength="100" placeholder="All states" form="range-form"></div><div><label for="correlationId">Correlation ID</label><input id="correlationId" type="text" maxlength="1000" placeholder="All recorded references" form="range-form"></div><button type="submit" form="range-form">Apply filters</button></div><div id="record-panel" role="tabpanel" aria-labelledby="tab-residents" aria-busy="true" tabindex="0"><p class="empty">Loading residents…</p></div><div class="pagination" id="pagination"><button type="button" id="previous" disabled>← Previous</button><span id="page-number">Page 1</span><button type="button" id="next" disabled>Next →</button></div></section>
+      <footer>Private operational records · Refreshing this view does not start work.</footer>
+    </main>
+  </div>
+</body>
+</html>

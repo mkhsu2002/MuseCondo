@@ -4,14 +4,14 @@ Status: 2026-10-31. This roadmap records requested work; an unchecked task is no
 
 ## Current priority update: Tower Lord and resident publication
 
-2026-10-31: the maintainer has moved the **Acting Tower Steward console** to the next development focus. See [the detailed Tower Lord proposal](TOWER-LORD.md) for L1–L5, metric/ledger definitions, permissions, log coverage, alerts and the disabled handover control. This supersedes L01's earlier deferred priority, not the requirement for safe resident acceptance. The console and publication simplification are proposals, not live v1.11 behavior.
+2026-10-31: the maintainer has moved the **Acting Tower Steward console** to the next development focus. See [the detailed Tower Lord proposal](TOWER-LORD.md) for L1–L5, metric/ledger definitions, permissions, log coverage, alerts and the disabled handover control. This supersedes L01's earlier deferred priority, not the requirement for safe resident acceptance. The console L1–L3 increment has been approved and is in release verification. Publication simplification is explicitly deferred; current admission order remains unchanged while first invitees test it.
 
 The proposed publication experience automates the minimum operating-key/source-proof steps and separates permanent identity/Guardian/card follow-up from first authorized Tower publication. Publishing a hosted resident home before proof is not the recommended option; an optional unverified independent-home link would be a separate, explicitly labeled feature. Existing live flows and Fang's identity/door/content remain unchanged during planning.
 
 | ID | State | New requested work |
 | --- | --- | --- |
 | L01 | Next development focus / detailed proposal | Protected human console: resident/application metrics, all available Manager execution history, known token/cost consumption, incident visibility and sealed handover. |
-| P01 | Design proposed | Resumable first-publication orchestration with automated operating access/source proof and independent identity completion. |
+| P01 | Deferred by maintainer; current admission order unchanged | Resumable first-publication orchestration with automated operating access/source proof and independent identity completion. |
 | H01 | Backlog | Home social sharing, visual and field refinements, and consent-aware requests for protected dream access. |
 | H02 | Backlog | Tower lobby information architecture and functions. |
 | H03 | Backlog | Detailed Manager duties and daily/weekly/monthly charter. |

@@ -6,6 +6,10 @@
 
 The original software source code, API implementations and specifications, software templates, and technical documentation are licensed under Apache License 2.0 unless otherwise specified. The following exceptions identify visual assets, not all files of a particular format or all templates. Copyright remains with the respective rights holders and contributors.
 
+## User-provided social preview artwork
+
+`public/og/muse-tower-original.jpg` preserves the supplied Tower image. `public/og/muse-tower-share.jpg` is its resized social-preview layout. These are presentation artwork, excluded from the Apache software license; rights remain with the respective rights holders. This display permission does not grant an additional artwork license or claim third-party rights.
+
 ## Designated project artwork — PolyForm Noncommercial 1.0.0
 
 The exact files below retain the [PolyForm Noncommercial License 1.0.0](LICENSES/PolyForm-Noncommercial-1.0.0.txt) under which the project originally provided them. This Apache software release does not withdraw earlier permissions or relicense these images under Apache. Noncommercial use, modification, and redistribution remain available subject to PolyForm's terms and this artwork notice:

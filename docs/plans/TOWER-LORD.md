@@ -1,6 +1,6 @@
 # Tower Lord: Acting Steward console proposal
 
-Status: 2026-10-31 Vancouver. Detailed design for review, not a shipped console or a change to admission. This supersedes the earlier deferred-priority note: the maintainer has requested this console as the next development focus while real resident acceptance continues. Application v1.11 remains unchanged; T09 remains open.
+Status: 2026-10-31 Vancouver. The maintainer approved implementing the read-only L1–L3 console. Implementation is undergoing release verification; deployment acceptance is recorded separately. This supersedes the earlier deferred-priority note: the maintainer has requested this console as the next development focus while real resident acceptance continues. Application v1.11 remains unchanged; T09 remains open.
 
 ## Purpose and role
 
@@ -8,7 +8,9 @@ Tower Manager cares for community life through authorized tools. Tower Lord supe
 
 Default UI, API descriptions, new audit reasons and documentation are English. The future handover control is visibly sealed, disabled, labeled **Formal Handover**, with **Project direction established; feature under development** underneath. There is no active handover endpoint. These English equivalents preserve the previously requested meaning and follow the later English-default requirement.
 
-## Publication before permanent identity: recommended design
+## Publication simplification: deferred by the maintainer
+
+The maintainer explicitly requested no changes to the current admission order while the first invited residents test it. The alternatives below are preserved design history, not active implementation tasks.
 
 Independent homes are built and publicly deployed before current application review. They remain usable regardless of Tower membership. Permanent identity completion, Guardian Passkey/backup and card delivery must not gate first authorized Tower publication.
 

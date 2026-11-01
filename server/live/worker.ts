@@ -1,3 +1,4 @@
+import {towerLordRoute,type TowerLordBindings} from './tower-lord-routes.ts';
 import {checkEdgeGuard,type EdgeGuardBinding} from './edge-guard.ts';
 import {admissionSecurityStatus} from './admission-security-status.ts';
 import {createManagerAdmission,MANAGER_ADMISSION_SCHEMA} from './manager-admission.ts';
@@ -23,7 +24,7 @@ import {createManagerRoutes} from './tower-manager-routes.ts';
 import {createAutonomyRoutes,type ManagerRuntimeBinding} from './tower-autonomy-routes.ts';
 import {autonomySchemaReady,type AssetBucket} from './tower-autonomy.ts';
 import type {Database} from './db.ts';
-export interface PagesBindings {
+export interface PagesBindings extends TowerLordBindings {
  EDGE_GUARD?:EdgeGuardBinding;EDGE_GUARD_REQUIRED?:string;
  IDENTITY_CARDS?:IdentityCardNamespace;
  MANAGER_ASSETS?:AssetBucket;MANAGER_RUNTIME?:ManagerRuntimeBinding;
@@ -43,6 +44,7 @@ const amount=(v:string|undefined)=>v&&/^\d{1,10}$/.test(v)?Number(v):0;
 function sourceOrigins(v:string|undefined):string[]{try{const a=JSON.parse(v??'[]');return Array.isArray(a)&&a.length<=20&&a.every(x=>typeof x==='string'&&validOrigin(x))?a:[];}catch{return [];}}
 /** Same-origin Pages runtime. Secrets remain in deployment storage; status only reports gates. */
 export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeContext):Promise<Response>{
+ const lord=await towerLordRoute(request,env);if(lord)return lord;
  const url=new URL(request.url),api=url.pathname==='/api'||url.pathname.startsWith('/api/'),home=/^\/home\/[a-f0-9]{16}(\/(inside|dreams))?\/?$/.test(url.pathname);
  if(url.pathname.startsWith(IDENTITY_MAIL_INTERNAL_PREFIX))return json({error:'not_found'},404);
  if(api||(home&&env.DB)){
