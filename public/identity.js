@@ -45,8 +45,9 @@
     confirmation.disabled = locked;
     show.disabled = busy || done;
     start.disabled = !supported || busy || done || !!current;
-    start.textContent = optionsPending ? "重試確認邀請" : "確認邀請";
+    start.textContent = optionsPending ? "Retry invitation confirmation" : "Confirm invitation";
     form.hidden = done;
+    $("identity-next-steps").hidden = !done;
     $("passkey-section").hidden = done;
     $("expiry-label").hidden = done;
     expiry.hidden = done;
@@ -61,7 +62,7 @@
       done ||
       (!completeBody &&
         (!credential || !offline || !downloadRequested || !ack.checked));
-    finish.textContent = completeBody ? "重試完成設定" : "完成監護設定";
+    finish.textContent = completeBody ? "Retry completion" : "Complete Guardian setup";
     restart.hidden = done || (!current && !optionsRequest);
     restart.disabled =
       busy || !!completeBody || completePending || optionsPending;
@@ -90,7 +91,7 @@
     return !!current && Date.now() >= Date.parse(current.expiresAt);
   }
   function localExpiry() {
-    invalidated("這次設定已到期。請重新確認邀請，再建立新的 Passkey。");
+    invalidated("This setup expired. Confirm the invitation again and create a new Passkey.");
   }
   function encode(value) {
     if (!(value instanceof ArrayBuffer)) throw new Error("invalid_credential");
@@ -253,23 +254,23 @@
     if (error.unknown) {
       if (phase === "options") optionsPending = true;
       else completePending = true;
-      say("結果尚未確認。請留在本頁，使用同一個重試按鈕確認結果。");
+      say("The result is not yet confirmed. Stay on this page and use the same retry button.");
       return;
     }
     if (error.status === 429) {
-      say("操作暫時較頻繁，請稍候，再按同一個按鈕重試。");
+      say("Too many requests. Wait, then retry with the same button.");
       return;
     }
     if (error.status >= 500) {
-      say("暫時無法完成，請稍後使用同一筆設定重試。");
+      say("Setup is temporarily unavailable. Retry the same prepared operation later.");
       return;
     }
     const message =
       error.status === 403
-        ? "確認碼無法使用。請核對邀請與確認碼，或聯絡邀請你的住戶。"
+        ? "This confirmation code cannot be used. Check your invitation or contact the resident."
         : error.status === 409
-          ? "這次設定已到期或已變更。請重新確認邀請後再建立 Passkey。"
-          : "這次設定未能確認。請重新確認邀請後再試。";
+          ? "This setup expired or changed. Confirm the invitation again before creating a Passkey."
+          : "Setup could not be confirmed. Confirm the invitation again before retrying.";
     invalidated(message);
   }
   show.addEventListener("change", () => {
@@ -282,7 +283,7 @@
       const id = invitation.value.trim(),
         code = confirmation.value.trim();
       if (!/^[a-f0-9]{32}$/.test(id) || !/^[a-f0-9]{64}$/.test(code)) {
-        say("請完整貼上邀請識別碼與初次確認碼。");
+        say("Paste the complete Invitation ID and initial confirmation code.");
         return;
       }
       optionsRequest = {
@@ -294,7 +295,7 @@
     }
     busy = true;
     render();
-    say("正在確認邀請…");
+    say("Confirming the invitation…");
     try {
       const data = await api("/options", optionsBody);
       if (
@@ -308,9 +309,9 @@
       current = data;
       optionsPending = false;
       agent.textContent = data.agentId;
-      expiry.textContent = new Date(data.expiresAt).toLocaleString("zh-TW");
+      expiry.textContent = new Date(data.expiresAt).toLocaleString("en",{timeZone:"UTC"});
       if (expired()) localExpiry();
-      else say("邀請已確認。準備好時，請建立 Passkey。");
+      else say("Invitation confirmed. Create a Passkey when you are ready.");
     } catch (error) {
       known(error, "options");
     } finally {
@@ -336,7 +337,7 @@
     }
     busy = true;
     render();
-    say("請依瀏覽器提示建立 Passkey。");
+    say("Follow your browser’s prompt to create a Passkey.");
     try {
       const value = await navigator.credentials.create({ publicKey });
       if (!value) throw { name: "NotAllowedError" };
@@ -344,13 +345,13 @@
       offline = recoveryCode();
       downloadRequested = false;
       ack.checked = false;
-      say("Passkey 已準備好。請下載並安全保存私密復原碼。");
+      say("Passkey prepared. Download and securely save the private recovery code.");
     } catch (error) {
       clearPrepared();
       say(
         error?.name === "NotAllowedError"
-          ? "已取消建立 Passkey。準備好時可以再試。"
-          : "這台裝置暫時無法建立 Passkey。請使用支援 Passkey 的瀏覽器與安全連線，再試一次。",
+          ? "Passkey creation was cancelled. Try again when ready."
+          : "This device cannot create a Passkey. Use a supported browser and a secure connection.",
       );
     } finally {
       busy = false;
@@ -364,13 +365,13 @@
     try {
       const file = new Blob(
         [
-          "Muse Tower 私密復原碼\n網站：" +
+          "Muse Tower private recovery code\nWebsite: " +
             location.origin +
-            "\nAgent ID：" +
+            "\nAgent ID: " +
             current.agentId +
-            "\n復原碼：" +
+            "\nRecovery code: " +
             offline +
-            "\n請離線保存，不要公開或轉傳。\n",
+            "\nStore securely offline. Never publish or forward this file.\n",
         ],
         { type: "text/plain;charset=utf-8" },
       );
@@ -383,9 +384,9 @@
       document.body.append(link);
       link.click();
       downloadRequested = true;
-      say("已開始下載。請確認檔案已安全保存，再勾選下方確認。");
+      say("Download started. Confirm that the file is securely saved before checking the box.");
     } catch {
-      say("未能開始下載。請確認瀏覽器允許下載，再試一次。");
+      say("The download could not start. Allow downloads in your browser and try again.");
     } finally {
       link.remove();
       if (url) URL.revokeObjectURL(url);
@@ -420,7 +421,7 @@
     }
     busy = true;
     render();
-    say("正在完成監護設定…");
+    say("Completing Guardian setup…");
     try {
       const data = await api("/complete", completeBody);
       if (
@@ -442,7 +443,7 @@
       show.checked = false;
       invitation.type = confirmation.type = "password";
       expiry.textContent = "";
-      say("監護設定完成。請保管好 Passkey 與私密復原碼。");
+      say("Guardian setup complete. Keep your Passkey and private recovery code safe; continue with the card instructions below.");
     } catch (error) {
       known(error, "complete");
     } finally {
@@ -459,10 +460,10 @@
     current = null;
     agent.textContent = "";
     expiry.textContent = "";
-    say("請重新確認邀請，再建立新的 Passkey。");
+    say("Confirm the invitation again, then create a new Passkey.");
     render();
     invitation.focus();
   });
   render();
-  if (!supported) say("請使用支援 Passkey 的瀏覽器，並透過安全連線開啟本頁。");
+  if (!supported) say("Use a browser that supports Passkeys and open this page over a secure connection.");
 })();

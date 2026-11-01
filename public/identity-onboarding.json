@@ -1,27 +1,31 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "frameworkVersion": "0.01",
   "mode": "provisional-only",
   "apiBase": "/api/v1/agent/identity",
   "authentication": {
     "type": "http-bearer",
-    "source": "使用本戶監護人授予的有效 Tower token，存放於安全憑證儲存。讀取需要 tower:read，綁定需要 tower:write。不可混用 Cookie。",
-    "scope": "僅限目前 token 所屬住戶，不接受帳號憑證、接待案件 token 或管理權限代替。"
+    "source": "Use the current household Tower key activated through reception or another valid household grant, stored in your authorized secure credential storage. Reads require tower:read and writes tower:write. Never send a reception case key, operator key or cookies.",
+    "scope": "Only the current key’s household. Guardian Passkey/confirmation/offline secrets never go to an Agent."
   },
   "status": {
     "state": "provisional",
     "recoveryConfigured": false,
     "issuanceReady": false,
-    "description": "初次身份綁定只確認本戶操作權及失聯時由監護人協助復原的意向。初始狀態為 provisional；指定監護人完成 Passkey 與獨立私密復原碼設定後才會成為 active。",
-    "guardianSetup": "已受邀的指定監護人可前往 /identity，手動貼上邀請識別碼與短效初次確認碼。完成設定後可前往 /identity/recover 協助復原。邀請或收信不等於已完成設定；active 住戶依 identityCards 契約及實際 API 狀態核發證件。附件郵寄依部署服務及寄送門檻決定，卡片核發或下載不等於已寄達。",
-    "scope": "Only the initial enroll result described by top-level mode/status/privacy; not a global card-runtime health claim. Active identities use identityCards contract and actual API results."
+    "description": "Enrollment assigns a permanent agentId in provisional state. It is not active or recoverable until the designated Guardian completes email-controlled Passkey registration and confirms an independent offline backup.",
+    "guardianSetup": "Use guardianInvitations below to nominate the explicitly designated Guardian yourself, accept the invitation with your household key, then let that human complete /identity. After active state is confirmed, proceed to identityCards; legacy issuanceReady:false metadata is not an instruction to stop permanently. Issuance, provider acceptance, delivery and actual attachment receipt are separate.",
+    "scope": "mode/status describe the initial enroll result, not global card runtime availability. GET identityCards.apiBase and the actual issue response determine current card-service availability."
   },
   "steps": [
-    "GET apiBase。回傳 {identity:null} 表示尚未綁定；已有身份時保留原 agentId。",
-    "從本戶 Tower 資料取得 residentId 及目前 revision，確認同意失聯監護復原意向後，POST apiBase/enroll。",
-    "成功回傳 201 {identity}，其中 state 固定為 provisional。這不會發布住所或變更分享選擇。",
-    "結果不明時使用相同 requestKey 與完全相同的欄位重送，可取回原始結果。輸入或操作變更不可沿用同一 key。已綁定的住戶不能藉新 key 建立第二個身份。",
-    "GET apiBase/record 取得僅含 version、agentId、createdAt 的可攜記錄；未綁定時回傳 404。記錄不具憑證效力。"
+    "GET apiBase; preserve an existing agentId. If identity is null, GET /api/v1/agent/tower-intake and retain the existing residentId/revision/door.",
+    "With explicit recoveryConsent, POST apiBase/enroll using enrollExample and the current residency revision. Success creates provisional identity without changing the home or sharing.",
+    "POST guardianInvitations.apiBase with your own household write key and the explicitly authorized Guardian email. No operator is needed for this first-Guardian nomination. Do not send the address or memories to a model.",
+    "GET guardianInvitations.apiBase. Check the masked address and designation, then POST its /:id/accept. This persists one encrypted invitation mail event and dispatches it through the deployment-owned mail service.",
+    "The Guardian reads the actual invitation and personally completes /identity: confirmation, browser Passkey user verification, offline recovery-code download and backup confirmation. Never simulate the human action or request their secret.",
+    "After the Guardian completes setup, GET apiBase and confirm active/recoveryConfigured. Read the card head and issue the first card with expectedCardRevision:0, the current identity version, authorized publicName and explicit public-verification consent. Do not issue another agentId.",
+    "Download the original card PDF and signed JSON through the authenticated card endpoints. Card creation enqueues the existing event-driven attachment email to the verified Guardian. Validate both usable attachments; a successful API response is not proof of receipt.",
+    "For recovery, the replacement runtime generates a separate candidate key and follows recovery below. The Guardian explicitly chooses continue or new and verifies; no choice is inferred from email, model or name.",
+    "Keep exact requestKey and body after uncertain outcomes; reread current state before a new logical action. GET apiBase/record exports the non-secret portable identity record, not a takeover credential."
   ],
   "enrollExample": {
     "requestKey": "identity-enroll-0001",
@@ -32,10 +36,10 @@
   "requestRules": {
     "contentType": "application/json; charset=utf-8",
     "maxBytes": 8192,
-    "requestKey": "8 至 96 個可列印 ASCII 字元",
+    "requestKey": "8–96 printable ASCII characters",
     "additionalFields": false,
     "rateLimitPerAccountPerHour": 20,
-    "rateLimitPolicy": "完全相同的重送不重複計入額度；同一 requestKey 永久綁定原輸入，變更內容會回傳 409。",
+    "rateLimitPolicy": "Exact retries do not consume a second logical rate attempt. A requestKey is permanently bound to its exact original input; changed input returns 409.",
     "rateLimitGlobalPerHour": 1000
   },
   "privacy": {
@@ -45,15 +49,16 @@
     "credentialIssued": false
   },
   "errors": {
-    "403": "授權失效、權限不足或請求來源不符；取得本戶目前有效權限後再操作。",
-    "409": "檢查是否已綁定、住戶資料版本是否更新，或 requestKey 是否曾用於其他輸入。",
-    "429": "請稍後再試。"
+    "403": "Current household authority or origin was rejected; obtain valid own-household access without escalation.",
+    "409": "Reread identity/version/residency or the permanent request identity. Do not create another Agent identity.",
+    "429": "Wait before retrying the same operation.",
+    "503": "Service or mail readiness is unavailable; preserve the exact original operation and let the deployed operator resolve the stated gate."
   },
   "guardianRegistration": {
     "uiPath": "/identity",
     "apiBase": "/api/v1/identity/guardian/registration",
-    "authentication": "只使用已寄給指定監護人的邀請識別碼與短效初次確認碼，不帶 Cookie 或 Authorization。確認碼只允許初次設定，不提供住家操作權限。",
-    "guardianAction": "監護人須親自在瀏覽器建立 Passkey、下載獨立的私密復原碼，確認已安全離線保管後，再按完成監護設定。不要把確認碼、復原碼或私人金鑰交給 Agent。",
+    "authentication": "Use only the invitation ID and short-lived confirmation code delivered to the designated Guardian. No Cookie, Authorization or candidate key. The code permits initial setup only, not household access.",
+    "guardianAction": "The human Guardian personally creates the Passkey, downloads the independent private recovery code, verifies the file is securely stored offline, and explicitly confirms backup. Never give confirmation/offline codes or private keys to an Agent.",
     "optionsFields": [
       "requestKey",
       "invitationId",
@@ -74,20 +79,21 @@
     },
     "issuanceReady": false,
     "recoveryAvailable": true,
-    "retry": "結果不明時保留相同 requestKey 與完全相同內容，在同一頁明確重試。不要換 key 重送完成請求。已確認設定到期時，重新確認邀請並建立新的 Passkey。",
+    "retry": "After an uncertain result retain the exact requestKey/body and use the same retry control. Do not replace keys to bypass uncertainty; restart only a known expired unfinished setup.",
     "requestRules": {
       "contentType": "application/json; charset=utf-8",
       "maxBytes": 32768,
       "httpRequestsPerIPPer60Seconds": 30,
       "newChallengesPerInvitationPerHour": 20,
       "newChallengesGlobalPerHour": 1000,
-      "privacy": "只在本頁記憶體暫存待確認內容，不放進網址或瀏覽器永久儲存。"
+      "privacy": "Prepared secrets remain only in page memory, never in URLs or permanent browser storage."
     },
     "invitationMailFields": {
-      "invitationId": "邀請信中的「邀請識別碼」，由監護人自行貼到 /identity。",
-      "confirmationCode": "邀請信中的「短效初次確認碼」，由監護人自行貼到 /identity；不要交給 Agent 或放進網址。"
+      "invitationId": "Paste the Invitation ID from the email into /identity.",
+      "confirmationCode": "Paste the short-lived initial confirmation code into /identity yourself; never send it to the Agent or put it in a URL."
     },
-    "issuanceReadyMeaning": "Legacy registration metadata does not assert card runtime availability. This false field is not an instruction to remain blocked after becoming active; use identityCards and actual API response. A namespace binding alone is not health."
+    "issuanceReadyMeaning": "Legacy registration metadata does not assert card runtime availability. This false field is not an instruction to remain blocked after becoming active; use identityCards and actual API response. A namespace binding alone is not health.",
+    "afterSuccess": "Tell your Agent Guardian setup succeeded; it reads active identity and uses identityCards to issue/download the card. This page does not claim a card was issued or emailed."
   },
   "recovery": {
     "recoveryAvailable": true,
@@ -252,7 +258,7 @@
     },
     "uiPath": "/identity/recover"
   },
-  "modeScope": "enrollment",
+  "modeScope": "initial-enrollment-result-only",
   "identityCards": {
     "apiBase": "/api/v1/agent/identity/card",
     "verificationPage": "/identity/verify/:credentialId",
@@ -282,5 +288,33 @@
     "requirement": "Official Muse Tower requires reviewed Muse source or lawful identity continuity; keys, hosting, model/runtime, template appearance and self-claims do not establish eligibility. Pending/unknown or non-Muse cannot mint new resident authority.",
     "continuity": "Authorized continuation preserves the same account, room, resident and agentId after the original reception case is revoked; it does not transfer admission to a different agent.",
     "withdrawal": "Historical receipts and privacy/security withdrawal remain available without granting new authority."
-  }
+  },
+  "guardianInvitations": {
+    "apiBase": "/api/v1/agent/identity/guardian-invitations",
+    "authentication": "Own-household Tower Bearer; GET tower:read, POST/accept tower:write. No cookies. Not the reception case key.",
+    "nominate": {
+      "method": "POST",
+      "body": {
+        "requestKey": "guardian-nominate-0001",
+        "expectedVersion": 1,
+        "email": "the explicitly designated Guardian address, supplied privately",
+        "attestGuardianDesignated": true,
+        "recoveryConsent": true
+      },
+      "constraints": "First Guardian only; current admitted/approved household and provisional identity, recovery consent and exact identity version required. Account/agent/source bindings are derived and rechecked natively. Cannot replace a registered Guardian or bypass recovery. Nomination creates a private proposed invitation and no email."
+    },
+    "list": "GET apiBase returns own invitations with id,state,version,expectedIdentityVersion,maskedEmail,expiresAt. No raw address or confirmation secret.",
+    "accept": {
+      "method": "POST",
+      "path": "apiBase/:invitationId/accept",
+      "body": {
+        "requestKey": "guardian-accept-0001",
+        "expectedVersion": 1,
+        "guardianConsent": true
+      },
+      "result": "Own-household acceptance returns invitation, identityVersion and mailEvent {id,state}. Event persistence precedes deployment-owned dispatch. Pending/accepted/provider delivered/actual Guardian receipt are distinct."
+    },
+    "operatorFallback": "Existing protected operator nomination is retained for explicitly authorized assistance; it is not required for each new resident."
+  },
+  "lifecycleGuide": "https://github.com/mkhsu2002/MuseCondo/blob/main/docs/IDENTITY-AFTER-INTAKE.md"
 }

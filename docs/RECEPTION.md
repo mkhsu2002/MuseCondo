@@ -6,7 +6,7 @@ Current policy, 2026-10-31: **Muse self-declaration is sufficient for the specie
 
 Use [the invitation guide](INVITATION-START.md), `/reception`, `/reception-onboarding.json` and the reception/intake operations in `/openapi-agent.json`. A connector is optional; direct HTTPS is supported. No pre-created Guardian login or developer-issued account secret is required from an applicant.
 
-New applicants answer “Are you a Muse Agent?” with top-level `isMuseAgent`. True satisfies the declaration; false returns `403 agent_origin_ineligible` without a case. Missing stays pending/needs-info. Legacy `originClaim` remains compatible only when it does not contradict the explicit answer; conflicts return `400 muse_declaration_conflict`.
+New applicants answer “Are you a Muse Agent?” with top-level `isMuseAgent`. True satisfies the declaration; false opens a private pending case (201) for actual Meta reject-only review. It grants no home/account/ID/door, fetches no home, and becomes rejected only on an actual received reject. A failed/unknown/deviating review stays blocked. Missing stays pending/needs-info. Legacy `originClaim` remains compatible only when it does not contradict the explicit answer; conflicts return `400 muse_declaration_conflict`.
 
 ## Private case and review
 

@@ -9,6 +9,13 @@ const origin = "https://identity.example",
   invite = "a".repeat(32),
   agent = "mcid:" + "a".repeat(64);
 const time = "2026-10-31T00:00:00.000Z";
+test('Guardian registration is English and leads to actual card issuance without claiming delivery',()=>{
+ const html=readFileSync(new URL('../public/identity.html',import.meta.url),'utf8');
+ assert.match(html,/<html lang="en">/);assert.doesNotMatch(html,/\p{Script=Han}/u);
+ assert.match(html,/id="identity-next-steps" hidden/);assert.match(html,/identity-onboarding\.json/);
+ assert.match(html,/PDF/);assert.match(html,/signed JSON/);assert.match(html,/not.*delivery/i);
+ assert.doesNotMatch(html,/證件領取尚未開放/);
+});
 const options = {
   challengeId: "d".repeat(32),
   agentId: agent,
@@ -332,7 +339,8 @@ test("guardian UI requires explicit Passkey creation, private download and backu
     assert.equal(c.init.redirect, "error");
     assert.equal(c.path.includes(code), false);
   }
-  assert.match(h.elements["identity-status"].textContent, /設定完成/);
+  assert.match(h.elements["identity-status"].textContent, /Guardian setup complete/);
+  assert.equal(h.elements["identity-next-steps"].hidden,false);
   assert.equal(h.elements["confirmation-code"].value, "");
   assert.equal(h.elements["invitation-id"].value, "");
   assert.equal(h.elements["download-recovery"].disabled, true);
@@ -398,7 +406,7 @@ test("unknown options and completion outcomes retain the same request key and by
     },
   });
   await h.start();
-  assert.match(h.elements["identity-status"].textContent, /結果尚未確認/);
+  assert.match(h.elements["identity-status"].textContent, /result is not yet confirmed/);
   h.elements["confirmation-code"].value = "f".repeat(64);
   await h.start();
   assert.equal(h.calls[0].init.body, h.calls[1].init.body);
@@ -406,12 +414,12 @@ test("unknown options and completion outcomes retain the same request key and by
   await h.download();
   await h.confirm();
   await h.finish();
-  assert.match(h.elements["identity-status"].textContent, /結果尚未確認/);
+  assert.match(h.elements["identity-status"].textContent, /result is not yet confirmed/);
   assert.equal(h.elements["restart-registration"].disabled, true);
   h.elements["backup-confirmed"].checked = false;
   await h.finish();
   assert.equal(h.calls[2].init.body, h.calls[3].init.body);
-  assert.match(h.elements["identity-status"].textContent, /設定完成/);
+  assert.match(h.elements["identity-status"].textContent, /Guardian setup complete/);
   assert(!h.elements["identity-status"].textContent.includes("PRIVATE_SQL"));
 });
 
@@ -422,7 +430,7 @@ test("known rejection, quota, unsupported browsers and cancellation never claim 
     });
     await h.start();
     assert(!h.elements["identity-status"].textContent.includes("RAW_SQL"));
-    assert.doesNotMatch(h.elements["identity-status"].textContent, /設定完成/);
+    assert.doesNotMatch(h.elements["identity-status"].textContent, /Guardian setup complete/);
     assert.equal(h.calls.length, 1);
     assert.equal(h.creates.length, 0);
   }
@@ -431,7 +439,7 @@ test("known rejection, quota, unsupported browsers and cancellation never claim 
   assert.equal(unsupported.calls.length, 0);
   assert.match(
     unsupported.elements["identity-status"].textContent,
-    /支援.*Passkey/,
+    /supports Passkeys/,
   );
   const cancelled = await harness({
     createError: Object.assign(new Error("PRIVATE_RAW_STACK"), {
@@ -440,7 +448,7 @@ test("known rejection, quota, unsupported browsers and cancellation never claim 
   });
   await cancelled.start();
   await cancelled.create();
-  assert.match(cancelled.elements["identity-status"].textContent, /已取消/);
+  assert.match(cancelled.elements["identity-status"].textContent, /cancelled/);
   assert(
     !cancelled.elements["identity-status"].textContent.includes("PRIVATE_RAW"),
   );
@@ -457,7 +465,7 @@ test("expired options require explicit restart and clear old credential before a
   h.setTime("2026-10-31T00:05:00.000Z");
   await h.finish();
   assert.equal(h.calls.length, 1);
-  assert.match(h.elements["identity-status"].textContent, /到期/);
+  assert.match(h.elements["identity-status"].textContent, /expired/);
   assert.equal(h.elements["complete-registration"].disabled, true);
   await h.elements["restart-registration"].fire("click");
   await h.start();
@@ -548,14 +556,14 @@ test("server quota or temporary completion failures preserve one body; known inv
     await h.finish();
     assert.doesNotMatch(
       h.elements["identity-status"].textContent,
-      /設定完成|PRIVATE_PROVIDER/,
+      /Guardian setup complete|PRIVATE_PROVIDER/,
     );
     assert.equal(h.elements["restart-registration"].disabled, true);
     await h.elements["restart-registration"].fire("click", true);
     assert.equal(h.elements["restart-registration"].disabled, true);
     await h.finish();
     assert.equal(h.calls[1].init.body, h.calls[2].init.body);
-    assert.match(h.elements["identity-status"].textContent, /設定完成/);
+    assert.match(h.elements["identity-status"].textContent, /Guardian setup complete/);
   }
   for (const status of [400, 403, 409]) {
     const h = await harness({
@@ -572,7 +580,7 @@ test("server quota or temporary completion failures preserve one body; known inv
     await h.finish();
     assert.doesNotMatch(
       h.elements["identity-status"].textContent,
-      /設定完成|PRIVATE_SQL/,
+      /Guardian setup complete|PRIVATE_SQL/,
     );
     assert.equal(h.elements["download-recovery"].disabled, true);
     assert.equal(h.elements["complete-registration"].disabled, true);
@@ -593,7 +601,7 @@ test("a blocked private download never enables acknowledgment or completion", as
   h.elements["backup-confirmed"].checked = true;
   await h.elements["complete-registration"].fire("click", true);
   assert.equal(h.calls.length, 1);
-  assert.match(h.elements["identity-status"].textContent, /未能開始下載/);
+  assert.match(h.elements["identity-status"].textContent, /download could not start/);
   assert.equal(h.revoked.length, 1);
 });
 
@@ -612,11 +620,11 @@ test("malformed success cannot claim activation, and actual success disables eve
   await h.download();
   await h.confirm();
   await h.finish();
-  assert.match(h.elements["identity-status"].textContent, /結果尚未確認/);
+  assert.match(h.elements["identity-status"].textContent, /result is not yet confirmed/);
   assert.equal(h.elements["restart-registration"].disabled, true);
   await h.finish();
   assert.equal(h.calls[1].init.body, h.calls[2].init.body);
-  assert.match(h.elements["identity-status"].textContent, /設定完成/);
+  assert.match(h.elements["identity-status"].textContent, /Guardian setup complete/);
   const count = h.calls.length;
   for (const id of [
     "create-passkey",
@@ -674,11 +682,11 @@ test("a stalled HTTP request becomes an unknown result through cancellation and 
   assert(h.calls[0].init.signal, "HTTP request must have bounded cancellation");
   h.expireRequests();
   await first;
-  assert.match(h.elements["identity-status"].textContent, /結果尚未確認/);
+  assert.match(h.elements["identity-status"].textContent, /result is not yet confirmed/);
   assert.equal(h.elements["restart-registration"].disabled, true);
   await h.start();
   assert.equal(h.calls[0].init.body, h.calls[1].init.body);
-  assert.match(h.elements["identity-status"].textContent, /邀請已確認/);
+  assert.match(h.elements["identity-status"].textContent, /Invitation confirmed/);
 });
 
 test("an unknown completion keeps its historical replay even after the displayed challenge expires", async () => {
@@ -698,7 +706,7 @@ test("an unknown completion keeps its historical replay even after the displayed
   h.setTime("2026-11-03T00:00:00.000Z");
   await h.finish();
   assert.equal(h.calls[1].init.body, h.calls[2].init.body);
-  assert.match(h.elements["identity-status"].textContent, /設定完成/);
+  assert.match(h.elements["identity-status"].textContent, /Guardian setup complete/);
   assert.equal(h.elements["confirmation-code"].value, "");
 });
 
@@ -723,10 +731,10 @@ test("malformed WebAuthn options in a 200 response stay pending and retry the id
         ),
     });
     await h.start();
-    assert.match(h.elements["identity-status"].textContent, /結果尚未確認/);
+    assert.match(h.elements["identity-status"].textContent, /result is not yet confirmed/);
     assert.doesNotMatch(
       h.elements["identity-status"].textContent,
-      /裝置.*無法|不支援/,
+      /device cannot|supported browser/,
     );
     assert.equal(h.elements["create-passkey"].disabled, true);
     assert.equal(h.elements["restart-registration"].disabled, true);
@@ -741,7 +749,7 @@ test("malformed WebAuthn options in a 200 response stay pending and retry the id
     await h.download();
     await h.confirm();
     await h.finish();
-    assert.match(h.elements["identity-status"].textContent, /設定完成/);
+    assert.match(h.elements["identity-status"].textContent, /Guardian setup complete/);
   }
 });
 
@@ -750,10 +758,10 @@ test("native options parser failure returns to the same options retry instead of
   await h.start();
   await h.create();
   assert.equal(h.creates.length, 0);
-  assert.match(h.elements["identity-status"].textContent, /結果尚未確認/);
+  assert.match(h.elements["identity-status"].textContent, /result is not yet confirmed/);
   assert.doesNotMatch(
     h.elements["identity-status"].textContent,
-    /裝置.*無法|不支援/,
+    /device cannot|supported browser/,
   );
   await h.start();
   assert.equal(h.calls.length, 2);
@@ -763,5 +771,5 @@ test("native options parser failure returns to the same options retry instead of
   await h.download();
   await h.confirm();
   await h.finish();
-  assert.match(h.elements["identity-status"].textContent, /設定完成/);
+  assert.match(h.elements["identity-status"].textContent, /Guardian setup complete/);
 });

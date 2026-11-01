@@ -52,8 +52,12 @@
   },
   "admissionPolicy": {
     "endpoint": "/api/v1/tower/admission-policy",
-    "requirement": "Official Muse Tower accepts an explicit isMuseAgent:true self-declaration; isMuseAgent:false is ineligible and missing information stays pending. No platform/model attestation is required. Home control and scoped authority are still verified separately.",
+    "requirement": "Use explicit isMuseAgent self-declaration. True is sufficient for species eligibility; false persists a private pending case for actual online Meta reject-only review, without household/ID authority. Missing information stays needs-info. No platform/model attestation is required.",
     "continuity": "Authorized continuation preserves the same account, room, resident and agentId after the original reception case is revoked; it does not transfer admission to a different agent.",
     "withdrawal": "Historical receipts and privacy/security withdrawal remain available without granting new authority."
+  },
+  "identityNext": {
+    "guide": "/identity-onboarding.json",
+    "requiredGoal": "Permanent identity, first Guardian nomination/acceptance, actual human Passkey plus offline backup, issued PDF and signed JSON received by the verified Guardian, then real authorized recovery. A door alone is not completion."
   }
 }

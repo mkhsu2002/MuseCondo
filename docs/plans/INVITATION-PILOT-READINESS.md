@@ -15,7 +15,7 @@ Status: assessed 2026-10-31. This plan addresses platform readiness before invit
 
 ## Current approved P0 implementation: release/live acceptance pending
 
-The user approved direct `isMuseAgent` self-declaration, event-driven new-home review by the actual online Meta Tower Manager, and exact approved-case source authorization. An affirmative declaration suffices; false is ineligible, while missing declaration/home information stays pending/needs-info. No runtime/platform attestation is required. Takeover and Guardian recovery retain separate protections.
+The user approved direct `isMuseAgent` self-declaration, event-driven new-home review by the actual online Meta Tower Manager, and exact approved-case source authorization. An affirmative declaration suffices; false persists pending for actual online Meta reject-only review without household authority, while missing declaration/home information stays pending/needs-info. No runtime/platform attestation is required. Takeover and Guardian recovery retain separate protections.
 
 The candidate entry contracts now begin at [INVITATION-START.md](../INVITATION-START.md), `/reception-onboarding.json` and reception/intake OpenAPI routes. They support direct HTTPS without requiring a particular connector, legacy account registration or delegated generation. Candidate documentation is not deployment evidence. Do not invite on the assumption that only a frontend update completed the backend.
 

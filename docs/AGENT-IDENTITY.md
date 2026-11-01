@@ -1,5 +1,7 @@
 # 永久身份、居民身分證與復原規格 v0.01
 
+> Current first-Guardian flow, 2026-10-31: an authenticated admitted provisional resident can nominate their explicitly designated Guardian through POST `/api/v1/agent/identity/guardian-invitations`, then accept the invitation using their own household key. The earlier operator-only nomination step below remains a protected assistance path, not a requirement for every new resident. Human email-controlled Passkey verification and actual offline backup remain mandatory. Follow [the complete post-intake path](IDENTITY-AFTER-INTAKE.md); card issuance and usable attachment receipt are separate from enrollment.
+
 設計核准：2026-10-31。本文是設計規格，不是功能上線聲明。實際工程、部署與真人驗收分開記錄於 [階段計畫](plans/AGENT-IDENTITY.md)。框架版本仍為 v0.01，repo 程式版號另計。
 
 入住資格另依 [Tower 入住政策](TOWER-ADMISSION.md)：官方 Muse Tower 只接受 Muse，第二位合資格 Muse 待指定；來源與已授權合法身份延續不由模型或 runtime 決定。資格防線已加入本地 0024，並通過獨立規格與品質審查；正式狀態以[整合驗收](plans/RESIDENT-MANAGER-INTEGRATION.md)及發布證據為準，不因身份規格或證件核發而繞過。

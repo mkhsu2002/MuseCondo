@@ -1,4 +1,4 @@
-import {syntheticMailReady} from './helpers/identity-mail-ready-fixture.ts';
+import {syntheticMailReady,syntheticSenderReady} from './helpers/identity-mail-ready-fixture.ts';
 import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -41,6 +41,44 @@ async function fixture() {
     return { db, env, input, send, propose, accept, count, dispatched, providerCalls, setTime: (s: string) => { now = new Date(s); }, operatorOff: () => { operatorEnabled = false; }, reconfigure: (extra: Partial<typeof env>) => { handler = createIdentityGuardian({ ...env, ...extra }); } };
 }
 async function proposed(f: Awaited<ReturnType<typeof fixture>>) { const r = (await f.propose())!; assert.equal(r.status, 201, await r.clone().text()); return (await r.json()).invitation; }
+test('a scoped resident nominates only their own first Guardian without an operator or an immediate email',async()=>{
+ const f=await fixture();try{
+  f.operatorOff();const input={requestKey:'self-nominate-01',expectedVersion:1,email:'guardian@example.com',attestGuardianDesignated:true,recoveryConsent:true};
+  const first=(await f.send(base,'POST',input))!;assert.equal(first.status,201,await first.clone().text());const body=await first.json();
+  assert.equal(body.invitation.state,'proposed');assert.equal(f.count('identity_mail_events'),0);assert.equal(f.dispatched.length,0);
+  assert.deepEqual(await (await f.send(base,'POST',input))!.json(),body);assert.equal(f.count('identity_guardian_invites'),1);
+  assert.equal((await f.send(base,'POST',{...input,requestKey:'self-nominate-02',expectedVersion:2}))!.status,409);
+  assert.equal((await f.send(base,'POST',{...input,requestKey:'cross-agent-01',agentId:'mcid:'+'b'.repeat(64)}))!.status,400);
+  const accepted=(await f.accept(body.invitation.id))!;assert.equal(accepted.status,200);assert.equal(f.count('identity_mail_events'),1);assert.equal(f.dispatched.length,1);
+  assert.doesNotMatch(JSON.stringify(body),/guardian@example|ciphertext|confirmationCode/);
+ }finally{f.db.close();}
+});
+test('resident nomination enforces consent, admission and last-transaction authority without overwriting a Guardian',async()=>{
+ for(const mutation of ['consent','admission','late-revoke'] as const){
+  const f=await fixture();try{
+   const input={requestKey:'resident-guardian-01',expectedVersion:1,email:'guardian@example.com',attestGuardianDesignated:true,recoveryConsent:true};
+   if(mutation==='admission'){f.db.sqlite.prepare("INSERT INTO tower_admission_policies VALUES(3,'[\"meta-muse\"]',1,?)").run(time);f.db.sqlite.prepare('UPDATE tower_admission_current SET policy_version=3 WHERE id=1').run();}
+   if(mutation==='late-revoke')f.db.sqlite.exec("CREATE TRIGGER synthetic_nomination_revoke AFTER INSERT ON identity_guardian_invites BEGIN UPDATE tower_tokens SET revoked=1 WHERE account_id=NEW.account_id; END");
+   const response=(await f.send(base,'POST',mutation==='consent'?{...input,recoveryConsent:false}:input))!;
+   assert.ok([400,403,409].includes(response.status),mutation+':'+response.status);assert.equal(f.count('identity_guardian_invites'),0);assert.equal(f.count('guardian_invite_requests'),0);assert.equal(f.count('identity_mail_events'),0);assert.equal(f.count('identity_audit'),0);
+   assert.equal(f.db.sqlite.prepare('SELECT version FROM agent_identities WHERE account_id=?').get('a'.repeat(16))!.version,1);
+  }finally{f.db.close();}
+ }
+});
+test('strict Muse policy permits first nomination for an exact preserved resident or active approved case',async()=>{
+ for(const kind of ['existing-resident','active-case'] as const){
+  const f=await fixture();try{
+   const account='a'.repeat(16),source='https://source.example/a',caseId='strict-case';
+   if(kind==='active-case')f.db.sqlite.prepare("INSERT INTO tower_reception_cases(id,token_hash,state,version,name,request_kind,request_text,source_url,resident_id,account_id,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at) VALUES(?,?,'pending',1,'Synthetic','new','Synthetic',?,?,?,'{}','{}','{}','Synthetic','2027-01-01T00:00:00.000Z',?,?)").run(caseId,'synthetic-case',source,account,account,time,time);
+   f.db.sqlite.prepare("INSERT INTO tower_admission_policies VALUES(3,'[\"meta-muse\"]',1,?)").run(time);f.db.sqlite.prepare('UPDATE tower_admission_current SET policy_version=3').run();
+   f.db.sqlite.prepare("INSERT INTO tower_admission_decisions(id,policy_version,case_id,account_id,resident_id,source_url,reviewed_room_id,state,agent_origin,evidence_kind,evidence_ref,operator_class,expires_at,created_at) VALUES('strict-decision',3,?,?,?,?,?,'eligible','meta-muse',?,'synthetic-only','shared-operator','2027-01-01T00:00:00.000Z',?)").run(kind==='active-case'?caseId:null,account,account,source,kind==='existing-resident'?account:null,kind==='existing-resident'?'existing-resident':'operator-review',time);
+   f.db.sqlite.prepare("INSERT INTO tower_admission_heads VALUES(?,'strict-decision',1)").run(kind==='active-case'?'case:'+caseId:'account:'+account);
+   if(kind==='active-case')f.db.sqlite.prepare("UPDATE tower_reception_cases SET state='active',approval_expires_at='2027-01-01T00:00:00.000Z',granted_token_id='a' WHERE id=?").run(caseId);
+   const r=(await f.send(base,'POST',{requestKey:'strict-nomination-01',expectedVersion:1,email:'guardian@example.com',attestGuardianDesignated:true,recoveryConsent:true}))!;
+   assert.equal(r.status,201,kind+':'+await r.clone().text());assert.equal(f.count('identity_guardian_invites'),1);assert.equal(f.count('identity_mail_events'),0);
+  }finally{f.db.close();}
+ }
+});
 test('both parties consent before one encrypted mail event; identity remains provisional and Tower state is untouched', async () => {
     const f = await fixture();
     try {
@@ -162,7 +200,7 @@ test('strict JSON schemas and separate same-origin scopes reject unauthorized co
         assert.equal((await f.send(base))!.status, 200);
         f.db.sqlite.prepare("UPDATE tower_tokens SET scopes='[\"tower:write\"]' WHERE id='a'").run();
         assert.equal((await f.send(base))!.status, 403);
-        assert.equal((await f.send(base, 'POST', {}))!.status, 405);
+        assert.equal((await f.send(base, 'POST', {}))!.status, 400);
         assert.equal((await f.send(operatorBase))!.status, 405);
         assert.equal(await f.send(base + '/confirm'), null);
         assert.equal(f.count('identity_mail_events'), 0);
@@ -423,6 +461,7 @@ test('Pages dispatch persists before waitUntil sends the exact event, and unrele
     try {
         f.db.sqlite.function('strftime', { varargs: true }, (...args) => nativeDates.sqlite.prepare('SELECT strftime(' + args.map(() => '?').join(',') + ') value').get(...args)!.value);
         f.db.sqlite.prepare("UPDATE tower_tokens SET expires_at='2099-01-01T00:00:00.000Z'").run();
+        const fresh=new Date().toISOString();await syntheticSenderReady(f.db,origin,f.env.from,fresh);f.db.sqlite.prepare('UPDATE identity_mail_webhook_setups SET handler_probe_at=?,updated_at=? WHERE origin=?').run(fresh,fresh,origin);
         const env = { DB: f.db, PUBLIC_ORIGIN: origin, TOWER_OPERATOR_KEY: 'operator-key', IDENTITY_CONTACT_KEY: contactKey, IDENTITY_MAIL_API_KEY: 'runtime-key', IDENTITY_MAIL_FROM: 'MuseCondo <identity@example.com>',IDENTITY_CARDS:{idFromName:(n:string)=>n,get:()=>({fetch:(request:Request)=>createIdentityMailCoordinator({db:f.db,origin,contactKey,from:f.env.from,trustedKeys:new Map()}).fetch(request)})},IDENTITY_MAIL_DELIVERY_ENABLED:'true' };
         const req = (path: string, method = 'GET', body?: unknown, operator = false) => new Request(origin + path, { method, headers: { ...(operator ? { 'X-Tower-Operator-Key': 'operator-key' } : { Authorization: 'Bearer ' + 'a'.repeat(64) }), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
         const proposal = await runtime.fetch(req(operatorBase, 'POST', f.input, true), env);

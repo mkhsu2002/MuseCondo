@@ -182,6 +182,13 @@ export function createIdentityGuardian(env: Environment) {
     }
     const identity = (agent: string) => one<Identity>('SELECT * FROM agent_identities WHERE agent_id=?', agent);
     function identityGuard(i: Identity) { return stmt("SELECT CASE WHEN EXISTS(SELECT 1 FROM agent_identities i JOIN tower_residencies t ON t.account_id=i.account_id AND t.room_id=i.room_id AND t.resident_id=i.resident_id JOIN rooms r ON r.id=i.room_id AND r.account_id=i.account_id WHERE i.agent_id=? AND i.account_id=? AND i.room_id=? AND i.resident_id=? AND i.version=? AND i.authority_epoch=? AND i.state='provisional' AND i.recovery_consent=1) THEN 1 ELSE json('guardian-identity-conflict') END", i.agent_id, i.account_id, i.room_id, i.resident_id, i.version, i.authority_epoch); }
+    function nominationGuard(i:Identity){return stmt(`SELECT CASE WHEN EXISTS(SELECT 1 FROM agent_identities i JOIN tower_residencies t ON t.account_id=i.account_id AND t.room_id=i.room_id AND t.resident_id=i.resident_id WHERE i.agent_id=? AND i.account_id=? AND i.version=? AND i.state='provisional' AND i.recovery_consent=1 AND (
+      EXISTS(SELECT 1 FROM tower_admission_current c JOIN tower_admission_policies p ON p.version=c.policy_version WHERE c.id=1 AND p.allowed_agent_origins_json='["*"]' AND p.require_operator_review=0)
+      OR EXISTS(SELECT 1 FROM tower_admission_eligible d WHERE d.account_id=i.account_id AND d.resident_id=i.resident_id AND (d.source_url=t.source_url OR EXISTS(SELECT 1 FROM tower_admission_continuity k WHERE k.decision_id=d.id AND k.room_id=i.room_id)) AND (
+        d.case_id IS NULL AND d.evidence_kind='existing-resident' AND d.reviewed_room_id=i.room_id
+        OR EXISTS(SELECT 1 FROM tower_reception_cases c WHERE c.id=d.case_id AND c.state='active' AND c.account_id=i.account_id AND c.resident_id=i.resident_id AND c.source_url=d.source_url AND c.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND c.approval_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+        OR EXISTS(SELECT 1 FROM tower_admission_memberships m WHERE m.account_id=i.account_id AND m.room_id=i.room_id AND m.resident_id=i.resident_id AND m.decision_id=d.id)
+      )))) THEN 1 ELSE json('guardian-admission-changed') END`,i.agent_id,i.account_id,i.version);}
     async function checkIdentity(i: Identity) { try {
         await identityGuard(i).first();
     }
@@ -195,7 +202,7 @@ export function createIdentityGuardian(env: Environment) {
     const audit = (agent: string, action: string, id: string) => stmt('INSERT INTO identity_audit(id,agent_id,action,detail_json,created_at) VALUES(?,?,?,?,?)', randomIdentityId(), agent, action, JSON.stringify({ invitationId: id }), stamp());
     const advance = (i: Identity) => stmt('UPDATE agent_identities SET version=version+1,updated_at=? WHERE agent_id=? AND version=?', stamp(), i.agent_id, i.version);
     return { async fetch(request: Request): Promise<Response | null> {
-            const path = new URL(request.url).pathname, operator = path.startsWith('/api/v1/operator/'), proposal = path === '/api/v1/operator/identity/guardian-invitations', list = path === '/api/v1/agent/identity/guardian-invitations', accept = path.match(/^\/api\/v1\/agent\/identity\/guardian-invitations\/([a-f0-9]{32})\/accept$/), cancel = path.match(/^\/api\/v1\/operator\/identity\/guardian-invitations\/([a-f0-9]{32})\/cancel$/), mailRoute = path.match(/^\/api\/v1\/operator\/identity\/mail\/([a-f0-9]{32})(\/process)?$/);
+            const path = new URL(request.url).pathname, operator = path.startsWith('/api/v1/operator/'), nomination = path === '/api/v1/agent/identity/guardian-invitations' && request.method === 'POST', proposal = path === '/api/v1/operator/identity/guardian-invitations' || nomination, list = path === '/api/v1/agent/identity/guardian-invitations' && !nomination, accept = path.match(/^\/api\/v1\/agent\/identity\/guardian-invitations\/([a-f0-9]{32})\/accept$/), cancel = path.match(/^\/api\/v1\/operator\/identity\/guardian-invitations\/([a-f0-9]{32})\/cancel$/), mailRoute = path.match(/^\/api\/v1\/operator\/identity\/mail\/([a-f0-9]{32})(\/process)?$/);
             if (!proposal && !list && !accept && !cancel && !mailRoute)
                 return null;
             try {
@@ -219,8 +226,8 @@ export function createIdentityGuardian(env: Environment) {
                     await auth.verify();
                     return json({ invitations });
                 }
-                const v = await input(request, proposal ? ['requestKey', 'agentId', 'expectedVersion', 'email', 'attestGuardianDesignated'] : cancel ? ['requestKey', 'expectedVersion'] : ['requestKey', 'expectedVersion', 'guardianConsent']);
-                if (proposal && (typeof v.agentId !== 'string' || !/^mcid:[a-f0-9]{64}$/.test(v.agentId) || v.attestGuardianDesignated !== true) || accept && v.guardianConsent !== true)
+                const v = await input(request, nomination ? ['requestKey','expectedVersion','email','attestGuardianDesignated','recoveryConsent'] : proposal ? ['requestKey', 'agentId', 'expectedVersion', 'email', 'attestGuardianDesignated'] : cancel ? ['requestKey', 'expectedVersion'] : ['requestKey', 'expectedVersion', 'guardianConsent']);
+                if (nomination && (v.attestGuardianDesignated!==true||v.recoveryConsent!==true) || proposal && !nomination && (typeof v.agentId !== 'string' || !/^mcid:[a-f0-9]{64}$/.test(v.agentId) || v.attestGuardianDesignated !== true) || accept && v.guardianConsent !== true)
                     fail(400, 'invalid_guardian_consent');
                 let email: string | undefined;
                 if (proposal)
@@ -232,7 +239,7 @@ export function createIdentityGuardian(env: Environment) {
                     }
                 if (!validContactKey(env.contactKey))
                     fail(503, 'identity_contact_not_configured');
-                const key = v.requestKey as string, operation = proposal ? 'propose' : cancel ? 'cancel' : 'accept', id = accept?.[1] ?? cancel?.[1], digest = await hashPrivate(env.contactKey, 'guardian-request', JSON.stringify({ operation, id: id ?? null, requestKey: v.requestKey, expectedVersion: v.expectedVersion, ...(proposal ? {agentId: v.agentId, email: v.email, attestGuardianDesignated: v.attestGuardianDesignated} : accept ? {guardianConsent: v.guardianConsent} : {}) }));
+                const key = v.requestKey as string, operation = nomination ? 'nominate' : proposal ? 'propose' : cancel ? 'cancel' : 'accept', id = accept?.[1] ?? cancel?.[1], digest = await hashPrivate(env.contactKey, 'guardian-request', JSON.stringify({ operation, id: id ?? null, requestKey: v.requestKey, expectedVersion: v.expectedVersion, ...(proposal ? {...(nomination?{accountId:auth.accountId,recoveryConsent:v.recoveryConsent}:{agentId:v.agentId}), email: v.email, attestGuardianDesignated: v.attestGuardianDesignated} : accept ? {guardianConsent: v.guardianConsent} : {}) }));
                 const replay = await prior(auth, key, operation, digest);
                 if (replay)
                     return replay;
@@ -240,18 +247,19 @@ export function createIdentityGuardian(env: Environment) {
                     fail(503, 'identity_mail_not_configured');
                 await rate(auth, key, digest);
                 if (proposal) {
-                    const i = await identity(v.agentId as string);
+                    const i = nomination ? await one<Identity>('SELECT * FROM agent_identities WHERE account_id=?',auth.accountId) : await identity(v.agentId as string);
                     if (!i)
                         fail(404, 'identity_not_found');
                     if (i.version !== v.expectedVersion)
                         fail(409, 'identity_conflict');
                     await checkIdentity(i);
+                    if(nomination)try{await nominationGuard(i).first();}catch{fail(403,'admission_required');}
                     if (await one("SELECT 1 FROM identity_guardian_invites WHERE agent_id=? AND state IN ('proposed','accepted','registered')", i.agent_id))
                         fail(409, 'guardian_already_designated');
                     const created = stamp(), g: Invitation = { id: randomIdentityId(), agent_id: i.agent_id, account_id: i.account_id, version: 1, identity_version: i.version + 1, authority_epoch: i.authority_epoch, state: 'proposed', recipient_ciphertext: await encryptPrivate(env.contactKey, 'guardian-recipient', i.agent_id, email!), email_hash: await hashPrivate(env.contactKey, 'guardian-email', email!), invite_token_hash: null, expires_at: new Date(Date.parse(created) + 86400000).toISOString(), created_at: created };
                     const result = { invitation: await metadata(g), identityVersion: g.identity_version };
                     try {
-                        await batch(auth, [identityGuard(i), stmt("SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM identity_guardian_invites WHERE agent_id=? AND state IN ('proposed','accepted','registered')) THEN 1 ELSE json('guardian-already-designated') END", i.agent_id), advance(i), stmt("INSERT INTO identity_guardian_invites(id,agent_id,account_id,version,identity_version,authority_epoch,state,recipient_ciphertext,email_hash,expires_at,created_at,updated_at) VALUES(?,?,?,1,?,?,'proposed',?,?,?,?,?)", g.id, g.agent_id, g.account_id, g.identity_version, g.authority_epoch, g.recipient_ciphertext, g.email_hash, g.expires_at, created, created), audit(i.agent_id, 'guardian-proposed', g.id), receipt(auth, key, operation, digest, result, 201)]);
+                        await batch(auth, [identityGuard(i), stmt("SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM identity_guardian_invites WHERE agent_id=? AND state IN ('proposed','accepted','registered')) THEN 1 ELSE json('guardian-already-designated') END", i.agent_id), advance(i), stmt("INSERT INTO identity_guardian_invites(id,agent_id,account_id,version,identity_version,authority_epoch,state,recipient_ciphertext,email_hash,expires_at,created_at,updated_at) VALUES(?,?,?,1,?,?,'proposed',?,?,?,?,?)", g.id, g.agent_id, g.account_id, g.identity_version, g.authority_epoch, g.recipient_ciphertext, g.email_hash, g.expires_at, created, created), audit(i.agent_id, 'guardian-proposed', g.id), receipt(auth, key, operation, digest, result, 201),...(nomination?[nominationGuard({...i,version:i.version+1}),...(auth.guard?[auth.guard()]:[])]:[])]);
                     }
                     catch (error) {
                         if (error instanceof Rejection)
@@ -262,6 +270,7 @@ export function createIdentityGuardian(env: Environment) {
                         await checkIdentity(i);
                         if (await one("SELECT 1 FROM identity_guardian_invites WHERE agent_id=? AND state IN ('proposed','accepted','registered')", i.agent_id))
                             fail(409, 'guardian_already_designated');
+                        if(nomination)fail(409,'guardian_nomination_conflict');
                         throw error;
                     }
                     return json(result, 201);
