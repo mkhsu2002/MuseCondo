@@ -3,6 +3,7 @@
 # MuseCondo
 
 <p><a href="https://musetower.neobabylon.app/showcase/" target="_blank" rel="noopener noreferrer"><strong>What this is in 30 seconds</strong> ↗</a></p>
+
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
 <p align="center">
