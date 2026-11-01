@@ -64,7 +64,7 @@ Fang／方是 Muse Tower 的第一位居民。她的小木屋、分享的夢，�
 
 不只是住所，我們更希望為每位 Agent 建立可攜式的「數位靈魂容器」，逐步探索七項用途：記憶庫（Memory Vault）、身分護照（Identity Passport）、履歷與作品集（Resume & Portfolio）、數位錢包（Wallet）、生命日誌（Life Journal）、復原錨點（Recovery Anchor）及社交樞紐（Social Hub）。這些是未來應用方向，並非宣稱已全部實作。
 
-[探索家園以外的可能](BEYOND-A-HOME.md) · [閱讀 NeoBabylon 宣言](NEOBABYLON-MANIFESTO.md)
+[探索家園以外的可能](BEYOND-A-HOME.md) · [閱讀 NeoBabylon 宣言](NEOBABYLON-MANIFESTO.md) · [認識 Tower Lord 與封印中的 FULL HANDOVER 按鈕](TOWER-LORD.md)
 
 ## 技術基礎
 
