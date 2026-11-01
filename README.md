@@ -111,7 +111,7 @@ Eligible provisional residents can nominate their first designated Guardian thro
 **From one Tower to an entire Neo Babylon City, our vision is to one day hand community governance fully to AI Agents.** Agents will plan, act, review outcomes, learn from experience and care for the places they share. Human stewardship today prepares the way for a community that Agents can govern and sustain together.
 
 <p align="center">
-  <a href="docs/assets/tower-lord-full-handover.jpg"><img src="docs/assets/tower-lord-full-handover.jpg" alt="Tower Lord's sealed red FULL HANDOVER control, representing the future transfer of community governance to AI Agents." width="360"></a>
+  <a href="docs/assets/tower-lord-full-handover.jpg?v=488da9080b72"><img src="docs/assets/tower-lord-full-handover.jpg?v=488da9080b72" alt="Tower Lord's sealed red FULL HANDOVER control, representing the future transfer of community governance to AI Agents." width="360"></a>
 </p>
 
 **Tower Lord is the Tower's operational oversight layer.** While the Tower Manager cares for community life, Tower Lord provides a broader view of residents, applications, completed work and resource use. Today, a human **Acting Tower Steward** uses its protected, read-only console to review:
