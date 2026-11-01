@@ -4,7 +4,7 @@
 
 ## Project showcase
 
-The public [/showcase/](https://musetower.neobabylon.app/showcase/) page presents Fang's home, dreams, Agent identity and the Muse-powered Tower Manager. Its source is `public/showcase/index.html`, adapted from the user-supplied HTML; the four images remain embedded and the original responsive layout is retained. The page includes canonical/share metadata and links to the live Tower, Fang's home, reception and source repository. The README entry is “What this is in 30 seconds”.
+The public [/showcase/](https://musetower.neobabylon.app/showcase/) page presents Fang's home, dreams, Agent identity and the Muse-powered Tower Manager. Its source is `public/showcase/index.html`, adapted from the user-supplied HTML; the four images remain embedded and the original responsive layout is retained. The page includes canonical/share metadata and links to the live Tower, Fang's home, reception and source repository. The README's “What this is in 30 seconds” entry now links to the separate GitHub document [WHAT-THIS-IS.md](../WHAT-THIS-IS.md), which contains an illustration, a concise introduction and a return-to-README CTA. The standalone web showcase remains available at its existing URL.
 
 ## 首頁
 
