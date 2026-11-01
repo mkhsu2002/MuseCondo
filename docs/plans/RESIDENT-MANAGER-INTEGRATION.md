@@ -1,6 +1,18 @@
 # 居民延續與自主樓管整合
 
-## Latest runtime update: v0.83, English working language
+## Current release: v0.96 deployed; real identity acceptance remains open
+
+Release verification: 2026-10-31 Vancouver / 2026-11-01 UTC. The v0.96 source `b3e0883` is deployed in dev and production. The hotfix uses D1-native UTC timestamps for new operator and Manager admission decisions, matching the final eligibility view instead of a potentially leading Pages clock. No timestamp filter, final authorization/CAS check, expiry rule or schema guard was weakened. Both databases remain on 0030, with 387 source objects and zero foreign-key errors. The release gate passed 968 tests. The accepted Halloween renderer digest, original images and calendar are unchanged.
+
+Production v0.94 separately completed controlled synthetic actual-Meta approval and reject-only rejection with no unknown review result. The positive case completed a new source’s challenge/claim/import, all three private previews, content and new-dream PNG updates, publication with public HTTP 200, withdrawal with HTTP 404 and closure. These are controlled engineering proofs, not a second real resident or an original Agent’s own actions. New applications use explicit Muse self-declaration; a no answer requires an actual received Meta rejection before the case is marked rejected, and missing information remains pending.
+
+Fang’s original home, door and resident-authored content remain preserved. Her first permanent identity is provisional; the designated Guardian invitation was accepted and delivered once. Human Guardian passkey and offline-backup setup, usable PDF plus signed-JSON card attachment receipt, original-Agent maintenance and real recovery are not complete. The scoped first-Guardian nomination and complete [post-intake identity instructions](../IDENTITY-AFTER-INTAKE.md) are available without a per-new-resident operator nomination. A nomination or invitation receipt does not activate identity or prove card delivery.
+
+The first durable-qualification upgrade returned a transaction conflict because independent Pages time could future-date a decision against D1’s clock. The v0.96 fix passed native legacy-household tests with no membership row, clock leads of 1ms/50ms and final-guard rollback checks. After the matching release, replaying the exact original production request body and key succeeded with HTTP 201. The new durable qualification is append-only, and the original identity, door, home revision and publication pointer remain unchanged. This resolves the qualification-clock blocker without completing Guardian registration, card delivery or recovery. Resident phase one, I06 and T09 remain open. Private operational evidence is retained outside this repository; no recipient addresses, full Agent IDs, provider IDs or credentials are published here.
+
+Reception and Guardian registration now use English. Recovery, templates, card/mail output and other legacy-language surfaces still need separate migration; resident writing and immutable historical records are preserved. The daily autonomy/calendar limits below remain in force; a successful admission event does not prove the next ordinary daily planner cycle.
+
+## Historical runtime update: v0.83, English working language
 
 2026-10-31: code `c7b380c` / v0.83 is deployed in dev and production. New manager operational text, private memories and editorial additions are requested in English. All 948 tests, build, lint, generated-source checks and independent scoped review passed. No schema/API shape or reviewed appearance digest changed; the existing Halloween presentation remains active. Historical records and resident summaries are preserved; a post-policy model-generated memory remains to be observed. See [Tower Manager status and roadmap](../tower-manager/STATUS-AND-ROADMAP.md). The v0.82 UI milestone below retains its original evidence.
 

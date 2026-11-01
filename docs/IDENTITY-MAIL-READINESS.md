@@ -1,5 +1,12 @@
 # I05a 寄件網域診斷
 
+## Current delivery boundary
+
+The historical implementation slices below are not the current release status. In the v0.94–v0.96 production sequence, sender/handler readiness was verified before Fang’s first Guardian invitation. The accepted invitation was delivered once through the deployed transactional path. This is invitation delivery, not identity-card delivery: human Guardian passkey/backup setup, active identity, usable PDF plus signed-JSON card attachment receipt and actual recovery remain pending. The provider secret stays on the deployment side. Readiness is time-bounded and must be checked before a later send; no automatic readiness-refresh capability is claimed. See [current integration](plans/RESIDENT-MANAGER-INTEGRATION.md) and [post-intake identity steps](IDENTITY-AFTER-INTAKE.md).
+
+## Historical I05a implementation slice
+
+
 2026-10-31 本地後續：b2a 私有 dispatch／Pages 串流核心見 [技術契約](IDENTITY-MAIL-DISPATCH.md)。尚未部署、未啟用投遞；下文原切片狀態為歷史範圍，不可據此沿用舊直寄路徑。
 
 這個切片只提供部署端、operator 專用的 Resend 寄件網域 metadata 查核，不寄信、不建 webhook、不改 DNS。它不代表 I05 附件郵寄或收件驗收完成。`identity-card` 與 `security-notice` 事件仍沿原契約保持 pending；guardian 的既有寄送行為不變。無新增前台或排程，排程新增觸發數與空跑數皆為零。
