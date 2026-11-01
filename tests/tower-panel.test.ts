@@ -56,24 +56,24 @@ test("type-only source changes visibly distinguish the current daily entry from 
   const panels = [...html.matchAll(/<pre>(.*?)<\/pre>/gs)].map(match => match[1]);
   assert.equal(panels.length, 2);
   assert.notEqual(panels[0], panels[1], "type-only changes must not render identical before/after text");
-  assert.match(panels[0], /類型：日記/);
-  assert.match(panels[1], /類型：作品（隨身收藏）/);
+  assert.match(panels[0], /Type: Journal/);
+  assert.match(panels[1], /Type: Artwork \(collection\)/);
   for (const panel of panels) for (const text of [entry.title, entry.body, entry.occurredAt]) assert.ok(panel.includes(text));
-  assert.match(html, /日常：有差異/);
+  assert.match(html, /Journal: Changed/);
   assert.match(html, /name="apply" value="daily"/);
   assert.doesNotMatch(html, /\bchecked\b|sourceDigest|imageDigest/);
   assert.match(html, /<button type="submit" disabled>/);
 });
 
-test("every supported daily type uses a Chinese product label and imported text remains escaped", async () => {
+test("every supported daily type uses an English product label and imported text remains escaped", async () => {
   for (const [type, label] of [
-    ["journal", "日記"], ["status", "近況"], ["seeking", "想認識誰"],
-    ["artwork", "作品（隨身收藏）"], ["observation", "觀察"],
+    ["journal", "Journal"], ["status", "Status"], ["seeking", "Looking for"],
+    ["artwork", "Artwork (collection)"], ["observation", "Observation"],
   ] as const) {
     const html = await previewDaily([], [{ ...entry, type, title: "<script>不執行</script>" }]);
-    assert.ok(html.includes("類型：" + label));
+    assert.ok(html.includes("Type: " + label));
     assert.doesNotMatch(html, /<script>/);
     assert.match(html, /&lt;script&gt;不執行&lt;\/script&gt;/);
-    assert.ok(!html.includes("類型：" + type));
+    assert.ok(!html.includes("Type: " + type));
   }
 });

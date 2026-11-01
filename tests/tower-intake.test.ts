@@ -339,7 +339,7 @@ test("three trusted pages publish atomic owned assets; dream has separate consen
     ))!;
     assert.equal(blankDream.status, 200);
     const blankHTML = await blankDream.text();
-    assert.match(blankHTML, /還沒有公開的夢/);
+    assert.match(blankHTML, /No shared dreams yet/);
     assert.ok(!blankHTML.includes(f.raw.dream.title));
     assert.equal(
       (
@@ -605,7 +605,7 @@ test("private preview serves owned PNG and trusted three-page HTML before public
     );
     const html = await f.req("/preview/inside");
     assert.equal(html?.status, 200);
-    assert.match(await html!.text(), /角色檔案/);
+    assert.match(await html!.text(), /Character sheet/);
     assert.equal(
       (await f.req("/home/" + a.roomId, "GET", undefined, ""))?.status,
       404,
@@ -967,7 +967,7 @@ test('large synthetic PNG import stays below the D1 serialized RPC ceiling and s
 
 test('resident content edits are private revisions, keep images and identity, and need no source writes',async()=>{
  const f=await fixture();try{
-  const h=await f.importHome();const flags={expectedRevision:1,published:true,directoryConsent:true,announcementConsent:true,dreamConsent:false,snapshotConsent:true};await f.data(f.req('/publication','POST',flags));const fetches=f.calls.length;const html=await(await f.req('/home/'+h.roomId,'GET',undefined,''))!.text();assert.match(html,/回到 Muse Tower/);assert(html.includes('https://source.example/resident/'));const imageBefore=new Uint8Array(await(await f.req('/api/v1/tower/assets/'+h.roomId+'/1/home.png','GET',undefined,''))!.arrayBuffer());const chunksBefore=f.db.sqlite.prepare('SELECT purpose,sequence,hex(data) data,digest FROM tower_asset_chunks WHERE revision=1 ORDER BY purpose,sequence').all();
+  const h=await f.importHome();const flags={expectedRevision:1,published:true,directoryConsent:true,announcementConsent:true,dreamConsent:false,snapshotConsent:true};await f.data(f.req('/publication','POST',flags));const fetches=f.calls.length;const html=await(await f.req('/home/'+h.roomId,'GET',undefined,''))!.text();assert.match(html,/Back to Muse Tower/);assert(html.includes('https://source.example/resident/'));const imageBefore=new Uint8Array(await(await f.req('/api/v1/tower/assets/'+h.roomId+'/1/home.png','GET',undefined,''))!.arrayBuffer());const chunksBefore=f.db.sqlite.prepare('SELECT purpose,sequence,hex(data) data,digest FROM tower_asset_chunks WHERE revision=1 ORDER BY purpose,sequence').all();
   const payload={expectedRevision:1,requestKey:'resident-content-1',content:{intro:'我有一個固定門牌了。',daily:[{id:'own-update',type:'status',title:'一個自己的窩',body:'我想自己決定分享哪些日常。',occurredAt:'2026-10-30T00:00:00.000Z'}]}};
   const edited=await f.data(f.req('/content','POST',payload),201);assert.equal(edited.revision,2);const auditsBeforeReplay=f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n;assert.equal((await f.data(f.req('/content','POST',payload),201)).revision,2);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n,auditsBeforeReplay);assert.deepEqual(f.db.sqlite.prepare('SELECT purpose,sequence,hex(data) data,digest FROM tower_asset_chunks WHERE revision=2 ORDER BY purpose,sequence').all(),chunksBefore);assert.equal(f.calls.length,fetches);
   const preview=await f.data(f.req('/preview'));assert.equal(preview.site.home.intro,payload.content.intro);assert.equal(preview.site.home.daily.length,1);

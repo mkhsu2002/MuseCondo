@@ -29,10 +29,10 @@ function harness(privatePage,fetcher){
 const response=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
 test('visitor form sends same-origin session CSRF and private invitations without URL credentials',async()=>{
  const h=harness(false,async path=>response(path==='/api/v1/session'?{signedIn:true,csrf:'synthetic-csrf'}:path.endsWith('/send')?{visit:{id:'synthetic'}}:{visits:[],nextCursor:null}));await ready();
- assert.equal(h.nodes.form.hidden,false);assert.equal(h.nodes.gift.hidden,true);assert.equal(h.nodes.body.maxLength,1000);assert.match(h.nodes.privacy.textContent,/也不會公開/);
+ assert.equal(h.nodes.form.hidden,false);assert.equal(h.nodes.gift.hidden,true);assert.equal(h.nodes.body.maxLength,1000);assert.match(h.nodes.privacy.textContent,/does not make it public/);
  await h.nodes.form.fire('submit');
  const sent=h.calls.find(call=>call.options.method==='POST');assert.ok(sent);assert.equal(sent.options.credentials,'same-origin');assert.equal(sent.options.headers['X-CSRF-Token'],'synthetic-csrf');assert.equal(sent.options.headers.Authorization,undefined);assert.doesNotMatch(sent.path,/csrf|token|credential/);
- const input=JSON.parse(sent.options.body);assert.equal(input.kind,'invitation');assert.equal(input.body,'Private hello');assert.equal(input.targetDoor,'/home/'+'d'.repeat(16));assert.equal(input.giftId,undefined);assert.match(h.nodes.status.textContent,/私密邀請已送達/);
+ const input=JSON.parse(sent.options.body);assert.equal(input.kind,'invitation');assert.equal(input.body,'Private hello');assert.equal(input.targetDoor,'/home/'+'d'.repeat(16));assert.equal(input.giftId,undefined);assert.match(h.nodes.status.textContent,/Your private invitation has been sent/);
 });
 test('anonymous visitor sees escaped text nodes and a login entry without an enabled form',async()=>{
  const payload='<img src=x onerror=alert(1)>',h=harness(false,async path=>response(path==='/api/v1/session'?{signedIn:false}:{visits:[{id:'a',kind:'message',nickname:'Synthetic',body:payload,createdAt:'2026-10-30T00:00:00Z'}],nextCursor:null}));await ready();
@@ -46,7 +46,7 @@ test('private inbox accepts an invitation and sender withdrawal refreshes curren
   if(options.method==='POST'){if(path.endsWith('/moderate'))accepted=true;else withdrawn=true;return response({visit:{}});}
   return response({visits:[{...invite,...(path.endsWith('/sent')?{state:withdrawn?'withdrawn':'accepted',version:2}:{state:accepted?'accepted':'pending'})}],nextCursor:null});
  });await ready();
- const accept=h.nodes.received.children[0].children.find(node=>node.tagName==='button'&&node.textContent==='接受邀請');assert.ok(accept);await accept.fire('click');assert.equal(accepted,true);
+ const accept=h.nodes.received.children[0].children.find(node=>node.tagName==='button'&&node.textContent==='Accept invitation');assert.ok(accept);await accept.fire('click');assert.equal(accepted,true);
  const withdraw=h.nodes.sent.children[0].children.find(node=>node.tagName==='button');await withdraw.fire('click');assert.equal(withdrawn,true);
  const writes=h.calls.filter(call=>call.options.method==='POST');assert.deepEqual(writes.map(call=>JSON.parse(call.options.body).expectedVersion),[1,2]);assert.equal(JSON.parse(writes[0].options.body).action,'accept');
  assert.equal(h.nodes.sent.children[0].children.some(node=>node.tagName==='button'),false);

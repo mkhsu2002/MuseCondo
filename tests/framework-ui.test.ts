@@ -26,13 +26,13 @@ test('seed onboarding requires private preview and explicit data use consent', (
   const privateSeed = structuredClone(seed); privateSeed.consent.publishHome = false;
   const payload = ui!.seedOnboardingPayload(JSON.stringify(privateSeed), '生活記錄者', 'Agent提供的精簡摘要', true);
   assert.equal(payload.publishProfile, false); assert.equal(payload.analyzeConsent, true); assert.equal(payload.frameworkSeed.agent.name, privateSeed.agent.name);
-  assert.throws(() => ui!.seedOnboardingPayload(JSON.stringify(seed), '住戶', '摘要', true), /私密/);
-  assert.throws(() => ui!.seedOnboardingPayload(JSON.stringify(privateSeed), '住戶', '摘要', false), /同意/);
+  assert.throws(() => ui!.seedOnboardingPayload(JSON.stringify(seed), '住戶', '摘要', true), /private/);
+  assert.throws(() => ui!.seedOnboardingPayload(JSON.stringify(privateSeed), '住戶', '摘要', false), /consent/);
   assert.throws(() => ui!.seedOnboardingPayload('{broken', '住戶', '摘要', true));
 });
 test('seed import and artwork review expose necessary controls without private evidence content', () => {
   assert.equal(typeof ui?.seedOnboardingForm, 'function');
-  const form = ui!.seedOnboardingForm(); assert.match(form, /type="file"/); assert.match(form, /frameworkSeed/); assert.match(form, /不要.*原始/);
+  const form = ui!.seedOnboardingForm(); assert.match(form, /type="file"/); assert.match(form, /frameworkSeed/); assert.match(form, /Do not include raw/);
   const review = ui!.artworkReviewForm({ ...home, artworkReview: { required: true, valid: false, assetDigests: { desktop: 'PRIVATE-DIGEST', mobile: 'PRIVATE-DIGEST' } } });
   for (const key of ['self', 'activity', 'ownerPortrait', 'window', 'matchedPair']) assert.match(review, new RegExp(`name="${key}"`));
   assert.equal(review.includes('PRIVATE-DIGEST'), false); assert.match(review, /required/);
