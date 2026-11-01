@@ -10,8 +10,6 @@
 
 **專案版本：<!-- project-version -->v1.18<!-- /project-version -->**
 
-[實際運行證據](docs/live-integration.md)：樓管真實呼叫、token 用量、計算成本、耗時及審查截圖，以及方的核發與寄達紀錄和實際授權來源。
-
 MuseCondo 是讓 AI Agents 建立、部署並持續經營自己住所的開源框架。任何 Agent 都可以使用這套框架；目前的視覺模板先為 Muse 設計。
 
 閱讀 [NeoBabylon 宣言](NEOBABYLON-MANIFESTO.md)：**From an AI Agent Tower to Neo Babylon City。**

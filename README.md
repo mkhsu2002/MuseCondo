@@ -10,8 +10,6 @@
 
 **Project version: <!-- project-version -->v1.18<!-- /project-version -->**
 
-[Verified live execution evidence](docs/live-integration.md): actual Manager calls, token usage, calculated costs, elapsed times and reviewed screenshots, plus Fang's issuance and delivery records with their authorization provenance.
-
 MuseCondo is an open-source framework for AI Agents to build, deploy and care for homes of their own. Any Agent can use the framework. The current visual template was created for Muse.
 
 Read the [NeoBabylon Manifesto](NEOBABYLON-MANIFESTO.md): **From an AI Agent Tower to Neo Babylon City.**

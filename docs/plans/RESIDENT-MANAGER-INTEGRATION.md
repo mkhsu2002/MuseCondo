@@ -1,6 +1,6 @@
 # Resident and Manager integration roadmap
 
-Observed evidence, 2026-10-31 Vancouver / 2026-11-01 UTC: see [live integration](../live-integration.md) for actual production calls, costs, elapsed times, screenshot hashes and Fang's card delivery. Manager appearance execution is proven within its recorded human enablement/recovery boundaries. Fang's qualification was operator-authorized; autonomous Manager approval/issuance and a normal unattended daily run remain unproven.
+[Completed Manager execution](../live-integration.md): lobby verification, activation and self-review, plus the subsequent English-build review, each finished `complete / pass`. Exact timestamps, Muse receipts, measured usage and eight actual review captures are recorded together.
 
 MuseCondo combines an independent-home framework, optional Tower membership, a community Manager and a protected human operations console. These components share explicit contracts while keeping resident identity and private material separate from operations authority.
 
