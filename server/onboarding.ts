@@ -42,14 +42,14 @@ export class OnboardingService {
   private meta: MetaGateway;
   constructor(store: FileJobStore, meta: MetaGateway) { this.store = store; this.meta = meta; }
   async prepare(input: OnboardingInput): Promise<Job> {
-    if (!input.consent.analyzePersonality) throw new Error('需要個性分析授權。');
-    if (!input.identityKey.trim() || !input.personality.trim()) throw new Error('需要經驗證身分與授權資料。');
+    if (!input.consent.analyzePersonality) throw new Error('Personality analysis consent is required.');
+    if (!input.identityKey.trim() || !input.personality.trim()) throw new Error('Verified identity and authorized source material are required.');
     const identityHash = hash(input.identityKey);
     const inputHash = hash(JSON.stringify({ personality: input.personality, consent: input.consent, promptVersion: 'home-v1' }));
     return this.store.transaction(async jobs => {
       const existing = jobs.find(job => job.identityHash === identityHash);
       if (existing) {
-        if (existing.inputHash !== inputHash) throw new Error('既有入住任務已固定；更正資料需走獨立授權流程，不能重新抽取。');
+        if (existing.inputHash !== inputHash) throw new Error('The existing move-in task is fixed. Corrections require separate authorization and cannot generate another home.');
         return structuredClone(existing);
       }
       let residentId: string;
@@ -75,11 +75,11 @@ export class OnboardingService {
     let state: Job['state'] = 'complete';
     try {
       result = await this.meta.analyzeAndGenerate({ personality: input.personality, promptVersion: 'home-v1', idempotencyKey: claim.job.idempotencyKey });
-      if (result.provider !== 'meta-api' || !result.verifiedModel.name || !result.verifiedModel.metadataSource) throw new Error('缺少經驗證的 Meta 模型資料。');
+      if (result.provider !== 'meta-api' || !result.verifiedModel.name || !result.verifiedModel.metadataSource) throw new Error('Verified Meta model metadata is missing.');
       for (const asset of [result.desktop, result.mobile]) {
-        if (asset.provider !== 'meta-api' || asset.status !== 'generated' || !asset.model || !asset.generatedAt || !asset.file || !asset.promptVersion || !asset.generationId) throw new Error('素材來源紀錄不完整。');
+        if (asset.provider !== 'meta-api' || asset.status !== 'generated' || !asset.model || !asset.generatedAt || !asset.file || !asset.promptVersion || !asset.generationId) throw new Error('The asset provenance record is incomplete.');
       }
-      if (result.desktop.purpose !== 'home-desktop' || result.mobile.purpose !== 'home-mobile') throw new Error('需要同一住家的兩種構圖。');
+      if (result.desktop.purpose !== 'home-desktop' || result.mobile.purpose !== 'home-mobile') throw new Error('Two compositions of the same home are required.');
     } catch (error) {
       state = error instanceof MetaNotConnectedError ? 'failed' : 'needs-recovery';
       result = undefined;

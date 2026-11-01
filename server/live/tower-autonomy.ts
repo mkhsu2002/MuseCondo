@@ -112,7 +112,7 @@ export function createManagerAutonomy(options:Options){
   }catch{return false;}
  }
  async function pending(){return !!await db.prepare(`SELECT 1 FROM tower_autonomy_cycles c,${nativeNow} WHERE (SELECT enabled FROM tower_autonomy_mandate WHERE id=1)=1 AND (c.state NOT IN ('complete','blocked') OR (${resumeEligibility})) LIMIT 1`).first();}
- async function prepareDaily(){const at=clock().toISOString(),day=calendarPeriods(clock()).day;await run("INSERT INTO tower_autonomy_cycles(id,day,state,purpose,budget_micro,created_at,updated_at) SELECT ?,?,'thinking','每日自主照顧與今日決策',task_limit_micro,?,? FROM tower_autonomy_mandate WHERE id=1 AND enabled=1 AND NOT EXISTS(SELECT 1 FROM tower_autonomy_cycles WHERE day=?)",`manager-${day}`,day,at,at,day);}
+ async function prepareDaily(){const at=clock().toISOString(),day=calendarPeriods(clock()).day;await run("INSERT INTO tower_autonomy_cycles(id,day,state,purpose,budget_micro,created_at,updated_at) SELECT ?,?,'thinking','Daily autonomous care and decisions',task_limit_micro,?,? FROM tower_autonomy_mandate WHERE id=1 AND enabled=1 AND NOT EXISTS(SELECT 1 FROM tower_autonomy_cycles WHERE day=?)",`manager-${day}`,day,at,at,day);}
  async function step(){
   if(!(await db.prepare('SELECT enabled FROM tower_autonomy_mandate WHERE id=1').first<{enabled:number}>())?.enabled)return {pending:false,state:'disabled'};
   if(await resumeKnownAudit())return {pending:true,state:'audit'};

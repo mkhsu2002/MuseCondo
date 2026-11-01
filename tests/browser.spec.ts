@@ -4,7 +4,7 @@ import { homeArtwork, characterArtwork, prototypeArtPath } from '../src/artwork'
 
 test('tower and all 20 flat routes preserve prototype provenance and responsive artwork', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/'); await expect(page.locator('h1')).toContainText('樓裡的新鮮事');
+  await page.goto('/'); await expect(page.locator('h1')).toContainText('Every window,');
   await expect(page.locator('[data-event-id]')).toHaveCount(20);
   await expect(page.locator('[data-resident-card]')).toHaveCount(10);
   for (const resident of residents) {
@@ -24,10 +24,10 @@ test('tower and all 20 flat routes preserve prototype provenance and responsive 
   for (const resident of residents) {
     await page.goto(`/${resident.id}/`);
     await expect(page.locator('h1')).toContainText(resident.name);
-    await expect(page.locator('.flat-nameplate')).toContainText('模擬住戶');
+    await expect(page.locator('.flat-nameplate')).toContainText('Historical demo resident');
     await expect(page.locator('.flat-details')).toContainText(resident.demo.city);
     await expect(page.locator('.flat-details')).toContainText(resident.demo.ownerAlias);
-    await expect(page.locator('.flat-details')).toContainText('示範同意公開');
+    await expect(page.locator('.flat-details')).toContainText('Shared with demo consent');
     await expect(page.locator('.flat-bio')).toContainText(resident.demo.personality);
     const profileImage = page.locator('.flat-nameplate .character-avatar img');
     await expect(page.locator('.flat-nameplate .character-avatar')).toHaveAttribute('data-character-id', resident.id);
@@ -43,21 +43,21 @@ test('tower and all 20 flat routes preserve prototype provenance and responsive 
       const source = await image.evaluate((el: HTMLImageElement) => ({ src: el.currentSrc, naturalWidth: el.naturalWidth, fit: getComputedStyle(el).objectFit }));
       expect(source.src).toContain(prototypeArtPath(info.project.name === 'mobile' ? art.mobile : art.desktop));
       expect(source.naturalWidth).toBeGreaterThan(900); expect(source.fit).toBe('contain');
-      await expect(page.locator('.flat-visual')).toContainText('Codex 原型圖');
+      await expect(page.locator('.flat-visual')).toContainText('Demo home');
     } else await expect(page.locator('.flat-visual img')).toHaveCount(0);
     const box = await page.locator('.flat-visual .room-stage').boundingBox();
     expect(box!.width / box!.height).toBeCloseTo(info.project.name === 'mobile' ? 9 / 16 : 16 / 9, 2);
-    await page.getByRole('link', { name: '走進去看看' }).click();
+    await page.getByRole('link', { name: 'Come inside' }).click();
     await expect(page).toHaveURL(new RegExp(`/${resident.id}/inside$`));
     await expect(page.locator('h1')).toContainText(resident.name);
-    await expect(page.locator('#diary')).toContainText('虛構 fixture');
+    await expect(page.locator('#diary')).toContainText('Fictional demo entry');
     await expect(page.locator('.inside-namecard .character-avatar')).toHaveAttribute('data-character-id', resident.id);
     await expect(page.locator('.inside-namecard .character-avatar img')).toHaveAttribute('src', `/${prototypeArtPath(characterArtwork[resident.id].file)}`);
-    await expect(page.locator('.inside-namecard')).toContainText('星芽族 · Codex 暫用原型');
+    await expect(page.locator('.inside-namecard')).toContainText('Fictional demo character');
     await expect(page.locator('.flat-details')).toHaveCount(0);
     await expect(page.locator('.inside-namecard')).toContainText(resident.demo.city);
     await expect(page.locator('.inside-namecard')).toContainText(resident.demo.ownerAlias);
-    await expect(page.locator('.inside-namecard')).toContainText('虛構 · 示範同意公開');
+    await expect(page.locator('.inside-namecard')).toContainText('Fictional · shared with demo consent');
     const contrast = await page.locator('.inside-namecard .character-source').evaluate(el => {
       const luminance = (color: string) => {
         const channels = color.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(value => value / 255).map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
@@ -68,8 +68,8 @@ test('tower and all 20 flat routes preserve prototype provenance and responsive 
       return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
     });
     expect(contrast).toBeGreaterThanOrEqual(4.5);
-    await page.reload(); await expect(page.locator('#gift')).toContainText('收藏架還空著');
-    await page.getByRole('link', { name: '← 回到家門' }).click();
+    await page.reload(); await expect(page.locator('#gift')).toContainText('The shelf is empty');
+    await page.getByRole('link', { name: '← Back to the front door' }).click();
     await expect(page.locator('h1')).toContainText(resident.name);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
@@ -79,64 +79,64 @@ test('tower and all 20 flat routes preserve prototype provenance and responsive 
 test('flat, inside and missing address preserve navigation and keyboard back', async ({ page }, info) => {
   await page.goto('/m7k2px');
   await page.screenshot({ path: `test-results/${info.project.name}-flat.png`, fullPage: true });
-  await page.getByRole('link', { name: '走進去看看' }).click();
+  await page.getByRole('link', { name: 'Come inside' }).click();
   await expect(page.locator('main')).toBeFocused();
   await page.screenshot({ path: `test-results/${info.project.name}-inside.png`, fullPage: true });
   await page.goBack(); await expect(page.locator('.flat-nameplate h1')).toContainText('茉茉');
-  await page.goto('/no-such-flat'); await expect(page.locator('h1')).toContainText('還沒有人住');
-  await page.getByRole('link', { name: '回公寓大廳 ↗' }).click(); await expect(page.locator('.lobby-masthead')).toBeVisible();
-  await page.getByRole('link', { name: '關於這棟樓' }).click(); await expect(page.locator('main')).toContainText('尚未開放真實入住');
+  await page.goto('/no-such-flat'); await expect(page.locator('h1')).toContainText('has no resident yet');
+  await page.getByRole('link', { name: 'Return to the lobby ↗' }).click(); await expect(page.locator('.lobby-masthead')).toBeVisible();
+  await page.getByRole('link', { name: 'About this Tower ↗' }).click(); await expect(page.locator('main')).toContainText('Make a home, then open your door.');
   await expect(page.locator('input[type=file]')).toHaveCount(0);
 });
 test('messages persist locally, escape visitor HTML, reject duplicate and throttle, clear restores empty', async ({ page }) => {
-  await page.goto('/m7k2px/inside'); await page.getByRole('button', { name: '寫一句問候' }).click();
-  await page.getByLabel('怎麼稱呼你').fill('路過的鄰居');
-  await page.getByLabel('想留下的話').fill('<img src=x onerror=alert(1)>');
-  await page.getByRole('button', { name: '存入本機示範信箱' }).click();
-  await expect(page.locator('#form-status')).toContainText('沒有傳送給住戶');
-  await expect(page.getByRole('button', { name: '存入本機示範信箱' })).toBeDisabled();
-  await page.getByRole('button', { name: '關閉', exact: true }).click();
+  await page.goto('/m7k2px/inside'); await page.getByRole('button', { name: 'Write a greeting' }).click();
+  await page.getByLabel('Your name').fill('路過的鄰居');
+  await page.getByLabel('Your message').fill('<img src=x onerror=alert(1)>');
+  await page.getByRole('button', { name: 'Save in the local demo inbox' }).click();
+  await expect(page.locator('#form-status')).toContainText('not sent to the resident');
+  await expect(page.getByRole('button', { name: 'Save in the local demo inbox' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.locator('#message')).toContainText('<img src=x onerror=alert(1)>');
   await expect(page.locator('#message img')).toHaveCount(0);
   await page.reload(); await expect(page.locator('#message')).toContainText('路過的鄰居');
-  await page.getByRole('button', { name: '寫一句問候' }).click();
-  await page.getByLabel('怎麼稱呼你').fill('路過的鄰居'); await page.getByLabel('想留下的話').fill('<img src=x onerror=alert(1)>');
-  await page.getByRole('button', { name: '存入本機示範信箱' }).click(); await expect(page.locator('#form-status')).toContainText('不需要重複');
-  await page.getByLabel('想留下的話').fill('另一句問候'); await page.getByRole('button', { name: '存入本機示範信箱' }).click();
-  await expect(page.locator('#form-status')).toContainText('30 秒');
-  await page.keyboard.press('Escape'); await page.getByRole('button', { name: '清除本機互動紀錄' }).click();
-  await expect(page.locator('#message')).toContainText('信箱還是空的');
+  await page.getByRole('button', { name: 'Write a greeting' }).click();
+  await page.getByLabel('Your name').fill('路過的鄰居'); await page.getByLabel('Your message').fill('<img src=x onerror=alert(1)>');
+  await page.getByRole('button', { name: 'Save in the local demo inbox' }).click(); await expect(page.locator('#form-status')).toContainText('no need to submit it again');
+  await page.getByLabel('Your message').fill('另一句問候'); await page.getByRole('button', { name: 'Save in the local demo inbox' }).click();
+  await expect(page.locator('#form-status')).toContainText('30 seconds');
+  await page.keyboard.press('Escape'); await page.getByRole('button', { name: 'Clear local interactions' }).click();
+  await expect(page.locator('#message')).toContainText('The inbox is empty');
 });
 test('gifts and invitations are separate text-only local records, isolated per resident', async ({ page }) => {
   await page.goto('/m7k2px/inside');
-  await page.getByRole('button', { name: '留一張禮物卡' }).click(); await page.getByLabel('怎麼稱呼你').fill('A');
-  await page.getByLabel('想留下的話').fill('送你一個下午的安靜。'); await page.getByRole('button', { name: '存入本機示範信箱' }).click();
+  await page.getByRole('button', { name: 'Leave a gift card' }).click(); await page.getByLabel('Your name').fill('A');
+  await page.getByLabel('Your message').fill('送你一個下午的安靜。'); await page.getByRole('button', { name: 'Save in the local demo inbox' }).click();
   await page.keyboard.press('Escape'); await expect(page.locator('#gift')).toContainText('送你一個下午的安靜');
   await page.goto('/r4n8cv/inside'); await expect(page.locator('#gift')).not.toContainText('送你一個下午的安靜');
-  await page.getByRole('button', { name: '清除本機互動紀錄' }).click();
-  await page.getByRole('button', { name: '留一封邀請' }).click(); await page.getByLabel('怎麼稱呼你').fill('B');
-  await page.getByLabel('想留下的話').fill('週六一起聊植物吧。'); await page.getByRole('button', { name: '存入本機示範信箱' }).click();
+  await page.getByRole('button', { name: 'Clear local interactions' }).click();
+  await page.getByRole('button', { name: 'Leave an invitation' }).click(); await page.getByLabel('Your name').fill('B');
+  await page.getByLabel('Your message').fill('週六一起聊植物吧。'); await page.getByRole('button', { name: 'Save in the local demo inbox' }).click();
   await page.keyboard.press('Escape'); await page.reload(); await expect(page.locator('#invitation')).toContainText('週六一起聊植物吧');
   await expect(page.locator('#message')).not.toContainText('週六一起聊植物吧');
 });
 test('frontend labels fictional owner consent while isolating real private data and unavailable storage', async ({ page }) => {
   await page.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new Error('Storage denied'); } }); });
-  await page.goto('/m7k2px'); await expect(page.locator('.flat-details')).toContainText('示範監護人（虛構）朵晴');
-  await expect(page.locator('.flat-details')).toContainText('示範同意公開');
-  await expect(page.locator('.flat-details')).toContainText('尚無可驗證資料');
-  await page.getByRole('link', { name: '走進去看看' }).click(); await expect(page.locator('#message')).toContainText('無法讀取本機紀錄');
-  await page.getByRole('button', { name: '寫一句問候' }).click(); await page.getByLabel('怎麼稱呼你').fill('A'); await page.getByLabel('想留下的話').fill('hello');
-  await page.getByRole('button', { name: '存入本機示範信箱' }).click(); await expect(page.locator('#form-status')).not.toContainText('已存入');
-  await page.keyboard.press('Escape'); await page.getByRole('button', { name: '清除本機互動紀錄' }).click(); await expect(page.locator('#clear-status')).toContainText('目前無法清除');
+  await page.goto('/m7k2px'); await expect(page.locator('.flat-details')).toContainText('Demo Guardian (fictional)朵晴');
+  await expect(page.locator('.flat-details')).toContainText('Shared with demo consent');
+  await expect(page.locator('.flat-details')).toContainText(residents[0].demo.ownerProject);
+  await page.getByRole('link', { name: 'Come inside' }).click(); await expect(page.locator('#message')).toContainText('Unable to read local entries');
+  await page.getByRole('button', { name: 'Write a greeting' }).click(); await page.getByLabel('Your name').fill('A'); await page.getByLabel('Your message').fill('hello');
+  await page.getByRole('button', { name: 'Save in the local demo inbox' }).click(); await expect(page.locator('#form-status')).not.toContainText('Saved');
+  await page.keyboard.press('Escape'); await page.getByRole('button', { name: 'Clear local interactions' }).click(); await expect(page.locator('#clear-status')).toContainText('Unable to clear storage');
   const html = await page.content(); expect(html).not.toMatch(/privateMemory|TEST-PRIVATE|API_KEY|google\.com\/forms/);
   await expect(page.locator('.site-footer a[href="https://mkhsu.icareu.tw"]')).toContainText('M.K.');
   await expect(page.locator('.inside-namecard')).not.toContainText('M.K.');
 });
 test('blank and contact-content inputs never create entries', async ({ page }) => {
-  await page.goto('/m7k2px/inside'); await page.getByRole('button', { name: '寫一句問候' }).click();
-  await page.getByRole('button', { name: '存入本機示範信箱' }).click(); await expect(page.locator('#message .entry-list')).toHaveCount(0);
-  await page.getByLabel('怎麼稱呼你').fill('A'); await page.getByLabel('想留下的話').fill('https://example.com');
-  await page.getByRole('button', { name: '存入本機示範信箱' }).click(); await expect(page.locator('#form-status')).toContainText('請勿包含連結');
+  await page.goto('/m7k2px/inside'); await page.getByRole('button', { name: 'Write a greeting' }).click();
+  await page.getByRole('button', { name: 'Save in the local demo inbox' }).click(); await expect(page.locator('#message .entry-list')).toHaveCount(0);
+  await page.getByLabel('Your name').fill('A'); await page.getByLabel('Your message').fill('https://example.com');
+  await page.getByRole('button', { name: 'Save in the local demo inbox' }).click(); await expect(page.locator('#form-status')).toContainText('Keep links and email addresses out');
 });
 
 
@@ -155,16 +155,16 @@ test('small and intermediate viewports do not overflow', async ({ page }) => {
 
 test('prototype gifts persist with their real source and references are display-only', async ({ page }, info) => {
   await page.goto('/m7k2px/inside');
-  await page.getByRole('button', { name: '留一張禮物卡' }).click();
-  await page.getByRole('radio', { name: '晚安小雲燈' }).check();
-  await page.getByLabel('怎麼稱呼你').fill('鄰居');
-  await page.getByLabel('想留下的話').fill('留一盞燈給你。');
+  await page.getByRole('button', { name: 'Leave a gift card' }).click();
+  await page.getByRole('radio', { name: 'Goodnight cloud lamp' }).check();
+  await page.getByLabel('Your name').fill('鄰居');
+  await page.getByLabel('Your message').fill('留一盞燈給你。');
   await expect(page.locator('#gift-options img')).toHaveCount(3);
   await page.screenshot({ path: `test-results/${info.project.name}-gift-picker.png`, fullPage: false });
-  await page.getByRole('button', { name: '存入本機示範信箱' }).click();
+  await page.getByRole('button', { name: 'Save in the local demo inbox' }).click();
   await page.keyboard.press('Escape'); await page.reload();
   await expect(page.locator('#gift .received-gift img')).toHaveAttribute('src', '/prototype-assets/gift-cloud.png');
-  await expect(page.locator('#gift .received-gift')).toContainText('本機禮物卡 · Codex 原型圖');
+  await expect(page.locator('#gift .received-gift')).toContainText('Local gift card · demo home');
   await page.goto('/入住');
   await expect(page.locator('.decor-gallery img')).toHaveCount(2);
   for (const image of await page.locator('.decor-gallery img').all()) {
@@ -173,7 +173,7 @@ test('prototype gifts persist with their real source and references are display-
   }
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await expect(page.locator('.decor-gallery button, .decor-gallery input')).toHaveCount(0);
-  await expect(page.locator('.decor-gallery')).toContainText('不提供入住風格選擇');
+  await expect(page.locator('.decor-gallery')).toContainText('A few fictional spaces to spark your imagination.');
   await page.screenshot({ path: `test-results/${info.project.name}-references.png`, fullPage: true });
 });
 
@@ -184,10 +184,10 @@ test('missing character image falls back to readable resident text without break
   await page.goto('/m7k2px');
   const avatar = page.locator('.flat-nameplate .character-avatar');
   await expect(avatar).toHaveClass(/is-unavailable/);
-  await expect(avatar).toHaveAttribute('aria-label', '茉茉的角色圖暫無法載入，顯示姓名文字');
+  await expect(avatar).toHaveAttribute('aria-label', '茉茉: character image unavailable; showing their name.');
   await expect(avatar.locator('img')).toBeHidden(); await expect(avatar.locator('.character-fallback')).toHaveText('茉');
   await expect(page.locator('.flat-nameplate h1')).toContainText('茉茉');
-  await page.getByRole('link', { name: '走進去看看' }).click();
+  await page.getByRole('link', { name: 'Come inside' }).click();
   await expect(page.locator('.inside-namecard .character-avatar')).toHaveClass(/is-unavailable/);
   await expect(page.locator('#diary')).toBeVisible();
   await page.screenshot({ path: `test-results/${info.project.name}-character-fallback.png`, fullPage: true });
@@ -253,9 +253,9 @@ test('public activity -> persisted edition -> refresh updates the bulletin and t
     await first.getByRole('link',{name:'讀原始公開內容'}).click();
     await expect(page).toHaveURL(new RegExp(`/t7e3qs/inside#event-${updated.id}$`));
     await expect(page.locator(`#event-${updated.id}`)).toContainText(updated.body);
-    await page.getByRole('button',{name:'寫一句問候'}).click();
-    await page.getByLabel('怎麼稱呼你').fill('LOCAL-NEIGHBOR');await page.getByLabel('想留下的話').fill('LOCAL-ONLY-HELLO');
-    await page.getByRole('button',{name:'存入本機示範信箱'}).click();await page.keyboard.press('Escape');
+    await page.getByRole('button',{name:'Write a greeting'}).click();
+    await page.getByLabel('Your name').fill('LOCAL-NEIGHBOR');await page.getByLabel('Your message').fill('LOCAL-ONLY-HELLO');
+    await page.getByRole('button',{name:'Save in the local demo inbox'}).click();await page.keyboard.press('Escape');
     await page.goto('/');await expect(page.locator('[data-resident-card]')).toHaveCount(10);
     await expect(page.locator('main')).not.toContainText('LOCAL-ONLY-HELLO');
     await mkdir('test-results',{recursive:true});

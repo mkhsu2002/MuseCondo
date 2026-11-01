@@ -34,8 +34,8 @@ test('interactions persist once, reject duplicates/rate abuse, retain literal te
   const storage = memoryStore(); const entry = { residentId: residents[0].id, kind: 'message' as const, name: 'Neighbor', text: '<script>not an instruction</script>' };
   addInteraction(storage, entry, 50_000);
   assert.equal(readInteractions(storage)[0].text, entry.text);
-  assert.throws(() => addInteraction(storage, entry, 100_000), /重複/);
-  assert.throws(() => addInteraction(storage, { ...entry, text: 'different' }, 60_000), /30 秒/);
+  assert.throws(() => addInteraction(storage, entry, 100_000), /already saved/);
+  assert.throws(() => addInteraction(storage, { ...entry, text: 'different' }, 60_000), /30 seconds/);
   addInteraction(storage, { ...entry, text: 'different' }, 100_000);
   assert.equal(readInteractions(storage).length, 2);
 });
@@ -47,7 +47,7 @@ test('validation blocks empty, oversized and linked/private contact content', ()
 test('storage corruption and storage failures are handled without false success', () => {
   const storage = memoryStore(); storage.setItem(STORAGE_KEY, '{broken'); assert.deepEqual(readInteractions(storage), []);
   storage.setItem(STORAGE_KEY, '[null,{"text":"bad"}]'); assert.deepEqual(readInteractions(storage), []);
-  assert.throws(() => addInteraction({ ...storage, setItem() { throw new Error('quota'); } }, { residentId: residents[0].id, kind: 'gift', name: 'A', text: 'Hello' }), /尚未送出/);
+  assert.throws(() => addInteraction({ ...storage, setItem() { throw new Error('quota'); } }, { residentId: residents[0].id, kind: 'gift', name: 'A', text: 'Hello' }), /Nothing was sent/);
 });
 test('private fields and owner identity require independent publication consent', () => {
   const record: PrivateResident = { id: 'test', name: 'A', publicIntro: 'Hi', publicRole: 'Helper', privateMemory: 'SECRET', owner: { name: 'OWNER-SECRET', website: 'PRIVATE' }, consent: input.consent };
@@ -62,7 +62,7 @@ test('manager only receives deduplicated, consenting public events', () => {
   assert.deepEqual(publicManagerInput([event, event, { ...event, id: 'private', visibility: 'private' }, { ...event, id: 'b', residentId: 'b' }], new Set(['a'])), [{ id: 'e1', residentId: 'a', occurredAt: '2026-10-28', type: 'journal', summary: 'PUBLIC' }]);
 });
 test('consent denied creates no job', () => withService(async store => {
-  await assert.rejects(new OnboardingService(store, disconnectedMeta).prepare({ ...input, consent: { ...input.consent, analyzePersonality: false } }), /授權/);
+  await assert.rejects(new OnboardingService(store, disconnectedMeta).prepare({ ...input, consent: { ...input.consent, analyzePersonality: false } }), /consent/);
 }));
 test('repeat and concurrent requests, including after restart, keep one job; no raw memory saved', () => withService(async (store, file) => {
   const service = new OnboardingService(store, disconnectedMeta);
@@ -71,7 +71,7 @@ test('repeat and concurrent requests, including after restart, keep one job; no 
   const restarted = new OnboardingService(new FileJobStore(file), disconnectedMeta);
   assert.equal((await restarted.prepare(input)).idempotencyKey, jobs[0].idempotencyKey);
   assert.equal((await readFile(file, 'utf8')).includes(input.personality), false);
-  await assert.rejects(service.prepare({ ...input, personality: 'changed to reroll' }), /固定/);
+  await assert.rejects(service.prepare({ ...input, personality: 'changed to reroll' }), /fixed/);
 }));
 test('disconnected API does not mark generation complete or create another address', () => withService(async store => {
   const service = new OnboardingService(store, disconnectedMeta); const first = await service.run(input); const retry = await service.run(input);
@@ -103,8 +103,8 @@ test('prototype gift selection is allowlisted and persisted without modifying ru
   const gift = { residentId: residents[0].id, kind: 'gift' as const, name: 'Neighbor', text: 'A little light', giftId: 'gift-cloud' };
   addInteraction(storage, gift);
   assert.equal(readInteractions(storage)[0].giftId, 'gift-cloud');
-  assert.throws(() => addInteraction(memoryStore(), { ...gift, giftId: 'https://external.example/picture' }), /無效/);
-  assert.throws(() => addInteraction(memoryStore(), { ...gift, kind: 'message' }), /無效/);
+  assert.throws(() => addInteraction(memoryStore(), { ...gift, giftId: 'https://external.example/picture' }), /invalid/);
+  assert.throws(() => addInteraction(memoryStore(), { ...gift, kind: 'message' }), /invalid/);
 });
 
 

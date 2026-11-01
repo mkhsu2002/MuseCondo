@@ -22,7 +22,7 @@ export interface MetaGateway {
   analyzeAndGenerate(input: { personality: string; promptVersion: string; idempotencyKey: string }): Promise<MetaGenerationResult>;
 }
 export class MetaNotConnectedError extends Error {
-  constructor() { super('Meta API 尚未接通；需要驗證端點、模型 metadata、預算與安全的服務端憑證。'); }
+  constructor() { super('Meta API is not connected; endpoint, model metadata, budget and secure server credentials must be verified.'); }
 }
 export const disconnectedMeta: MetaGateway = {
   async analyzeAndGenerate() { throw new MetaNotConnectedError(); },

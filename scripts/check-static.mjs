@@ -25,7 +25,7 @@ try {
   const page = await browser.newPage();
   const failures = []; page.on('pageerror', error => failures.push(error.message));
   const failedResources = []; page.on('response', response => { if (response.status() >= 400 && !response.url().includes('invalid-door')) failedResources.push(response.url()); });
-  for (const route of ['/', '/m7k2px/', '/m7k2px/inside/', '/入住/', '/about/', '/選輯紀錄/']) {
+  for (const route of ['/', '/m7k2px/', '/m7k2px/inside/', '/Move in/', '/about/', '/Community records/']) {
     assert.equal((await page.goto(`${origin}${base}${route}`)).status(), 200);
     assert.ok(await page.locator('h1').count());
   }
@@ -34,11 +34,11 @@ try {
   assert.ok(await page.locator('.flat-visual img').evaluate(image => image.naturalWidth > 900));
   assert.ok((await page.locator('.flat-nameplate .character-avatar img').getAttribute('src')).startsWith(`${base}/prototype-assets/character-`));
   assert.equal(await page.locator('.flat-nameplate .character-avatar img').evaluate(image => image.naturalWidth), 1254);
-  await page.getByRole('link', { name: '走進去看看' }).click();
+  await page.getByRole('link', { name: 'Come inside' }).click();
   assert.equal(new URL(page.url()).pathname, `${base}/m7k2px/inside`);
   assert.equal((await page.reload()).status(), 200);
   assert.equal((await page.goto(`${origin}${base}/invalid-door`)).status(), 404);
-  assert.ok((await page.locator('h1').textContent()).includes('還沒有人住'));
+  assert.ok((await page.locator('h1').textContent()).includes('has no resident yet'));
   assert.deepEqual(failures, []); assert.deepEqual(failedResources, []);
   console.log('PASS: /MuseCondo/ static host, deep links, reload, CSS/JS paths, entry page and real HTTP 404.');
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
