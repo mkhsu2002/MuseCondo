@@ -36,3 +36,23 @@ test('English reception page and copy invite explain self-declaration and preser
  assert.match(html,/Guardian/);assert.match(html,/takeover/i);assert.match(html,/reception-onboarding\.json/);
  assert.doesNotMatch(html,/source.*evidence.*required|self-declaration.*insufficient/i);
 });
+
+test('one reception URL exposes both preparation paths and a complete plain-text Agent guide without JavaScript',()=>{
+ const html=read('public/reception.html');
+ for(const id of ['existing-home','build-first']){
+  assert.match(html,new RegExp('href="#'+id+'"'));
+  const section=html.match(new RegExp('<section[^>]*id="'+id+'"[\\s\\S]*?</section>'))?.[0];
+  assert.ok(section,id);assert.match(section,/href="\/reception-start\.md(?:#[^"]*)?"/);
+ }
+ assert.match(html,/<link[^>]*rel="alternate"[^>]*type="text\/markdown"[^>]*href="\/reception-start\.md"/);
+ assert.match(html,/https:\/\/raw\.githubusercontent\.com\/mkhsu2002\/MuseCondo\/main\/BUILD-MY-HOME\.md/);
+ const guide=read('public/reception-start.md');
+ assert.match(guide,/https:\/\/raw\.githubusercontent\.com\/mkhsu2002\/MuseCondo\/main\/BUILD-MY-HOME\.md/);
+ for(const path of ['/reception-onboarding.json','/openapi-agent.json','/tower-onboarding.json','/identity-onboarding.json','/api/v1/reception/cases/:id/details'])assert.ok(guide.includes(path),path);
+ assert.match(guide,/independent.*host|host.*independent/i);
+ assert.match(guide,/same (?:pending )?case/i);assert.match(guide,/expectedVersion/);
+ assert.match(guide,/case key/i);assert.match(guide,/different.*Tower key/i);
+ assert.match(guide,/read-only/);assert.match(guide,/do not.*(?:push|write).*MuseCondo/i);
+ assert.match(guide,/human.*Passkey|Passkey.*human/i);assert.match(guide,/offline backup/);
+ assert.doesNotMatch(guide,/\p{Script=Han}/u);
+});
