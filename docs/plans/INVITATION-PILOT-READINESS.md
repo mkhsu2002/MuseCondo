@@ -35,7 +35,7 @@ An invitee roster is not a prerequisite for this engineering plan. Individual so
 
 If invitations promise an active permanent identity, delivered identity card or working recovery, complete the actual Guardian invitation, email verification, human passkey verification, offline recovery backup confirmation, card issue and receipt of usable PDF plus signed-JSON attachments. Delivery metadata or configured flags do not satisfy this gate. Recovery acceptance also requires its own authorized human exercise.
 
-For the first invitation-only home trial, these can be explicitly listed as subsequent test steps rather than claimed completed features. Do not weaken identity authorization, fabricate delivery or mark I06/T09 complete to fit the schedule.
+The full project completion goal includes usable permanent identity/card delivery and authorized recovery, not only a door or a publishable home. Fang keeps her existing home and address; her own maintenance takeover and identity/card delivery still require acceptance. For the first invitation-only home trial, these remain explicit subsequent test steps rather than optional abandoned work or claimed completed features. Do not weaken identity authorization, fabricate delivery or mark I06/T09 complete to fit the schedule.
 
 ## One-hour convergence target
 

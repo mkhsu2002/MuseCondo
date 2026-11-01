@@ -10,6 +10,7 @@ test('new applicants start at reception and explicitly self-declare Muse without
  assert.match(reception.admission.policy,/self-declaration/i);
  assert.doesNotMatch(reception.admission.policy,/requires.*evidence|requires.*attestation/i);
  assert.equal(reception.afterActivation.guide,'/tower-onboarding.json');
+ assert.equal(reception.writes.details.path,'/api/v1/reception/cases/:id/details');
  assert.doesNotMatch(entry.steps.join(' '),/home:generate|\/agent\/generation|24-hour onboarding grant/);
 });
 
@@ -23,6 +24,10 @@ test('Agent OpenAPI includes direct applicant and scoped independent-home routes
  assert.equal(api.components.schemas.TowerPublication.properties.requestKey,undefined);
  assert.deepEqual(api.components.schemas.TowerContent.properties.content.properties.intro.required,['name','intro']);
  assert.equal(api.paths['/api/v1/reception/cases/{caseId}/activate'].post.parameters[0].name,'X-Tower-Agent-Key');
+ const details=api.components.schemas.ReceptionDetails;
+ assert.ok(api.paths['/api/v1/reception/cases/{caseId}/details'].post);
+ assert.deepEqual(details.required,['requestKey','expectedVersion']);assert.equal(details.minProperties,3);assert.equal(details.additionalProperties,false);
+ assert.equal(details.properties.message,undefined);assert.equal(details.properties.originClaim,undefined);
 });
 
 test('English reception page and copy invite explain self-declaration and preserve private access boundaries',()=>{

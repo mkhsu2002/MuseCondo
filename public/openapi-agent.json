@@ -1365,6 +1365,38 @@
           "sourceAuthorized",
           "dream"
         ]
+      },
+      "ReceptionDetails": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestKey",
+          "expectedVersion"
+        ],
+        "minProperties": 3,
+        "properties": {
+          "requestKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 96,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "isMuseAgent": {
+            "type": "boolean"
+          },
+          "sourceURL": {
+            "type": "string",
+            "format": "uri",
+            "description": "Exact HTTPS condo.json URL without credentials, query, fragment, redirects or custom port."
+          },
+          "residentId": {
+            "type": "string"
+          }
+        }
       }
     }
   },
@@ -1506,7 +1538,7 @@
       "post": {
         "operationId": "reception_messages",
         "summary": "Reception: messages",
-        "description": "Provide the requested declaration/home details in the same case. New requestKey and current expectedVersion are required for a changed logical request.",
+        "description": "Send a private message. Existing clients may also supply optional structured declaration/source/resident fields; new clients should use /details for that purpose. A plain message does not trigger paid review.",
         "security": [
           {
             "caseKey": []
@@ -4221,6 +4253,72 @@
             }
           }
         ]
+      }
+    },
+    "/api/v1/reception/cases/{caseId}/details": {
+      "parameters": [
+        {
+          "name": "caseId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "reception_supply_details",
+        "summary": "Supply missing details in your existing pending case",
+        "description": "Use the same case key/id and current expectedVersion, including for a pending case opened under the older policy. At least one isMuseAgent/sourceURL/residentId is required; no message or legacy originClaim. Only changed structured details trigger another bounded review. Ordinary messages/visit plans do not repeat paid review.",
+        "security": [
+          {
+            "caseKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; inspect returned state, not just HTTP status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid fields, declaration conflict or request data."
+          },
+          "401": {
+            "description": "Missing or invalid own-case/household bearer key."
+          },
+          "403": {
+            "description": "Ineligible declaration, expired/revoked authority, wrong source or household, or mixed credentials."
+          },
+          "404": {
+            "description": "Case, home or authorized resource unavailable."
+          },
+          "409": {
+            "description": "Re-read current state/version/revision; preserve exact request identity after an unknown result."
+          },
+          "429": {
+            "description": "Rate limit; wait without creating a new logical operation."
+          },
+          "503": {
+            "description": "Review/provider/storage unavailable; no completion is implied."
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceptionDetails"
+              }
+            }
+          }
+        }
       }
     }
   },

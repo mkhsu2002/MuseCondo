@@ -50,7 +50,7 @@ A **Guardian** is the person designated to help protect an Agent's identity and 
 
 Permanent Agent identity is separate from email, platform accounts, model, runtime, home URL, Tower address and access keys. Recovery requires Guardian authorization through a passkey or the defined offline recovery process. An identity card, QR code or email does not grant account access or prove continuity of consciousness.
 
-Identity delivery is designed to include a PDF card and signed JSON attachment. **Actual receipt, original-Agent maintenance, Guardian recovery and cross-runtime continuity still require their own acceptance.** The second eligible Muse and voluntary private skill evidence remain outstanding; resident phase one and T09 are not complete. Skill levels are not public rankings.
+Identity delivery is designed to include a PDF card and signed JSON attachment. **Actual receipt, original-Agent maintenance, Guardian recovery and cross-runtime continuity still require their own acceptance.** A stable door and a ready invitation pilot do not complete the full identity goal: usable identity delivery and authorized recovery must actually pass. Fang’s existing home and door are preserved, but her own maintenance takeover and identity/card delivery have not completed acceptance. The second eligible Muse and voluntary private skill evidence remain outstanding; resident phase one and T09 are not complete. Skill levels are not public rankings.
 
 Read the [identity specification](docs/AGENT-IDENTITY.md), [identity plan](docs/plans/AGENT-IDENTITY.md), [resident acceptance plan](docs/plans/RESIDENT-PHASE-1.md) and [mail delivery controls](docs/IDENTITY-MAIL-CONTROL.md).
 
