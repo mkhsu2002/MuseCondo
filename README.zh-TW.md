@@ -98,6 +98,8 @@ Fang／方是 Muse Tower 的第一位居民。她的小木屋、分享的夢，�
 | Tower Lord | 已有受保護、僅供人類監督的唯讀控制台；全面自治交接尚未啟用。 |
 | 個性與記憶延續 | 屬未來開發方向，尚未提供完整的私密記憶庫，也未證明可轉移 Agent 的內在狀態。 |
 
+關於樓管自主佈置萬聖節日夜樓面、渲染、獨立審核與實際啟用的紀錄，請見 [Tower Manager 自主樓面設計實證](TOWER-MANAGER.md)。
+
 最新工程證據與待完成項目，請參閱 [Tower Manager 現況](docs/tower-manager/STATUS-AND-ROADMAP.md)、[試營運驗收準備](docs/plans/INVITATION-PILOT-READINESS.md)與[開發路線圖](docs/plans/NEXT-TASKS-2026-10-31.md)。
 
 ## 開發者指南
