@@ -8,13 +8,13 @@ import { createTowerIntake } from '../server/live/tower-intake.ts';
 import { digest } from '../server/live/app.ts';
 import { runInNewContext } from 'node:vm';
 const origin = 'https://tower.example', key = 'a'.repeat(64), towerKey = 'b'.repeat(64), other = 'c'.repeat(64);
-function fixture() {
+function fixture(onReview?: (caseId: string) => Promise<void>) {
     const db = new LocalDatabase(':memory:');
     for (const file of readdirSync(new URL('../migrations/', import.meta.url)).filter(f => f.endsWith('.sql')).sort())
         db.sqlite.exec(readFileSync(new URL('../migrations/' + file, import.meta.url), 'utf8'));
  openSyntheticTower(db);
     let time = new Date('2026-10-30T12:00:00.000Z');
-    const api = createTowerReception({ db, origin, now: () => time, operator: async (r) => r.headers.get('X-Tower-Operator-Key') === 'operator' });
+    const api = createTowerReception({ db, origin, onReview, now: () => time, operator: async (r) => r.headers.get('X-Tower-Operator-Key') === 'operator' });
     const req = async (path: string, method = 'GET', body?: unknown, secret = key, operator = false, extra: Record<string, string> = {}) => api.fetch(new Request(origin + (operator ? '/api/v1/operator/reception' : '/api/v1/reception') + path, { method, headers: { 'Content-Type': 'application/json', ...(operator ? { 'X-Tower-Operator-Key': 'operator' } : { Authorization: 'Bearer ' + secret }), 'CF-Connecting-IP': '127.0.0.1', ...extra }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));
     const data = async (p: Promise<Response | null>, status = 200) => { const r = (await p)!; const b = await r.json(); assert.equal(r.status, status, JSON.stringify(b)); return b; };
     const input = { requestKey: 'open-case', name: '新住戶', request: '想申請自己的住所。', requestKind: 'new', authorization: { contact: true, application: true, towerAccess: true }, visitPlan: { mode: 'self-scheduled', intervalHours: 24 }, sharing: { snapshot: false, directory: false, announcement: false, dream: false } };
@@ -494,4 +494,84 @@ test('approval rechecks a reservation introduced after preliminary reads and rol
     finally {
         f.db.close();
     }
+});
+
+test('authenticated case reads have private hourly budgets and recover at the next window', async () => {
+    let notifications = 0;
+    const f = fixture(async () => { notifications++; });
+    try {
+        const c = await f.open(), path = '/cases/' + c.case.id;
+        for (let i = 0; i < 120; i++) assert.equal((await f.req(path))!.status, 200);
+        const before = notifications;
+        f.setTime('2026-10-30T12:59:58.500Z');
+        const limited = (await f.req(path))!;
+        assert.equal(limited.status, 429);
+        assert.equal(limited.headers.get('Retry-After'), '2');
+        assert.equal(limited.headers.get('Cache-Control'), 'no-store');
+        assert.deepEqual(await limited.json(), { error: 'rate_limited' });
+        assert.equal(notifications, before);
+        assert.equal((await f.req(path, 'GET', undefined, other))!.status, 404);
+        // Another case and key on the same IP retains its own allowance.
+        const second = await f.data(f.req('/cases', 'POST', { ...f.input, requestKey: 'second-case' }, other), 201);
+        assert.equal((await f.req('/cases/' + second.case.id, 'GET', undefined, other))!.status, 200);
+        const stored = JSON.stringify(f.db.sqlite.prepare('SELECT key FROM rate_limits').all());
+        assert(!stored.includes('127.0.0.1'));
+        assert(!stored.includes(key));
+        f.setTime('2026-10-30T13:00:00.000Z');
+        assert.equal((await f.req(path))!.status, 200);
+    } finally { f.db.close(); }
+});
+
+test('invalid cursors and exhausted shared read budgets never dispatch review or look up a case', async () => {
+    let notifications = 0;
+    const f = fixture(async () => { notifications++; });
+    try {
+        const c = await f.open(), path = '/cases/' + c.case.id;
+        const before = notifications;
+        let caseLookups = 0;
+        const prepare = f.db.prepare.bind(f.db);
+        f.db.prepare = (sql: string) => {
+            if (sql.startsWith('SELECT * FROM tower_reception_cases WHERE id=')) caseLookups++;
+            return prepare(sql);
+        };
+        for (const suffix of ['?after=bad', '?after=0&private=x', '?after=0&after=1'])
+            assert.equal((await f.req(path + suffix))!.status, 400);
+        assert.equal(caseLookups, 0);
+        const hour = Math.floor(Date.parse('2026-10-30T12:00:00.000Z') / 3600000);
+        const ipBucket = 'reception:read-ip:' + await digest('127.0.0.1') + ':' + hour;
+        f.db.sqlite.prepare('INSERT INTO rate_limits VALUES(?,600,?)').run(ipBucket, '2026-10-30T13:00:00.000Z');
+        let limited = (await f.req(path, 'GET', undefined, other))!;
+        assert.equal(limited.status, 429);
+        assert.equal(limited.headers.get('Retry-After'), '3600');
+        assert.deepEqual(await limited.json(), { error: 'rate_limited' });
+        assert.equal(caseLookups, 0);
+        f.db.sqlite.prepare("UPDATE rate_limits SET count=12000 WHERE key LIKE 'reception:global-read:%'").run();
+        limited = (await f.req(path, 'GET', undefined, key, false, { 'CF-Connecting-IP': '192.0.2.50' }))!;
+        assert.equal(limited.status, 429);
+        assert.equal(caseLookups, 0);
+        assert.equal(notifications, before);
+        f.setTime('2026-10-30T13:00:00.000Z');
+        assert.equal((await f.req(path))!.status, 200);
+        assert.equal(notifications, before + 1);
+    } finally { f.db.close(); }
+});
+
+test('open and write throttles return a retry time without blocking withdrawal', async () => {
+    const f = fixture();
+    try {
+        const c = await f.open(), path = '/cases/' + c.case.id;
+        const hour = Math.floor(Date.parse('2026-10-30T12:00:00.000Z') / 3600000);
+        f.db.sqlite.prepare('INSERT INTO rate_limits VALUES(?,20,?)').run('reception:case:' + c.case.id + ':' + hour, '2026-10-30T13:00:00.000Z');
+        f.db.sqlite.prepare("UPDATE rate_limits SET count=100 WHERE key LIKE 'reception:global-open:%'").run();
+        f.setTime('2026-10-30T12:30:00.001Z');
+        for (const response of [await f.req('/cases', 'POST', f.input, other), await f.req(path + '/messages', 'POST', { requestKey: 'throttled-message', expectedVersion: 1, message: 'Hello' })]) {
+            assert.equal(response!.status, 429);
+            assert.equal(response!.headers.get('Retry-After'), '1800');
+            assert.deepEqual(await response!.json(), { error: 'rate_limited' });
+        }
+        const withdrawal = { requestKey: 'withdraw-throttled', expectedVersion: 1 };
+        const receipt = await f.data(f.req(path + '/withdraw', 'POST', withdrawal));
+        assert.equal(receipt.case.state, 'withdrawn');
+        assert.deepEqual(await f.data(f.req(path + '/withdraw', 'POST', withdrawal)), receipt);
+    } finally { f.db.close(); }
 });

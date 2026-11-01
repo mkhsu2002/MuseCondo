@@ -48,7 +48,7 @@ try{
  assert.equal((await db.prepare('SELECT enabled FROM tower_autonomy_mandate WHERE id=1').first()).enabled,0);
  // Recovery must keep today's thinking runnable after an older dispatch lease expires.
  await db.prepare('UPDATE tower_autonomy_mandate SET enabled=1 WHERE id=1').run();
- const previousDay=new Date(Date.now()-86400000).toISOString().slice(0,10),previousId=`manager-${previousDay}`;
+ const previousDay=managerLocalDay(new Date(Date.now()-86400000)),previousId=`manager-${previousDay}`;
  await db.prepare("INSERT INTO tower_autonomy_cycles(id,day,state,purpose,budget_micro,created_at,updated_at,lease_until) VALUES(?,?,'image-day','synthetic interrupted prior task',1000000,?,?,?)").bind(previousId,previousDay,start,start,new Date(Date.now()-60000).toISOString()).run();
  await db.prepare("INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,state,reserved_micro,billing_day,created_at) VALUES('synthetic-interrupted',?,'synthetic-expired','prior-diagnostic','muse-spark-1.3','dispatching',10000,?,?)").bind(previousId,managerLocalDay(new Date(start)),start).run();
  const recover=()=>post('/api/v1/manager/autonomy/step',{},'X-Manager-Schedule-Key','synthetic-native-schedule');

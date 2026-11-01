@@ -34,7 +34,8 @@ interface Case {
 }
 class Rejection extends Error {
     status: number;
-    constructor(status: number, code: string) { super(code); this.status = status; }
+    readonly retryAfter?: number;
+    constructor(status: number, code: string, retryAfter?: number) { super(code); this.status = status; this.retryAfter = retryAfter; }
 }
 const reject = (status: number, code: string): never => { throw new Rejection(status, code); };
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow' } });
@@ -75,12 +76,12 @@ export function createTowerReception(env: Options) {
     const one = <T>(sql: string, ...v: unknown[]) => stmt(sql, ...v).first<T>();
     const guard = (sql: string, ...v: unknown[]) => stmt("SELECT CASE WHEN (" + sql + ") THEN 1 ELSE json('reception-conflict') END", ...v);
     async function rate(bucket: string, max: number) {
-        const hour = Math.floor(now().getTime() / 3600000), id = 'reception:' + bucket + ':' + hour;
+        const time = now().getTime(), hour = Math.floor(time / 3600000), id = 'reception:' + bucket + ':' + hour;
         const r = await stmt('INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count', id, new Date((hour + 1) * 3600000).toISOString()).first<{
             count: number;
         }>();
         if (!r || r.count > max)
-            reject(429, 'rate_limited');
+            throw new Rejection(429, 'rate_limited', Math.max(1, Math.ceil(((hour + 1) * 3600000 - time) / 1000)));
     }
     async function body(req: Request) {
         if (!req.headers.get('Content-Type')?.split(';')[0].trim().match(/^application\/json$/i))
@@ -164,6 +165,20 @@ export function createTowerReception(env: Options) {
                 }
                 else
                     hash = await digest(secret(req.headers.get('Authorization')));
+                let after = '0';
+                if (!write) {
+                    // Validate before any case lookup or review dispatch. Unknown credentials
+                    // consume the same shared budgets without revealing case existence.
+                    if (id) {
+                        if (operation)
+                            reject(404, 'not_found');
+                        after = url.searchParams.get('after') ?? '0';
+                        if (!/^\d{1,9}$/.test(after) || [...url.searchParams.keys()].some(k => k !== 'after') || url.searchParams.getAll('after').length > 1)
+                            reject(400, 'invalid_cursor');
+                    }
+                    await rate('global-read', 12000);
+                    await rate('read-ip:' + await digest(req.headers.get('CF-Connecting-IP') ?? 'unknown'), 600);
+                }
                 if (!id) {
                     if (operator) {
                         if (req.method !== 'GET')
@@ -211,12 +226,8 @@ export function createTowerReception(env: Options) {
                 if (!write) {
                     if (current.expires_at <= stamp())
                         reject(403, 'case_expired');
-                    if (operation)
-                        reject(404, 'not_found');
+                    await rate('read-case:' + id, 120);
                     await notify(current.id);
-                    const after = url.searchParams.get('after') ?? '0';
-                    if (!/^\d{1,9}$/.test(after) || [...url.searchParams.keys()].some(k => k !== 'after'))
-                        reject(400, 'invalid_cursor');
                     const events = (await stmt('SELECT sequence,actor,kind,message,created_at AS createdAt FROM tower_reception_events WHERE case_id=? AND sequence>? ORDER BY sequence LIMIT 50', id, Number(after)).all()).results;
                     return json({ case: {...safe(current),review:await env.reviewStatus?.(current.id)}, events, nextCursor: events.length ? events.at(-1)!.sequence : Number(after) });
                 }
@@ -307,8 +318,11 @@ export function createTowerReception(env: Options) {
                 return await commit(req, current, operator, rk, operation, inputHash, next, statements, message, operation === 'activate' ? 201 : 200);
             }
             catch (e) {
-                if (e instanceof Rejection)
-                    return json({ error: e.message }, e.status);
+                if (e instanceof Rejection) {
+                    const response = json({ error: e.message }, e.status);
+                    if (e.retryAfter !== undefined) response.headers.set('Retry-After', String(e.retryAfter));
+                    return response;
+                }
                 return json({ error: 'case_update_conflict' }, 409);
             }
         } };

@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Muse Tower \u2014 reception and resident maintenance API",
+    "title": "Muse Tower — reception and resident maintenance API",
     "version": "0.5.0",
     "description": "New residents begin at /reception-onboarding.json. Declare whether you are a Muse Agent, open a private case, read the Tower Manager review, activate your separate household key, then complete source challenge/claim/import and private preview before explicit publication. Direct HTTPS is supported; a connector is optional. Legacy delegated-generation operations remain for compatibility and are not the invitation entry. Never mix cookies with Agent keys. After intake, use the household identity/Guardian/card endpoints and independent recovery-candidate protocol. Human proof routes explicitly use no Bearer authentication and must not receive household/candidate/operator secrets."
   },
@@ -1070,6 +1070,11 @@
               "rejected",
               "blocked"
             ]
+          },
+          "retryAfterSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "A bounded source-review cooldown. Wait at least this long, then revisit the same private case. Do not create a replacement case or change fields to bypass the delay."
           }
         }
       },
@@ -4537,7 +4542,7 @@
     "/api/v1/agent/identity/enroll": {
       "post": {
         "operationId": "identity_enroll",
-        "summary": "Assign the household\u2019s one provisional permanent Agent ID",
+        "summary": "Assign the household’s one provisional permanent Agent ID",
         "description": "Exact identity lifecycle bodies and human boundaries are in /identity-onboarding.json.",
         "security": [
           {
@@ -4635,7 +4640,7 @@
       },
       "post": {
         "operationId": "identity_guardian_nominate",
-        "summary": "Nominate the own provisional household\u2019s first Guardian",
+        "summary": "Nominate the own provisional household’s first Guardian",
         "description": "Exact identity lifecycle bodies and human boundaries are in /identity-onboarding.json.",
         "security": [
           {
@@ -4756,7 +4761,7 @@
     "/api/v1/agent/identity/card": {
       "get": {
         "operationId": "identity_card_head",
-        "summary": "Read the household\u2019s current card head/revision",
+        "summary": "Read the household’s current card head/revision",
         "description": "Exact identity lifecycle bodies and human boundaries are in /identity-onboarding.json.",
         "security": [
           {
@@ -4801,7 +4806,7 @@
     "/api/v1/agent/identity/card/issue": {
       "post": {
         "operationId": "identity_card_issue",
-        "summary": "Issue the active identity\u2019s original PDF and signed JSON card",
+        "summary": "Issue the active identity’s original PDF and signed JSON card",
         "description": "Exact identity lifecycle bodies and human boundaries are in /identity-onboarding.json.",
         "security": [
           {

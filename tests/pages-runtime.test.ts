@@ -8,6 +8,16 @@ import { LocalDatabase } from '../server/live/local-db.ts';
 const origin='https://musecondo.pages.dev';
 const request=(path='/api/v1/status',method='GET')=>new Request(origin+path,{method,headers:{Origin:origin,'Content-Type':'application/json'},...(method==='POST'?{body:'{}'}:{})});
 function database(){const db=new LocalDatabase(':memory:');for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));openSyntheticTower(db);return db;}
+test('admission security alerts require actual operator authentication and expose aggregate counters only',async()=>{
+ const db=database();try{
+  const env={PUBLIC_ORIGIN:origin,DB:db,TOWER_OPERATOR_KEY:'operator-test-only'};
+  const path=origin+'/api/v1/operator/security/admission';
+  for(const value of [null,'wrong']){const headers=new Headers();if(value)headers.set('X-Tower-Operator-Key',value);assert.equal((await runtime.fetch(new Request(path,{headers}),env)).status,401);}
+  const headers={'X-Tower-Operator-Key':'operator-test-only'};
+  const response=await runtime.fetch(new Request(path,{headers}),env);assert.equal(response.status,200);const body=await response.json();assert.deepEqual(body.alerts,[]);assert.equal(body.budgets.perCase.capMicro,1000000);assert.equal(body.throttles.unit,'counter_exceedances');
+  assert.equal((await runtime.fetch(new Request(path,{method:'POST',headers}),env)).status,405);
+ }finally{db.close();}
+});
 test('Pages API fails closed on missing origin, DB binding, migration and database failure',async()=>{
  let response=await runtime.fetch(request(),{});assert.equal(response.status,503);assert.match(response.headers.get('content-type')!,/application\/json/);assert.equal((await response.json()).error,'public_origin_not_configured');
  response=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin});assert.equal(response.status,503);assert.equal((await response.json()).error,'database_not_bound');

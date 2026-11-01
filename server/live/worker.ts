@@ -1,3 +1,5 @@
+import {checkEdgeGuard,type EdgeGuardBinding} from './edge-guard.ts';
+import {admissionSecurityStatus} from './admission-security-status.ts';
 import {createManagerAdmission,MANAGER_ADMISSION_SCHEMA} from './manager-admission.ts';
 import {createIdentityMailControl,IDENTITY_MAIL_CONTROL_SCHEMA} from './identity-mail-control.ts';
 import {IDENTITY_MAIL_DELIVERY_SCHEMA} from './identity-mail-delivery.ts';
@@ -22,6 +24,7 @@ import {createAutonomyRoutes,type ManagerRuntimeBinding} from './tower-autonomy-
 import {autonomySchemaReady,type AssetBucket} from './tower-autonomy.ts';
 import type {Database} from './db.ts';
 export interface PagesBindings {
+ EDGE_GUARD?:EdgeGuardBinding;EDGE_GUARD_REQUIRED?:string;
  IDENTITY_CARDS?:IdentityCardNamespace;
  MANAGER_ASSETS?:AssetBucket;MANAGER_RUNTIME?:ManagerRuntimeBinding;
  DB?:Database;ASSETS?:{fetch(request:Request):Promise<Response>};PUBLIC_ORIGIN?:string;
@@ -45,6 +48,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
  if(api||(home&&env.DB)){
   if(!validOrigin(env.PUBLIC_ORIGIN))return json({available:false,error:'public_origin_not_configured'},503);
   if(url.origin!==env.PUBLIC_ORIGIN)return json({available:false,error:'host_rejected'},403);
+  const limited=await checkEdgeGuard(request,env);if(limited)return limited;
   const identityMailEnv=env.DB?{db:env.DB,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,from:env.IDENTITY_MAIL_FROM,coordinator:env.IDENTITY_CARDS,deliveryEnabled:env.IDENTITY_MAIL_DELIVERY_ENABLED}:undefined;
   const onMailEvent=identityMailEnv?identityMailEventDispatcher(identityMailEnv,context):async()=>{};
   if(isIdentityCardPath(url.pathname)){const response=await proxyIdentityCard(request,env.IDENTITY_CARDS);await dispatchIdentityCardResult(request,response,env.DB,onMailEvent);return response;}
@@ -86,6 +90,10 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   if(url.pathname.startsWith('/api/v1/operator/')){
    if(request.headers.has('Cookie')||request.headers.has('Origin')&&request.headers.get('Origin')!==env.PUBLIC_ORIGIN||request.headers.get('Sec-Fetch-Site')==='cross-site')return json({error:'origin_rejected'},403);
    if(!await operator())return json({error:'operator_required'},401);
+   if(url.pathname==='/api/v1/operator/security/admission'){
+    if(request.method!=='GET')return json({error:'method_not_allowed'},405);
+    return json(await admissionSecurityStatus(db));
+   }
    if(url.pathname==='/api/v1/operator/tower/accounts'&&request.method==='POST'){
     let value:Record<string,unknown>;try{if(Number(request.headers.get('Content-Length')??0)>1024)return json({error:'body_too_large'},413);const raw=await request.text();if(raw.length>1024)return json({error:'body_too_large'},413);value=JSON.parse(raw);}catch{return json({error:'invalid_json'},400);}
     if(!value||typeof value!=='object'||Array.isArray(value)||typeof value.credential!=='string'||!/^[a-f0-9]{64}$/.test(value.credential)||Object.keys(value).some(k=>k!=='credential'))return json({error:'invalid_credential'},400);
