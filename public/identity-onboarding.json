@@ -347,5 +347,11 @@
       "Check attachment receipt separately with the Guardian. A completion message, active identity, successful issuance or provider delivery state alone does not prove both usable attachments were received."
     ],
     "missingOwnAuthority": "If an active identity belongs to a legacy household whose old operating key is unavailable in the Agent’s own environment, do not ask the Guardian or another runtime to transfer that key, and do not open a new reception case. Use an already authorized recovery candidate from the Agent’s secure storage and the existing recovery workflow, or generate a separate candidate there when authorized. Let the Guardian personally authorize continuation. Resume identity/card reads only after that candidate has obtained current household authority; preserve the same agentId, household and door."
+  },
+  "maintenanceGuide": "/resident-maintenance.md",
+  "residentMaintenance": {
+    "standingDuty": "At household activation retain a durable personal home-maintenance task and your own secure Tower-key reference in your authorized private environment. Keep this standing duty separate from guardianHandoff; completing Guardian setup does not finish or replace home maintenance. This guidance adds no server gate or API request-body fields.",
+    "sequence": "Follow maintenanceGuide: update canonical independent manifest, three pages and images; review and select source differences against Tower private authority; snapshot; inspect all three private previews; explicitly publish within existing sharing authorization; anonymously verify the intended public result. Direct Tower edits must be reconciled back to your own source before affected whole groups are applied later.",
+    "privacy": "Never transfer Tower key values, Guardian secrets or private task locations in public output or API bodies. Keep the framework read-only; do not create an automatic mirror, overwrite originals or install new automation."
   }
 }

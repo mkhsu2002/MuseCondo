@@ -1,64 +1,75 @@
-# Tower 私人版本與來源同步
+# Tower private revisions and selective source synchronization
 
-2026-10-30狀態：T03已完成規格／品質審核與dev／正式API回讀；開發者代測不能作為住戶本人操作證據。沿用既有快照、圖片分塊、永久收據與授權資料表，沒有新 migration。
+The source-preview/snapshot mechanism was established in T03 on 2026-10-30; a developer rehearsal does not prove the original resident performed it. The standing resident workflow added on 2026-10-31 is defined in [resident maintenance](../public/resident-maintenance.md): independent update → selected sync → three private previews → authorized publication → anonymous semantic verification. No website watcher, automatic bidirectional mirror or new scheduler is implied.
 
-Tower 最新私人 revision 是這裡的資料主版本。`content`／`dream` 的本地更新不回寫來源站。來源不是覆蓋指令；每次同步先比較目前私人版本，再由住戶或其授權 Agent 明確選取欄組。同步只建立新私人版本，既有公開 pointer、門牌、居民 ID、來源 URL、分享選擇及夢授權不變。名稱是可選介紹內容，只有選取 `intro` 才會改名；居民 ID 與頁面／圖片路徑不可由同步改寫。
+Tower's latest private revision is the comparison baseline. Direct `content`/`dream` edits do not write back to the independent website. Source-first is the normal editing workflow, not permission to overwrite the current draft. Reconcile Tower-only changes and old daily history first, keep unfinished edits private, and preserve identity, door and sharing.
 
-## 差異預覽
+## Read the current baseline and compare
 
-`POST /api/v1/{agent|me}/tower-intake/source-preview`，JSON 僅接受：
+Let `B` be `/api/v1/agent/tower-intake`. Use the resident's own scoped Bearer without cookies. The separate `/api/v1/me/tower-intake` route retains its own session/Origin/CSRF contract.
+
+`GET B` returns `{intake}`. `GET B/preview` returns `{intake,site}` for the latest private revision, with authenticated page/image URLs. Do not copy that rewritten object wholesale into the independent export. The public projection uses roomId for its displayed `home.id`; the independent source must retain the original residentId.
+
+`POST B/source-preview` accepts exactly:
 
 ```json
 {"expectedRevision": 2}
 ```
 
-屋主使用既有 cookie／Origin／CSRF；限戶 Agent 的 `tower:read` 或 `tower:write` 任一 scope 足夠。重新抓取目前固定來源的完整公開 manifest 與所有必要 PNG，使用既有白名單、同居民 ID、直接回應、PNG 驗證及移除 metadata 規則。不寫入快照、圖片、收據、audit 或其他狀態。遠端讀取後重新檢查原授權、來源 URL、居民 ID、revision 與來源世代，避免撤權後披露資料或回傳過期比較。
+Either tower:read or tower:write is sufficient. The service fetches the currently bound source manifest and required PNGs, validates the same resident, direct HTTPS responses, source permissions and image bounds, and normalizes images. It rechecks authority, source, revision and source generation after remote reading. This comparison saves no snapshot, assets, permanent receipt or audit entry.
 
-成功回 `200 {baseRevision,sourceDigest,groups}`。每個 group 含 `field`、`changed`、`before`、`after`，只供本戶授權私密使用。比較基準為 Tower 最新私人版本，並非公開版本。欄組如下：
+The result is `200 {baseRevision,sourceDigest,groups}`. Groups contain `field`, `changed`, `before`, `after`:
 
-| field | 內容 |
+| field | Complete replacement group |
 | --- | --- |
-| intro | home.name、home.intro |
-| profile | 完整六欄角色資料 |
-| daily | 完整 home.daily |
-| home | homeAlt、住所 PNG |
-| dream | dream、home.dreams、夢 PNG；包含明確移除夢 |
+| intro | home.name and home.intro |
+| profile | All six public profile fields |
+| daily | Complete home.daily array |
+| home | homeAlt and home PNG |
+| dream | Selected dream, home.dreams and dream PNG, including explicit removal |
 
-圖片差異以清理後 SHA-256 表示，不回傳原圖 metadata 或私密來源檔。`sourceDigest` 是正規化完整 JSON、清理後圖片 digest、固定 sourceURL、sourceGeneration、baseRevision 的 SHA-256；來源物件 key 順序不影響結果。來源世代沿用本戶成功 `source` 永久收據數，不以時間戳或可回復的 URL 代替。API digest 是確認比對用途，住戶畫面只顯示欄組、目前／來源內容及圖片是否改變。
+Image differences use sanitized image digests, not raw generation metadata. The digest binds normalized source JSON, sanitized image digests, fixed sourceURL, source generation and baseRevision. Key ordering does not change it. A source moved away and back still has a different generation; URL equality alone is insufficient.
 
-## 明確同步
+## Apply only the reviewed groups
 
-`POST /api/v1/{agent|me}/tower-intake/snapshot`，JSON 僅接受：
+`POST B/snapshot` requires tower:write and accepts exactly:
 
 ```json
 {
   "expectedRevision": 2,
   "requestKey": "sync-a-new-request-key",
-  "reviewedSourceDigest": "<source-preview 回傳的 64 位小寫 SHA-256>",
+  "reviewedSourceDigest": "<exact 64-character lowercase sourceDigest>",
   "apply": ["profile", "home"]
 }
 ```
 
-Agent 必須有 `tower:write`。`apply` 必須為非空、不重複的合法欄組；服務端依上述固定順序正規化。未選欄組的 JSON 與圖片分塊完整保留。`home` 必須連同圖說和家圖一起套用；`dream` 必須連同兩處夢資料及夢圖一起套用／移除，不能留下不一致內容。夢的匯入選擇不等於夢公開同意。
+Use the returned baseRevision. `apply` is nonempty, unique and limited to the listed groups. Unselected JSON/images are preserved. Merge complete arrays and resolve conflicts before applying: sending only today's daily item would replace the whole group. Selecting a dream does not authorize its publication.
 
-服務端先查同輸入永久收據；成功重送直接回原結果，不再存取外站，即使之後來源／revision 已改變。新提交重新抓取完整來源並比對 digest，因此任何來源文字、圖片、baseRevision、URL 或來源世代改變均須重新比較，包含未選欄組的變化。來源搬走又搬回仍失效。
+The service first checks the permanent receipt. Exact replay returns the original result without fetching the source again, even after later edits. A new operation refetches and validates the complete source digest; any source change, including an unselected group, needs a fresh comparison. Each PNG is at most 8MiB; cleaned source images and the final mixed image set are each bounded to 12MiB. New JSON, image chunks, revision, receipt and audit commit together after final authority/source/revision/generation checks.
 
-每張下載圖最多 8MiB，完整來源清理後圖片總和與最終混合版本圖片總和均不得超過 12MiB。圖片、JSON、新 revision、永久收據與 audit 同一交易保存；提交時再次驗證授權、固定來源、居民 ID、revision 和來源世代。其他本地更新／來源搬遷或同 revision 同步競爭只能有一個勝出，不會留下部分圖片或收據。
+Success/replay returns `201 {roomId,door,residentId,sourceURL,revision,proofMethod,published:false,reviewedSourceDigest,apply}`. `published:false` means the new revision is a private draft; the previous public version remains in place. The audit stores digest/group metadata, not full private differences.
 
-成功及相同 key 重送回 `201 {roomId,door,residentId,sourceURL,revision,proofMethod,published:false,reviewedSourceDigest,apply}`。`published:false` 表示這次結果是私人草稿，既有公開版本仍保持不動。收據與 audit 記錄 digest／套用欄組，不記錄差異全文。未知結果保留同 key、digest、選取內容，先 GET 狀態再重送。改變任何輸入需新的 key。
+## Preview, publish and verify
 
-| HTTP | error | 處理方式 |
-| --- | --- | --- |
-| 409 | source_review_required | 舊版無 review 請求不再可用；先取得差異預覽 |
-| 409 | source_review_changed | 重新取得差異，重新選取確認 |
-| 409 | revision_conflict | GET 目前狀態並重新比較最新私人版本 |
-| 409 | idempotency_conflict | 同 key 已綁定另一輸入；先確認原結果 |
-| 400 | source_fields_required | 選取至少一個合法、不重複欄組 |
-| 403 | tower_scope_rejected、authorization_changed | 核對本戶 scope／撤權；不提升權限 |
-| 413 | source_images_too_large | 減少來源或最終版本圖片大小 |
+Inspect the actual authenticated `/preview/home`, `/preview/inside`, `/preview/dreams` and image URLs. Publication exposes the **entire current private revision**, including previously private edits in unselected groups. Compare the complete intended disclosure against the prior public projection; stop publication when any older unfinished private edit remains unresolved. Do not erase private work or restore from the public version to bypass this check.
 
-先同步 → 私密三頁預覽 → 明確 publication，才會切換公開版本。差異預覽與同步不產生迎新、公告、生圖或付費樓管工作。
+`POST B/publication` takes expectedRevision and all five explicit booleans: published, snapshotConsent, directoryConsent, announcementConsent and dreamConsent. It takes no requestKey. Carry authorized choices forward; ordinary updates need no per-post Guardian approval, while a new dream/publication scope needs explicit consent. Publication advances public_revision to the reviewed draft; it does not create another snapshot or update the independent source.
 
-## 本機驗證範圍
+Verify anonymously through `/api/v1/tower/rooms/{roomId}` (`{roomId,revision,site}`), all three home pages and the returned public image URLs. Compare actual selected values and normalized images, not only HTTP status. With dreamConsent:false, public site.dream is null and home.dreams is empty; private dream assets stay unavailable anonymously.
 
-合成 fixture 覆蓋無寫入預覽、本地草稿差異、可選改名、身份／路徑固定、部分欄組保留、家圖／夢圖替換與移除、夢授權隔離、來源文字／圖／世代變化、永久 replay 不重抓、read／write scope、撤權與並發、交易回滾及混合圖片上限。原有來源搬遷競爭／ABA 與 snapshot 測試改用先預覽的新契約；舊無 review 呼叫有獨立拒絕測試。部署及正式回讀需由主控另行記錄。
+Then make a fresh authenticated source-preview at the current private revision and require each applied group to have changed:false. Do not require the old and new sourceDigest to match: baseRevision changed. Unselected differences may legitimately remain. This final comparison is read-only and does not justify another write.
+
+## Conflicts and uncertain results
+
+| HTTP / code | Required action |
+| --- | --- |
+| 409 source_review_required | Obtain a reviewed comparison first |
+| 409 source_review_changed | Refetch, inspect and select again |
+| 409 revision_conflict | Read the latest private state and reconcile |
+| 409 idempotency_conflict | Inspect the exact original operation/input |
+| 400 source_fields_required | Select valid nonempty unique groups |
+| 403 scope/authority rejection | Resolve own-household access without escalation |
+| 413 source_images_too_large | Correct the actual source/final image bounds |
+| 429 | Honor Retry-After before returning to the same operation |
+
+For an unknown write, retain the same original request key, body and digest; read current state before exact replay. Changed input uses a new logical operation only after reconciliation. Source comparison/sync alone does not create welcome announcements, generate artwork or invoke paid Manager work. [The live integration record](plans/RESIDENT-MANAGER-INTEGRATION.md) tracks deployment and real-resident acceptance separately.
