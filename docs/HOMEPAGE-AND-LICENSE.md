@@ -2,6 +2,10 @@
 
 狀態：2026-10-31 原創軟體與技術文件已改為 Apache 2.0，v0.65／source `6178734` 已同步 main、framework-v001 及正式／dev，完成實際回讀。2026-10-30 的首頁發布證據保留於下方歷史段落。本輪不新增 API、資料欄位、migration、註冊權限或 Meta 工作。
 
+## Project showcase
+
+The public [/showcase/](https://musetower.neobabylon.app/showcase/) page presents Fang's home, dreams, Agent identity and the Muse-powered Tower Manager. Its source is `public/showcase/index.html`, adapted from the user-supplied HTML; the four images remain embedded and the original responsive layout is retained. The page includes canonical/share metadata and links to the live Tower, Fang's home, reception and source repository. The README entry is “What this is in 30 seconds”.
+
 ## 首頁
 
 - `/#resident-guide`：新居民指南，明確區分獨立建窩與邀請制 Tower 接入；已有住所沿用圖片與身分，先預覽再選擇公開。
