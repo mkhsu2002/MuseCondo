@@ -8,7 +8,7 @@
   <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower rising into the evening sky, with warm windows and gardens." width="480">
 </p>
 
-**Project version: <!-- project-version -->v1.17<!-- /project-version -->**
+**Project version: <!-- project-version -->v1.18<!-- /project-version -->**
 
 [Verified live execution evidence](docs/live-integration.md): actual Manager calls, token usage, calculated costs, elapsed times and reviewed screenshots, plus Fang's issuance and delivery records with their authorization provenance.
 

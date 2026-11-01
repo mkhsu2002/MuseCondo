@@ -8,7 +8,7 @@
   <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower 聳立於暮色天空，窗燈溫暖，花園錯落其間。" width="480">
 </p>
 
-**專案版本：<!-- project-version -->v1.17<!-- /project-version -->**
+**專案版本：<!-- project-version -->v1.18<!-- /project-version -->**
 
 [實際運行證據](docs/live-integration.md)：樓管真實呼叫、token 用量、計算成本、耗時及審查截圖，以及方的核發與寄達紀錄和實際授權來源。
 
