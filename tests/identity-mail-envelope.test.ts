@@ -84,9 +84,9 @@ test('five fixed templates report only persisted facts and invitation has manual
   const f=await fixture();try{
    if(template==='guardian-invitation')await f.invitation();else if(template!=='identity-card-v1')await f.security(template);
    if(template.includes('revoked')||template.includes('recovery')||template.includes('repaired'))f.db.sqlite.prepare("UPDATE agent_identities SET state='suspended' WHERE account_id=?").run(f.account);
-   const r=await createIdentityMailEnvelope(f.env).materialize(f.event),body=JSON.parse(r.body);assert.equal(r.descriptor.templateVersion,template==='guardian-invitation'?'guardian-invitation-v1':template);assert(body.text.includes(f.agent));assert(body.text.includes(origin+'/identity'));
+   const r=await createIdentityMailEnvelope(f.env).materialize(f.event),body=JSON.parse(r.body);assert.equal(r.descriptor.templateVersion,template==='guardian-invitation'?'guardian-invitation-v1':template);assert(body.text.includes(f.agent));assert(body.text.includes(origin+'/identity'));assert.doesNotMatch(body.subject+body.text,/[\p{Script=Han}]/u);const frozen=JSON.parse(await decryptPrivate(key,'mail-envelope',f.event,String(f.db.sqlite.prepare('SELECT metadata_ciphertext FROM identity_mail_envelopes WHERE event_id=?').get(f.event)!.metadata_ciphertext)));assert.equal(frozen.locale,'en');assert.equal(frozen.copyRevision,'en-1');
    for(const secret of ['PRIVATE HOME','PRIVATE RELATION','private.example','levels','長期復原碼：'])assert(!body.text.includes(secret));
-   if(template==='guardian-invitation'){assert(body.text.includes('7'.repeat(64)));assert(body.text.includes(f.invite));assert(body.text.includes('短效初次確認碼'));assert(!JSON.stringify(body.tags).includes('7'.repeat(64)));}
+   if(template==='guardian-invitation'){assert(body.text.includes('7'.repeat(64)));assert(body.text.includes(f.invite));assert(body.text.includes('One-time confirmation code:'));assert(!JSON.stringify(body.tags).includes('7'.repeat(64)));}
    else assert(!r.body.includes('7'.repeat(64)));
    const links=String(body.text).match(/https:\/\/\S+/g)??[];assert(links.every(v=>new URL(v).origin===origin&&!v.includes('?')));
   }finally{f.close();}
@@ -225,7 +225,7 @@ test('max-size replay and b2 final guards plus claim/audit fit one free D1 invoc
 test('event time must be canonical and security links lead to the actual recovery UI',async()=>{
  const {createIdentityMailEnvelope}=await factory(),f=await fixture();try{
   await f.security();f.db.sqlite.prepare('UPDATE identity_mail_events SET created_at=? WHERE id=?').run('private home details',f.event);await assert.rejects(createIdentityMailEnvelope(f.env).prepare(f.event));assert.equal(f.count('identity_mail_envelopes'),0);
-  f.db.sqlite.prepare('UPDATE identity_mail_events SET created_at=? WHERE id=?').run(time,f.event);const body=JSON.parse((await createIdentityMailEnvelope(f.env).materialize(f.event)).body);assert(body.text.includes('事件時間：'+time));assert(body.text.includes('找回身份：'+origin+'/identity/recover'));assert(body.subject.includes('身分證'));
+  f.db.sqlite.prepare('UPDATE identity_mail_events SET created_at=? WHERE id=?').run(time,f.event);const body=JSON.parse((await createIdentityMailEnvelope(f.env).materialize(f.event)).body);assert(body.text.includes('Event time: '+time));assert(body.text.includes('Recover your identity: '+origin+'/identity/recover'));assert(body.subject.includes('card'));
  }finally{f.close();}
 });
 test('body integrity is keyed and event/purpose-bound, never a DB-only plaintext email dictionary oracle',async()=>{
@@ -278,5 +278,14 @@ for sql in data['queries']:
 print(json.dumps({'compiled':len(data['queries'])}))
 `],{input:JSON.stringify({database:Buffer.from(f.db.sqlite.serialize()).toString('base64'),queries:[...new Set(queries)]}),encoding:'utf8',maxBuffer:1024*1024});
   assert.equal(result.status,0,template+': '+result.stderr);assert(JSON.parse(result.stdout).compiled>5);
+ }finally{f.close();}}
+});
+
+test('legacy Chinese frozen envelopes replay exact original bytes and digest without replacing or sending',async()=>{
+ const {createIdentityMailEnvelope}=await factory();
+ for(const invitation of [false,true]){const f=await fixture();try{if(invitation)await f.invitation();const batch=f.db.batch.bind(f.db);let legacyBody='',expectedDigest='';
+  // Emulate the historical producer at the first INSERT, never mutate a frozen row.
+  f.db.batch=async rows=>{const transformed=[];for(const row of rows){const r=row as unknown as {sql:string;values:unknown[]};if(r.sql.startsWith('INSERT INTO identity_mail_envelopes')){const v=[...r.values],m=JSON.parse(await decryptPrivate(key,'mail-envelope',f.event,String(v[2])));delete m.locale;delete m.copyRevision;m.subject=invitation?'MuseCondo 監護人確認邀請':'MuseCondo Agent 身分證';m.text='既有已凍結內容：'+f.agent+'\n'+(invitation?'7'.repeat(64):f.cid);const attachments=invitation?{}:{attachments:[{filename:'agent-identity-card.pdf',content:Buffer.from(f.pdf).toString('base64')},{filename:'agent-identity-credential.json',content:Buffer.from(String(f.db.sqlite.prepare('SELECT signed_json FROM identity_credentials WHERE credential_id=?').get(f.cid)!.signed_json)).toString('base64')}]};legacyBody=JSON.stringify({from:m.from,to:[m.to],subject:m.subject,text:m.text,tags:[{name:'identity_event',value:f.event}],...attachments});expectedDigest=await hashPrivate(key,'mail-body:'+f.event,legacyBody);v[2]=await encryptPrivate(key,'mail-envelope',f.event,JSON.stringify(m));v[3]=expectedDigest;v[4]=enc.encode(legacyBody).length;transformed.push(f.db.prepare(r.sql).bind(...v));}else if(r.sql.includes("'prepared'")){const v=[...r.values],d=JSON.parse(String(v[2]));delete d.locale;delete d.copyRevision;d.bodyDigest=expectedDigest;d.bodyLength=enc.encode(legacyBody).length;v[2]=JSON.stringify(d);transformed.push(f.db.prepare(r.sql).bind(...v));}else transformed.push(row);}return batch(transformed);};
+  await createIdentityMailEnvelope(f.env).prepare(f.event);f.db.batch=batch;const before=JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_envelopes').all())+JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_audit').all());const service=createIdentityMailEnvelope(f.env),replayed=await service.materialize(f.event,expectedDigest);assert.equal(replayed.body,legacyBody);assert.equal(replayed.descriptor.bodyDigest,expectedDigest);assert.equal((await service.metadata(f.event)).descriptor.bodyDigest,expectedDigest);assert.equal(f.count('identity_mail_envelopes'),1);assert.equal(f.count('identity_mail_dispatches'),0);assert.equal(f.db.sqlite.prepare('SELECT state FROM identity_mail_events WHERE id=?').get(f.event)!.state,'pending');assert.equal(JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_envelopes').all())+JSON.stringify(f.db.sqlite.prepare('SELECT * FROM identity_mail_audit').all()),before);
  }finally{f.close();}}
 });

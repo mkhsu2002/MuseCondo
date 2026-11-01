@@ -316,7 +316,7 @@ test("official WebAuthn registration options bind a random user handle and can o
     assert.equal(start.agentId, "mcid:" + "a".repeat(64));
     assert.equal(start.options.rp.id, "identity.example");
     assert.equal(Buffer.from(start.options.user.id, "base64url").length, 32);
-    assert.equal(start.options.user.displayName, "Test Home 的監護人");
+    assert.equal(start.options.user.displayName, "Guardian of Test Home");
     assert.deepEqual(start.options.pubKeyCredParams, [
       { alg: -7, type: "public-key" },
     ]);

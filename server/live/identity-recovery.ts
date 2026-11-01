@@ -918,12 +918,12 @@ export function createIdentityRecovery(env: Environment) {
                 i.account_id,
               ),
               stmt(
-                "INSERT INTO tower_reception_events(case_id,sequence,actor,kind,message,created_at) SELECT c.id,COALESCE((SELECT MAX(sequence) FROM tower_reception_events WHERE case_id=c.id),0)+1,'system','identity-recovery','本案已結束。',? FROM tower_reception_cases c WHERE c.account_id=? AND c.state IN ('approved','active')",
+                "INSERT INTO tower_reception_events(case_id,sequence,actor,kind,message,created_at) SELECT c.id,COALESCE((SELECT MAX(sequence) FROM tower_reception_events WHERE case_id=c.id),0)+1,'system','identity-recovery','This application is closed.',? FROM tower_reception_cases c WHERE c.account_id=? AND c.state IN ('approved','active')",
                 created,
                 i.account_id,
               ),
               stmt(
-                "UPDATE tower_reception_cases SET state='revoked',version=version+1,next_action='本案已結束。',updated_at=? WHERE account_id=? AND state IN ('approved','active')",
+                "UPDATE tower_reception_cases SET state='revoked',version=version+1,next_action='This application is closed.',updated_at=? WHERE account_id=? AND state IN ('approved','active')",
                 created,
                 i.account_id,
               ),

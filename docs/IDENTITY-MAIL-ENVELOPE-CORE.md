@@ -1,5 +1,15 @@
 # I05b1 私有凍結封套核心
 
+## 2026-10-31 英文預設模板修訂（本地完成，待統一發布）
+
+新凍結的五類交易通知使用英文主旨、正文及標籤；新身分卡 PDF 的框架標籤同樣使用英文。住戶的 `publicName`、永久 ID、signed JSON、原本的 PDF／JSON artifacts 不翻譯、不重簽、不重繪。
+
+`template_version` 的 v1 仍表示既有事件 payload／資格契約；本次文案以新加密 metadata 的 `locale="en"`、`copyRevision="en-1"` 及 prepared audit 記錄，不增加 schema 或改寫舊封套。這些欄位只在第一次 freeze 產生。既存封套（包含舊中文內容）仍從原加密 subject／text／FROM 與原附件重建，核對原 HMAC body digest；不依新模板重新產生，不改永久 receipt，不重寄已送事件。未凍結的 pending 事件首次 prepare 才採用英文。
+
+發布須將同一來源的 Pages 與 private Identity Card／Mail Coordinator Worker 同步到 dev／正式環境；`render.ts` 及 `identity-mail-envelope.ts` 都在 Card Worker bundle，Pages 另含 WebAuthn 顯示名稱與新 recovery 事件固定文字。無新增 migration、依賴、secret 或 provider 請求。本地英文／legacy exact-byte replay、實際 PDF 文字／QR、永久冪等測試不等於正式投遞或人類驗收；不得為驗證翻譯而重寄既有邀請。
+
+以下 I05b1 原切片部署狀態屬歷史記錄，不作本次或目前線上 readiness 證據。
+
 2026-10-31 本地後續：b2a 私有 dispatch／Pages 串流核心與 b2b 成功交易／receipt exact-event 接線見 [技術契約](IDENTITY-MAIL-DISPATCH.md)。尚未部署、未啟用投遞；下文原切片狀態為歷史範圍，不可據此沿用舊直寄路徑。
 
 狀態：2026-10-31，本地 dormant core；`0020_identity_mail_envelopes.sql` 尚未套用任何遠端資料庫。本片沒有 HTTP、DO、Pages、provider dispatch、sending lease 或排程接線，沒有改動既有 `processOne`。不能據此宣稱郵件已投遞。

@@ -35,7 +35,7 @@ export function registrationOptions(
     rpName: "MuseCondo",
     userID: crypto.getRandomValues(new Uint8Array(32)),
     userName: "guardian-" + agentId.slice(5, 21),
-    userDisplayName: homeName + " 的監護人",
+    userDisplayName: "Guardian of " + homeName,
     timeout: 300000,
     attestationType: "none",
     authenticatorSelection: {

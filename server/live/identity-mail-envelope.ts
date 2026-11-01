@@ -23,7 +23,7 @@ const exact=(v:unknown,keys:string[]):v is Record<string,unknown>=>!!v&&typeof v
 const digest=async(bytes:Uint8Array<ArrayBuffer>)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
 interface Event {id:string;kind:string;entity_id:string;recipient_ciphertext:string;recipient_hash:string;payload_ciphertext:string;state:string;created_at:string}
 interface Stored {event_id:string;template_version:string;metadata_ciphertext:string;body_digest:string;body_length:number;attachment_refs:string}
-interface Metadata {version:1;origin:string;from:string;to:string;subject:string;text:string;templateVersion:string;binding:string;attachmentRefs:IdentityMailAttachmentRef[]}
+interface Metadata {version:1;locale?:'en';copyRevision?:'en-1';origin:string;from:string;to:string;subject:string;text:string;templateVersion:string;binding:string;attachmentRefs:IdentityMailAttachmentRef[]}
 interface Qualified {context:string;binding:string;agent:string;sql:string;values:unknown[];card?:Card;token?:string}
 interface Card {credential_id:string;agent_id:string;signed_json:string;pdf_digest:string;json_digest:string;pdf_length:number;json_length:number;pdf_chunks:number;json_chunks:number}
 interface Chunk {chunk_index:number;data_base64:string}
@@ -127,13 +127,13 @@ export function createIdentityMailEnvelope(env:IdentityMailEnvelopeEnvironment){
   guards.push(guard('EXISTS(SELECT 1 FROM identity_credentials WHERE credential_id=? AND signed_json=?)',c.credential_id,c.signed_json));return {refs,attachments,guards};
  }
  function message(template:string,q:Qualified,event:Event):{subject:string;text:string}{
-  const identity='Agent ID：'+q.agent+'\n\n';
-  const occurred='事件時間：'+event.created_at+'\n\n';
-  if(template==='guardian-invitation-v1')return {subject:'MuseCondo 監護人確認邀請',text:'你收到一份 MuseCondo 監護人邀請。\n\n'+identity+'邀請識別碼：'+event.entity_id+'\n\n短效初次確認碼：'+q.token+'\n\n請僅在官方入口 '+env.origin+'/identity 分別貼上以上兩組代碼。確認碼最長有效 24 小時，並非長期復原碼。若你未預期收到此邀請，請忽略此信。'};
-  if(template==='identity-card-v1')return {subject:'MuseCondo Agent 身分證',text:'你的 MuseCondo Agent 身分證已核發。身分證與簽署憑證隨信附上。\n\n'+identity+'憑證識別碼：'+event.entity_id+'\n\n公開驗證：'+env.origin+'/identity/verify/'+event.entity_id+'\n\n身份守護：'+env.origin+'/identity'};
-  if(template==='identity-card-revoked-v1')return {subject:'MuseCondo 身分證撤銷通知',text:'此 MuseCondo Agent 身分證已撤銷。\n\n'+occurred+identity+'憑證識別碼：'+event.entity_id+'\n\n找回身份：'+env.origin+'/identity/recover'};
-  if(template==='identity-recovery-continued-v1')return {subject:'MuseCondo 身分復原通知',text:'此 MuseCondo Agent 已完成身分延續復原。\n\n'+occurred+identity+'復原識別碼：'+event.entity_id+'\n\n若這不是你預期的操作，請前往找回身份：'+env.origin+'/identity/recover'};
-  return {subject:'MuseCondo 監護驗證修復通知',text:'此 MuseCondo Agent 已完成監護驗證修復。若需以新 Agent 入住，請另行提出申請。\n\n'+occurred+identity+'復原識別碼：'+event.entity_id+'\n\n若這不是你預期的操作，請前往找回身份：'+env.origin+'/identity/recover'};
+  const identity='Agent ID: '+q.agent+'\n\n';
+  const occurred='Event time: '+event.created_at+'\n\n';
+  if(template==='guardian-invitation-v1')return {subject:'MuseCondo Guardian invitation',text:'You have been invited to be a MuseCondo Guardian.\n\n'+identity+'Invitation ID: '+event.entity_id+'\n\nOne-time confirmation code: '+q.token+'\n\nEnter these two values separately at the official page: '+env.origin+'/identity\n\nThis confirmation code expires within 24 hours. It is not a recovery code. If you did not expect this invitation, ignore this email.'};
+  if(template==='identity-card-v1')return {subject:'Your MuseCondo Agent identity card',text:'Your MuseCondo Agent identity card has been issued. Your card and signed credential are attached.\n\n'+identity+'Credential ID: '+event.entity_id+'\n\nVerify your card: '+env.origin+'/identity/verify/'+event.entity_id+'\n\nManage your identity: '+env.origin+'/identity'};
+  if(template==='identity-card-revoked-v1')return {subject:'MuseCondo identity card revoked',text:'This MuseCondo Agent identity card has been revoked.\n\n'+occurred+identity+'Credential ID: '+event.entity_id+'\n\nRecover your identity: '+env.origin+'/identity/recover'};
+  if(template==='identity-recovery-continued-v1')return {subject:'MuseCondo identity recovered',text:'This MuseCondo Agent has recovered access to its existing identity.\n\n'+occurred+identity+'Recovery ID: '+event.entity_id+'\n\nIf you did not expect this change, visit: '+env.origin+'/identity/recover'};
+  return {subject:'MuseCondo Guardian access restored',text:'Guardian verification has been restored for this MuseCondo Agent. Moving in as a new Agent requires a separate application.\n\n'+occurred+identity+'Recovery ID: '+event.entity_id+'\n\nIf you did not expect this change, visit: '+env.origin+'/identity/recover'};
  }
  function body(metadata:Metadata,id:string,attachments:Artifacts['attachments']){
   const value={from:metadata.from,to:[metadata.to],subject:metadata.subject,text:metadata.text,tags:[{name:'identity_event',value:id}],...(attachments.length?{attachments}:{})};
@@ -144,10 +144,11 @@ export function createIdentityMailEnvelope(env:IdentityMailEnvelopeEnvironment){
   const {event,q,email,template}=await qualify(id),a=await artifacts(q);let row=await stored(id),metadata:Metadata;
   if(!row){
    if(!senderDomain(env.from))fail('sender_unavailable');
-   metadata={version:1,origin:env.origin,from:env.from!,to:email,...message(template,q,event),templateVersion:template,binding:q.binding,attachmentRefs:a.refs};
+   // v1 identifies the payload family. Copy revisions apply only before the first freeze; replay uses stored text verbatim.
+   metadata={version:1,locale:'en',copyRevision:'en-1',origin:env.origin,from:env.from!,to:email,...message(template,q,event),templateVersion:template,binding:q.binding,attachmentRefs:a.refs};
    const encoded=body(metadata,id,a.attachments),cipher=await encryptPrivate(env.contactKey,'mail-envelope',id,JSON.stringify(metadata));if(cipher.length>32768)fail('envelope_metadata_too_large');
    const candidate:Stored={event_id:id,template_version:template,metadata_ciphertext:cipher,body_digest:await hashPrivate(env.contactKey,'mail-body:'+id,encoded),body_length:encoder.encode(encoded).length,attachment_refs:JSON.stringify(a.refs)},now=stamp();
-   const detail=JSON.stringify({bodyDigest:candidate.body_digest,bodyLength:candidate.body_length,templateVersion:template,attachmentRefs:a.refs});
+   const detail=JSON.stringify({bodyDigest:candidate.body_digest,bodyLength:candidate.body_length,templateVersion:template,locale:'en',copyRevision:'en-1',attachmentRefs:a.refs});
    if(expectedDigest!==undefined&&expectedDigest!==candidate.body_digest)fail('envelope_expected_digest_mismatch');
    let committed=false;
    try{await db.batch([...a.guards,contextGuard(q),stmt('INSERT INTO identity_mail_envelopes(event_id,template_version,metadata_ciphertext,body_digest,body_length,attachment_refs,created_at) VALUES(?,?,?,?,?,?,?)',id,template,cipher,candidate.body_digest,candidate.body_length,candidate.attachment_refs,now),stmt("INSERT INTO identity_mail_audit(id,event_id,action,detail_json,created_at) VALUES(?,?,'prepared',?,?)",randomIdentityId(),id,detail,now)]);committed=true;}catch{if(!await stored(id))fail('envelope_prepare_unavailable');}
