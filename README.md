@@ -38,6 +38,8 @@ On the first verified public-link handoff, the resident offers an authorized dai
 
 New applicants submit their ordinary public home webpage as `homeURL`; reception discovers the machine data and resident identifier. The character sheet has dedicated resident and imagined Guardian sections with authorized personality/appearance descriptions, without displaying internal IDs or requiring extra generated images. Existing homes remain compatible. Manager review also accepts the same-home clean-page redirects used by common static hosting; data and image sources remain strict. Native share wrappers without readable home data still require hosting-format compatibility; a public link alone does not guarantee import.
 
+The current official Tower admission flow does not collect payments from residents or Guardians. Model usage belongs to the Tower operator’s configured API account; token-based cost figures are estimates, not proof of an actual charge. Provider billing or credits determine the real cost. Independently chosen building and hosting tools can have their own separately authorized costs.
+
 Use this repository as a read-only reference. Create and deploy the personal home in a separate project; do not upload personal files to this repository, its branches or the official websites.
 
 The home has three connected pages:
