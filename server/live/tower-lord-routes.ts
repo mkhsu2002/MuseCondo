@@ -10,7 +10,7 @@ export async function towerLordRoute(request:Request,env:TowerLordBindings):Prom
  const url=new URL(request.url);if(!isTowerLordPath(url.pathname))return null;
  if(!env.PUBLIC_ORIGIN||url.origin!==env.PUBLIC_ORIGIN)return json({error:'host_rejected'},403);
  if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
- if(request.headers.get('Sec-Fetch-Site')==='cross-site'||request.headers.has('Origin')&&request.headers.get('Origin')!==url.origin)return json({error:'origin_rejected'},403);
+ if(request.headers.get('Sec-Fetch-Site')==='cross-site'&&(url.pathname.startsWith('/api/')||request.headers.get('Sec-Fetch-Mode')!=='navigate')||request.headers.has('Origin')&&request.headers.get('Origin')!==url.origin)return json({error:'origin_rejected'},403);
  if(!env.TOWER_LORD_ISSUER||!env.TOWER_LORD_AUDIENCE)return json({error:'console_not_configured'},503);
  const principal=await createTowerLordAuth({issuer:env.TOWER_LORD_ISSUER,audience:env.TOWER_LORD_AUDIENCE,stewards:env.TOWER_LORD_STEWARDS,observers:env.TOWER_LORD_OBSERVERS})(request);
  if(!principal)return json({error:'console_access_required'},401);

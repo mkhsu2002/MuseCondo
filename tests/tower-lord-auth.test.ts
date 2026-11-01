@@ -34,7 +34,9 @@ test('signed human reaches only read-only console routes; all views leave databa
  const time=Date.now()/1000,token=await jwt({iat:time-10,exp:time+600});const headers={'Cf-Access-Jwt-Assertion':token};const before=db.sqlite.prepare('SELECT total_changes() n').get()!.n;
  try{
   for(const path of ['/tower-lord','/tower-lord/console.js','/api/v1/tower-lord/session',...['overview','residents','applications','history','usage'].map(x=>'/api/v1/tower-lord/'+x)]){const r=await runtime.fetch(new Request('https://tower.example'+path,{headers}),env);assert.equal(r.status,200,path);assert.equal(r.headers.get('Cache-Control'),'no-store');}
-  assert.equal(keyReads,1);assert.deepEqual(assetPaths,['/tower-lord/','/tower-lord/console.js']);assert.equal(db.sqlite.prepare('SELECT total_changes() n').get()!.n,before);
+  const navigation=await runtime.fetch(new Request('https://tower.example/tower-lord/',{headers:{...headers,'Sec-Fetch-Site':'cross-site','Sec-Fetch-Mode':'navigate'}}),env);assert.equal(navigation.status,200,'Access login redirects must reach the signed-in document');
+  assert.equal((await runtime.fetch(new Request('https://tower.example/api/v1/tower-lord/overview',{headers:{...headers,'Sec-Fetch-Site':'cross-site'}}),env)).status,403);
+  assert.equal(keyReads,1);assert.deepEqual(assetPaths,['/tower-lord/','/tower-lord/console.js','/tower-lord/']);assert.equal(db.sqlite.prepare('SELECT total_changes() n').get()!.n,before);
   for(const path of ['/tower-lord/secret.json','/api/v1/tower-lord/handover'])assert.equal((await runtime.fetch(new Request('https://tower.example'+path,{headers}),env)).status,404);
   assert.equal((await runtime.fetch(new Request('https://tower.example/api/v1/tower-lord/usage?limit=1000000',{headers}),env)).status,400);
  }finally{globalThis.fetch=original;db.close();}
