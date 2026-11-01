@@ -109,9 +109,9 @@ test('D1 compound SELECT limits: bounded batches preserve global pagination and 
  f.insert('manager_jobs',{id:'welcome',source_digest:'digest',state:'complete',created_at:stamp,started_at:stamp});
  f.insert('tower_manager_runs',{run_key:'scheduled',job:'daily',period:'today',state:'complete',attempts:1,lease_until:stamp,created_at:'2026-10-30T19:00:00.000Z'});
  let queries=0;
- const restrictedDb={prepare(sql:string){const terms=sql.split(/\bUNION\s+ALL\b/i).length;assert.ok(terms<=8,`D1 rejected ${terms} compound terms`);if(sql.startsWith('WITH history'))queries++;return f.db.prepare(sql);},batch:f.db.batch.bind(f.db)};
+ const restrictedDb={prepare(sql:string){const terms=sql.split(/\bUNION\s+ALL\b/i).length;assert.ok(terms<=4,`D1 rejected ${terms} compound terms`);if(sql.startsWith('WITH history'))queries++;return f.db.prepare(sql);},batch:f.db.batch.bind(f.db)};
  const api=createTowerLordData({db:restrictedDb,now:()=>new Date(Date.parse(stamp)+1000)});
- const whole=await api.history({limit:100});assert.ok(queries>=3);assert.equal(whole.items.length,15);assert.equal(new Set(whole.items.map(x=>x.id)).size,whole.items.length);
+ const whole=await api.history({limit:100});assert.ok(queries>=6);assert.equal(whole.items.length,15);assert.equal(new Set(whole.items.map(x=>x.id)).size,whole.items.length);
  assert.ok(whole.items.some(x=>x.id==='tower_autonomy_cycles:daily:cycle:audit'));assert.ok(whole.items.some(x=>x.id==='tower_autonomy_cycles:audit:cycle:audit'));
  const paged:string[]=[];let cursor:string|null=null;
  do{const result=await api.history({limit:2,...(cursor?{cursor}:{})});paged.push(...result.items.map(x=>String(x.id)));cursor=result.nextCursor;}while(cursor);

@@ -108,10 +108,10 @@ export function createTowerLordData(options: { db: Database; environment?: strin
     for(const key of ['duty','state','correlationId'] as const)if(p[key]){where.push(`${key}=?`);args.push(p[key]);}
     if(p.cursor){where.push('(at<? OR (at=? AND id<?))');args.push(p.cursor.at,p.cursor.at,p.cursor.id);}args.push(p.limit+1);
     // D1's compound-SELECT limit is lower than native SQLite's. Bound every
-    // query to eight sources, retain each batch's top limit+1, then merge using
+    // query to four sources, retain each batch's top limit+1, then merge using
     // SQLite BINARY ordering. No batch can hide an item in the global top page.
     const batches:string[][]=[];
-    for(let offset=0;offset<parts.length;offset+=8)batches.push(parts.slice(offset,offset+8));
+    for(let offset=0;offset<parts.length;offset+=4)batches.push(parts.slice(offset,offset+4));
     const results=await Promise.all(batches.map(batch=>all(`WITH history AS (${batch.join(' UNION ALL ')}) SELECT * FROM history WHERE ${where.join(' AND ')} ORDER BY at DESC,id DESC LIMIT ?`,args)));
     const binaryDescending=(a:unknown,b:unknown)=>{const left=new TextEncoder().encode(String(a)),right=new TextEncoder().encode(String(b));for(let i=0;i<Math.min(left.length,right.length);i++)if(left[i]!==right[i])return right[i]-left[i];return right.length-left.length;};
     const rows=results.flat().sort((a,b)=>binaryDescending(a.at,b.at)||binaryDescending(a.id,b.id));
