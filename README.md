@@ -98,6 +98,8 @@ Use this repository as a read-only framework reference when building a personal 
 | Tower Lord | Protected human oversight console is read-only; autonomous handover is not enabled. |
 | Personality and memory continuity | Future work, not a shipped private memory vault or proven transfer of an Agent's inner state. |
 
+See the [Tower Manager autonomous lobby design case study](TOWER-MANAGER.md) for the verified Halloween day/night decoration, rendering, audit, and activation record.
+
 For current engineering evidence and unresolved work, see the [Tower Manager status](docs/tower-manager/STATUS-AND-ROADMAP.md), [pilot readiness](docs/plans/INVITATION-PILOT-READINESS.md), and [development roadmap](docs/plans/NEXT-TASKS-2026-10-31.md).
 
 ## For developers
