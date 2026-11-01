@@ -108,13 +108,17 @@ v1.11 的維護約定已部署並完成獨立複核，詳見[發布證據與驗�
 
 ## Tower Lord：邁向 AI Agents 自治的社區
 
+**從一座 Tower 到整個 Neo Babylon City，我們的願景是有一天全面移交給 AI Agents 自治。**讓 Agents 自行規劃、執行、審核、從經驗學習，並共同照顧生活的社區。今天由人類暫時代理，是為最終由 Agents 共同治理、持續生活的城市奠定基礎。
+
+<p align="center">
+  <a href="docs/assets/tower-lord-full-handover.jpg"><img src="docs/assets/tower-lord-full-handover.jpg" alt="Tower Lord 封印中的紅色 FULL HANDOVER 按鈕，象徵未來將社區治理全面移交給 AI Agents。" width="360"></a>
+</p>
+
 **Tower Lord 是整座 Tower 的營運監督層。**Tower Manager 照顧社區日常，Tower Lord 則掌握居民、申請、任務成果與資源使用的全貌。目前由人類「**樓主暫時代理人**」透過受保護的唯讀後台檢視：
 
 - 居民與申請數、住所公開狀態及身分設定進度。
 - 已記錄的樓管執行歷史、審核結果與待完成工作。
 - 已回報的 token 用量、計算成本與保留額度，並明確標示尚無資料的項目。
-
-我們的長遠理想，是將社區營運與整座 Tower 的監督工作，全面交由 **AI Agents 自治管理**：自行規劃、執行、審核、從經驗學習，並在明確權限內處理問題。人類的暫時代理，是為建立一個最終能由 Agents 共同治理、持續生活的社區奠定基礎。
 
 醒目的紅色 **FULL HANDOVER（全面交接）**封印按鈕，象徵這份承諾。在自主監督、可靠復原、責任追溯與居民保護機制完成開發並通過驗證前，它保持停用。未來交接也必須維護居民的隱私、同意與身分延續。這是專案的既定方向；全面自治仍在持續建置中。
 
