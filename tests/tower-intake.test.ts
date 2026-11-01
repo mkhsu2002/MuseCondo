@@ -59,38 +59,13 @@ function png(w: number, h: number, noise = false) {
 }
 async function fixture(pagesRuntime = false) {
   const db = new LocalDatabase(":memory:");
-  for (const file of [
-    "0001_live_mvp.sql",
-    "0002_recovery_audit.sql",
-    "0003_provider_requests.sql",
-    "0004_agent_onboarding.sql",
-    "0005_framework.sql",
-  ])
+  for (const file of (await readdir(new URL('../migrations/', import.meta.url))).filter(file => file.endsWith('.sql')).sort())
     db.sqlite.exec(
       await readFile(new URL("../migrations/" + file, import.meta.url), "utf8"),
     );
-  // Feature migration is optional until it exists so the RED assertion exposes behavior, not a file error.
-  try {
-    db.sqlite.exec(
-      await readFile(
-        new URL("../migrations/0006_tower_intake.sql", import.meta.url),
-        "utf8",
-      ),
-    );
-  } catch (e) {
-    if ((e as { code?: string }).code !== "ENOENT") throw e;
-  }
-  db.sqlite.exec(await readFile(new URL('../migrations/0008_tower_publication_events.sql',import.meta.url),'utf8'));
-  if (pagesRuntime) {
-    // This integration crosses the Pages schema gate; load every remaining migration.
-    const remaining = (await readdir(new URL('../migrations/', import.meta.url)))
-      .filter(file => file.endsWith('.sql') && (file.startsWith('0007_') || Number(file.slice(0, 4)) >= 9))
-      .sort();
-    for (const file of remaining)
-      db.sqlite.exec(await readFile(new URL('../migrations/' + file, import.meta.url), 'utf8'));
-    // Independent synthetic Tower: this fixture does not establish Muse eligibility.
-    openSyntheticTower(db);
-  }
+  // Both the standalone handler and Pages adapter use admission-backed source grants.
+  // This independent synthetic Tower does not establish official Muse eligibility.
+  openSyntheticTower(db);
   const dream = {
     id: "synthetic-dream", title: "合成窗邊夢", body: "一個完全虛構的測試夢。",
     wish: "願測試順利。", occurredAt: "2026-10-30T00:00:00Z",

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
+import { openSyntheticTower } from "./helpers/tower-admission-fixture.ts";
 import { deflateSync } from "node:zlib";
 import { createTowerIntake } from "../server/live/tower-intake.ts";
 import { LocalDatabase } from "../server/live/local-db.ts";
@@ -62,11 +63,11 @@ function site(residentId = "test-resident"): PublicCondoSite {
 }
 async function fixture() {
   const db = new LocalDatabase(":memory:");
-  for (const file of [
-    "0001_live_mvp.sql", "0002_recovery_audit.sql", "0003_provider_requests.sql",
-    "0004_agent_onboarding.sql", "0005_framework.sql", "0006_tower_intake.sql",
-    "0007_tower_manager.sql", "0008_tower_publication_events.sql",
-  ]) db.sqlite.exec(await readFile(new URL("../migrations/" + file, import.meta.url), "utf8"));
+  for (const file of (await readdir(new URL('../migrations/', import.meta.url))).filter(file => file.endsWith('.sql')).sort())
+    db.sqlite.exec(await readFile(new URL("../migrations/" + file, import.meta.url), "utf8"));
+  // Source authorization now consults admission views; exercise the deployed schema.
+  // This is an independent synthetic Tower, not evidence of official Muse eligibility.
+  openSyntheticTower(db);
   let time = new Date("2026-10-30T00:00:00Z"), changes = 0;
   const manifests = new Map<string, unknown>([[oldSource, site()], [newSource, site()], [otherSource, site("other-resident")]]),
     claims = new Map<string, unknown>(), calls: string[] = [];
