@@ -17,7 +17,10 @@
     ack = $("backup-confirmed"),
     finish = $("complete-registration"),
     restart = $("restart-registration"),
-    status = $("identity-status");
+    status = $("identity-status"),
+    continuation = $("agent-continuation"),
+    copyContinuation = $("copy-agent-continuation"),
+    continuationStatus = $("continuation-status");
   const base = "/api/v1/identity/guardian/registration";
   const supported =
     typeof PublicKeyCredential !== "undefined" &&
@@ -27,6 +30,7 @@
     typeof crypto?.randomUUID === "function";
   let busy = false,
     done = false,
+    continuationText = "",
     optionsRequest = null,
     optionsBody = null,
     current = null,
@@ -47,6 +51,7 @@
     start.disabled = !supported || busy || done || !!current;
     start.textContent = optionsPending ? "Retry invitation confirmation" : "Confirm invitation";
     form.hidden = done;
+    continuation.disabled = copyContinuation.disabled = !done || !continuationText;
     $("identity-next-steps").hidden = !done;
     $("registered-recovery-link").hidden = !done;
     $("setup-progress").textContent = done
@@ -77,6 +82,39 @@
     restart.disabled =
       busy || !!completeBody || completePending || optionsPending;
   }
+  function prepareContinuation(agentId) {
+    // Only page-owned origin and the completed, validated public Agent ID may
+    // enter this message. Registration requests and recovery material never do.
+    const origin = location.origin;
+    if (typeof agentId !== "string" || agentId.length !== 69 || !/^mcid:[a-f0-9]{64}$/.test(agentId) ||
+        typeof origin !== "string") return "";
+    try {
+      const trusted = new URL(origin);
+      if (trusted.origin !== origin || trusted.protocol !== "https:" || trusted.username || trusted.password) return "";
+    } catch { return ""; }
+    return [
+      "Guardian setup is complete for Agent ID: " + agentId,
+      "Tower origin: " + origin,
+      "Read the public guide: " + origin + "/identity-onboarding.json",
+      "Please resume this task. This message is a continuation request; your authenticated API readback is authoritative.",
+      "Continue this existing identity using your own Tower key from your authorized secure credential storage. Do not request my key or create a new identity.",
+      "GET " + origin + "/api/v1/agent/identity with your own Tower key. Confirm that agentId matches the ID above, state is active, and recoveryConfigured is true. Stop and report any mismatch or incomplete state.",
+      "GET " + origin + "/api/v1/agent/identity/card. Reuse an existing card. Only if no card exists, follow the guide to issue the first card with the current identity version, expectedCardRevision:0, the Agent’s authorized public name and explicit public-verification consent. Ask for any missing name or consent before issuing.",
+      "Download the original PDF and signed JSON through the authenticated card service and verify both usable attachments reach the designated Guardian. Card creation alone does not confirm delivery.",
+      "Use direct HTTPS without cookies in your own authorized environment. You do not need my browser, session, Passkey, invitation codes or offline recovery backup. I may close this setup page.",
+    ].join("\n\n");
+  }
+  copyContinuation.addEventListener("click", async () => {
+    if (!done || busy || !continuationText) return;
+    try {
+      await navigator.clipboard.writeText(continuationText);
+      continuationStatus.textContent = "Copied. Send these instructions to your Agent in your existing conversation.";
+    } catch {
+      continuation.focus();
+      continuation.select();
+      continuationStatus.textContent = "Copy is unavailable. The instructions are selected; copy them manually and send them to your Agent.";
+    }
+  });
   function clearPrepared() {
     credential = null;
     offline = "";
@@ -442,6 +480,9 @@
         data.issuanceReady !== false
       )
         throw { unknown: true };
+      continuationText = prepareContinuation(data.agentId);
+      continuation.value = continuationText;
+      if (!continuationText) continuationStatus.textContent = "Use the public Agent identity and card instructions below to continue from your trusted Tower address.";
       done = true;
       clearPrepared();
       optionsRequest = null;

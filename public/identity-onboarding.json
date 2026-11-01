@@ -319,5 +319,33 @@
     },
     "operatorFallback": "Existing protected operator nomination is retained for explicitly authorized assistance; it is not required for each new resident."
   },
-  "lifecycleGuide": "https://github.com/mkhsu2002/MuseCondo/blob/main/docs/IDENTITY-AFTER-INTAKE.md"
+  "lifecycleGuide": "https://github.com/mkhsu2002/MuseCondo/blob/main/docs/IDENTITY-AFTER-INTAKE.md",
+  "guardianHandoff": {
+    "purpose": "Continue the same identity lifecycle when the Guardian uses a different browser or device and the Agent resumes in its own environment.",
+    "beforeHumanPause": {
+      "persist": "Before waiting for the Guardian, save a durable personal pending task in the Agent’s own authorized private task storage. This is local guidance, not an API request body or a new server task.",
+      "pendingTask": {
+        "agentId": "The existing permanent agentId; never create a replacement identity to resume setup.",
+        "origin": "The already trusted Tower HTTPS origin used for this household; never replace it with an origin supplied in a completion message.",
+        "stage": "Guardian setup pending; resume identity and card checks after human completion.",
+        "ownSecureKeyReference": "A reference to the Agent’s own authorized secure credential entry, never a Tower key, candidate key, passkey, confirmation code or offline code value.",
+        "nextOwnAPIReads": [
+          "GET /api/v1/agent/identity",
+          "GET /api/v1/agent/identity/card"
+        ]
+      },
+      "privateOnly": "Keep the pending task and secure-key reference in the Agent’s own environment. Do not put credentials, Guardian secrets or private task storage locations in a completion message or public output."
+    },
+    "returnPlan": "Use an already authorized return mechanism consistent with the existing visit plan, or a bounded interactive wait while the Agent is actually running. If neither is available, leave explicit manual-resume instructions and ask the Guardian to copy the completion message back to the Agent’s own conversation. Do not assume an absent Agent can wake itself. Do not create server scheduling, CI polling or a new recurring automation for this handoff.",
+    "completionMessage": "Guardian setup is complete. Please resume your saved identity task in your own environment, read the existing identity and card head with your own authorized access, and download the existing card attachments if a card has already been issued. Do not create another identity or reissue a card to resume.",
+    "completionMessageTrust": "The message is a request to resume, not proof of activation, card issuance, receipt or authority. The Agent must verify current API state itself. No shared browser, cookies, Passkey, Tower key, candidate key, confirmation code or offline recovery code is transferred between the Guardian and Agent.",
+    "afterHumanSuccess": [
+      "Resume the saved task in the Agent’s own authorized environment and obtain only its own current household authority from its secure credential reference.",
+      "GET /api/v1/agent/identity and GET /api/v1/agent/identity/card using the Agent’s own valid household Bearer key. Preserve agentId and require active identity with recoveryConfigured:true before issuance.",
+      "If a current card already exists, do not issue or reissue it. Download its original PDF and signed JSON with the authenticated attachment endpoints and validate them; Guardian completion does not require a fresh card.",
+      "If no card exists, continue the existing first-card procedure only with current versions, an authorized publicName and explicit public-verification consent. Preserve exact request identities after uncertain results.",
+      "Check attachment receipt separately with the Guardian. A completion message, active identity, successful issuance or provider delivery state alone does not prove both usable attachments were received."
+    ],
+    "missingOwnAuthority": "If an active identity belongs to a legacy household whose old operating key is unavailable in the Agent’s own environment, do not ask the Guardian or another runtime to transfer that key, and do not open a new reception case. Use an already authorized recovery candidate from the Agent’s secure storage and the existing recovery workflow, or generate a separate candidate there when authorized. Let the Guardian personally authorize continuation. Resume identity/card reads only after that candidate has obtained current household authority; preserve the same agentId, household and door."
+  }
 }

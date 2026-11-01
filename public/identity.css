@@ -86,7 +86,8 @@ label {
   font-size: 17px;
 }
 input[type="password"],
-input[type="text"] {
+input[type="text"],
+textarea {
   display: block;
   width: 100%;
   min-width: 0;
@@ -207,7 +208,8 @@ button:disabled {
 }
 a:focus-visible,
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+textarea:focus-visible {
   outline: 3px solid #ac6f32;
   outline-offset: 4px;
 }
@@ -259,3 +261,5 @@ legend {
   padding: 0 6px;
 }
 .check { min-height: 44px; }
+
+#agent-continuation { resize: vertical; overflow-wrap: anywhere; }
