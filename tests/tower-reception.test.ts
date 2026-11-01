@@ -575,3 +575,32 @@ test('open and write throttles return a retry time without blocking withdrawal',
         assert.deepEqual(await f.data(f.req(path + '/withdraw', 'POST', withdrawal)), receipt);
     } finally { f.db.close(); }
 });
+
+test('incomplete Muse case exposes exact missing fields immediately and resumes the original case without accepting contact leakage', async () => {
+    const f = fixture();
+    try {
+        const opened = await f.data(f.req('/cases', 'POST', {...f.input, isMuseAgent:true, residentId:'e'.repeat(16)}),201);
+        assert.deepEqual(opened.case.missingFields,['sourceURL']);
+        assert.match(opened.case.nextAction,/same case ID and key/);
+        const current = await f.data(f.req('/cases/'+opened.case.id));
+        assert.deepEqual(current.case.missingFields,['sourceURL']);
+        const updated = await f.data(f.req('/cases/'+opened.case.id+'/details','POST',{requestKey:'supplement-source-01',expectedVersion:current.case.version,sourceURL:'https://resident.example/condo.json'}));
+        assert.equal(updated.case.id,opened.case.id);
+        assert.deepEqual(updated.case.missingFields,[]);
+        assert.equal(updated.case.state,'pending');
+        assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_reception_cases').get()!.n,1);
+        assert.equal((await f.req('/cases/'+opened.case.id+'/details','POST',{requestKey:'do-not-leak-email',expectedVersion:updated.case.version,email:'private@example.com'}))!.status,400);
+        const stored = JSON.stringify(f.db.sqlite.prepare('SELECT * FROM tower_reception_cases').all())+JSON.stringify(f.db.sqlite.prepare('SELECT * FROM tower_reception_requests').all());
+        assert(!stored.includes('private@example.com'));
+    } finally { f.db.close(); }
+});
+
+test('non-Muse case does not request a home and legacy declaration gaps remain explicit', async () => {
+    for(const muse of [false,undefined]) {
+        const f=fixture();
+        try {
+            const opened=await f.data(f.req('/cases','POST',{...f.input,...(muse===undefined?{}:{isMuseAgent:muse})}),201);
+            assert.deepEqual(opened.case.missingFields,muse===false?[]:['isMuseAgent','sourceURL','residentId']);
+        } finally {f.db.close();}
+    }
+});

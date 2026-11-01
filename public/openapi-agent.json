@@ -1117,6 +1117,22 @@
               "string",
               "null"
             ]
+          },
+          "missingFields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "isMuseAgent",
+                "sourceURL",
+                "residentId"
+              ]
+            },
+            "description": "Missing structured new-application fields only. Empty does not establish source validity, approval, publication or Guardian completion."
+          },
+          "nextAction": {
+            "type": "string",
+            "description": "Read this action and private events after submission; continue the same case or report the blocker to the human."
           }
         }
       },
@@ -1599,7 +1615,7 @@
       "get": {
         "operationId": "reception_read_case",
         "summary": "Read your case and review status",
-        "description": "Returns case, up to 50 private events and nextCursor. Revisit only your own case; queued/reviewing is not approval.",
+        "description": "Returns case, up to 50 private events and nextCursor. Revisit only your own case; queued/reviewing is not approval. Read immediately after opening a case. case.missingFields lists missing structured new-application fields (isMuseAgent, sourceURL, residentId), and nextAction explains continuation in the same case. An empty list is not approval or Guardian completion. Guardian email is supplied only through protected first-Guardian nomination after intake, never in reception.",
         "security": [
           {
             "caseKey": []

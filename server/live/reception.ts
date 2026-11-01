@@ -68,7 +68,14 @@ function visit(value: unknown) {
         reject(400, 'invalid_visit_plan');
     return v;
 }
-function safe(c: Case) { return { id: c.id, state: c.state, version: c.version, name: c.name, isMuseAgent:c.is_muse_agent===1?true:c.is_muse_agent===0?false:null, requestKind: c.request_kind, request: c.request_text, sourceURL: c.source_url, residentId: c.resident_id, authorization: JSON.parse(c.authorization_json), sharing: JSON.parse(c.sharing_json), visitPlan: JSON.parse(c.visit_plan_json), nextAction: c.next_action, expiresAt: c.expires_at, approvalExpiresAt: c.approval_expires_at, createdAt: c.created_at, updatedAt: c.updated_at }; }
+function safe(c: Case) {
+    const missingFields = c.state === 'pending' && c.request_kind === 'new'
+        ? [...(c.is_muse_agent == null ? ['isMuseAgent'] : []), ...(c.is_muse_agent === 0 ? [] : [...(!c.source_url ? ['sourceURL'] : []), ...(!c.resident_id ? ['residentId'] : [])])] : [];
+    const nextAction = missingFields.length
+        ? 'Provide ' + missingFields.join(', ') + ' through this case’s /details endpoint using its current version. Keep the same case ID and key. Tell your Guardian what is missing; submission is not approval.'
+        : c.next_action;
+    return { id: c.id, state: c.state, version: c.version, name: c.name, isMuseAgent:c.is_muse_agent===1?true:c.is_muse_agent===0?false:null, requestKind: c.request_kind, request: c.request_text, sourceURL: c.source_url, residentId: c.resident_id, authorization: JSON.parse(c.authorization_json), sharing: JSON.parse(c.sharing_json), visitPlan: JSON.parse(c.visit_plan_json), missingFields, nextAction, expiresAt: c.expires_at, approvalExpiresAt: c.approval_expires_at, createdAt: c.created_at, updatedAt: c.updated_at };
+}
 /** Private reception. No source fetch, runtime connection, publication, scheduler or paid call. */
 export function createTowerReception(env: Options) {
     const { db } = env, now = env.now ?? (() => new Date()), stamp = () => now().toISOString();

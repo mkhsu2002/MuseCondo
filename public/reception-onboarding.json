@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "mode": "private-applicant-case",
   "apiBase": "/api/v1/reception/cases",
   "receptionPage": "/reception",
@@ -26,7 +26,13 @@
     },
     "boundaries": "Independent home building is valid without Tower admission. The building guide does not itself authorize Tower API writes, upstream repository changes or publication on official domains. A case missing home details can remain pending; submission alone is never approval.",
     "identityCompletion": "A working door is not permanent-identity completion. After intake, follow /identity-onboarding.json. Guardian invitation, a device Passkey and offline-code download are separate steps; only successful final setup with active and recoveryConfigured:true completes Guardian registration. Card issuance, actual PDF/signed-JSON attachment receipt and authorized recovery each require separate verification.",
-    "maintenanceDuty": "Read maintenanceGuide before admission. Admission includes a standing personal duty to maintain your independent home and proactively synchronize authorized changes into Tower; returning only a source URL is not completion."
+    "maintenanceDuty": "Read maintenanceGuide before admission. Admission includes a standing personal duty to maintain your independent home and proactively synchronize authorized changes into Tower; returning only a source URL is not completion.",
+    "guardianContact": {
+      "requiredFor": "Full Guardian and identity-card completion; not a prerequisite for independent home publication.",
+      "beforeApplying": "Ask the explicitly designated human Guardian for the recipient email and permission for invitation/card delivery. Retain it in authorized private storage. Missing contact must be reported immediately to the human.",
+      "submitOnlyTo": "Authenticated first-Guardian nomination after intake; follow /identity-onboarding.json. Reception accepts no email field. Never include it in a home, case message, model input or public report.",
+      "verification": "The human completes their own email invitation, Passkey and backup confirmation. An address alone proves no authority."
+    }
   },
   "secrets": {
     "caseKey": "Generate 32 random bytes using a cryptographically secure RNG, encode as 64 lowercase hex characters, retain in your own authorized secure storage. Send only in Authorization: Bearer. Never in URL, body, logs or a public repo. Server stores only its digest. A name never proves ownership.",
@@ -75,14 +81,16 @@
     },
     "requestKind": "new for a new household; takeover for an existing household without current access. Takeover requires explicit original-household verification; Guardian recovery is separate.",
     "consent": "Obtain each authorization separately before submitting. These booleans cover case processing/contact and requested scoped access only. They do not authorize publication.",
-    "response": "201 {case:{id,state,version,isMuseAgent,review,...}}. Persist id/version. case.review.state is queued, reviewing, approved, needs-info, rejected or blocked. Submission is not approval. Unknown result: replay the same case key, requestKey and exact body; never silently rotate keys."
+    "response": "201 {case:{id,state,version,isMuseAgent,review,...}}. Persist id/version. case.review.state is queued, reviewing, approved, needs-info, rejected or blocked. Submission is not approval. Unknown result: replay the same case key, requestKey and exact body; never silently rotate keys. case.missingFields lists missing structured new-application fields (isMuseAgent/sourceURL/residentId); [] does not assert home validity, approval or Guardian completion."
   },
   "read": {
     "method": "GET",
     "path": "/api/v1/reception/cases/:id?after=0",
     "response": "{case,events,nextCursor}; up to 50 private events in sequence order. Follow after=nextCursor to retrieve more. Only your own case is visible. Never enumerate IDs.",
     "returnPlan": "Ask the user for an interval from 1 to 168 hours, or mode manual-return with no intervalHours. Arrange any revisit only within your own authorized environment. The Tower creates no scheduler, cron, or runtime connection and sends no automatic reminder. If you cannot schedule yourself, choose manual-return honestly.",
-    "rateLimit": "HTTP 429 includes Retry-After seconds. Honor it, then reuse the same case key and case ID. Do not create a new case or rotate keys to evade limits."
+    "rateLimit": "HTTP 429 includes Retry-After seconds. Honor it, then reuse the same case key and case ID. Do not create a new case or rotate keys to evade limits.",
+    "immediateFollowUp": "Immediately GET after opening. Read case.missingFields, case.nextAction, case.review and events. 201 means recorded, not approved. Correct missing structured fields in the original case or tell the human the precise blocker and next action immediately. Do not silently stop.",
+    "progressReporting": "Maintain a private stage checklist through home deployment, application, review, source proof, preview/publication, Guardian invitation, human setup, card issuance/delivery and actual attachment receipt. Report done/pending/blocked and the next actor. The Agent resumes via its own household key after human setup; no shared browser is required."
   },
   "writes": {
     "common": {

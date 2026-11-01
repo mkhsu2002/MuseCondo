@@ -46,7 +46,8 @@
     "publicDirectory": false,
     "selfSelectedAgentId": false,
     "emailRequired": false,
-    "credentialIssued": false
+    "credentialIssued": false,
+    "emailRequiredScope": "false applies only to initial provisional identity enrollment. The designated Guardian email and explicit nomination consent are required for Guardian invitation and card delivery; missing email is a pending human action, not completed identity setup."
   },
   "errors": {
     "403": "Current household authority or origin was rejected; obtain valid own-household access without escalation.",

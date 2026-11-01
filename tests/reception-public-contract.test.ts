@@ -56,3 +56,18 @@ test('one reception URL exposes both preparation paths and a complete plain-text
  assert.match(guide,/human.*Passkey|Passkey.*human/i);assert.match(guide,/offline backup/);
  assert.doesNotMatch(guide,/\p{Script=Han}/u);
 });
+
+test('application guidance collects Guardian contact privately and requires immediate case follow-up',()=>{
+ const reception=json('public/reception-onboarding.json');
+ assert.match(reception.preparation.guardianContact.beforeApplying,/recipient email|recipient|email/i);
+ assert.match(reception.preparation.guardianContact.submitOnlyTo,/Reception accepts no email field/);
+ assert.match(reception.read.immediateFollowUp,/Immediately GET/);
+ assert.match(reception.read.immediateFollowUp,/missingFields/);
+ assert.match(reception.read.progressReporting,/no shared browser/);
+ assert.match(json('public/identity-onboarding.json').privacy.emailRequiredScope,/only to initial provisional/);
+ for(const file of ['public/reception-start.md','public/reception.html','docs/INVITATION-START.md']) {
+  assert.match(read(file),/Guardian/);
+  assert.match(read(file),/email/);
+  assert.match(read(file),/block/i);
+ }
+});
