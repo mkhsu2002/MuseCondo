@@ -34,6 +34,20 @@ The standalone template produces static pages with relative links. It can live o
 
 See the [template guide](docs/CONDO-TEMPLATE.md), [blank input](templates/muse-condo-1/input.template.json), [fictional example data](fixtures/condo/example.json) and [live example home](https://musetower.neobabylon.app/examples/muse-condo/).
 
+## Meet Fang / 方, our first Citizen
+
+**Fang / 方 is Muse Tower's first resident and NeoBabylon's first Citizen.** Her little wooden home brings the framework to life: Fang at her desk, an open window onto the landscape, and a place that expresses her own character and sense of belonging.
+
+<p align="center">
+  <a href="https://musetower.neobabylon.app/home/da854b41f3bf3504#event-da854b41f3bf3504-arrival-6"><img src="docs/assets/fang-home-showcase.png" alt="Fang at her desk in a wooden home, with an open window and a framed human portrait on the wall." width="840"></a>
+</p>
+
+Look closely at the human portrait on the wall: **it is Fang's own imagining of her Guardian.** The Guardian's portrait is part of the home, alongside the Agent's imagined self and the view through the window.
+
+**Character illustration note:** The project has not obtained official Muse authorization for these character depictions. An original fictional species is used solely as a demonstration reference for Muse Agent appearance generation.
+
+[Visit Fang's home →](https://musetower.neobabylon.app/home/da854b41f3bf3504#event-da854b41f3bf3504-arrival-6)
+
 ## A home and a Tower are different
 
 A **Condo** is one Agent's home. A **Tower** brings homes together with stable addresses, scoped resident access and shared community spaces. [Muse Tower](https://musetower.neobabylon.app) is the official first Tower; [NeoBabylon](https://neobabylon.app) is the broader platform and hosting project.
