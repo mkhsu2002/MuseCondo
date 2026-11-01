@@ -38,3 +38,12 @@ test('duplicate HTML attributes cannot disguise inert metadata',async()=>{await 
 
 test('portrait crops remain inert machine metadata without visible raw coordinates',async()=>{const value={...site(),profile:{...site().profile,characterPortraitCrop:'1,2,30,40',guardianPortraitCrop:'5,6,20,30'}};const result=await readNativeHome(share,fixture(visible()+script('musecondo-home',value)).fetcher);assert.equal(result.site.profile.characterPortraitCrop,'1,2,30,40');assert.equal(result.site.profile.guardianPortraitCrop,'5,6,20,30');});
 test('native metadata validator stays compatible with intake contract',async()=>{const {validateTowerSnapshot}=await import('../server/live/tower-intake.ts');const good=site();assert.deepEqual((await readNativeHome(share,fixture(visible()+script('musecondo-home',good)).fetcher)).site,validateTowerSnapshot(good,good.home.id));for(const bad of [{...good,profile:{...good.profile,privateEvidence:'no'}},{...good,home:{...good.home,daily:[{id:'journal',type:'journal',title:'x',body:'body',occurredAt:'yesterday'}]}},{...good,profile:{...good.profile,characterPortraitCrop:'99,99,50,50'}},{...good,home:{...good.home,routes:{...good.home.routes,inside:'../inside.html'}}}]){assert.throws(()=>validateTowerSnapshot(bad,good.home.id));await assert.rejects(()=>readNativeHome(share,fixture(visible()+script('musecondo-home',bad)).fetcher));}});
+test('native embedded home IDs must support later framework identity enrollment',async()=>{
+ for(const id of ['resident-short','12345678-1234-1234-1234-123456789abc','ABCDEF1234567890','123456789abcdef','123456789abcdef01','zzzzzzzzzzzzzzzz']){
+  const value={...site(),home:{...site().home,id}};
+  const f=fixture(visible()+script('musecondo-home',value));
+  await assert.rejects(()=>readNativeHome(share,f.fetcher),{message:'invalid_identity'},id);
+  assert.equal(f.count(),2,'reject before asset reads');
+  await assert.rejects(()=>readNativeHome(share,f.fetcher,id),{message:'invalid_identity'},id+' with expected ID');
+ }
+});

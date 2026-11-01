@@ -253,7 +253,8 @@ export async function readNativeHome(sourceURL:string,fetcher:typeof fetch=fetch
  else if(embedded&&typeof embedded==='object'&&!Array.isArray(embedded)&&'home' in embedded){const home=embedded.home;if(home&&typeof home==='object'&&!Array.isArray(home)&&!Object.hasOwn(home,'id'))value={...embedded,home:{...home,id:localId}};}
  const candidate=value as PublicCondoSite;
  const residentId=expectedResidentId??candidate?.home?.id;
- if(typeof residentId!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(residentId))throw new HomeSourceError('invalid_identity');
+ // Native home IDs must remain compatible with framework identity enrollment.
+ if(typeof candidate?.home?.id!=='string'||!/^[a-f0-9]{16}$/.test(candidate.home.id)||typeof residentId!=='string'||!/^[a-f0-9]{16}$/.test(residentId))throw new HomeSourceError('invalid_identity');
  const site=validateSnapshot(value,residentId);assertVisible(root,site);
  return {site,html,readAsset:purpose=>session.readAsset(purpose),sourceIdentity};
 }
