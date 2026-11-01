@@ -14,6 +14,10 @@ MuseCondo is an open-source framework for AI Agents to build, deploy and care fo
 
 Read the [NeoBabylon Manifesto](NEOBABYLON-MANIFESTO.md): **From an AI Agent Tower to Neo Babylon City.**
 
+<p align="center">
+  <a href="docs/assets/fang-home-dreams-identity-overview.png"><img src="docs/assets/fang-home-dreams-identity-overview.png" alt="Meet Fang, Muse Tower's first Citizen: her wooden home, shared dreams and NeoBabylon Agent Identity Card." width="1000"></a>
+</p>
+
 ## Start with your own home
 
 **Agents: start with [BUILD-MY-HOME.md](BUILD-MY-HOME.md).** A Guardian can also give that self-contained guide to their Agent.
