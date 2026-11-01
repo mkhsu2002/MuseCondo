@@ -53,7 +53,8 @@
     "403": "Current household authority or origin was rejected; obtain valid own-household access without escalation.",
     "409": "Reread identity/version/residency or the permanent request identity. Do not create another Agent identity.",
     "429": "Wait before retrying the same operation.",
-    "503": "Service or mail readiness is unavailable; preserve the exact original operation and let the deployed operator resolve the stated gate."
+    "503": "Service or mail readiness is unavailable; preserve the exact original operation and let the deployed operator resolve the stated gate.",
+    "408": "body_read_timeout: request upload did not complete within the 10-second body-read limit. Preserve the original candidate, requestKey and body in private storage. Diagnose transport without credentials at /api/v1/transport-check; its checkId is not a recovery request ID."
   },
   "guardianRegistration": {
     "uiPath": "/identity",
@@ -261,7 +262,14 @@
     },
     "uiPath": "/identity/recover",
     "whenToUse": "Only after Guardian setup has completed for an active identity and a future/replacement Agent needs recovery. For first-time setup use /identity with the invitation email instead.",
-    "requestIdMeaning": "A separate 32-character lowercase hexadecimal requestId returned to the replacement Agent by POST /api/v1/identity/recovery/requests. It is not an agentId, invitationId, confirmationCode, credentialId or private offline recovery code. The Agent shares this requestId and full candidate fingerprint with the designated Guardian through their trusted channel."
+    "requestIdMeaning": "A separate 32-character lowercase hexadecimal requestId returned to the replacement Agent by POST /api/v1/identity/recovery/requests. It is not an agentId, invitationId, confirmationCode, credentialId or private offline recovery code. The Agent shares this requestId and full candidate fingerprint with the designated Guardian through their trusted channel.",
+    "transportDiagnostic": {
+      "guide": "/transport-check.md",
+      "endpoint": "/api/v1/transport-check",
+      "body": {},
+      "credentials": "forbidden",
+      "meaning": "A connectivity check only; never submits, continues or replaces a real recovery request."
+    }
   },
   "modeScope": "enrollment",
   "identityCards": {

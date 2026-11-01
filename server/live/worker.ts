@@ -1,3 +1,4 @@
+import {transportCheck} from './transport-check.ts';
 import {createNativeSourceInspection} from './native-source-inspection.ts';
 import {towerLordRoute,type TowerLordBindings} from './tower-lord-routes.ts';
 import {checkEdgeGuard,type EdgeGuardBinding} from './edge-guard.ts';
@@ -52,6 +53,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   if(!validOrigin(env.PUBLIC_ORIGIN))return json({available:false,error:'public_origin_not_configured'},503);
   if(url.origin!==env.PUBLIC_ORIGIN)return json({available:false,error:'host_rejected'},403);
   const limited=await checkEdgeGuard(request,env);if(limited)return limited;
+  const transportResponse=await transportCheck(request,env.PUBLIC_ORIGIN!);if(transportResponse)return transportResponse;
   const identityMailEnv=env.DB?{db:env.DB,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,from:env.IDENTITY_MAIL_FROM,coordinator:env.IDENTITY_CARDS,deliveryEnabled:env.IDENTITY_MAIL_DELIVERY_ENABLED}:undefined;
   const onMailEvent=identityMailEnv?identityMailEventDispatcher(identityMailEnv,context):async()=>{};
   if(isIdentityCardPath(url.pathname)){const response=await proxyIdentityCard(request,env.IDENTITY_CARDS);await dispatchIdentityCardResult(request,response,env.DB,onMailEvent);return response;}

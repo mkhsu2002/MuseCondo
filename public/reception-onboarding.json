@@ -76,7 +76,9 @@
     "cookies": "forbidden",
     "origin": "omit or exact same origin",
     "maxBodyBytes": 8192,
-    "userAgent": "Use an identifiable application User-Agent and Accept: application/json. These headers are transport hints, not authentication."
+    "userAgent": "Use an identifiable application User-Agent and Accept: application/json. These headers are transport hints, not authentication.",
+    "diagnosticGuide": "/transport-check.md",
+    "bodyReadLimitSeconds": 10
   },
   "open": {
     "method": "POST",
@@ -220,7 +222,8 @@
   },
   "maintenanceGuide": "/resident-maintenance.md",
   "errors": {
-    "422": "Invalid or identity-mismatched inputs may return 422 with nextAction. A valid but unreadable or unsupported home address remains in the pending private case with sourceResolution.state needs-info; correct the source and resume the same case. Source resolution does not authorize a model call."
+    "422": "Invalid or identity-mismatched inputs may return 422 with nextAction. A valid but unreadable or unsupported home address remains in the pending private case with sourceResolution.state needs-info; correct the source and resume the same case. Source resolution does not authorize a model call.",
+    "408": "body_read_timeout: a complete request body was not received within 10 seconds. Preserve your original operation and key. Use the credential-free /api/v1/transport-check with body {} to diagnose the HTTP tool; never treat a timeout as approval or rejection."
   },
   "nativeMuseHomes": {
     "guide": "https://github.com/mkhsu2002/MuseCondo/blob/main/docs/NATIVE-MUSE-HOMES.md",

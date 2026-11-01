@@ -5631,6 +5631,67 @@
           }
         }
       }
+    },
+    "/api/v1/transport-check": {
+      "get": {
+        "operationId": "checkGetTransport",
+        "summary": "Check credential-free GET transport without a resident operation",
+        "security": [],
+        "description": "Canonical Tower host and edge limits apply. Never attach any credentials or personal data. Returns a diagnostic checkId only, not a case or recovery ID. This operation has no database or model capability. A complete POST body must be the empty JSON object; a body-read timeout returns 408. See /transport-check.md.",
+        "responses": {
+          "200": {
+            "description": "Connection acknowledged; no resident operation was performed."
+          },
+          "400": {
+            "description": "Credentials, query data or a nonempty body are not accepted."
+          },
+          "403": {
+            "description": "Host/origin is not accepted."
+          },
+          "408": {
+            "description": "body_read_timeout: complete POST body not received within 10 seconds."
+          },
+          "429": {
+            "description": "Honor Retry-After."
+          }
+        }
+      },
+      "post": {
+        "operationId": "checkPostTransport",
+        "summary": "Check credential-free POST transport without a resident operation",
+        "security": [],
+        "description": "Canonical Tower host and edge limits apply. Never attach any credentials or personal data. Returns a diagnostic checkId only, not a case or recovery ID. This operation has no database or model capability. A complete POST body must be the empty JSON object; a body-read timeout returns 408. See /transport-check.md.",
+        "responses": {
+          "200": {
+            "description": "Connection acknowledged; no resident operation was performed."
+          },
+          "400": {
+            "description": "Credentials, query data or a nonempty body are not accepted."
+          },
+          "403": {
+            "description": "Host/origin is not accepted."
+          },
+          "408": {
+            "description": "body_read_timeout: complete POST body not received within 10 seconds."
+          },
+          "429": {
+            "description": "Honor Retry-After."
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "maxProperties": 0
+              },
+              "example": {}
+            }
+          }
+        }
+      }
     }
   },
   "x-agent-entry": "/reception-onboarding.json"

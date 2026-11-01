@@ -1,4 +1,5 @@
 import type { Database, Statement } from "./db.ts";
+import {readRequestBody,RequestBodyError} from './request-body.ts';
 import {
   authenticationOptions,
   registrationOptions,
@@ -21,6 +22,7 @@ interface Environment {
   contactKey?: string;
   now?: () => Date;
   onMailEvent?: (eventId: string) => void | Promise<void>;
+  bodyReadTimeoutMs?:number;
 }
 interface RecoveryRequest {
   id: string;
@@ -127,7 +129,7 @@ function string(v: unknown, pattern: RegExp) {
 const key = (v: unknown) => string(v, /^[\x20-\x7e]{8,96}$/),
   id = (v: unknown) => string(v, /^[a-f0-9]{32}$/),
   secret = (v: unknown) => string(v, /^[a-f0-9]{64}$/);
-async function input(request: Request) {
+async function input(request: Request,timeoutMs?:number) {
   if (
     !/^application\/json(?:\s*;\s*charset\s*=\s*(?:utf-8|"utf-8"))?\s*$/i.test(
       request.headers.get("Content-Type") ?? "",
@@ -137,30 +139,7 @@ async function input(request: Request) {
   const length = request.headers.get("Content-Length");
   if (length !== null && (!/^\d+$/.test(length) || Number(length) > 32768))
     fail(413, "body_too_large");
-  const reader = request.body?.getReader();
-  if (!reader) fail(400, "invalid_json");
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    for (;;) {
-      const part = await reader.read();
-      if (part.done) break;
-      size += part.value.length;
-      if (size > 32768) {
-        await reader.cancel().catch(() => {});
-        fail(413, "body_too_large");
-      }
-      chunks.push(part.value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const c of chunks) {
-    bytes.set(c, offset);
-    offset += c.length;
-  }
+  const bytes = await readRequestBody(request,32768,timeoutMs);
   let value: unknown;
   try {
     value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
@@ -466,7 +445,7 @@ export function createIdentityRecovery(env: Environment) {
             if (!r || r.candidate_hash !== sha) fail(403, "candidate_rejected");
             return json(candidateResult(r!));
           }
-          const v = await input(request);
+          const v = await input(request,env.bodyReadTimeoutMs);
           exact(v, ["requestKey", "agentId"]);
           key(v.requestKey);
           const agent = string(v.agentId, /^mcid:[a-f0-9]{64}$/),
@@ -536,7 +515,7 @@ export function createIdentityRecovery(env: Environment) {
         }
         if (request.headers.has("X-Identity-Candidate-Key"))
           fail(403, "separate_guardian_authorization_required");
-        const v = await input(request);
+        const v = await input(request,env.bodyReadTimeoutMs);
         if (action === "context") {
           exact(v, ["requestId"]);
           const r = await requestRow(id(v.requestId));
@@ -1043,6 +1022,7 @@ export function createIdentityRecovery(env: Environment) {
         await dispatch(r!.id);
         return json(result);
       } catch (error) {
+        if(error instanceof RequestBodyError)return json({error:error.code},error.status);
         if (authenticatedRetry) {
           try {
             const saved = await receipt(

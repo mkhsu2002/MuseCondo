@@ -2,6 +2,7 @@ import {homeSourceURL,homeSourceIdentity} from './home-source.ts';
 import {discoverHome,publicHomeURL,HomeDiscoveryError} from './home-discovery.ts';
 import { digest } from './app.ts';
 import type { Database, Statement } from './db.ts';
+import {readRequestBody,RequestBodyError} from './request-body.ts';
 interface Options {
     db: Database;
     origin: string;
@@ -9,6 +10,7 @@ interface Options {
     operator: (req: Request) => Promise<boolean>;
     onReview?:(caseId:string)=>Promise<void>;
     reviewStatus?:(caseId:string)=>Promise<unknown>;
+    bodyReadTimeoutMs?:number;
     sourceFetch?:typeof fetch;
 }
 interface Case {
@@ -101,28 +103,7 @@ export function createTowerReception(env: Options) {
             reject(415, 'json_required');
         if (Number(req.headers.get('Content-Length') ?? 0) > 8192)
             reject(413, 'body_too_large');
-        const reader = req.body?.getReader();
-        if (!reader)
-            reject(400, 'invalid_json');
-        let size = 0;
-        const chunks: Uint8Array[] = [];
-        while (true) {
-            const p = await reader!.read();
-            if (p.done)
-                break;
-            size += p.value.length;
-            if (size > 8192) {
-                await reader!.cancel().catch(() => { });
-                reject(413, 'body_too_large');
-            }
-            chunks.push(p.value);
-        }
-        const bytes = new Uint8Array(size);
-        let offset = 0;
-        for (const c of chunks) {
-            bytes.set(c, offset);
-            offset += c.length;
-        }
+        const bytes = await readRequestBody(req,8192,env.bodyReadTimeoutMs);
         try {
             return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as unknown;
         }
@@ -366,6 +347,7 @@ export function createTowerReception(env: Options) {
                 return await commit(req, current, operator, rk, operation, inputHash, next, statements, message, operation === 'activate' ? 201 : 200);
             }
             catch (e) {
+                if(e instanceof RequestBodyError)return json({error:e.code},e.status);
                 if(e instanceof HomeDiscoveryError)return json({error:e.code,nextAction:'Provide your public HTTPS home address. Keep the same case ID and key.'},422);
                 if (e instanceof Rejection) {
                     const response = json({ error: e.message }, e.status);
