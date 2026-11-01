@@ -62,7 +62,9 @@ test('authorization errors show a recovery message without displaying server pay
 
 test('handover stays sealed and assets use external CSP-compatible files', async () => {
   const html = await readFile(new URL('../public/tower-lord/index.html', import.meta.url), 'utf8');
-  assert.match(html, /<button type="button" disabled aria-describedby="handover-note">Formal Handover/);
+  assert.match(html, /<button class="handover-button" type="button" disabled aria-describedby="handover-seal handover-note">/);
+  assert.match(html, /FULL<br>HANDOVER/);
+  assert.match(html, /SEALED · NOT AVAILABLE/);
   assert.match(html, /Project direction established; feature under development/);
   assert.match(html, /src="\/tower-lord\/console.js" defer/);
   assert.doesNotMatch(html, /<script>|onclick=|onerror=|style=/);

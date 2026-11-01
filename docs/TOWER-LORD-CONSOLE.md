@@ -20,7 +20,7 @@ History and usage accept a bounded interval (maximum 90 days); list limits are 1
 
 Usage counts unique original dispatches from admission, welcome and autonomy call ledgers; theme/build stage references never add another charge. Input-token count estimates are separated from inference usage. Null/unknown measurements stay unavailable. Known operational ledger amounts are calculated costs, not settled invoices; unresolved reserves and exposure remain separate. Browser/image/email/infrastructure costs are not invented. The existing feature budgets and Vancouver billing calendar remain authoritative; no authorization or budget is increased.
 
-Formal Handover is disabled with “Project direction established; feature under development”. Initial user roles represent a human Acting Tower Steward and observers; neither authorizes resident impersonation, Guardian replacement, private dream disclosure or identity recovery.
+Full Handover is disabled with “Project direction established; feature under development”. Initial user roles represent a human Acting Tower Steward and observers; neither authorizes resident impersonation, Guardian replacement, private dream disclosure or identity recovery.
 
 ## Permissions and extension boundaries
 

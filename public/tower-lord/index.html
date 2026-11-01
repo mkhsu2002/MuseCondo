@@ -19,7 +19,18 @@
       <p class="rail-title">A clear view<br>of the Tower.</p>
       <p class="rail-copy">Residents, recorded work and resources in one private place.</p>
       <div class="role-block"><span class="status-dot" aria-hidden="true"></span><span id="session-role">Role unverified</span><span class="read-only">Read only</span></div>
-      <div class="handover"><span class="eyebrow">Future governance</span><button type="button" disabled aria-describedby="handover-note">Formal Handover <span aria-hidden="true">⌑</span></button><p id="handover-note">Project direction established; feature under development</p></div>
+      <div class="handover">
+        <span class="eyebrow">Tower authority</span>
+        <div class="handover-housing">
+          <span class="handover-warning" aria-hidden="true">AUTHORIZED HANDOVER</span>
+          <button class="handover-button" type="button" disabled aria-describedby="handover-seal handover-note">
+            <svg class="handover-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/></svg>
+            <span>FULL<br>HANDOVER</span>
+          </button>
+          <span class="handover-seal" id="handover-seal">SEALED · NOT AVAILABLE</span>
+        </div>
+        <p id="handover-note">Project direction established; feature under development</p>
+      </div>
     </aside>
     <main id="main" tabindex="-1">
       <header class="page-header"><div><p class="eyebrow">Private steward console</p><h1>Tower at a glance</h1><p class="subtitle">A record of what is here, what happened, and what remains open.</p></div><span class="environment" id="environment">Environment unverified</span></header>

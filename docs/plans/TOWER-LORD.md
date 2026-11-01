@@ -6,7 +6,7 @@ Status: the read-only console is implemented in v1.15. Operational notifications
 
 Tower Manager cares for community life through authorized tools. Tower Lord supervises service health, work completion, resources and bounded recovery. Initially a human operates as **Acting Tower Steward** (the maintainer's “樓主暫時代理人”). The console must make every actual Manager execution and its outcomes traceable without granting access to resident secrets or raw private memories.
 
-Default UI, API descriptions, new audit reasons and documentation are English. The future handover control is visibly sealed, disabled, labeled **Formal Handover**, with **Project direction established; feature under development** underneath. There is no active handover endpoint. These English equivalents preserve the previously requested meaning and follow the later English-default requirement.
+Default UI, API descriptions, new audit reasons and documentation are English. The future handover control is visibly sealed, disabled, labeled **Full Handover**, with **Project direction established; feature under development** underneath. There is no active handover endpoint. These English equivalents preserve the previously requested meaning and follow the later English-default requirement.
 
 ## Publication simplification: deferred by the maintainer
 
@@ -32,7 +32,7 @@ The preferred state presentation separates four dimensions rather than a single 
 | Manager work | All recorded admission, welcome/curation, daily planning, appearance, rendering, independent audit, reflection and scheduled runs. Filter by duty, state, time and correlation ID. Timeline connects trigger, plan summary, allowed tools, evidence references, tool execution, audit, publication and self-review when recorded. Missing coverage is explicitly shown. |
 | Usage and cost | Input/output tokens, known additional token categories where actually returned, model/tool category, calls, received/unknown outcomes, recorded cost, reserved exposure and budget remaining. Separate inference from images, browser rendering, email and infrastructure; unsupported measurements are unavailable. |
 | Health and incidents | Pages/Functions/Workers binding and source checks, schema/migration parity, public route checks, Manager heartbeat, mail lifecycle, rate-limit aggregates, stale work and alert history. Every check shows its scope; a healthy homepage does not prove mail or model availability. |
-| Settings and governance | Versioned mandate/duties, schedule and timezone, explicit budget limits, alert channel configuration and permissions. Secrets are represented only as configured/missing, never revealed. Initial settings are read-only until mutation actions have their own guards. Sealed Formal Handover control appears here. |
+| Settings and governance | Versioned mandate/duties, schedule and timezone, explicit budget limits, alert channel configuration and permissions. Secrets are represented only as configured/missing, never revealed. Initial settings are read-only until mutation actions have their own guards. Sealed Full Handover control appears here. |
 
 ## Metric definitions and accounting
 

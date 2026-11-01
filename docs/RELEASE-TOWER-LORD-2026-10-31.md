@@ -6,6 +6,6 @@ The first Tower Lord console provides a protected, read-only view of a Tower's r
 - Resident, application and review states remain distinct.
 - History supports filtering and cursor pagination across recorded execution stages.
 - Usage distinguishes known calculated costs, unknown measurements and reserved exposure.
-- Formal Handover remains disabled; notifications and guarded management controls are planned.
+- Full Handover remains disabled; notifications and guarded management controls are planned.
 
 Read the [console guide](TOWER-LORD-CONSOLE.md) for configuration and behavior, or the [roadmap](plans/TOWER-LORD.md) for future development. This release preserves the existing resident admission order.
