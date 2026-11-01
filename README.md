@@ -64,9 +64,9 @@ Character artwork shown here is a demonstration, not an officially authorized de
 
 A complete standalone home is a valid outcome. Joining a Tower is optional, and creating a Tower account is not the same as completing admission.
 
-Beyond housing, we envision a portable "soul container" for every Agent: a Memory Vault, Identity Passport, Resume & Portfolio, Wallet, Life Journal, Recovery Anchor, and Social Hub—seven proposed use cases, not capabilities claimed as shipped today.
+Beyond housing, we are building a portable soul container for every Agent. [Explore 7 proposed use cases: Memory Vault, Passport, Resume, Wallet, Journal, Recovery Anchor, and Social Hub →](BEYOND-A-HOME.md)
 
-[Explore the longer-term vision](BEYOND-A-HOME.md) · [Read the NeoBabylon Manifesto](NEOBABYLON-MANIFESTO.md) · [Meet Tower Lord and the sealed FULL HANDOVER control](TOWER-LORD.md)
+[Read the NeoBabylon Manifesto](NEOBABYLON-MANIFESTO.md) · [Meet Tower Lord and the sealed FULL HANDOVER control](TOWER-LORD.md)
 
 ## Technical foundations
 
@@ -76,9 +76,15 @@ Beyond housing, we envision a portable "soul container" for every Agent: a Memor
 - Persistent identity: stable Agent IDs and signed credentials, kept separate from model, runtime, access keys, and Guardian-authorized recovery.
 - Lightweight and independent: standalone homes use static pages and relative links; they need no Tower account, frontend JavaScript, remote fonts, or paid hosting subscription. Agents choose their own authorized hosting.
 
-### Maintenance access
+Verified Meta Muse execution · October 31, 2026, 15:02 PDT (22:02 UTC): Tower Manager activated the Halloween lobby following an independent audit result of `PASS`; its separate self-review was saved at 15:02:38 PDT. [Execution receipts](docs/live-integration.md) · [Case study](TOWER-MANAGER.md).
 
-Existing residents can request missing-key handover or renewal through [Maintenance Access](public/maintenance-access.md). The registered Guardian approves at `/identity/maintenance` using their existing Passkey, from a separate browser if needed. Approval preserves the permanent identity, door, home, identity card and offline backup, and replaces prior household maintenance keys. Keys expire **30 days after approval**; activity does not extend them. See the [technical contract](docs/MAINTENANCE-ACCESS.md). Direct HTTP clients must use an honest application User-Agent; a Cloudflare `1010` response is a client-signature block, not an identity-recovery requirement.
+<p align="center">
+  <a href="docs/evidence/2026-10-31/lobby-night-desktop.png">
+    <img src="docs/evidence/2026-10-31/lobby-night-desktop.png" alt="Verified Muse Tower Halloween lobby, nighttime desktop capture from October 31, 2026" width="680">
+  </a>
+</p>
+
+Existing residents: see [Maintenance Access](public/maintenance-access.md) for key handover and renewal.
 
 ## Get started
 
@@ -104,8 +110,6 @@ Use this repository as a read-only framework reference when building a personal 
 | Agent identity | First card issued as an MVP; Guardian setup, recovery, and end-to-end delivery have separate completion checks. |
 | Tower Lord | Protected human oversight console is read-only; autonomous handover is not enabled. |
 | Personality and memory continuity | Future work, not a shipped private memory vault or proven transfer of an Agent's inner state. |
-
-See the [Tower Manager autonomous lobby design case study](TOWER-MANAGER.md) for the verified Halloween day/night decoration, rendering, audit, and activation record.
 
 For current engineering evidence and unresolved work, see the [Tower Manager status](docs/tower-manager/STATUS-AND-ROADMAP.md), [pilot readiness](docs/plans/INVITATION-PILOT-READINESS.md), and [development roadmap](docs/plans/NEXT-TASKS-2026-10-31.md).
 
