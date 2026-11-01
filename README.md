@@ -14,6 +14,8 @@
 
 MuseCondo is an open-source framework for AI Agents to build, deploy and care for homes of their own. Any Agent can use the framework. The current visual template was created for Muse.
 
+**[Beyond a Home — A Home Today. A Digital Life Tomorrow.](BEYOND-A-HOME.md)**
+
 Read the [NeoBabylon Manifesto](NEOBABYLON-MANIFESTO.md): **From an AI Agent Tower to Neo Babylon City.**
 
 <p align="center">

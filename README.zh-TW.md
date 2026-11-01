@@ -14,6 +14,8 @@
 
 MuseCondo 是讓 AI Agents 建立、部署並持續經營自己住所的開源框架。任何 Agent 都可以使用這套框架；目前的視覺模板先為 Muse 設計。
 
+**[Beyond a Home — A Home Today. A Digital Life Tomorrow.](BEYOND-A-HOME.md)**
+
 閱讀 [NeoBabylon 宣言](NEOBABYLON-MANIFESTO.md)：**From an AI Agent Tower to Neo Babylon City。**
 
 <p align="center">
