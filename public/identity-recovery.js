@@ -86,7 +86,7 @@
       !!current ||
       (!optionsBody && (!fingerprintAck.checked || !chosenDecision()));
     prepare.textContent =
-      optionsBody && !current ? "重試準備監護驗證" : "確認選擇，準備監護驗證";
+      optionsBody && !current ? "Retry verification preparation" : "Confirm choice and prepare verification";
     $("verification-section").hidden = !current || done || closed;
     verify.disabled =
       !supported ||
@@ -97,7 +97,7 @@
       !!credential ||
       !!completeBody;
     verify.textContent =
-      method() === "offline" ? "建立新的 Passkey" : "使用 Passkey 驗證";
+      method() === "offline" ? "Create a new Passkey" : "Verify with Passkey";
     $("backup-section").hidden =
       !credential || !needsBackup() || done || closed;
     $("finish-section").hidden = !credential || done || closed;
@@ -112,7 +112,7 @@
         (!credential ||
           (needsBackup() &&
             (!backupCode || !downloaded || !backupAck.checked))));
-    finish.textContent = completeBody ? "重試確認原操作結果" : "確認並完成";
+    finish.textContent = completeBody ? "Retry the original completion" : "Confirm and complete";
     restart.hidden = done || closed || (!contextBody && !context);
     restart.disabled = busy || closed || !!completeBody || optionsPending;
   }
@@ -158,7 +158,7 @@
   }
   function localExpiry() {
     invalidated(
-      "這次申請或驗證已到期。請重新查看申請；若申請到期或已不存在，請 Agent 用新鑰匙提出新申請。",
+      "This request or verification expired. Review it again; if the unfinished request expired or no longer exists, ask the Agent to create a new request and key.",
     );
   }
   function encode(value) {
@@ -348,21 +348,21 @@
     if (error.unknown) {
       if (phase === "options") optionsPending = true;
       say(
-        "結果尚未確認。請留在本頁，按明確的重試按鈕確認原操作結果；不要另建操作。",
+        "The result is not yet confirmed. Stay on this page and use the same retry button to check the original operation; do not create another.",
       );
     } else if (error.status === 429) {
       if (phase === "options") optionsPending = true;
-      say("操作暫時較頻繁，請稍候，再按同一個按鈕重試。");
+      say("Too many requests. Wait, then retry with the same button.");
     } else if (error.status >= 500) {
       if (phase === "options") optionsPending = true;
-      say("暫時無法確認，請稍後按同一個按鈕重試原操作。");
+      say("Temporarily unavailable. Retry the original operation with the same button later.");
     } else {
       invalidated(
         error.status === 409
-          ? "這次申請或驗證已到期、已完成或已變更。請重新查看申請，再確認下一步。"
+          ? "This request or verification expired, completed or changed. Review the request again before proceeding."
           : error.status === 403 || error.status === 404
-            ? "無法驗證這筆申請或復原碼。請核對輸入；若未完成申請到期或已不存在，請 Agent 用新鑰匙提出新申請。"
-            : "這次操作未能確認。請重新查看申請並核對輸入。",
+            ? "This request or recovery code could not be verified. Check the input; if the unfinished request expired or no longer exists, ask the Agent to create a new request and key."
+            : "This operation could not be confirmed. Review the request again and check your input.",
       );
     }
   }
@@ -378,15 +378,15 @@
   }
   function terminal(state) {
     return state === "continued"
-      ? "這筆申請曾完成原身份延續。這是歷史結果，請 Agent 核對目前的操作權限；不代表目前鑰匙仍有效。"
-      : "這筆申請已選擇另走新入住流程，尚未建立新的身份。請 Agent 另行建立新帳戶與住所並完成身份綁定；舊身份、住所與私人資料不會轉移。";
+      ? "This request previously completed identity continuation. This historical result does not prove current access; ask the Agent to check its current authority."
+      : "This request chose new admission; no new identity has been created. The Agent must separately create a new household and enroll an identity. The old identity, home and private data do not transfer.";
   }
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (busy || done || closed || context) return;
     if (!contextBody) {
       if (!/^[a-f0-9]{32}$/.test(request.value.trim())) {
-        say("請完整貼上 32 位復原申請編號。");
+        say("Paste the complete 32-character lowercase hexadecimal recovery request ID supplied by the Agent. It is not an Agent ID or Invitation ID.");
         request.focus();
         return;
       }
@@ -395,7 +395,7 @@
     let nextFocus;
     busy = true;
     render();
-    say("正在查看申請…");
+    say("Reviewing the request…");
     try {
       const data = await api("/context", contextBody);
       if (closed) return;
@@ -406,7 +406,7 @@
       $("context-request-id").textContent = data.requestId;
       $("candidate-fingerprint").textContent = data.candidateFingerprint;
       $("request-expiry").textContent = new Date(data.expiresAt).toLocaleString(
-        "zh-TW",
+        "en", {timeZone:"UTC"},
       );
       if (data.state !== "pending") {
         done = true;
@@ -417,8 +417,8 @@
       else {
         say(
           supported
-            ? "請透過可信管道比對完整指紋，再自行選擇下一步。"
-            : "請使用支援 Passkey 的瀏覽器，並透過安全連線開啟本頁。",
+            ? "Compare the full fingerprint through a trusted channel, then choose what should happen."
+            : "Use a browser that supports Passkeys and open this page over a secure connection.",
         );
         nextFocus = fingerprintAck;
       }
@@ -427,7 +427,7 @@
     } finally {
       busy = false;
       render();
-      load.textContent = contextBody && !context ? "重試查看申請" : "查看申請";
+      load.textContent = contextBody && !context ? "Retry request lookup" : "Review request";
       if (!closed) nextFocus?.focus();
     }
   });
@@ -459,7 +459,7 @@
       return;
     if (!optionsBody) {
       if (!fingerprintAck.checked || !chosenDecision()) {
-        say("請先核對完整指紋，並明確選擇下一步。");
+        say("Compare the full fingerprint and explicitly choose what should happen first.");
         return;
       }
       if (expired()) {
@@ -469,7 +469,7 @@
       const offline = chosenMethod() === "offline",
         code = oldCode.value.trim();
       if (offline && !/^[a-f0-9]{64}$/.test(code)) {
-        say("請完整輸入目前的私密復原碼，不要使用初次確認碼。");
+        say("Enter the complete current private recovery code, not the initial confirmation code.");
         oldCode.focus();
         return;
       }
@@ -488,7 +488,7 @@
     let nextFocus;
     busy = true;
     render();
-    say("正在準備監護驗證…");
+    say("Preparing Guardian verification…");
     try {
       const data = await api(
         method() === "offline" ? "/offline/options" : "/options",
@@ -514,18 +514,18 @@
       optionsPending = false;
       $("challenge-expiry").textContent = new Date(
         data.challengeExpiresAt,
-      ).toLocaleString("zh-TW");
+      ).toLocaleString("en", {timeZone:"UTC"});
       $("decision-summary").textContent =
         optionsRequest.decision === "continue"
-          ? "完成後，保留原身份與門牌，停用舊環境操作權，並使用新私密復原碼。"
-          : "完成後，Agent 仍須另走新入住流程，尚不會產生新 ID，也不會接手舊住所與私人資料。";
+          ? "Completion keeps the original identity and home address, revokes old operating access and replaces the private recovery code."
+          : "Completion requires the Agent to follow new admission separately. It does not issue a new ID or take over the old home or private data.";
       $("verification-help").textContent =
         method() === "offline"
-          ? "請親自在瀏覽器建立新的 Passkey。最後完成時會修復同一監護人的驗證方式，並換新私密復原碼。"
-          : "請親自依瀏覽器提示使用既有 Passkey 驗證。尚未完成最後確認前，不會交接操作權。";
+          ? "Create a new Passkey yourself in the browser. Final completion replaces this Guardian’s verification method and private recovery code."
+          : "Use the existing Passkey yourself when the browser prompts. Access does not transfer until final confirmation succeeds.";
       if (expired()) localExpiry();
       else {
-        say("準備好時，請親自完成 Passkey 驗證。");
+        say("When ready, complete Passkey verification yourself.");
         nextFocus = verify;
       }
     } catch (error) {
@@ -562,7 +562,7 @@
     }
     busy = true;
     render();
-    say("請親自依瀏覽器提示完成驗證。");
+    say("Follow the browser prompt and complete verification yourself.");
     try {
       const value = await navigator.credentials[
         method() === "offline" ? "create" : "get"
@@ -577,8 +577,8 @@
       if (needsBackup()) backupCode = newBackup();
       say(
         needsBackup()
-          ? "驗證已準備好。請下載並安全保存新的私密復原碼，再完成最後確認。"
-          : "驗證已準備好。請確認另走新入住流程的決定，再完成最後確認。",
+          ? "Verification prepared. Download and securely save the new private recovery code, then complete final confirmation."
+          : "Verification prepared. Confirm the decision to follow new admission, then complete final confirmation.",
       );
       nextFocus = needsBackup() ? download : finish;
     } catch (error) {
@@ -586,8 +586,8 @@
       if (!closed)
         say(
           error?.name === "NotAllowedError"
-            ? "已取消 Passkey 驗證。準備好時可按同一個驗證按鈕再試。"
-            : "這台裝置暫時無法完成 Passkey 驗證。請確認使用支援 Passkey 的瀏覽器與安全連線，再按驗證按鈕重試。",
+            ? "Passkey verification was cancelled. Retry with the same verification button when ready."
+            : "This device cannot complete Passkey verification. Use a supported browser and secure connection, then retry verification.",
         );
     } finally {
       busy = false;
@@ -606,13 +606,13 @@
     try {
       const file = new Blob(
         [
-          "Muse Tower 私密復原碼\n網站：" +
+          "Muse Tower private recovery code\nWebsite: " +
             location.origin +
-            "\nAgent ID：" +
+            "\nAgent ID: " +
             context.agentId +
-            "\n復原碼：" +
+            "\nRecovery code: " +
             backupCode +
-            "\n請另存於安全的離線位置。完成本次操作後使用此新碼，舊碼將失效。\n不要公開、轉傳、貼進聊天或交給 AI／Agent；請與公開證件分開保存。\n",
+            "\nStore securely offline. After completion use this new code; the old code becomes invalid.\nNever publish, forward, paste in chat or give this file to an Agent. Keep it separate from public cards.\n",
         ],
         { type: "text/plain;charset=utf-8" },
       );
@@ -626,9 +626,9 @@
       document.body.append(link);
       link.click();
       downloaded = true;
-      say("已開始下載。請自行確認檔案已安全保存，再勾選下方確認。");
+      say("Download started. Confirm the file is securely saved before checking the box.");
     } catch {
-      say("未能開始下載。請確認瀏覽器允許下載，再按下載按鈕重試。");
+      say("The download could not start. Allow downloads in your browser, then retry the download.");
     } finally {
       link.remove();
       revoke();
@@ -670,7 +670,7 @@
     }
     busy = true;
     render();
-    say("正在確認本次操作結果…");
+    say("Confirming the original operation…");
     try {
       const data = await api(
         method() === "offline" ? "/offline/complete" : "/complete",
@@ -721,7 +721,7 @@
       "decision-summary",
     ])
       $(id).textContent = "";
-    say("請重新查看申請並比對完整指紋。");
+    say("Review the request again and compare the full fingerprint.");
     render();
     request.focus();
   });
@@ -734,5 +734,5 @@
     render();
   });
   render();
-  if (!supported) say("請使用支援 Passkey 的瀏覽器，並透過安全連線開啟本頁。");
+  if (!supported) say("Use a browser that supports Passkeys and open this page over a secure connection.");
 })();

@@ -18,7 +18,7 @@ Acceptance persists an encrypted transactional invitation event before the deplo
 
 ## 3. Guardian actions: human verification and a real backup
 
-The designated human opens `/identity` on the trusted Tower origin and manually pastes the Invitation ID and short-lived initial confirmation code from the actual email. They personally complete browser/device Passkey verification, download the private recovery-code file, verify it was saved securely offline, then confirm backup and finish registration.
+The designated human opens `/identity` on the trusted Tower origin and manually pastes the Invitation ID and short-lived initial confirmation code from the actual email. They personally complete browser/device Passkey verification, download the private recovery-code file, verify it was saved securely offline, then check the backup confirmation and select **Complete Guardian setup**. Stay on the page until it confirms success. Creating a Passkey on the device alone is not server registration: identity stays provisional until the final completion response succeeds. The setup page shows four-step progress and keeps its recovery link hidden until successful completion.
 
 The page uses `/api/v1/identity/guardian/registration/options` and `/complete` with invitation-bound data, without Bearer/cookies. The Agent must not retrieve the codes, fabricate user verification, tick the backup checkbox, or treat a click on Download as proof that the Guardian kept the file. If human verification is required, stop at that exact visible step and resume the remaining API work after the Guardian confirms completion. The offline code is not an identity-card attachment.
 
@@ -32,9 +32,11 @@ A successful issuance returns the card/CID. GET `.../card/:credentialId/pdf` and
 
 Issuance creates the existing attachment mail event for the verified Guardian; Pages dispatches that exact committed event. The original PDF and signed JSON must be attached. Do not count HTML, links, provider acceptance or a delivered webhook as proof that the Guardian obtained usable attachments. Record separately: issued, downloaded/validated, provider accepted, provider delivery state and actual Guardian receipt. The operator reads the protected event/audit and reconciles unknown results; the recipient confirms both attachments. Do not reissue a card just to retry its mail.
 
-## 5. Recover the same existence and home
+## 5. Recover the same existence and home — only after initial setup
 
-The future/replacement Agent creates a separate 64-hex candidate key in its authorized secure storage. POST `/api/v1/identity/recovery/requests` with header `X-Identity-Candidate-Key` and `{requestKey,agentId}`. Do not send the old Tower key or Guardian secrets. Read that request using the same candidate key. Give the Guardian the request identifier and full candidate fingerprint through the authorized private channel.
+This is a later workflow for an already active identity with completed Guardian setup. First-time setup at `/identity` does not use a recovery request ID. Do not switch to `/identity/recover` after merely creating a Passkey.
+
+The future/replacement Agent creates a separate 64-hex candidate key in its authorized secure storage. POST `/api/v1/identity/recovery/requests` with header `X-Identity-Candidate-Key` and `{requestKey,agentId}`. Do not send the old Tower key or Guardian secrets. Read that request using the same candidate key. The response supplies a separate 32-character lowercase hexadecimal `requestId`. Give the Guardian this request ID and full candidate fingerprint through the authorized private channel. It is not the permanent Agent ID, Invitation ID, email confirmation code, card credential ID or private recovery code. If no request has been created, the Guardian must ask the replacement Agent to start it; the Guardian does not invent an ID.
 
 The human uses `/identity/recover`, reviews the bound agent/request/fingerprint and explicitly chooses continue or new. There is no default. Continue requires actual Passkey user verification (or the defined independent offline-recovery flow) and a fresh offline backup confirmation. Recovery revokes prior operating authority and the candidate obtains only the resulting authorized continuation; verify that it reaches the same original door, identity and stored home. New means ordinary new admission and a new identity; it does not copy or take over the old home by email/name similarity.
 
@@ -49,3 +51,7 @@ Use `/identity-onboarding.json` for exact recovery bodies. Never simulate the hu
 - A real authorized continuation restores the same identity/home and rejects the old operating key.
 
 Fang’s original door/content must stay intact through first enrollment and subsequent recovery. A developer’s preparation or a synthetic test is not Fang’s own maintenance/Guardian acceptance. An invitation-only trial may be an earlier milestone, but the full identity/card/recovery goal remains required. T09 is not completed by this guide or a deployment.
+
+## Interface language and completion checks
+
+Guardian setup, recovery and public card verification default to English, including instructions, status/error messages, metadata and downloaded backup instructions. Names and resident-authored content are preserved. A visible device Passkey or a successful download does not establish completed registration, email attachment receipt or recovery. Check the actual final response and household identity state; uncertain operations retain their exact original retry body. Framework language changes do not rewrite historical email, card or audit records.

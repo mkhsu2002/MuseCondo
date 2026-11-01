@@ -410,8 +410,8 @@ for (const method of ["passkey", "offline"])
       assert.match(
         h.elements["recovery-status"].textContent,
         decision === "continue"
-          ? /曾完成.*目前.*權限/
-          : /新入住.*尚未建立.*身份/,
+          ? /previously completed.*current.*authority/
+          : /new admission; no new identity/,
       );
       assert(
         h.writes.every(
@@ -487,7 +487,7 @@ test("empty or unsafe options retain identical request key and payload for expli
     await h.select();
     await h.prepare();
     assert.equal(h.elements["verify-guardian"].disabled, true);
-    assert.match(h.elements["recovery-status"].textContent, /結果尚未確認/);
+    assert.match(h.elements["recovery-status"].textContent, /result is not yet confirmed/);
     assert.equal(h.elements["restart-recovery"].disabled, true);
     await h.prepare();
     assert.equal(h.calls[1].init.body, h.calls[2].init.body);
@@ -502,10 +502,10 @@ test("native parser error returns to same options retry without unsupported-devi
   await h.prepare();
   await h.verify();
   assert.equal(h.natives.length, 0);
-  assert.match(h.elements["recovery-status"].textContent, /結果尚未確認/);
+  assert.match(h.elements["recovery-status"].textContent, /result is not yet confirmed/);
   assert.doesNotMatch(
     h.elements["recovery-status"].textContent,
-    /裝置.*無法|不支援/,
+    /device cannot|supported browser/,
   );
   await h.prepare();
   assert.equal(h.calls[1].init.body, h.calls[2].init.body);
@@ -551,7 +551,7 @@ for (const failure of [
     await h.finish();
     assert.equal(h.calls[2].init.body, h.calls[3].init.body);
     assert.equal(h.natives.length, 1);
-    assert.match(h.elements["recovery-status"].textContent, /曾完成/);
+    assert.match(h.elements["recovery-status"].textContent, /previously completed/);
     assert.doesNotMatch(h.elements["recovery-status"].textContent, /PRIVATE/);
   });
 test("known expired/conflicting operation clears secrets and allows fresh context rather than auto restart", async () => {
@@ -571,7 +571,7 @@ test("known expired/conflicting operation clears secrets and allows fresh contex
   await h.ack();
   await h.finish();
   assert.equal(h.elements["current-offline-code"].value, "");
-  assert.match(h.elements["recovery-status"].textContent, /到期|變更/);
+  assert.match(h.elements["recovery-status"].textContent, /expired|changed/);
   assert.equal(h.elements["restart-recovery"].disabled, false);
   assert.equal(h.calls.length, 3);
   await h.click("restart-recovery");
@@ -586,7 +586,7 @@ test("local expiry and pagehide remove backup and revoke object URLs; unknown co
   await h.ack();
   await h.finish();
   assert.equal(h.calls.length, 2);
-  assert.match(h.elements["recovery-status"].textContent, /到期/);
+  assert.match(h.elements["recovery-status"].textContent, /expired/);
   assert.equal(h.revoked.length, h.urls.length);
   const p = await harness({ method: "offline" });
   await p.ready();
@@ -605,7 +605,7 @@ test("terminal historical context never implies current authority or a new ident
     assert.equal(h.natives.length, 0);
     assert.match(
       h.elements["recovery-status"].textContent,
-      state === "continued" ? /曾完成.*目前.*權限/ : /尚未建立.*身份/,
+      state === "continued" ? /previously completed.*current.*authority/ : /no new identity has been created/,
     );
   }
   const h = await harness({
@@ -613,7 +613,7 @@ test("terminal historical context never implies current authority or a new ident
       response({ ...context, expiresAt: "2026-10-30T00:00:00.000Z" }),
   });
   await h.load();
-  assert.match(h.elements["recovery-status"].textContent, /到期.*新.*申請/);
+  assert.match(h.elements["recovery-status"].textContent, /expired.*new request/);
   assert.equal(h.elements["prepare-recovery"].disabled, true);
 });
 test("unsupported, cancellation, rejected code, quota and temporary service errors have actionable safe copy", async () => {
@@ -622,12 +622,12 @@ test("unsupported, cancellation, rejected code, quota and temporary service erro
   await u.select();
   await u.prepare();
   assert.equal(u.natives.length, 0);
-  assert.match(u.elements["recovery-status"].textContent, /支援.*Passkey/);
+  assert.match(u.elements["recovery-status"].textContent, /supports Passkeys/);
   const c = await harness({
     nativeError: { name: "NotAllowedError", message: "PRIVATE" },
   });
   await c.ready();
-  assert.match(c.elements["recovery-status"].textContent, /取消.*再試/);
+  assert.match(c.elements["recovery-status"].textContent, /cancelled.*Retry/);
   assert.equal(c.elements["verify-guardian"].disabled, false);
   for (const status of [403, 404, 429, 503]) {
     const h = await harness({
@@ -642,7 +642,7 @@ test("unsupported, cancellation, rejected code, quota and temporary service erro
     await h.prepare();
     assert.doesNotMatch(
       h.elements["recovery-status"].textContent,
-      /PRIVATE|曾完成/,
+      /PRIVATE|previously completed/,
     );
     assert.equal(h.natives.length, 0);
   }
@@ -766,7 +766,7 @@ test("offline unknown options and completion retain the original private proof a
   assert.equal(h.calls[3].init.body, h.calls[4].init.body);
   assert.equal(h.calls[4].body.currentOfflineRecoveryCode, oldCode);
   assert.equal(h.natives.length, 1);
-  assert.match(h.elements["recovery-status"].textContent, /尚未建立新的身份/);
+  assert.match(h.elements["recovery-status"].textContent, /no new identity has been created/);
 });
 
 test("options cannot change the verified request tuple, method or explicit decision", async () => {
@@ -792,7 +792,7 @@ test("options cannot change the verified request tuple, method or explicit decis
     await h.load();
     await h.select();
     await h.prepare();
-    assert.match(h.elements["recovery-status"].textContent, /結果尚未確認/);
+    assert.match(h.elements["recovery-status"].textContent, /result is not yet confirmed/);
     assert.equal(h.elements["verify-guardian"].disabled, true);
     assert.equal(h.elements["restart-recovery"].disabled, true);
     assert.equal(h.natives.length, 0);
@@ -862,7 +862,7 @@ for (const cause of ["known-409", "local-expiry"])
     await h.ack();
     if (cause === "local-expiry") h.setTime("2026-10-31T00:05:00.000Z");
     await h.finish();
-    assert.match(h.elements["recovery-status"].textContent, /到期|變更/);
+    assert.match(h.elements["recovery-status"].textContent, /expired|changed/);
     assert.equal(h.elements["current-offline-code"].value, "");
     assert.equal(h.elements["backup-confirmed"].checked, false);
     assert.equal(h.elements["download-recovery"].disabled, true);
@@ -917,4 +917,15 @@ test("a rejected subject response cannot carry consent into a replacement contex
   const count = h.calls.length;
   await h.elements["prepare-recovery"].fire("click", true);
   assert.equal(h.calls.length, count);
+});
+
+test('recovery is English and clearly separates an Agent-created request from first setup',()=>{
+ const html=readFileSync(new URL('../public/identity-recovery.html',import.meta.url),'utf8');
+ const js=readFileSync(new URL('../public/identity-recovery.js',import.meta.url),'utf8');
+ assert.match(html,/<html lang="en">/);
+ assert.doesNotMatch(html+js,/\p{Script=Han}/u);
+ assert.match(html,/32-character lowercase hexadecimal/);
+ assert.match(html,/not your Agent ID, Invitation ID or confirmation code/);
+ assert.match(html,/First-time Guardian setup/);
+ assert.match(html,/already active identity/);
 });

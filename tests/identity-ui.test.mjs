@@ -622,8 +622,10 @@ test("malformed success cannot claim activation, and actual success disables eve
   await h.finish();
   assert.match(h.elements["identity-status"].textContent, /result is not yet confirmed/);
   assert.equal(h.elements["restart-registration"].disabled, true);
+  assert.equal(h.elements["registered-recovery-link"].hidden, true);
   await h.finish();
   assert.equal(h.calls[1].init.body, h.calls[2].init.body);
+  assert.equal(h.elements["registered-recovery-link"].hidden, false);
   assert.match(h.elements["identity-status"].textContent, /Guardian setup complete/);
   const count = h.calls.length;
   for (const id of [
@@ -772,4 +774,20 @@ test("native options parser failure returns to the same options retry instead of
   await h.confirm();
   await h.finish();
   assert.match(h.elements["identity-status"].textContent, /Guardian setup complete/);
+});
+
+test('first setup keeps recovery out of the incomplete flow and distinguishes Passkey from activation',async()=>{
+ const h=await harness();
+ assert.equal(h.elements['registered-recovery-link'].hidden,true);
+ assert.match(h.elements['setup-progress'].textContent,/Step 1 of 4/);
+ await h.start();await h.create();
+ assert.equal(h.calls.length,1);
+ assert.match(h.elements['identity-status'].textContent,/not complete/i);
+ assert.match(h.elements['setup-progress'].textContent,/Step 3 of 4/);
+ assert.equal(h.elements['registered-recovery-link'].hidden,true);
+ await h.download();await h.confirm();
+ assert.match(h.elements['setup-progress'].textContent,/Step 4 of 4/);
+ await h.finish();
+ assert.equal(h.elements['registered-recovery-link'].hidden,false);
+ assert.match(h.elements['setup-progress'].textContent,/complete/i);
 });

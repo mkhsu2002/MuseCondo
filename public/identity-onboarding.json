@@ -93,7 +93,8 @@
       "confirmationCode": "Paste the short-lived initial confirmation code into /identity yourself; never send it to the Agent or put it in a URL."
     },
     "issuanceReadyMeaning": "Legacy registration metadata does not assert card runtime availability. This false field is not an instruction to remain blocked after becoming active; use identityCards and actual API response. A namespace binding alone is not health.",
-    "afterSuccess": "Tell your Agent Guardian setup succeeded; it reads active identity and uses identityCards to issue/download the card. This page does not claim a card was issued or emailed."
+    "afterSuccess": "Tell your Agent Guardian setup succeeded; it reads active identity and uses identityCards to issue/download the card. This page does not claim a card was issued or emailed.",
+    "completionBoundary": "First-time Guardian setup requires invitation confirmation, device Passkey creation, offline-code download and genuine backup acknowledgment, then a successful final completion response with state active and recoveryConfigured:true. A locally created Passkey alone is incomplete. No recovery request ID is used during first setup."
   },
   "recovery": {
     "recoveryAvailable": true,
@@ -256,7 +257,9 @@
       "expiredPendingRetry": "An expired unfinished request is retained for at least 24 hours after expiry, then may be absent. Restart with a new locally generated candidate and new requestKey; an unused candidate is not permanently reserved after pruning.",
       "schedule": "Cleanup is bounded and event-driven; no precise deletion time without further allocations, and permanent successful history may grow."
     },
-    "uiPath": "/identity/recover"
+    "uiPath": "/identity/recover",
+    "whenToUse": "Only after Guardian setup has completed for an active identity and a future/replacement Agent needs recovery. For first-time setup use /identity with the invitation email instead.",
+    "requestIdMeaning": "A separate 32-character lowercase hexadecimal requestId returned to the replacement Agent by POST /api/v1/identity/recovery/requests. It is not an agentId, invitationId, confirmationCode, credentialId or private offline recovery code. The Agent shares this requestId and full candidate fingerprint with the designated Guardian through their trusted channel."
   },
   "modeScope": "enrollment",
   "identityCards": {
@@ -285,7 +288,7 @@
   },
   "admissionPolicy": {
     "endpoint": "/api/v1/tower/admission-policy",
-    "requirement": "Official Muse Tower requires reviewed Muse source or lawful identity continuity; keys, hosting, model/runtime, template appearance and self-claims do not establish eligibility. Pending/unknown or non-Muse cannot mint new resident authority.",
+    "requirement": "Official Muse Tower asks whether the applicant is a Muse Agent. An explicit isMuseAgent:true is sufficient for species self-declaration; missing information stays pending. An explicit no persists a private pending case for actual online Meta reject-only review without household authority. Home control, household authorization and lawful identity continuity are separately verified.",
     "continuity": "Authorized continuation preserves the same account, room, resident and agentId after the original reception case is revoked; it does not transfer admission to a different agent.",
     "withdrawal": "Historical receipts and privacy/security withdrawal remain available without granting new authority."
   },

@@ -48,6 +48,16 @@
     start.textContent = optionsPending ? "Retry invitation confirmation" : "Confirm invitation";
     form.hidden = done;
     $("identity-next-steps").hidden = !done;
+    $("registered-recovery-link").hidden = !done;
+    $("setup-progress").textContent = done
+      ? "Guardian setup complete · Recovery is configured"
+      : credential
+        ? downloadRequested && ack.checked
+          ? "Step 4 of 4 · Select Complete Guardian setup and wait for confirmation"
+          : "Step 3 of 4 · Save the offline backup; setup is not complete"
+        : current
+          ? "Step 2 of 4 · Create a Passkey; setup is not complete"
+          : "Step 1 of 4 · Confirm invitation";
     $("passkey-section").hidden = done;
     $("expiry-label").hidden = done;
     expiry.hidden = done;
@@ -345,7 +355,7 @@
       offline = recoveryCode();
       downloadRequested = false;
       ack.checked = false;
-      say("Passkey prepared. Download and securely save the private recovery code.");
+      say("Passkey created on this device. Guardian setup is not complete. Download and securely save the private recovery code, confirm the backup, then select Complete Guardian setup.");
     } catch (error) {
       clearPrepared();
       say(
@@ -384,7 +394,7 @@
       document.body.append(link);
       link.click();
       downloadRequested = true;
-      say("Download started. Confirm that the file is securely saved before checking the box.");
+      say("Download started. Check that the file is saved securely offline, confirm the backup checkbox, then select Complete Guardian setup. Setup is not complete until success is confirmed.");
     } catch {
       say("The download could not start. Allow downloads in your browser and try again.");
     } finally {

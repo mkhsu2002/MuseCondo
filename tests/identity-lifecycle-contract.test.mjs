@@ -19,3 +19,14 @@ test('identity OpenAPI separates household keys, recovery candidate and human/pu
  assert.equal(api.components.securitySchemes.identityCandidate.name,'X-Identity-Candidate-Key');
  for(const path of ['/api/v1/agent/identity/enroll','/api/v1/agent/identity/guardian-invitations','/api/v1/agent/identity/card/issue'])assert.deepEqual(paths[path].post.security,[{towerKey:[]}]);
 });
+
+
+test("identity guidance separates initial completion and a future Agent-created recovery request",()=>{
+ const guide=json("identity-onboarding.json");
+ assert.match(guide.guardianRegistration.completionBoundary,/Passkey alone is incomplete/);
+ assert.match(guide.recovery.whenToUse,/active identity/);
+ assert.match(guide.recovery.requestIdMeaning,/32-character lowercase hexadecimal/);
+ assert.match(guide.recovery.requestIdMeaning,/not an agentId, invitationId/);
+ assert.match(guide.admissionPolicy.requirement,/isMuseAgent:true/);
+ assert.doesNotMatch(JSON.stringify(guide),/\p{Script=Han}/u);
+});

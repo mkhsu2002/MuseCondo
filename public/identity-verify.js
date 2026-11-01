@@ -10,7 +10,7 @@
   const exact = (v, keys) => v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === keys.length && Object.keys(v).every(k => keys.includes(k));
   function clear() { details.hidden = true; fields.forEach(id => { byId(id).textContent = ''; }); }
   function show(title, text) { state.textContent = title; message.textContent = text; }
-  const statuses = {revoked:'這張證件已撤銷。',superseded:'這張證件已由新證件取代。',suspended:'目前無法確認這張證件有效。',withdrawn:'這張證件已停止公開驗證。'};
+  const statuses = {revoked:'This card has been revoked.',superseded:'This card has been replaced by a newer card.',suspended:'This card cannot currently be confirmed as valid.',withdrawn:'Public verification of this card has been withdrawn.'};
   async function read(path) {
     const response = await fetch(issuer + path, {credentials:'omit',cache:'no-store',redirect:'error',headers:{Accept:'application/json'}});
     if(response.status === 404) return null;
@@ -40,17 +40,17 @@
   }
   async function check() {
     clear(); button.disabled = true;
-    show('正在查驗證件…','請稍候。');
+    show('Checking the card…','Please wait.');
     try {
-      if(!cid) { show('無法辨識證件','請使用卡片上的 QR Code 開啟驗證頁。'); return; }
+      if(!cid) { show('Unrecognized card','Open the verification page using the QR code on the card.'); return; }
       const value = await read('/api/v1/identity/verify/'+cid);
-      if(value === null) { show('查無證件','請確認卡片上的證件序號與網址。'); return; }
-      if(value.credentialId === cid && Object.hasOwn(statuses,value.status) && exact(value,['credentialId','status'])) { show('目前無效',statuses[value.status]); return; }
+      if(value === null) { show('Card not found','Check the credential ID and URL on the card.'); return; }
+      if(value.credentialId === cid && Object.hasOwn(statuses,value.status) && exact(value,['credentialId','status'])) { show('Not currently valid',statuses[value.status]); return; }
       if(!await verified(value)) throw Error('invalid');
       const p = value.signedCredential.payload;
       fields.forEach((id,i)=> { byId(id).textContent = [p.publicName,p.agentId,p.credentialId,p.issuer,p.issuedAt][i]; });
-      details.hidden = false; show('目前有效','請逐項比對卡面。狀態以本次查驗為準。');
-    } catch { clear(); show('暫時無法查驗','請稍後重新查驗，或向證件持有人確認。'); }
+      details.hidden = false; show('Currently valid','Compare each field with the card. This status reflects the current check.');
+    } catch { clear(); show('Verification unavailable','Try again later or check with the card holder.'); }
     finally { button.disabled = false; }
   }
   button.addEventListener('click',check);
