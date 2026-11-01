@@ -30,7 +30,11 @@ test('durable existing-resident qualification requires current eligibility and t
   db.sqlite.exec("CREATE TRIGGER synthetic_durable_identity_change AFTER INSERT ON tower_admission_decisions WHEN NEW.expires_at='9999-12-31T23:59:59.999Z' BEGIN UPDATE agent_identities SET state='suspended' WHERE agent_id=NEW.continuity_agent_id; END");
   assert.equal((await send(input))!.status,409);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_decisions').get()!.n,1);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_requests').get()!.n,0);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_audit').get()!.n,0);assert.equal(db.sqlite.prepare('SELECT state FROM agent_identities').get()!.state,'provisional');
   db.sqlite.exec('DROP TRIGGER synthetic_durable_identity_change');
+  // Pages and D1 clocks are independent; a 1ms Pages lead must not future-date
+  // a decision relative to the native eligibility predicate at commit time.
+  at='2026-10-31T00:00:00.001Z';
   const response=(await send(input))!;assert.equal(response.status,201,await response.clone().text());const result=await response.json();assert.equal(result.revision,2);
+  assert.equal(result.decision.created_at,now);
   assert.equal(JSON.stringify(db.sqlite.prepare('SELECT * FROM tower_admission_decisions WHERE id=?').get('d')),before);assert.equal(JSON.stringify(db.sqlite.prepare('SELECT * FROM tower_admission_memberships').all()),membership);
   assert.deepEqual(await(await send(input))!.json(),result);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_decisions').get()!.n,2);
   at='2028-01-01T00:00:00.000Z';db.sqlite.function('strftime',(_format,input)=>input==='now'?at:new Date(String(input)).toISOString());assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_eligible WHERE id=?').get(result.decision.id)!.n,1);
@@ -53,13 +57,13 @@ test('reviewed exact source tuple supports only that first placement and model-i
 test('private operator review is durable, exact and does not trust applicant statements or leak evidence publicly',async()=>{
  const db=fixture();try{
  const {createTowerAdmission}=await import('../server/live/tower-admission.ts');
- const service=createTowerAdmission({db,origin:'https://tower.example',now:()=>new Date(now),operator:async r=>r.headers.get('X-Tower-Operator-Key')==='synthetic'});
+ const service=createTowerAdmission({db,origin:'https://tower.example',now:()=>new Date('2026-10-31T00:00:00.050Z'),operator:async r=>r.headers.get('X-Tower-Operator-Key')==='synthetic'});
  const body={requestKey:'review-00001',expectedPolicyVersion:1,expectedHeadRevision:0,caseId:null,accountId:account,residentId:resident,sourceURL:source,continuityAgentId:null,state:'eligible',agentOrigin:'meta-muse',evidenceKind:'operator-review',evidenceRef:'evidence:synthetic',expiresAt:'2027-01-01T00:00:00.000Z',existingResidency:null};
  const req=(v:unknown,key='synthetic')=>service.fetch(new Request('https://tower.example/api/v1/operator/tower-admission/decisions',{method:'POST',headers:{'X-Tower-Operator-Key':key,'Content-Type':'application/json',Origin:'https://tower.example'},body:JSON.stringify(v)}));
  assert.equal((await req(body,'wrong'))!.status,401);
  assert.equal((await req({...body,evidenceKind:'platform-attestation'}))!.status,400);
  assert.equal((await req({...body,evidenceKind:'statement'}))!.status,400);
- const first=(await req(body))!;assert.equal(first.status,201);const response=await first.json();
+ const first=(await req(body))!;assert.equal(first.status,201);const response=await first.json();assert.equal(response.decision.created_at,now);
  assert.deepEqual(await(await req(body))!.json(),response);token(db);
  assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_requests').get()!.n,1);
  const publicReply=(await service.fetch(new Request('https://tower.example/api/v1/tower/admission-policy')))!;

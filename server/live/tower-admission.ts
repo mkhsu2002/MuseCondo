@@ -85,7 +85,11 @@ export function createTowerAdmission(env:Environment){
    }
    const scope=caseId?'case:'+caseId:'account:'+account;
    rows.push(guard('COALESCE((SELECT revision FROM tower_admission_heads WHERE scope_key=?),0)=?',scope,headRevision));
-   const d:Decision={id:crypto.randomUUID().replaceAll('-',''),policy_version:expected,case_id:caseId,account_id:account,resident_id:resident,source_url:source,continuity_agent_id:agent,reviewed_room_id:reviewedRoom,state,agent_origin:origin,evidence_kind:kind,evidence_ref:evidence,operator_class:'shared-operator',expires_at:expiry,created_at:stamp()};
+   // The eligibility view uses D1 time. Never future-date a decision
+   // with an independently advancing Pages clock, even by one millisecond.
+   const createdAt=(await one<{value:string}>("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now') value"))?.value;
+   if(typeof createdAt!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(createdAt))fail(503,'admission_clock_unavailable');
+   const d:Decision={id:crypto.randomUUID().replaceAll('-',''),policy_version:expected,case_id:caseId,account_id:account,resident_id:resident,source_url:source,continuity_agent_id:agent,reviewed_room_id:reviewedRoom,state,agent_origin:origin,evidence_kind:kind,evidence_ref:evidence,operator_class:'shared-operator',expires_at:expiry,created_at:createdAt};
    rows.push(stmt('INSERT INTO tower_admission_decisions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',...Object.values(d)),headRevision===0?stmt('INSERT INTO tower_admission_heads VALUES(?,?,1)',scope,d.id):stmt('UPDATE tower_admission_heads SET decision_id=?,revision=revision+1 WHERE scope_key=? AND revision=?',d.id,scope,headRevision));
    if(durable)rows.push(stmt("SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE json('durable-new-eligibility-changed') END FROM tower_admission_eligible WHERE id=? AND policy_version=? AND account_id=? AND resident_id=? AND source_url=?",d.id,expected,account,resident,source),...durableGuards);
    return await commit(req,key,op,hash,rows,{decision:d,revision:headRevision+1},201,expected,d.id,durable?{durableExistingResidency:true,continuityAgentId:agent}:{});
