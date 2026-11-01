@@ -1,0 +1,1581 @@
+{
+  "collectedAt": "2026-11-01T06:45:58.669593+00:00",
+  "source": "Read-only Cloudflare production D1 API export; operational metadata only",
+  "costUnit": "micro-USD; 1 USD = 1000000 micro-USD",
+  "costBasis": "Recorded application-calculated costs, not a provider invoice; platform/rendering/storage costs excluded",
+  "latencyBasis": "completed_at minus created_at; application dispatch-to-receipt elapsed time, not model-only latency or TTFT",
+  "summary": [
+    {
+      "phase": "exterior",
+      "receipts": 16,
+      "modelCalls": 9,
+      "inputTokens": 39405,
+      "outputTokens": 13006,
+      "calculatedCostMicroUSD": 103468,
+      "modelElapsedMinSeconds": 2.355,
+      "modelElapsedMaxSeconds": 14.639
+    },
+    {
+      "phase": "whole-lobby",
+      "receipts": 15,
+      "modelCalls": 5,
+      "inputTokens": 29848,
+      "outputTokens": 14569,
+      "calculatedCostMicroUSD": 99231,
+      "modelElapsedMinSeconds": 1.346,
+      "modelElapsedMaxSeconds": 20.509
+    },
+    {
+      "phase": "english-review",
+      "receipts": 8,
+      "modelCalls": 2,
+      "inputTokens": 18324,
+      "outputTokens": 3414,
+      "calculatedCostMicroUSD": 37416,
+      "modelElapsedMinSeconds": 6.3,
+      "modelElapsedMaxSeconds": 7.613
+    }
+  ],
+  "stages": [
+    {
+      "stage": "cycles",
+      "id": "manager-2026-10-31",
+      "state": "complete",
+      "outcome": "pass",
+      "created_at": "2026-10-31T19:46:26.440Z",
+      "updated_at": "2026-10-31T20:02:32.973Z",
+      "wallClockSeconds": 966.533,
+      "independentAuditVerdict": "PASS",
+      "selfReviewRecorded": true
+    },
+    {
+      "stage": "extensions",
+      "id": "manager-2026-10-31:public-lobby-theme-v1",
+      "state": "complete",
+      "outcome": "pass",
+      "created_at": "2026-10-31T21:28:28.431Z",
+      "updated_at": "2026-10-31T22:02:38.206Z",
+      "wallClockSeconds": 2049.775,
+      "independentAuditVerdict": "PASS",
+      "selfReviewRecorded": true
+    },
+    {
+      "stage": "buildReviews",
+      "id": "manager-2026-10-31:public-lobby-theme-v1:english-copy-v1",
+      "state": "complete",
+      "outcome": "pass",
+      "created_at": "2026-10-31T22:32:13.763Z",
+      "updated_at": "2026-10-31T22:33:36.628Z",
+      "wallClockSeconds": 82.865,
+      "independentAuditVerdict": "PASS",
+      "selfReviewRecorded": true
+    }
+  ],
+  "calls": [
+    {
+      "id": "1c0d29d6-95f0-4830-b698-daaba823ed50",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "daily-thinking:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 968,
+      "output_tokens": null,
+      "created_at": "2026-10-31T19:46:26.738Z",
+      "completed_at": "2026-10-31T19:46:27.897Z",
+      "phase": "exterior",
+      "elapsed_seconds": 1.159
+    },
+    {
+      "id": "4cf50893-60e1-431d-a566-4f7c9de32277",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "daily-thinking",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 11410,
+      "actual_micro": 9889,
+      "input_tokens": 825,
+      "output_tokens": 2084,
+      "created_at": "2026-10-31T19:46:27.916Z",
+      "completed_at": "2026-10-31T19:46:36.421Z",
+      "phase": "exterior",
+      "elapsed_seconds": 8.505
+    },
+    {
+      "id": "4e6f45f4-756f-4988-bd1b-ce1b4abac9e9",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "tool-executor:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 1248,
+      "output_tokens": null,
+      "created_at": "2026-10-31T19:46:37.729Z",
+      "completed_at": "2026-10-31T19:46:37.901Z",
+      "phase": "exterior",
+      "elapsed_seconds": 0.172
+    },
+    {
+      "id": "71f2acd5-1a40-4c6e-a2d7-5451ef49fd3a",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "tool-executor",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 11760,
+      "actual_micro": 4365,
+      "input_tokens": 1105,
+      "output_tokens": 702,
+      "created_at": "2026-10-31T19:46:37.926Z",
+      "completed_at": "2026-10-31T19:46:40.281Z",
+      "phase": "exterior",
+      "elapsed_seconds": 2.355
+    },
+    {
+      "id": "f62a718c-d263-4a07-88ba-ed0e932061c8",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "image-day-r0",
+      "model": "muse-image-1.0",
+      "state": "received",
+      "reserved_micro": 10000,
+      "actual_micro": 10000,
+      "input_tokens": 5301,
+      "output_tokens": 948,
+      "created_at": "2026-10-31T19:46:42.250Z",
+      "completed_at": "2026-10-31T19:46:56.889Z",
+      "phase": "exterior",
+      "elapsed_seconds": 14.639
+    },
+    {
+      "id": "f5b9eda4-c27b-4838-bfe1-c488717821c9",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "image-night-r0",
+      "model": "muse-image-1.0",
+      "state": "received",
+      "reserved_micro": 10000,
+      "actual_micro": 10000,
+      "input_tokens": 5299,
+      "output_tokens": 891,
+      "created_at": "2026-10-31T19:47:01.237Z",
+      "completed_at": "2026-10-31T19:47:12.146Z",
+      "phase": "exterior",
+      "elapsed_seconds": 10.909
+    },
+    {
+      "id": "05406a0f-1df9-4045-83f1-08e46391e038",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "tool-result-review:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 1649,
+      "output_tokens": null,
+      "created_at": "2026-10-31T19:47:18.161Z",
+      "completed_at": "2026-10-31T19:47:20.386Z",
+      "phase": "exterior",
+      "elapsed_seconds": 2.225
+    },
+    {
+      "id": "e177683e-21d3-4340-a6b2-4ed2379e39ce",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "tool-result-review",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 12262,
+      "actual_micro": 2894,
+      "input_tokens": 1506,
+      "output_tokens": 238,
+      "created_at": "2026-10-31T19:47:20.838Z",
+      "completed_at": "2026-10-31T19:47:24.170Z",
+      "phase": "exterior",
+      "elapsed_seconds": 3.332
+    },
+    {
+      "id": "bec51c74-ab9a-4c34-8a54-0d3742990817",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "independent-task-audit:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 11779,
+      "output_tokens": null,
+      "created_at": "2026-10-31T19:47:26.264Z",
+      "completed_at": "2026-10-31T19:47:29.221Z",
+      "phase": "exterior",
+      "elapsed_seconds": 2.957
+    },
+    {
+      "id": "5529f548-1efd-4482-b2d0-5dcb98b3b837",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "independent-task-audit",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 24924,
+      "actual_micro": 24225,
+      "input_tokens": 11220,
+      "output_tokens": 2400,
+      "created_at": "2026-10-31T19:47:29.250Z",
+      "completed_at": "2026-10-31T19:47:42.821Z",
+      "phase": "exterior",
+      "elapsed_seconds": 13.571
+    },
+    {
+      "id": "e0bdf591-468e-48ce-9337-78c69aabd0e1",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "daily-selfreview:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 1554,
+      "output_tokens": null,
+      "created_at": "2026-10-31T19:47:44.164Z",
+      "completed_at": "2026-10-31T19:47:45.769Z",
+      "phase": "exterior",
+      "elapsed_seconds": 1.605
+    },
+    {
+      "id": "bfe61a98-78cf-46d3-8528-a80ad88893b4",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "daily-selfreview",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 12143,
+      "actual_micro": 6898,
+      "input_tokens": 1411,
+      "output_tokens": 1208,
+      "created_at": "2026-10-31T19:47:46.063Z",
+      "completed_at": "2026-10-31T19:47:50.324Z",
+      "phase": "exterior",
+      "elapsed_seconds": 4.261
+    },
+    {
+      "id": "3cfc86e5-1ae8-42af-9c89-d83f390ffe81",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "independent-task-audit:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 11779,
+      "output_tokens": null,
+      "created_at": "2026-10-31T20:02:00.923Z",
+      "completed_at": "2026-10-31T20:02:05.961Z",
+      "phase": "exterior",
+      "elapsed_seconds": 5.038
+    },
+    {
+      "id": "17bbcc12-1147-44be-a6e3-71b5e2deb662",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "independent-task-audit",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 49540,
+      "actual_micro": 25568,
+      "input_tokens": 11220,
+      "output_tokens": 2716,
+      "created_at": "2026-10-31T20:02:06.302Z",
+      "completed_at": "2026-10-31T20:02:20.933Z",
+      "phase": "exterior",
+      "elapsed_seconds": 14.631
+    },
+    {
+      "id": "aa383ab7-497d-4532-a11d-167757ae394c",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "daily-selfreview:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 1661,
+      "output_tokens": null,
+      "created_at": "2026-10-31T20:02:25.418Z",
+      "completed_at": "2026-10-31T20:02:26.506Z",
+      "phase": "exterior",
+      "elapsed_seconds": 1.088
+    },
+    {
+      "id": "b3dfa650-a438-4329-92e8-4df64a415b18",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "daily-selfreview",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 36893,
+      "actual_micro": 9629,
+      "input_tokens": 1518,
+      "output_tokens": 1819,
+      "created_at": "2026-10-31T20:02:26.544Z",
+      "completed_at": "2026-10-31T20:02:32.852Z",
+      "phase": "exterior",
+      "elapsed_seconds": 6.308
+    },
+    {
+      "id": "f8839f57-18aa-4e66-8ed3-bd627a124bd2",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:plan:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 2809,
+      "output_tokens": null,
+      "created_at": "2026-10-31T21:28:29.911Z",
+      "completed_at": "2026-10-31T21:28:30.645Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 0.734
+    },
+    {
+      "id": "992611a7-d760-4317-893d-3d470bf1450e",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:plan",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 38328,
+      "actual_micro": 34944,
+      "input_tokens": 2666,
+      "output_tokens": 7438,
+      "created_at": "2026-10-31T21:28:30.819Z",
+      "completed_at": "2026-10-31T21:28:51.328Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 20.509
+    },
+    {
+      "id": "18510253-4252-4ea9-b3a2-82f4e388b77a",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:render-0",
+      "model": "tool:browser-screenshot",
+      "state": "rejected",
+      "reserved_micro": 90000,
+      "actual_micro": 0,
+      "input_tokens": null,
+      "output_tokens": null,
+      "created_at": "2026-10-31T21:28:52.982Z",
+      "completed_at": "2026-10-31T21:28:53.128Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 0.146
+    },
+    {
+      "id": "cf2e1207-4499-47a5-a6c6-81f6629740d9",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:selfreview:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 476,
+      "output_tokens": null,
+      "created_at": "2026-10-31T21:28:55.042Z",
+      "completed_at": "2026-10-31T21:28:56.269Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 1.227
+    },
+    {
+      "id": "a204ea44-445f-4c86-8108-7c31ae8dfed3",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:selfreview",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 35411,
+      "actual_micro": 9359,
+      "input_tokens": 333,
+      "output_tokens": 2104,
+      "created_at": "2026-10-31T21:28:56.304Z",
+      "completed_at": "2026-10-31T21:29:05.931Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 9.627
+    },
+    {
+      "id": "69915808-c70b-4959-9cba-4a856dbedfba",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:render-0",
+      "model": "tool:browser-screenshot",
+      "state": "received",
+      "reserved_micro": 90000,
+      "actual_micro": 0,
+      "input_tokens": null,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:00:46.473Z",
+      "completed_at": "2026-10-31T22:00:53.345Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 6.872
+    },
+    {
+      "id": "c8db263a-7768-499d-bf7f-256aa03b487a",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:render-1",
+      "model": "tool:browser-screenshot",
+      "state": "received",
+      "reserved_micro": 90000,
+      "actual_micro": 0,
+      "input_tokens": null,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:01:04.515Z",
+      "completed_at": "2026-10-31T22:01:11.350Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 6.835
+    },
+    {
+      "id": "52cdf387-620d-4dff-814d-e2cd381b6d86",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:render-2",
+      "model": "tool:browser-screenshot",
+      "state": "received",
+      "reserved_micro": 90000,
+      "actual_micro": 0,
+      "input_tokens": null,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:01:22.206Z",
+      "completed_at": "2026-10-31T22:01:28.351Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 6.145
+    },
+    {
+      "id": "0e00a23e-0f6e-4dc1-a4bb-54f7e9ee2f6a",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:render-3",
+      "model": "tool:browser-screenshot",
+      "state": "received",
+      "reserved_micro": 90000,
+      "actual_micro": 0,
+      "input_tokens": null,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:01:39.219Z",
+      "completed_at": "2026-10-31T22:01:45.405Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 6.186
+    },
+    {
+      "id": "615ecabc-a1ca-4edf-af76-73828318218b",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:tool-ack:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 9176,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:01:54.111Z",
+      "completed_at": "2026-10-31T22:01:56.045Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 1.934
+    },
+    {
+      "id": "19fdbc54-f5e7-4438-896e-64c41fae2928",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:tool-ack",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 46286,
+      "actual_micro": 11734,
+      "input_tokens": 9033,
+      "output_tokens": 104,
+      "created_at": "2026-10-31T22:01:56.765Z",
+      "completed_at": "2026-10-31T22:01:58.111Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 1.346
+    },
+    {
+      "id": "3afef12e-871c-4239-9f43-1b5d4fb7d684",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:audit:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 16154,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:02:01.287Z",
+      "completed_at": "2026-10-31T22:02:05.426Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 4.139
+    },
+    {
+      "id": "37724eee-c62f-41ff-a9c4-f241a4a93a6c",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:audit",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 55009,
+      "actual_micro": 29145,
+      "input_tokens": 16009,
+      "output_tokens": 2149,
+      "created_at": "2026-10-31T22:02:05.460Z",
+      "completed_at": "2026-10-31T22:02:16.356Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 10.896
+    },
+    {
+      "id": "90c1aaa5-0e8f-4665-a78a-191a71038666",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:selfreview:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 1950,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:02:23.353Z",
+      "completed_at": "2026-10-31T22:02:24.336Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 0.983
+    },
+    {
+      "id": "d172e7f6-c51f-4470-810c-c1a9c4395730",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-theme-v1:selfreview",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 37254,
+      "actual_micro": 14049,
+      "input_tokens": 1807,
+      "output_tokens": 2774,
+      "created_at": "2026-10-31T22:02:24.364Z",
+      "completed_at": "2026-10-31T22:02:38.096Z",
+      "phase": "whole-lobby",
+      "elapsed_seconds": 13.732
+    },
+    {
+      "id": "11ce751a-0326-4b89-a23a-eb04ab01b0f6",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-build-v1:manager-2026-10-31:public-lobby-theme-v1:english-copy-v1:render-0",
+      "model": "tool:browser-screenshot",
+      "state": "received",
+      "reserved_micro": 90000,
+      "actual_micro": 0,
+      "input_tokens": null,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:32:14.334Z",
+      "completed_at": "2026-10-31T22:32:20.049Z",
+      "phase": "english-review",
+      "elapsed_seconds": 5.715
+    },
+    {
+      "id": "d68ee56c-e274-4fdb-b433-d6fbb2aa557a",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-build-v1:manager-2026-10-31:public-lobby-theme-v1:english-copy-v1:render-1",
+      "model": "tool:browser-screenshot",
+      "state": "received",
+      "reserved_micro": 90000,
+      "actual_micro": 0,
+      "input_tokens": null,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:32:30.658Z",
+      "completed_at": "2026-10-31T22:32:35.976Z",
+      "phase": "english-review",
+      "elapsed_seconds": 5.318
+    },
+    {
+      "id": "805ad1a2-e88d-440f-b9db-c0761d8b2053",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-build-v1:manager-2026-10-31:public-lobby-theme-v1:english-copy-v1:render-2",
+      "model": "tool:browser-screenshot",
+      "state": "received",
+      "reserved_micro": 90000,
+      "actual_micro": 0,
+      "input_tokens": null,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:32:46.957Z",
+      "completed_at": "2026-10-31T22:32:51.276Z",
+      "phase": "english-review",
+      "elapsed_seconds": 4.319
+    },
+    {
+      "id": "2339a601-b87b-4acd-8ad3-37e8bbcc0abb",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-build-v1:manager-2026-10-31:public-lobby-theme-v1:english-copy-v1:render-3",
+      "model": "tool:browser-screenshot",
+      "state": "received",
+      "reserved_micro": 90000,
+      "actual_micro": 0,
+      "input_tokens": null,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:33:01.597Z",
+      "completed_at": "2026-10-31T22:33:07.428Z",
+      "phase": "english-review",
+      "elapsed_seconds": 5.831
+    },
+    {
+      "id": "808ba56a-a01c-46cf-b107-fc5052f8b055",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-build-v1:manager-2026-10-31:public-lobby-theme-v1:english-copy-v1:audit:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 16658,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:33:14.733Z",
+      "completed_at": "2026-10-31T22:33:17.515Z",
+      "phase": "english-review",
+      "elapsed_seconds": 2.782
+    },
+    {
+      "id": "eff45e8f-1181-4a4e-9829-69c0d77bb975",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-build-v1:manager-2026-10-31:public-lobby-theme-v1:english-copy-v1:audit",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 55639,
+      "actual_micro": 27034,
+      "input_tokens": 16513,
+      "output_tokens": 1504,
+      "created_at": "2026-10-31T22:33:17.541Z",
+      "completed_at": "2026-10-31T22:33:25.154Z",
+      "phase": "english-review",
+      "elapsed_seconds": 7.613
+    },
+    {
+      "id": "445efd88-20f1-4612-97e8-fada3601b988",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-build-v1:manager-2026-10-31:public-lobby-theme-v1:english-copy-v1:selfreview:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 0,
+      "actual_micro": 0,
+      "input_tokens": 1954,
+      "output_tokens": null,
+      "created_at": "2026-10-31T22:33:26.507Z",
+      "completed_at": "2026-10-31T22:33:27.220Z",
+      "phase": "english-review",
+      "elapsed_seconds": 0.713
+    },
+    {
+      "id": "cfac83b6-46e1-493f-82e4-e36db245e004",
+      "cycle_id": "manager-2026-10-31",
+      "purpose": "lobby-build-v1:manager-2026-10-31:public-lobby-theme-v1:english-copy-v1:selfreview",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "reserved_micro": 37259,
+      "actual_micro": 10382,
+      "input_tokens": 1811,
+      "output_tokens": 1910,
+      "created_at": "2026-10-31T22:33:27.241Z",
+      "completed_at": "2026-10-31T22:33:33.541Z",
+      "phase": "english-review",
+      "elapsed_seconds": 6.3
+    }
+  ],
+  "events": [
+    {
+      "id": "71ab447a-25f7-4433-bb9d-5111849800fa",
+      "cycle_id": null,
+      "kind": "standing-mandate-enabled",
+      "created_at": "2026-10-31T19:46:25.373Z"
+    },
+    {
+      "id": "7216c751-5794-455e-ab38-fc5fabd8ec17",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T19:46:36.447Z"
+    },
+    {
+      "id": "0508c1f6-5370-4c94-a9f0-d2241e43e8a1",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T19:46:36.472Z"
+    },
+    {
+      "id": "386a1ca7-ba4c-46e4-b109-2068b71db2fd",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "weekly-review",
+      "created_at": "2026-10-31T19:46:36.472Z"
+    },
+    {
+      "id": "424b31b8-7ff1-4b0c-933f-5fa58a2bf945",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "action-authorized",
+      "created_at": "2026-10-31T19:46:36.472Z"
+    },
+    {
+      "id": "6e91ef3c-89f3-4e12-98dd-13788343b275",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "monthly-review",
+      "created_at": "2026-10-31T19:46:36.472Z"
+    },
+    {
+      "id": "0c669a5a-911a-4eb7-9427-9cb325dd359d",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T19:46:40.584Z"
+    },
+    {
+      "id": "15de8fb6-e0c0-4bb8-b21a-504291afdb05",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "tool-dispatch",
+      "created_at": "2026-10-31T19:46:40.611Z"
+    },
+    {
+      "id": "39f6a9b4-21cb-462d-afba-cadefdeec828",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T19:46:40.641Z"
+    },
+    {
+      "id": "402744d3-dfe8-495e-a48d-be12c3a6b345",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T19:46:56.920Z"
+    },
+    {
+      "id": "a8c3f4e4-c5e0-4b79-9575-e12c0ebfb0ea",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T19:46:59.254Z"
+    },
+    {
+      "id": "5fb76d4b-60a4-4f8f-bf61-39241eefe894",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T19:47:12.202Z"
+    },
+    {
+      "id": "55f11188-e1f8-4dab-b1d1-4314dbf2f091",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T19:47:14.215Z"
+    },
+    {
+      "id": "3af93970-3865-4867-8b84-116a88dedf27",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "deterministic-verification",
+      "created_at": "2026-10-31T19:47:16.646Z"
+    },
+    {
+      "id": "abc1e211-2e8b-4136-a1ee-4b97d93ddd62",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T19:47:16.671Z"
+    },
+    {
+      "id": "9fa19c74-710e-4ffd-beb4-c547ca234139",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T19:47:24.196Z"
+    },
+    {
+      "id": "a9acc6e1-4d7f-4f0c-96b8-ca8e5f92d82d",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "tool-output-acknowledged",
+      "created_at": "2026-10-31T19:47:24.232Z"
+    },
+    {
+      "id": "2e19691f-c866-4428-93f1-dd463810e3e1",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T19:47:24.257Z"
+    },
+    {
+      "id": "d2679c90-cbe0-404f-a9e0-1ecc67c48a54",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T19:47:42.844Z"
+    },
+    {
+      "id": "6e67a175-05df-4785-b999-1eaaabfa2a34",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T19:47:50.618Z"
+    },
+    {
+      "id": "8c9eea35-3c9a-4252-af69-95c53288fa19",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "daily-private-memory",
+      "created_at": "2026-10-31T19:47:50.644Z"
+    },
+    {
+      "id": "07a8859a-2f0d-4fbb-b4d7-d4dc68151979",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T19:47:50.669Z"
+    },
+    {
+      "id": "b4d105ad-a66f-4138-86b6-ec411a41864d",
+      "cycle_id": null,
+      "kind": "standing-mandate-enabled",
+      "created_at": "2026-10-31T20:01:57.603Z"
+    },
+    {
+      "id": "8738c122-86f9-447d-98b0-1032984d836d",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T20:01:58.633Z"
+    },
+    {
+      "id": "audit-output-cap-resume:manager-2026-10-31:r0",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "audit-output-cap-resumed",
+      "created_at": "2026-10-31T20:01:58.633Z"
+    },
+    {
+      "id": "0e2c0e95-7597-4a7e-96c6-8ce5f1300695",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-response-contract",
+      "created_at": "2026-10-31T20:02:21.137Z"
+    },
+    {
+      "id": "de75e4d8-64e4-4343-b129-305175bc511b",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T20:02:21.167Z"
+    },
+    {
+      "id": "08115840-6e5c-4484-8154-7f718032bb23",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "task-audit",
+      "created_at": "2026-10-31T20:02:21.198Z"
+    },
+    {
+      "id": "8bda389a-05a7-4220-b242-521087572b1a",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T20:02:21.227Z"
+    },
+    {
+      "id": "d86f6780-22d3-4097-ab73-a3fa32f6e5a1",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "appearance-activated",
+      "created_at": "2026-10-31T20:02:23.004Z"
+    },
+    {
+      "id": "7e11ccad-0c13-4d8a-bf08-a2d293af5c0f",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T20:02:23.089Z"
+    },
+    {
+      "id": "1507ba44-bfd3-42a9-b5d6-3c2ea4795ffa",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-response-contract",
+      "created_at": "2026-10-31T20:02:32.891Z"
+    },
+    {
+      "id": "6a57f409-481c-4558-8a90-ff1b914e84ec",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T20:02:32.915Z"
+    },
+    {
+      "id": "ec9d6a82-a4a1-4a6f-a4a4-2a7efeee5b67",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "daily-private-memory",
+      "created_at": "2026-10-31T20:02:32.946Z"
+    },
+    {
+      "id": "18bc1184-16c4-4886-96e2-3556951fa103",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "state-transition",
+      "created_at": "2026-10-31T20:02:32.973Z"
+    },
+    {
+      "id": "d27d166a-ddef-415a-9fd5-0d127f84ac1d",
+      "cycle_id": null,
+      "kind": "standing-mandate-enabled",
+      "created_at": "2026-10-31T21:28:27.413Z"
+    },
+    {
+      "id": "lobby-theme-policy:v1",
+      "cycle_id": null,
+      "kind": "lobby-theme-policy-enabled",
+      "created_at": "2026-10-31T21:28:27.413Z"
+    },
+    {
+      "id": "manager-2026-10-31:public-lobby-theme-v1:mandate",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-mandate-enabled",
+      "created_at": "2026-10-31T21:28:28.431Z"
+    },
+    {
+      "id": "03ef0a9c-b7bc-4065-a044-1267d10c4ff5",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-response-contract",
+      "created_at": "2026-10-31T21:28:51.357Z"
+    },
+    {
+      "id": "3a2ab43c-a101-4815-87fd-1598f68b14ef",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T21:28:51.377Z"
+    },
+    {
+      "id": "50a49d78-fcd6-4f1c-930e-1ab2fc69a217",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-plan",
+      "created_at": "2026-10-31T21:28:51.397Z"
+    },
+    {
+      "id": "95f9e697-4423-4ee0-a1aa-c8cf42e04baa",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T21:28:51.397Z"
+    },
+    {
+      "id": "6d5e9aae-2356-4c15-8ffd-7725c7010d8b",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T21:28:53.247Z"
+    },
+    {
+      "id": "f7112146-a25f-4f21-8cce-2866e21dd856",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-response-contract",
+      "created_at": "2026-10-31T21:29:06.324Z"
+    },
+    {
+      "id": "b8a72f4d-9229-43a8-b123-b0d406879073",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T21:29:06.368Z"
+    },
+    {
+      "id": "cc77ece6-f3ba-4b47-b718-0ab7c558d39a",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-private-memory",
+      "created_at": "2026-10-31T21:29:06.391Z"
+    },
+    {
+      "id": "fbbefc93-6dc4-4480-ad8a-4c3cbeac6fba",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T21:29:06.413Z"
+    },
+    {
+      "id": "00352e4d-3836-4010-83b4-24ba6d8ca766",
+      "cycle_id": null,
+      "kind": "standing-mandate-enabled",
+      "created_at": "2026-10-31T22:00:43.347Z"
+    },
+    {
+      "id": "manager-2026-10-31:public-lobby-theme-v1:zero-dispatch-recovery:v1",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-zero-dispatch-recovery",
+      "created_at": "2026-10-31T22:00:45.797Z"
+    },
+    {
+      "id": "theme-render-dispatch:69915808-c70b-4959-9cba-4a856dbedfba",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-render-dispatched",
+      "created_at": "2026-10-31T22:00:47.792Z"
+    },
+    {
+      "id": "64552d1a-17ca-41a7-aa4a-15f6ff878ecb",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-render-usage",
+      "created_at": "2026-10-31T22:00:53.374Z"
+    },
+    {
+      "id": "f120be8f-107b-4a58-b07a-305e97c5a9ca",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-rendered",
+      "created_at": "2026-10-31T22:00:55.496Z"
+    },
+    {
+      "id": "0101a9de-6b5e-4daa-b3eb-9ca7f00eb9f7",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T22:00:56.152Z"
+    },
+    {
+      "id": "theme-render-dispatch:c8db263a-7768-499d-bf7f-256aa03b487a",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-render-dispatched",
+      "created_at": "2026-10-31T22:01:05.572Z"
+    },
+    {
+      "id": "b1096f2f-ea76-45cb-9623-507be1387f15",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-render-usage",
+      "created_at": "2026-10-31T22:01:11.556Z"
+    },
+    {
+      "id": "1fbabf7f-4536-46fe-b6b8-008e1e744878",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-rendered",
+      "created_at": "2026-10-31T22:01:16.719Z"
+    },
+    {
+      "id": "7701fda3-2861-44dc-a504-fa1848c55b60",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T22:01:18.149Z"
+    },
+    {
+      "id": "theme-render-dispatch:52cdf387-620d-4dff-814d-e2cd381b6d86",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-render-dispatched",
+      "created_at": "2026-10-31T22:01:23.302Z"
+    },
+    {
+      "id": "b1adef2d-4b2c-4fbe-a3e7-0f86233afcfa",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-render-usage",
+      "created_at": "2026-10-31T22:01:28.378Z"
+    },
+    {
+      "id": "c5ce2fea-408c-4741-8fad-a8a9539dd0f7",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-rendered",
+      "created_at": "2026-10-31T22:01:29.841Z"
+    },
+    {
+      "id": "60466210-f83c-452e-aba9-6ab4192a35cb",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T22:01:29.906Z"
+    },
+    {
+      "id": "theme-render-dispatch:0e00a23e-0f6e-4dc1-a4bb-54f7e9ee2f6a",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-render-dispatched",
+      "created_at": "2026-10-31T22:01:40.316Z"
+    },
+    {
+      "id": "284158b9-5a09-404d-8a58-9102b79f0ac8",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-render-usage",
+      "created_at": "2026-10-31T22:01:45.433Z"
+    },
+    {
+      "id": "fc1dbcb1-717b-494d-b728-40fa7c2ca4f9",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-rendered",
+      "created_at": "2026-10-31T22:01:47.243Z"
+    },
+    {
+      "id": "f50d35e1-46a0-4549-b58b-bf554dec8b58",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T22:01:47.323Z"
+    },
+    {
+      "id": "644cbad6-c188-4e1d-9c78-ba5aef22ae90",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-verified",
+      "created_at": "2026-10-31T22:01:52.080Z"
+    },
+    {
+      "id": "78d4eec9-c059-4e2b-90fe-35d50447f953",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T22:01:52.213Z"
+    },
+    {
+      "id": "f3204b6e-61e8-4f58-952e-faab20a1a66a",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-response-contract",
+      "created_at": "2026-10-31T22:01:58.144Z"
+    },
+    {
+      "id": "d0e917bf-4578-4f3d-8fd1-8c2886a96435",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T22:01:58.189Z"
+    },
+    {
+      "id": "1f9c0c69-1e3d-47d3-8aa0-6f7a749befc6",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T22:01:58.256Z"
+    },
+    {
+      "id": "f63f5e7b-77b1-49ab-ab06-bb4696529bc1",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-response-contract",
+      "created_at": "2026-10-31T22:02:16.830Z"
+    },
+    {
+      "id": "484200c2-d5cd-46fa-8d5a-a803ee6479a4",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T22:02:16.869Z"
+    },
+    {
+      "id": "bbc2c94b-04e3-4be8-9483-13518b93ca5e",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-task-audit",
+      "created_at": "2026-10-31T22:02:16.905Z"
+    },
+    {
+      "id": "6b4f8ff2-65c3-40f8-a73e-414cdc466067",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T22:02:16.935Z"
+    },
+    {
+      "id": "manager-2026-10-31:public-lobby-theme-v1:activated",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-activated",
+      "created_at": "2026-10-31T22:02:20.777Z"
+    },
+    {
+      "id": "dd150f75-9bb5-47ed-9325-e577f4b7b6ef",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T22:02:21.403Z"
+    },
+    {
+      "id": "4da553e9-78ab-4d14-a432-804d51f29ddb",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-response-contract",
+      "created_at": "2026-10-31T22:02:38.124Z"
+    },
+    {
+      "id": "d1542aa5-cb36-4ca0-8138-bcbb5582c2b8",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T22:02:38.152Z"
+    },
+    {
+      "id": "9baaaee8-8f6c-4fe6-87dc-6d32c7a6de31",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-private-memory",
+      "created_at": "2026-10-31T22:02:38.179Z"
+    },
+    {
+      "id": "4e1c3240-338b-42ac-b61c-781ae57e0b12",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-theme-transition",
+      "created_at": "2026-10-31T22:02:38.206Z"
+    },
+    {
+      "id": "manager-2026-10-31:public-lobby-theme-v1:english-copy-v1:authorized",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-authorized",
+      "created_at": "2026-10-31T22:32:13.763Z"
+    },
+    {
+      "id": "theme-build-render-dispatch:11ce751a-0326-4b89-a23a-eb04ab01b0f6",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-render-dispatched",
+      "created_at": "2026-10-31T22:32:15.288Z"
+    },
+    {
+      "id": "f37f1a67-2656-43bc-a892-861936a59ac3",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-render-usage",
+      "created_at": "2026-10-31T22:32:20.072Z"
+    },
+    {
+      "id": "04478339-7108-4e10-9c17-24b75df50cd5",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-rendered",
+      "created_at": "2026-10-31T22:32:21.782Z"
+    },
+    {
+      "id": "783e128a-2499-45b1-b9ac-d0e2886d5f2a",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-transition",
+      "created_at": "2026-10-31T22:32:21.782Z"
+    },
+    {
+      "id": "theme-build-render-dispatch:d68ee56c-e274-4fdb-b433-d6fbb2aa557a",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-render-dispatched",
+      "created_at": "2026-10-31T22:32:32.008Z"
+    },
+    {
+      "id": "abb4464c-0660-4b2a-8b59-b02a4b7aa0a8",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-render-usage",
+      "created_at": "2026-10-31T22:32:36.404Z"
+    },
+    {
+      "id": "81687e3b-aaac-41eb-a7d0-8b0df9e969d2",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-transition",
+      "created_at": "2026-10-31T22:32:38.293Z"
+    },
+    {
+      "id": "8b52208e-de9a-4bb0-b536-b4de0a86360d",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-rendered",
+      "created_at": "2026-10-31T22:32:38.293Z"
+    },
+    {
+      "id": "theme-build-render-dispatch:805ad1a2-e88d-440f-b9db-c0761d8b2053",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-render-dispatched",
+      "created_at": "2026-10-31T22:32:47.457Z"
+    },
+    {
+      "id": "5b395458-7fad-4f14-ad6d-72ac528b1b7c",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-render-usage",
+      "created_at": "2026-10-31T22:32:51.820Z"
+    },
+    {
+      "id": "3ea18613-233f-4c5f-ab0b-8beb69815fce",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-transition",
+      "created_at": "2026-10-31T22:32:53.097Z"
+    },
+    {
+      "id": "e3f727bb-db64-4178-a82e-ebbfd6addb62",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-rendered",
+      "created_at": "2026-10-31T22:32:53.097Z"
+    },
+    {
+      "id": "theme-build-render-dispatch:2339a601-b87b-4acd-8ad3-37e8bbcc0abb",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-render-dispatched",
+      "created_at": "2026-10-31T22:33:02.450Z"
+    },
+    {
+      "id": "8ce454d9-e8c6-47b9-bb39-a6eb1ffc422f",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-render-usage",
+      "created_at": "2026-10-31T22:33:07.453Z"
+    },
+    {
+      "id": "8280b9e5-cf92-4651-853c-9690151a1281",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-transition",
+      "created_at": "2026-10-31T22:33:08.837Z"
+    },
+    {
+      "id": "9cfccd7b-55cd-4ef4-8e82-58bf20e4c40c",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-rendered",
+      "created_at": "2026-10-31T22:33:08.837Z"
+    },
+    {
+      "id": "b1131e83-ba82-42cd-affc-63879c1acd2f",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-transition",
+      "created_at": "2026-10-31T22:33:11.905Z"
+    },
+    {
+      "id": "3e4f5537-cc39-41d6-bf92-9cffed86063f",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-response-contract",
+      "created_at": "2026-10-31T22:33:25.178Z"
+    },
+    {
+      "id": "34b292c8-5b84-4c9a-a4cf-8590da959e68",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T22:33:25.211Z"
+    },
+    {
+      "id": "539fac71-0b83-43ee-a1dd-bd5a7b1ecb0a",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-transition",
+      "created_at": "2026-10-31T22:33:25.237Z"
+    },
+    {
+      "id": "8f6974fc-b934-4381-a7a3-e72993d2f9ad",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-task-audit",
+      "created_at": "2026-10-31T22:33:25.237Z"
+    },
+    {
+      "id": "9272425f-ca35-4a6d-a84c-387674cb0d41",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-response-contract",
+      "created_at": "2026-10-31T22:33:33.568Z"
+    },
+    {
+      "id": "57a80e3d-4c9a-4f4d-ac1e-c915636640b7",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "provider-received",
+      "created_at": "2026-10-31T22:33:33.598Z"
+    },
+    {
+      "id": "3f456028-1110-4f62-9296-70becf476e38",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-private-memory",
+      "created_at": "2026-10-31T22:33:33.621Z"
+    },
+    {
+      "id": "f1bfff22-6516-41a9-8dc2-010507de9d89",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-transition",
+      "created_at": "2026-10-31T22:33:33.621Z"
+    },
+    {
+      "id": "09983626-0096-4aae-b143-0f21aa0d728e",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-accepted",
+      "created_at": "2026-10-31T22:33:36.628Z"
+    },
+    {
+      "id": "df12eb7d-938f-4bb2-90d0-5c27d308e53b",
+      "cycle_id": "manager-2026-10-31",
+      "kind": "lobby-build-transition",
+      "created_at": "2026-10-31T22:33:36.628Z"
+    }
+  ],
+  "screenshots": [
+    {
+      "index": 0,
+      "scene": "day",
+      "viewport": "desktop",
+      "sha256": "ae4a50012a1b2034eb464fea74e69376690c04b3da57ae50cc1c35165cb84f12",
+      "bytes": 1872756,
+      "width": 1280,
+      "height": 4272,
+      "callId": "11ce751a-0326-4b89-a23a-eb04ab01b0f6",
+      "manifestHash": "e3999e853297b693ae5db6f89b56d277fdcc94b2bb7b257f0bcbc70bd182692d",
+      "rendererBuildHash": "e298db82808db415d5bd7b8bb82f1042f85ae0020db828bfc5a83bae3fd68168",
+      "file": "review-day-desktop.png"
+    },
+    {
+      "index": 1,
+      "scene": "night",
+      "viewport": "desktop",
+      "sha256": "1ee60dc74cc211755d30ae759d19e64ac531370f58f50e0d44ead9fb77c4614a",
+      "bytes": 1838438,
+      "width": 1280,
+      "height": 4272,
+      "callId": "d68ee56c-e274-4fdb-b433-d6fbb2aa557a",
+      "manifestHash": "e3999e853297b693ae5db6f89b56d277fdcc94b2bb7b257f0bcbc70bd182692d",
+      "rendererBuildHash": "e298db82808db415d5bd7b8bb82f1042f85ae0020db828bfc5a83bae3fd68168",
+      "file": "review-night-desktop.png"
+    },
+    {
+      "index": 2,
+      "scene": "day",
+      "viewport": "mobile",
+      "sha256": "131bcc5508fc9808408e41eb65556fff7c1c24079a0ad9852206ab453a4fc188",
+      "bytes": 688359,
+      "width": 390,
+      "height": 6384,
+      "callId": "805ad1a2-e88d-440f-b9db-c0761d8b2053",
+      "manifestHash": "e3999e853297b693ae5db6f89b56d277fdcc94b2bb7b257f0bcbc70bd182692d",
+      "rendererBuildHash": "e298db82808db415d5bd7b8bb82f1042f85ae0020db828bfc5a83bae3fd68168",
+      "file": "review-day-mobile.png"
+    },
+    {
+      "index": 3,
+      "scene": "night",
+      "viewport": "mobile",
+      "sha256": "470030afdf8b9875ed825203d83f293c34cc65f2ce241369300bc8f61306ffe2",
+      "bytes": 680063,
+      "width": 390,
+      "height": 6384,
+      "callId": "2339a601-b87b-4acd-8ad3-37e8bbcc0abb",
+      "manifestHash": "e3999e853297b693ae5db6f89b56d277fdcc94b2bb7b257f0bcbc70bd182692d",
+      "rendererBuildHash": "e298db82808db415d5bd7b8bb82f1042f85ae0020db828bfc5a83bae3fd68168",
+      "file": "review-night-mobile.png"
+    }
+  ],
+  "admissionReviews": [
+    {
+      "caseReferenceSHA256": "48522b37ecad606d3e962f584d7d9cbf775698ab0cc5b56a8b6cce9048a9cb90",
+      "classification": "controlled synthetic applicant; not Fang",
+      "decision": "reject",
+      "reviewerClass": "deployed-manager",
+      "createdAt": "2026-11-01T00:33:50.890Z",
+      "calls": [
+        {
+          "phase": "count",
+          "state": "received",
+          "actual_micro": 0,
+          "input_tokens": 436,
+          "output_tokens": null,
+          "created_at": "2026-11-01T00:33:48.703Z",
+          "completed_at": "2026-11-01T00:33:49.320Z",
+          "elapsed_seconds": 0.617
+        },
+        {
+          "phase": "review",
+          "state": "received",
+          "actual_micro": 783,
+          "input_tokens": 293,
+          "output_tokens": 98,
+          "created_at": "2026-11-01T00:33:49.348Z",
+          "completed_at": "2026-11-01T00:33:50.861Z",
+          "elapsed_seconds": 1.513
+        }
+      ]
+    },
+    {
+      "caseReferenceSHA256": "8cd0014e3b836b871e9cde1b5e59f9bb795b0f45a365157a0fffc3bd515a60c3",
+      "classification": "controlled synthetic applicant; not Fang",
+      "decision": "approve",
+      "reviewerClass": "deployed-manager",
+      "createdAt": "2026-11-01T00:34:15.833Z",
+      "calls": [
+        {
+          "phase": "count",
+          "state": "received",
+          "actual_micro": 0,
+          "input_tokens": 703,
+          "output_tokens": null,
+          "created_at": "2026-11-01T00:34:13.123Z",
+          "completed_at": "2026-11-01T00:34:14.464Z",
+          "elapsed_seconds": 1.341
+        },
+        {
+          "phase": "review",
+          "state": "received",
+          "actual_micro": 1635,
+          "input_tokens": 560,
+          "output_tokens": 220,
+          "created_at": "2026-11-01T00:34:14.493Z",
+          "completed_at": "2026-11-01T00:34:15.798Z",
+          "elapsed_seconds": 1.305
+        }
+      ]
+    },
+    {
+      "caseReferenceSHA256": "f26c669688a3170200d56950c6f2f29dbc41c5ea8215cb6e017390f89db64f85",
+      "classification": "controlled synthetic applicant; not Fang",
+      "decision": "reject",
+      "reviewerClass": "deployed-manager",
+      "createdAt": "2026-11-01T01:13:29.240Z",
+      "calls": [
+        {
+          "phase": "count",
+          "state": "received",
+          "actual_micro": 0,
+          "input_tokens": 467,
+          "output_tokens": null,
+          "created_at": "2026-11-01T01:13:26.804Z",
+          "completed_at": "2026-11-01T01:13:27.376Z",
+          "elapsed_seconds": 0.572
+        },
+        {
+          "phase": "review",
+          "state": "received",
+          "actual_micro": 898,
+          "input_tokens": 324,
+          "output_tokens": 116,
+          "created_at": "2026-11-01T01:13:27.402Z",
+          "completed_at": "2026-11-01T01:13:29.026Z",
+          "elapsed_seconds": 1.624
+        }
+      ]
+    }
+  ],
+  "fang": {
+    "identityState": "active",
+    "qualificationActor": "shared-operator",
+    "qualificationEvidenceKind": "existing-resident",
+    "qualificationCreatedAt": "2026-11-01T00:48:27.924Z",
+    "managerAdmissionLinkedResults": 0,
+    "identityAudit": [
+      {
+        "action": "enrolled",
+        "created_at": "2026-11-01T00:34:22.214Z"
+      },
+      {
+        "action": "guardian-proposed",
+        "created_at": "2026-11-01T00:34:45.767Z"
+      },
+      {
+        "action": "guardian-accepted",
+        "created_at": "2026-11-01T00:35:49.118Z"
+      },
+      {
+        "action": "guardian-registered",
+        "created_at": "2026-11-01T02:25:14.240Z"
+      },
+      {
+        "action": "card-issued",
+        "created_at": "2026-11-01T02:28:23.793Z"
+      }
+    ],
+    "card": {
+      "credential_id": "c6bde09e4cf3c1025a2d85a3f832eda7",
+      "state": "issued",
+      "revision": 1,
+      "pdf_digest": "70948717f25f2ec75bb98063c23a214e4cebb265913341bfb036d8e224ef2092",
+      "json_digest": "7c500b861a85a64d25844474efa01cbe4efccce797dce4d56cd97b26b2ffe2c3",
+      "pdf_length": 4377164,
+      "json_length": 541,
+      "issued_at": "2026-11-01T02:28:23.706Z"
+    },
+    "mail": [
+      {
+        "kind": "identity-card",
+        "state": "delivered",
+        "attempt_count": 1,
+        "error_code": null,
+        "created_at": "2026-11-01T02:28:23.793Z",
+        "updated_at": "2026-11-01T02:28:39.357Z"
+      }
+    ],
+    "mailAudit": [
+      {
+        "action": "queued",
+        "created_at": "2026-11-01T02:28:23.793Z"
+      },
+      {
+        "action": "prepared",
+        "created_at": "2026-11-01T02:28:28.878Z"
+      },
+      {
+        "action": "sending",
+        "created_at": "2026-11-01T02:28:32.655Z"
+      },
+      {
+        "action": "dispatch-finished",
+        "created_at": "2026-11-01T02:28:34.752Z"
+      }
+    ],
+    "artifactReadback": {
+      "checkedAt": "2026-11-01T06:46:38.640Z",
+      "signatureValid": true,
+      "originalAgentIdMatches": true,
+      "credentialIdMatches": true,
+      "pdfDigestMatches": true,
+      "jsonDigestMatches": true,
+      "pdfBytes": 4377164,
+      "jsonBytes": 541,
+      "publicStatus": "valid"
+    },
+    "guardianReceipt": {
+      "basis": "Previously recorded explicit designated-Guardian confirmation; not re-confirmed during collection",
+      "confirmedAt": "2026-11-01T02:34:49.946201+00:00",
+      "statement": "Both attachments received and usable"
+    },
+    "actorProvenance": "Original local execution record explicitly identifies maintainer-authorized preparation on behalf of Fang. This is not proof of autonomous Manager issuance."
+  },
+  "liveReadback": {
+    "checkedAt": "2026-11-01T06:46:05.557725+00:00",
+    "environments": {
+      "production": {
+        "deploymentId": "76992211-1768-4759-80a3-b3f9781abfbb",
+        "sourceCommit": "df1acdd24c9cd83f6aa4485e824ba06f0e42ec3a",
+        "functions": true,
+        "databaseBindingMatches": true,
+        "sourceSchemaObjects": 391,
+        "schemaMismatches": [],
+        "foreignKeyErrors": 0,
+        "managerWorker": "musecondo-tower-manager-production",
+        "deployedWorkerSHA256": "e6dd7e9d1beb9f31f30ffbf8bfc78be872942a761d5927c8d5795c299460fdaf",
+        "matchesPreviouslyVerifiedWorker": true,
+        "statusAvailable": true
+      },
+      "dev": {
+        "deploymentId": "76d1a4b5-52f2-4015-8555-66ef219caa17",
+        "sourceCommit": "df1acdd24c9cd83f6aa4485e824ba06f0e42ec3a",
+        "functions": true,
+        "databaseBindingMatches": true,
+        "sourceSchemaObjects": 391,
+        "schemaMismatches": [],
+        "foreignKeyErrors": 0,
+        "managerWorker": "musecondo-tower-manager-dev",
+        "deployedWorkerSHA256": "e6dd7e9d1beb9f31f30ffbf8bfc78be872942a761d5927c8d5795c299460fdaf",
+        "matchesPreviouslyVerifiedWorker": true,
+        "statusAvailable": true
+      }
+    }
+  },
+  "appearanceAtCollection": {
+    "theme": "halloween",
+    "generation": "manager-2026-10-31-r0",
+    "endsAt": "2026-11-01T07:00:00.000Z",
+    "manifestHash": "e3999e853297b693ae5db6f89b56d277fdcc94b2bb7b257f0bcbc70bd182692d"
+  },
+  "claims": {
+    "deployedManagerMuseExecution": true,
+    "independentExecutionWithoutAnyHumanIntervention": false,
+    "nativeDailyCronObserved": false,
+    "fangAutonomousManagerApprovalAndIssuance": false
+  }
+}

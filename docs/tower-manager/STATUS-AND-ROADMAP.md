@@ -1,5 +1,7 @@
 # Tower Manager: status and strengthening roadmap
 
+Evidence collected 2026-10-31 Vancouver / 2026-11-01 UTC: [live execution records](../live-integration.md) include 39 production call receipts, 108 events, four hash-verified review screenshots and fresh dev/production runtime checks. Fang's completed issuance/delivery is documented separately from Manager admission: her qualification is operator-authorized, with no linked Manager review. This does not close the ordinary scheduled-run or Agent-operated issuance gates.
+
 Status verified: 2026-10-31 Vancouver / 2026-11-01 UTC. The Tower Manager is onboarded and its production runtime is active. Halloween appearance and English-homepage review have real execution evidence. New-home review was exercised in production v0.94 with controlled synthetic applicants; this is not real-resident acceptance. The v0.96 D1-clock follow-up is deployed in dev and production; it preserves the existing schema and final authorization guards. The accepted public appearance and renderer digest are unchanged.
 
 ## New-home admission duty: delivered review, real acceptance pending
