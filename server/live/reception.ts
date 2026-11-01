@@ -1,3 +1,4 @@
+import {discoverHome,HomeDiscoveryError} from './home-discovery.ts';
 import {towerSourceURL} from './tower-source-url.ts';
 import { digest } from './app.ts';
 import type { Database, Statement } from './db.ts';
@@ -8,6 +9,7 @@ interface Options {
     operator: (req: Request) => Promise<boolean>;
     onReview?:(caseId:string)=>Promise<void>;
     reviewStatus?:(caseId:string)=>Promise<unknown>;
+    sourceFetch?:typeof fetch;
 }
 interface Case {
     id: string;
@@ -72,7 +74,7 @@ function safe(c: Case) {
     const missingFields = c.state === 'pending' && c.request_kind === 'new'
         ? [...(c.is_muse_agent == null ? ['isMuseAgent'] : []), ...(c.is_muse_agent === 0 ? [] : [...(!c.source_url ? ['sourceURL'] : []), ...(!c.resident_id ? ['residentId'] : [])])] : [];
     const nextAction = missingFields.length
-        ? 'Provide ' + missingFields.join(', ') + ' through this case’s /details endpoint using its current version. Keep the same case ID and key. Tell your Guardian what is missing; submission is not approval.'
+        ? (missingFields.includes('sourceURL')?'Submit your public home webpage as homeURL through this case’s /details endpoint; reception will locate its home data and resident identifier. ':'Provide ' + missingFields.join(', ') + ' through this case’s /details endpoint. ') + 'Use the current version and keep the same case ID and key. Tell your Guardian what is missing; submission is not approval.'
         : c.next_action;
     return { id: c.id, state: c.state, version: c.version, name: c.name, isMuseAgent:c.is_muse_agent===1?true:c.is_muse_agent===0?false:null, requestKind: c.request_kind, request: c.request_text, sourceURL: c.source_url, residentId: c.resident_id, authorization: JSON.parse(c.authorization_json), sharing: JSON.parse(c.sharing_json), visitPlan: JSON.parse(c.visit_plan_json), missingFields, nextAction, expiresAt: c.expires_at, approvalExpiresAt: c.approval_expires_at, createdAt: c.created_at, updatedAt: c.updated_at };
 }
@@ -153,6 +155,16 @@ export function createTowerReception(env: Options) {
         await notify(next.id);
         return committed(next.id,requestKey);
     }
+    async function homeDetails(v:Record<string,unknown>,muse:unknown){
+        if(v.homeURL!==undefined&&v.sourceURL!==undefined)reject(400,'choose_one_home_url');
+        const address=v.homeURL??v.sourceURL;
+        if(address===undefined)return {sourceURL:undefined,residentId:v.residentId===undefined?undefined:text(v.residentId,80)};
+        if(v.homeURL===undefined&&typeof address==='string'&&address.endsWith('/condo.json'))return {sourceURL:source(address)!,residentId:v.residentId===undefined?undefined:text(v.residentId,80)};
+        if(muse===false)return {sourceURL:undefined,residentId:undefined};
+        const resolved=await discoverHome(address,env.sourceFetch);
+        if(v.residentId!==undefined&&v.residentId!==resolved.residentId)throw new HomeDiscoveryError('home_identity_mismatch');
+        return resolved;
+    }
     async function notify(caseId:string){try{await env.onReview?.(caseId);}catch{/* Durable job remains queued; no paid retry or new job. */}}
     // Operator credentials are checked once at dispatch and again before each commit.
     return { async fetch(req: Request): Promise<Response | null> {
@@ -197,7 +209,7 @@ export function createTowerReception(env: Options) {
                         reject(404, 'not_found');
                     await rate('global-open', 100);
                     await rate('ip:' + await digest(req.headers.get('CF-Connecting-IP') ?? 'unknown'), 5);
-                    const v = object(await body(req), ['requestKey', 'name', 'requestKind', 'request', 'sourceURL', 'residentId', 'originClaim', 'isMuseAgent', 'authorization', 'sharing', 'visitPlan']), rk = key(v.requestKey), inputHash = await digest(JSON.stringify(v));
+                    const v = object(await body(req), ['requestKey', 'name', 'requestKind', 'request', 'sourceURL', 'homeURL', 'residentId', 'originClaim', 'isMuseAgent', 'authorization', 'sharing', 'visitPlan']), rk = key(v.requestKey), inputHash = await digest(JSON.stringify(v));
                     const existing = await one<Case>('SELECT * FROM tower_reception_cases WHERE token_hash=?', hash);
                     if (existing) {
                         const r = await replay(existing, rk, 'open', inputHash);
@@ -219,7 +231,7 @@ export function createTowerReception(env: Options) {
                     const sharing = object(v.sharing, ['snapshot', 'directory', 'announcement', 'dream']);
                     if (Object.keys(sharing).length !== 4 || Object.values(sharing).some(x => x !== false))
                         reject(400, 'sharing_starts_private');
-                    const plan = visit(v.visitPlan), sourceURL = v.sourceURL === undefined ? null : source(v.sourceURL)!, residentId = v.residentId === undefined ? null : text(v.residentId, 80);
+                    const plan = visit(v.visitPlan), resolved=await homeDetails(v,muse), sourceURL=resolved.sourceURL??null, residentId=resolved.residentId??null;
                     const c: Case = { id: crypto.randomUUID().replaceAll('-', ''), token_hash: hash, state: 'pending', version: 1, name, request_kind: String(v.requestKind), request_text: requestText, source_url: sourceURL, resident_id: residentId, account_id: null, approval_expires_at: null, granted_token_id: null, authorization_json: JSON.stringify(authorization), sharing_json: JSON.stringify(sharing), visit_plan_json: JSON.stringify(plan), next_action: 'Reception will reply here. Return according to your visit plan.', expires_at: new Date(now().getTime() + 90 * 86400000).toISOString(), created_at: stamp(), updated_at: stamp(),is_muse_agent:muse===true?1:muse===false?0:null,review_case_version:1 };
                     if(muse===undefined)c.next_action='Please confirm whether you are a Muse agent.';
                     const response = { case: safe(c) };
@@ -246,7 +258,7 @@ export function createTowerReception(env: Options) {
                     await rate('case:' + id, 20);
                     await rate('global-write', 1000);
                 }
-                const v = object(await body(req), ['requestKey', 'expectedVersion', ...(operation === 'messages' ? ['message',...(!operator?['isMuseAgent','sourceURL','residentId']:[])] : operation==='details'?['isMuseAgent','sourceURL','residentId'] : operation === 'visit-plan' ? ['visitPlan'] : operation === 'approve' ? ['accountId', 'residentId', 'sourceURL', 'approvedDays'] : [])]), rk = key(v.requestKey);
+                const v = object(await body(req), ['requestKey', 'expectedVersion', ...(operation === 'messages' ? ['message',...(!operator?['isMuseAgent','sourceURL','homeURL','residentId']:[])] : operation==='details'?['isMuseAgent','sourceURL','homeURL','residentId'] : operation === 'visit-plan' ? ['visitPlan'] : operation === 'approve' ? ['accountId', 'residentId', 'sourceURL', 'approvedDays'] : [])]), rk = key(v.requestKey);
                 let towerHash = '';
                 if (operation === 'activate') {
                     const raw = req.headers.get('X-Tower-Agent-Key');
@@ -268,9 +280,9 @@ export function createTowerReception(env: Options) {
                 const next = { ...current, version: current.version + 1, updated_at: stamp() }, statements: Statement[] = [];
                 let message = '';
                 if (operation === 'messages'||operation==='details') {
-                    if(operation==='details'&&v.isMuseAgent===undefined&&v.sourceURL===undefined&&v.residentId===undefined)reject(400,'details_required');
+                    if(operation==='details'&&v.isMuseAgent===undefined&&v.sourceURL===undefined&&v.homeURL===undefined&&v.residentId===undefined)reject(400,'details_required');
                     message = operation==='details'?'Application details updated.':text(v.message, 2000);
-                    if(!operator&&(v.isMuseAgent!==undefined||v.sourceURL!==undefined||v.residentId!==undefined)){if(current.state!=='pending')reject(409,'case_state_conflict');if(v.isMuseAgent!==undefined){if(typeof v.isMuseAgent!=='boolean')reject(400,'invalid_muse_declaration');if(v.isMuseAgent===false){next.is_muse_agent=0;}else next.is_muse_agent=1;}if(v.sourceURL!==undefined)next.source_url=source(v.sourceURL)!;if(v.residentId!==undefined)next.resident_id=text(v.residentId,64);}
+                    if(!operator&&(v.isMuseAgent!==undefined||v.sourceURL!==undefined||v.homeURL!==undefined||v.residentId!==undefined)){if(current.state!=='pending')reject(409,'case_state_conflict');if(v.isMuseAgent!==undefined){if(typeof v.isMuseAgent!=='boolean')reject(400,'invalid_muse_declaration');if(v.isMuseAgent===false){next.is_muse_agent=0;}else next.is_muse_agent=1;}const resolved=await homeDetails(v,next.is_muse_agent===0?false:next.is_muse_agent===1?true:undefined);if(resolved.sourceURL!==undefined)next.source_url=resolved.sourceURL;if(resolved.residentId!==undefined)next.resident_id=resolved.residentId;}
                     next.next_action = next.state==='rejected'?'You indicated that you are not a Muse agent. This application is closed.':operator ? 'Reception has replied. Please read your case messages.' : 'Reception will reply here. Return according to your visit plan.';
                 }
                 else if (operation === 'visit-plan' && !operator) {
@@ -325,6 +337,7 @@ export function createTowerReception(env: Options) {
                 return await commit(req, current, operator, rk, operation, inputHash, next, statements, message, operation === 'activate' ? 201 : 200);
             }
             catch (e) {
+                if(e instanceof HomeDiscoveryError)return json({error:e.code,nextAction:e.code==='home_identity_mismatch'?'The home does not match the supplied resident identifier. Preserve the original case and check your own home.':e.code==='invalid_home_url'?'Provide the public HTTPS home webpage address without private access tokens.':'Reception could not read a complete importable home at this address. Check the published home and its hosting format; a share wrapper or login page may not expose the home content. Preserve your existing case and report the specific publishing capability needed. No file upload or Guardian credential is required.'},422);
                 if (e instanceof Rejection) {
                     const response = json({ error: e.message }, e.status);
                     if (e.retryAfter !== undefined) response.headers.set('Retry-After', String(e.retryAfter));

@@ -1,6 +1,7 @@
+import {renderPreAppearanceCondo} from './pre-appearance-condo-render.ts';
 import {renderLegacyCondo} from './legacy-condo-render.ts';
 import {validatePNG} from '../live/png.ts';
-import {CONDO_PROFILE_FIELDS,type PublicCondoSite} from '../../src/framework/condo.ts';
+import {CONDO_PROFILE_FIELDS,CONDO_OPTIONAL_PROFILE_FIELDS,CONDO_PORTRAIT_CROP_FIELDS,parsePortraitCrop,CONDO_ALL_PROFILE_FIELDS,type PublicCondoSite} from '../../src/framework/condo.ts';
 import {renderCondo} from '../../src/framework/condo-render.ts';
 import {frameworkObject} from '../../src/framework/validation.ts';
 import {normalizeCondoHostedHTML} from './condo-hosted-html.ts';
@@ -12,7 +13,9 @@ function checkManifest(value:unknown,expectedId?:string){
  if(expectedId&&home.id!==expectedId)throw Error('deployed home identity does not match this build');
  const assets=frameworkObject(home.assets,['desktop'],'public assets');if(assets.desktop!=='./assets/home.png')throw Error('home image path is invalid');
  const routes=frameworkObject(home.routes,['home','inside','dreams'],'public routes');for(const [key,path] of Object.entries({home:'./index.html',inside:'./inside.html',dreams:'./dreams.html'}))if(routes[key]!==path)throw Error('three-page routes are invalid');
- const profile=frameworkObject(site.profile,CONDO_PROFILE_FIELDS,'public profile');if(CONDO_PROFILE_FIELDS.some(key=>typeof profile[key]!=='string'))throw Error('character profile fields are incomplete');
+ const profile=frameworkObject(site.profile,CONDO_ALL_PROFILE_FIELDS,'public profile');if(CONDO_PROFILE_FIELDS.some(key=>typeof profile[key]!=='string'))throw Error('character profile fields are incomplete');
+ if(CONDO_OPTIONAL_PROFILE_FIELDS.some(key=>profile[key]!==undefined&&(typeof profile[key]!=='string'||!profile[key].trim()||profile[key].length>2000)))throw Error('appearance fields are invalid');
+ for(const key of CONDO_PORTRAIT_CROP_FIELDS)if(profile[key]!==undefined)parsePortraitCrop(profile[key]);
  for(const key of ['daily','dreams'] as const){const entries=home[key];if(!Array.isArray(entries)||entries.length>100)throw Error('public content format is invalid');for(const entry of entries){const item=frameworkObject(entry,['id','type','title','body','occurredAt',...(key==='dreams'?['image','reflection']:[])],'public entry');if(Object.values(item).some(value=>typeof value!=='string'))throw Error('public content must not contain private objects');}}
  if(site.dream!==null){
   const dream=frameworkObject(site.dream,['id','title','body','occurredAt','reflection','wish','image'],'public dream');
@@ -43,7 +46,7 @@ export async function verifyCondoURL(value:string,options:{expectedId?:string}={
  for(const [file,kind] of [['index.html','home'],['inside.html','inside'],['dreams.html','dreams']] as const){
   const html=normalizeCondoHostedHTML(new TextDecoder().decode(await fetchBytes(file,'text/html',200000)),value);
   if(!html.includes(`class="page-${kind}"`)||/<script\b|<base\b|http-equiv=["']?refresh/i.test(html))throw Error('three pages are not deployed correctly or contain executable content outside the template');
-  if(html.replace(/\r\n/g,'\n').trim()!==renderCondo(manifest.site,kind).trim()&&(!html.includes('<html lang="zh-Hant">')||html.replace(/\r\n/g,'\n').trim()!==renderLegacyCondo(manifest.site,kind).trim()))throw Error('deployed HTML and public data do not match; update or withdrawal is incomplete');
+  if(html.replace(/\r\n/g,'\n').trim()!==renderCondo(manifest.site,kind).trim()&&!(CONDO_OPTIONAL_PROFILE_FIELDS.every(key=>manifest.site.profile[key]===undefined)&&html.replace(/\r\n/g,'\n').trim()===renderPreAppearanceCondo(manifest.site,kind).trim())&&(!html.includes('<html lang="zh-Hant">')||CONDO_OPTIONAL_PROFILE_FIELDS.some(key=>manifest.site.profile[key]!==undefined)||html.replace(/\r\n/g,'\n').trim()!==renderLegacyCondo(manifest.site,kind).trim()))throw Error('deployed HTML and public data do not match; update or withdrawal is incomplete');
   if((html.match(/<h1[ >]/g)||[]).length!==1)throw Error('page heading is incomplete');pages.push(new URL(file,base).href);
  }
  await fetchBytes('assets/condo.css','text/css',100000);

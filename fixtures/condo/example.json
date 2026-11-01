@@ -147,6 +147,36 @@
       "evidenceIds": [
         "self-description"
       ]
+    },
+    "characterAppearance": {
+      "description": "A sage-green Star Sprout with a cream belly, asymmetric leaf ears and warm amber eyes.",
+      "evidenceIds": [
+        "self-description"
+      ]
+    },
+    "guardianAppearance": {
+      "description": "The wall frame holds an imagined human Guardian with brown hair and a beige shirt.",
+      "evidenceIds": [
+        "imagined-owner"
+      ]
+    },
+    "guardianPersonality": {
+      "description": "An imagined, gentle listener who welcomes quiet conversations.",
+      "evidenceIds": [
+        "imagined-owner"
+      ]
+    },
+    "characterPortraitCrop": {
+      "description": "41,7,33,70",
+      "evidenceIds": [
+        "self-description"
+      ]
+    },
+    "guardianPortraitCrop": {
+      "description": "77,7,14,30",
+      "evidenceIds": [
+        "imagined-owner"
+      ]
     }
   },
   "dream": {

@@ -5,6 +5,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {publicCondoProjection} from '../src/framework/condo.ts';
 import {renderCondo} from '../src/framework/condo-render.ts';
+import {renderPreAppearanceCondo} from '../server/framework/pre-appearance-condo-render.ts';
 import {renderLegacyCondo} from '../server/framework/legacy-condo-render.ts';
 import {verifyCondoURL} from '../server/framework/condo-verify.ts';
 import {condoFixture} from './helpers/condo-fixture.ts';
@@ -144,4 +145,22 @@ test('hosted verification keeps withdrawn dream manifest, HTML and asset checks'
  await t.test('stale HTML',async t=>{mockSite(t,{manifest:withdrawn,withdrawnStatus:404,html:(_html,file)=>inject(renderCondo(site,file==='inside.html'?'inside':file==='dreams.html'?'dreams':'home'))});await assert.rejects(verifyCondoURL(hosted),/do not match/);});
  await t.test('still public dream image',async t=>{mockSite(t,{manifest:withdrawn});await assert.rejects(verifyCondoURL(hosted),/Dream image remains/);});
  await t.test('redirected withdrawn image',async t=>{mockSite(t,{manifest:withdrawn,withdrawnStatus:302});await assert.rejects(verifyCondoURL(hosted),/Dream image remains/);});
+});
+
+
+test('pre-appearance English homes remain verifiable without silently dropping new descriptions',async t=>{
+ mockSite(t,{html:(_html,file)=>renderPreAppearanceCondo(site,file==='inside.html'?'inside':file==='dreams.html'?'dreams':'home')});
+ assert.equal((await verifyCondoURL(hosted,{expectedId:site.home.id})).homeId,site.home.id);
+});
+test('legacy templates cannot validate a manifest whose appearance descriptions are missing from HTML',async t=>{
+ const updated={...site,profile:{...site.profile,characterAppearance:'A green sprout with a blue scarf'}};
+ mockSite(t,{manifest:updated,html:(_html,file)=>renderPreAppearanceCondo(site,file==='inside.html'?'inside':file==='dreams.html'?'dreams':'home')});
+ await assert.rejects(verifyCondoURL(hosted),/do not match/);
+});
+
+test('hosted verification validates portrait bounds and refuses legacy HTML that drops crop metadata',async t=>{
+ const updated={...site,profile:{...site.profile,characterPortraitCrop:'41,7,33,70'}};
+ await t.test('current clipped portrait',async t=>{mockSite(t,{manifest:updated});assert.equal((await verifyCondoURL(hosted)).homeId,site.home.id);});
+ await t.test('old HTML omits crop',async t=>{mockSite(t,{manifest:updated,html:(_html,file)=>renderPreAppearanceCondo(site,file==='inside.html'?'inside':file==='dreams.html'?'dreams':'home')});await assert.rejects(verifyCondoURL(hosted),/do not match/);});
+ await t.test('invalid rectangle',async t=>{mockSite(t,{manifest:{...updated,profile:{...updated.profile,characterPortraitCrop:'99,0,2,10'}}});await assert.rejects(verifyCondoURL(hosted),/invalid portrait crop/);});
 });

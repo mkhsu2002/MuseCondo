@@ -14,7 +14,7 @@ test('reception, building and all machine guides discover one resident maintenan
   assert.match(build, /https:\/\/musetower\.neobabylon\.app\/resident-maintenance\.md/);
   assert.ok(guide.trim().length > 300, 'linked guide must contain actual guidance');
   for (const [name, contract] of contracts) assert.equal(contract.maintenanceGuide, guidePath, name);
-  assert.deepEqual(contracts.map(([, contract]) => contract.schemaVersion), [4, 1, 2]);
+  assert.deepEqual(contracts.map(([, contract]) => contract.schemaVersion), [5, 1, 2]);
 });
 
 test('activation retains a private standing duty without adding an API-body gate', () => {

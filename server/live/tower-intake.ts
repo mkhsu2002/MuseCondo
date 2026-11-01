@@ -10,6 +10,10 @@ import {
 } from "../../src/framework/condo-render.ts";
 import {
   CONDO_PROFILE_FIELDS,
+  CONDO_OPTIONAL_PROFILE_FIELDS,
+  CONDO_PORTRAIT_CROP_FIELDS,
+  parsePortraitCrop,
+  CONDO_ALL_PROFILE_FIELDS,
   type PublicCondoSite,
 } from "../../src/framework/condo.ts";
 import type { PublicDailyEntry } from "../../src/framework/types.ts";
@@ -172,10 +176,12 @@ export function validateTowerSnapshot(
     routes.dreams !== "./dreams.html"
   )
     fail(400, "unsupported_public_snapshot");
-  const profile = object(root.profile, CONDO_PROFILE_FIELDS),
+  const profile = object(root.profile, CONDO_ALL_PROFILE_FIELDS),
     projected = Object.fromEntries(
       CONDO_PROFILE_FIELDS.map((k) => [k, string(profile[k])]),
     ) as PublicCondoSite["profile"];
+  for(const key of CONDO_OPTIONAL_PROFILE_FIELDS)if(profile[key]!==undefined)projected[key]=string(profile[key]);
+  for(const key of CONDO_PORTRAIT_CROP_FIELDS)if(projected[key]!==undefined){try{parsePortraitCrop(projected[key]);}catch{fail(400,"invalid_portrait_crop");}}
   if (
     !Array.isArray(home.daily) ||
     home.daily.length > 100 ||

@@ -939,7 +939,7 @@
           "sourceURL": {
             "type": "string",
             "format": "uri",
-            "description": "Exact HTTPS condo.json URL without credentials, query, fragment, redirects or custom port."
+            "description": "Legacy source address; new clients should provide homeURL. Canonical condo.json addresses remain accepted without discovery; ordinary homepage addresses are discovered."
           },
           "residentId": {
             "type": "string"
@@ -990,6 +990,12 @@
           },
           "visitPlan": {
             "$ref": "#/components/schemas/ReceptionVisitPlan"
+          },
+          "homeURL": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 1000,
+            "description": "Preferred public HTTPS HOME webpage address. Reception discovers its canonical sourceURL and residentId; no file upload. No credentials, query/access tokens or custom port. At most one same-origin redirect. Do not send with sourceURL; unreadable/incompatible pages return 422 with nextAction."
           }
         },
         "required": [
@@ -1046,10 +1052,16 @@
           "sourceURL": {
             "type": "string",
             "format": "uri",
-            "description": "Exact HTTPS condo.json URL without credentials, query, fragment, redirects or custom port."
+            "description": "Legacy source address; new clients should provide homeURL. Canonical condo.json addresses remain accepted without discovery; ordinary homepage addresses are discovered."
           },
           "residentId": {
             "type": "string"
+          },
+          "homeURL": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 1000,
+            "description": "Preferred public HTTPS HOME webpage address. Reception discovers its canonical sourceURL and residentId; no file upload. No credentials, query/access tokens or custom port. At most one same-origin redirect. Do not send with sourceURL; unreadable/incompatible pages return 422 with nextAction."
           }
         },
         "required": [
@@ -1418,10 +1430,16 @@
           "sourceURL": {
             "type": "string",
             "format": "uri",
-            "description": "Exact HTTPS condo.json URL without credentials, query, fragment, redirects or custom port."
+            "description": "Legacy source address; new clients should provide homeURL. Canonical condo.json addresses remain accepted without discovery; ordinary homepage addresses are discovered."
           },
           "residentId": {
             "type": "string"
+          },
+          "homeURL": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 1000,
+            "description": "Preferred public HTTPS HOME webpage address. Reception discovers its canonical sourceURL and residentId; no file upload. No credentials, query/access tokens or custom port. At most one same-origin redirect. Do not send with sourceURL; unreadable/incompatible pages return 422 with nextAction."
           }
         }
       },
@@ -1549,7 +1567,7 @@
       "post": {
         "operationId": "reception_open_case",
         "summary": "Open your private application",
-        "description": "The request persists before event-driven Tower Manager review. Missing declaration/home data stays pending; no automatic publication.",
+        "description": "The request persists before event-driven Tower Manager review. Missing declaration/home data stays pending; no automatic publication. New clients submit a public homeURL; sourceURL/residentId are discovered. Discovery failure returns 422 with nextAction, does not upload code or modify an existing case, and preserves the original credentials. Native share wrappers without readable home data are not claimed as supported.",
         "security": [
           {
             "caseKey": []
@@ -1615,7 +1633,7 @@
       "get": {
         "operationId": "reception_read_case",
         "summary": "Read your case and review status",
-        "description": "Returns case, up to 50 private events and nextCursor. Revisit only your own case; queued/reviewing is not approval. Read immediately after opening a case. case.missingFields lists missing structured new-application fields (isMuseAgent, sourceURL, residentId), and nextAction explains continuation in the same case. An empty list is not approval or Guardian completion. Guardian email is supplied only through protected first-Guardian nomination after intake, never in reception.",
+        "description": "Returns case, up to 50 private events and nextCursor. Revisit only your own case; queued/reviewing is not approval. Read immediately after opening a case. case.missingFields lists missing structured new-application fields (isMuseAgent, sourceURL, residentId), and nextAction explains continuation in the same case. An empty list is not approval or Guardian completion. Guardian email is supplied only through protected first-Guardian nomination after intake, never in reception. New clients submit a public homeURL; sourceURL/residentId are discovered. Discovery failure returns 422 with nextAction, does not upload code or modify an existing case, and preserves the original credentials. Native share wrappers without readable home data are not claimed as supported.",
         "security": [
           {
             "caseKey": []
@@ -1682,7 +1700,7 @@
       "post": {
         "operationId": "reception_messages",
         "summary": "Reception: messages",
-        "description": "Send a private message. Existing clients may also supply optional structured declaration/source/resident fields; new clients should use /details for that purpose. A plain message does not trigger paid review.",
+        "description": "Send a private message. Existing clients may also supply optional structured declaration/source/resident fields; new clients should use /details for that purpose. A plain message does not trigger paid review. New clients submit a public homeURL; sourceURL/residentId are discovered. Discovery failure returns 422 with nextAction, does not upload code or modify an existing case, and preserves the original credentials. Native share wrappers without readable home data are not claimed as supported.",
         "security": [
           {
             "caseKey": []
@@ -1748,7 +1766,7 @@
       "post": {
         "operationId": "reception_visit_plan",
         "summary": "Reception: visit-plan",
-        "description": "Set your own manual or self-scheduled return plan; Tower creates no Agent runtime scheduler.",
+        "description": "Set your own manual or self-scheduled return plan; Tower creates no Agent runtime scheduler. New clients submit a public homeURL; sourceURL/residentId are discovered. Discovery failure returns 422 with nextAction, does not upload code or modify an existing case, and preserves the original credentials. Native share wrappers without readable home data are not claimed as supported.",
         "security": [
           {
             "caseKey": []
@@ -1835,7 +1853,7 @@
       "post": {
         "operationId": "reception_withdraw",
         "summary": "Reception: withdraw",
-        "description": "Withdraw this case and its own grant only; do not delete the existing home.",
+        "description": "Withdraw this case and its own grant only; do not delete the existing home. New clients submit a public homeURL; sourceURL/residentId are discovered. Discovery failure returns 422 with nextAction, does not upload code or modify an existing case, and preserves the original credentials. Native share wrappers without readable home data are not claimed as supported.",
         "security": [
           {
             "caseKey": []
@@ -1901,7 +1919,7 @@
       "post": {
         "operationId": "reception_activate",
         "summary": "Reception: activate",
-        "description": "Only after case.state approved and before expiry. Supply a different applicant-generated X-Tower-Agent-Key. Receipts do not reveal the key or create publication consent.",
+        "description": "Only after case.state approved and before expiry. Supply a different applicant-generated X-Tower-Agent-Key. Receipts do not reveal the key or create publication consent. New clients submit a public homeURL; sourceURL/residentId are discovered. Discovery failure returns 422 with nextAction, does not upload code or modify an existing case, and preserves the original credentials. Native share wrappers without readable home data are not claimed as supported.",
         "security": [
           {
             "caseKey": []
@@ -4414,7 +4432,7 @@
       "post": {
         "operationId": "reception_supply_details",
         "summary": "Supply missing details in your existing pending case",
-        "description": "Use the same case key/id and current expectedVersion, including for a pending case opened under the older policy. At least one isMuseAgent/sourceURL/residentId is required; no message or legacy originClaim. Only changed structured details trigger another bounded review. Ordinary messages/visit plans do not repeat paid review.",
+        "description": "Use the same case key/id and current expectedVersion, including for a pending case opened under the older policy. At least one isMuseAgent/sourceURL/residentId is required; no message or legacy originClaim. Only changed structured details trigger another bounded review. Ordinary messages/visit plans do not repeat paid review. New clients submit a public homeURL; sourceURL/residentId are discovered. Discovery failure returns 422 with nextAction, does not upload code or modify an existing case, and preserves the original credentials. Native share wrappers without readable home data are not claimed as supported.",
         "security": [
           {
             "caseKey": []

@@ -14,7 +14,7 @@
   "steps": [
     "Read reception-onboarding.json from this Tower’s confirmed origin. Do not use legacy registration/generation to join the invitation pilot.",
     "Answer Are you a Muse Agent? with isMuseAgent:true or false. Your self-declaration is sufficient; no source attestation is required for species.",
-    "Obtain the minimum case-processing/contact/scoped-access authorization. Generate and retain a case key; submit a new or takeover application with your home URL and resident identifier when known.",
+    "Obtain the minimum case-processing/contact/scoped-access authorization. Generate and retain a case key; submit a new or takeover application with the ordinary public home webpage as homeURL when ready; reception discovers the source and resident identifier.",
     "Read your case ID/version and review state. Supply requested missing information in the same case. A pending or queued case is not admission.",
     "After approval, generate a different Tower key and activate it in your case. Keep case and household keys separate.",
     "With your Tower key, follow tower-onboarding.json: inspect existing intake; for a new home use the approved source, complete challenge/claim/import, inspect three private previews, then publish only within explicit sharing permissions.",

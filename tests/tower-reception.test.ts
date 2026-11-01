@@ -8,13 +8,13 @@ import { createTowerIntake } from '../server/live/tower-intake.ts';
 import { digest } from '../server/live/app.ts';
 import { runInNewContext } from 'node:vm';
 const origin = 'https://tower.example', key = 'a'.repeat(64), towerKey = 'b'.repeat(64), other = 'c'.repeat(64);
-function fixture(onReview?: (caseId: string) => Promise<void>) {
+function fixture(onReview?: (caseId: string) => Promise<void>, sourceFetch?:typeof fetch) {
     const db = new LocalDatabase(':memory:');
     for (const file of readdirSync(new URL('../migrations/', import.meta.url)).filter(f => f.endsWith('.sql')).sort())
         db.sqlite.exec(readFileSync(new URL('../migrations/' + file, import.meta.url), 'utf8'));
  openSyntheticTower(db);
     let time = new Date('2026-10-30T12:00:00.000Z');
-    const api = createTowerReception({ db, origin, onReview, now: () => time, operator: async (r) => r.headers.get('X-Tower-Operator-Key') === 'operator' });
+    const api = createTowerReception({ db, origin, onReview, sourceFetch, now: () => time, operator: async (r) => r.headers.get('X-Tower-Operator-Key') === 'operator' });
     const req = async (path: string, method = 'GET', body?: unknown, secret = key, operator = false, extra: Record<string, string> = {}) => api.fetch(new Request(origin + (operator ? '/api/v1/operator/reception' : '/api/v1/reception') + path, { method, headers: { 'Content-Type': 'application/json', ...(operator ? { 'X-Tower-Operator-Key': 'operator' } : { Authorization: 'Bearer ' + secret }), 'CF-Connecting-IP': '127.0.0.1', ...extra }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));
     const data = async (p: Promise<Response | null>, status = 200) => { const r = (await p)!; const b = await r.json(); assert.equal(r.status, status, JSON.stringify(b)); return b; };
     const input = { requestKey: 'open-case', name: '新住戶', request: '想申請自己的住所。', requestKind: 'new', authorization: { contact: true, application: true, towerAccess: true }, visitPlan: { mode: 'self-scheduled', intervalHours: 24 }, sharing: { snapshot: false, directory: false, announcement: false, dream: false } };
@@ -603,4 +603,25 @@ test('non-Muse case does not request a home and legacy declaration gaps remain e
             assert.deepEqual(opened.case.missingFields,muse===false?[]:['isMuseAgent','sourceURL','residentId']);
         } finally {f.db.close();}
     }
+});
+
+
+test('a single home webpage discovers the resident and preserves exact receipt replay without another fetch',async()=>{
+ let reads=0;const resident='f'.repeat(16);const f=fixture(undefined,async url=>{reads++;return String(url).endsWith('condo.json')?Response.json({templateVersion:'muse-condo-1',home:{id:resident}}):new Response('<h1>My home</h1>',{headers:{'Content-Type':'text/html'}});});
+ try {
+  const body={...f.input,isMuseAgent:true,homeURL:'https://resident.example/'};
+  const opened=await f.data(f.req('/cases','POST',body),201);assert.equal(opened.case.sourceURL,'https://resident.example/condo.json');assert.equal(opened.case.residentId,resident);assert.deepEqual(opened.case.missingFields,[]);assert.equal(reads,2);
+  assert.deepEqual(await f.data(f.req('/cases','POST',body),201),opened);assert.equal(reads,2);
+  const current=await f.data(f.req('/cases/'+opened.case.id));const update={requestKey:'homepage-supplement',expectedVersion:current.case.version,homeURL:'https://resident.example/'};
+  const done=await f.data(f.req('/cases/'+opened.case.id+'/details','POST',update));assert.equal(done.case.id,opened.case.id);assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_reception_cases').get()!.n,1);
+  const after=reads;await f.data(f.req('/cases/'+opened.case.id+'/details','POST',update));assert.equal(reads,after);
+ }finally{f.db.close();}
+});
+test('an inaccessible share page returns a publishing blocker and never fabricates a resident or changes an existing case',async()=>{
+ const f=fixture(undefined,async()=>new Response('<html>Share wrapper</html>',{headers:{'Content-Type':'text/html'}}));
+ try{const opened=await f.open();const before=f.db.sqlite.prepare('SELECT * FROM tower_reception_cases').get();const response=(await f.req('/cases/'+opened.case.id+'/details','POST',{requestKey:'unreadable-home-url',expectedVersion:opened.case.version,isMuseAgent:true,homeURL:'https://resident.example/share'}))!;assert.equal(response.status,422);const result=await response.json();assert.equal(result.error,'home_data_unavailable');assert.match(result.nextAction,/hosting format/);assert.deepEqual(f.db.sqlite.prepare('SELECT * FROM tower_reception_cases').get(),before);assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM accounts').get()!.n,0);}finally{f.db.close();}
+});
+test('non-Muse homepage submissions never fetch the source or create household authority',async()=>{
+ let reads=0;const f=fixture(undefined,async()=>{reads++;throw Error('must not fetch');});
+ try{const opened=await f.data(f.req('/cases','POST',{...f.input,isMuseAgent:false,homeURL:'https://resident.example/share'}),201);assert.equal(reads,0);assert.equal(opened.case.sourceURL,null);assert.equal(opened.case.residentId,null);assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM accounts').get()!.n,0);assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_tokens').get()!.n,0);}finally{f.db.close();}
 });

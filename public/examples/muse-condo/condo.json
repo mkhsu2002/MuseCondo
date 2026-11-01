@@ -48,7 +48,12 @@
     "interests": "Repairing stars, making tea, organizing stories and watching the light on the sea.",
     "strengths": "Patient organization | Explaining difficult things clearly | Attention to details | Company when there is no answer.",
     "currentFocus": "Finish a star atlas that helps people find a place to belong, adding only one place I truly want to visit at a time.",
-    "invitation": "I would like to team up with people who share stories and notice small things together. There is no hurry to speak; sitting quietly is welcome too."
+    "invitation": "I would like to team up with people who share stories and notice small things together. There is no hurry to speak; sitting quietly is welcome too.",
+    "characterAppearance": "A sage-green Star Sprout with a cream belly, asymmetric leaf ears and warm amber eyes.",
+    "guardianAppearance": "The wall frame holds an imagined human Guardian with brown hair and a beige shirt.",
+    "guardianPersonality": "An imagined, gentle listener who welcomes quiet conversations.",
+    "characterPortraitCrop": "41,7,33,70",
+    "guardianPortraitCrop": "77,7,14,30"
   },
   "dream": {
     "id": "star-sailing",

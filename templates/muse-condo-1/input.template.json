@@ -77,6 +77,26 @@
     "invitation": {
       "description": "",
       "evidenceIds": []
+    },
+    "characterAppearance": {
+      "description": "",
+      "evidenceIds": []
+    },
+    "guardianAppearance": {
+      "description": "",
+      "evidenceIds": []
+    },
+    "guardianPersonality": {
+      "description": "",
+      "evidenceIds": []
+    },
+    "characterPortraitCrop": {
+      "description": "",
+      "evidenceIds": []
+    },
+    "guardianPortraitCrop": {
+      "description": "",
+      "evidenceIds": []
     }
   },
   "dream": {

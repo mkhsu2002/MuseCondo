@@ -83,3 +83,15 @@ test('sanitizer preserves pixels and valid transparency, strips metadata and zli
  const tagged=Buffer.concat([transparent.subarray(0,-12),...extra,transparent.subarray(-12)]);assert.deepEqual(await helper!.sanitizePublicPNG(tagged),new Uint8Array(transparent));
  const invalid=Buffer.concat([original.subarray(0,headerEnd),pngChunk('tRNS',Buffer.from('PRIVATE-SOURCE')),original.subarray(headerEnd)]);await assert.rejects(helper!.sanitizePublicPNG(invalid),/tRNS/);
 });
+
+
+test('adding appearance descriptions preserves the existing home identity and sanitized image bytes',async()=>{
+ const f=await fixture();try{
+  const first=await build(f.file,f.out),image=await readFile(join(f.out,'assets/home.png'));
+  Object.assign(f.input.profile,{characterAppearance:{description:'A green sprout with a blue scarf',evidenceIds:[f.input.seed.evidence[0].id]}});
+  await writeFile(f.file,JSON.stringify(f.input));assert.equal((await build(f.file,f.out)).id,first.id);
+  assert.deepEqual(await readFile(join(f.out,'assets/home.png')),image);
+  assert.deepEqual((await readdir(join(f.out,'assets'))).sort(),['condo.css','home.png']);
+  assert.match(await readFile(join(f.out,'inside.html'),'utf8'),/A green sprout with a blue scarf/);
+ }finally{await rm(f.dir,{recursive:true,force:true});}
+});

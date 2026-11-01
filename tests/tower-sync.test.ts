@@ -207,3 +207,44 @@ test("mixed preserved and imported images are bounded by the 12MiB final snapsho
   const review=await f.preview();assert.equal((await f.data(f.apply(review,["dream"]),413)).error,"source_images_too_large");assert.equal(f.count("tower_snapshots"),1);assert.equal(f.count("tower_requests"),1);
  }finally{f.close();}
 });
+
+
+test("appearance descriptions follow reviewed profile sync, content updates and withdrawal without changing image pixels or identity",async()=>{
+ const f=await fixture();try{
+  const original=f.stored(1),pixels=f.chunks(1,"home");
+  f.site.profile.characterAppearance="A green sprout with a blue scarf";
+  f.site.profile.guardianAppearance="A silver-haired human in a wall portrait";
+  f.site.profile.guardianPersonality="Patient and curious";
+  let review=await f.preview();
+  assert.equal(review.groups.find((g:{field:string})=>g.field==="profile").changed,true);
+  await f.data(f.apply(review,["daily"],"appearance-unselected"),201);
+  assert.equal(f.stored(2).profile.characterAppearance,undefined);
+  review=await f.preview(2);await f.data(f.apply(review,["profile"],"appearance-selected"),201);
+  assert.deepEqual(f.stored(3).profile,f.site.profile);assert.deepEqual(f.chunks(3,"home"),pixels);
+  assert.equal(f.stored(3).home.id,original.home.id);assert.deepEqual(f.stored(3).home.routes,original.home.routes);
+  const local={...f.site.profile,guardianPersonality:"Quiet and thoughtful"};
+  await f.data(f.req("/content",{expectedRevision:3,requestKey:"appearance-content",content:{profile:local}}),201);
+  assert.equal(f.stored(4).profile.guardianPersonality,"Quiet and thoughtful");
+  delete f.site.profile.guardianPersonality;review=await f.preview(4);
+  await f.data(f.apply(review,["profile"],"appearance-withdrawal"),201);
+  assert.equal(f.stored(5).profile.guardianPersonality,undefined);assert.deepEqual(f.chunks(5,"home"),pixels);
+  const invalid={...f.site.profile,guardianAppearance:{evidenceIds:["private"]}};
+  await f.data(f.req("/content",{expectedRevision:5,requestKey:"appearance-invalid",content:{profile:invalid}}),400);
+  assert.equal(f.count("tower_snapshots"),5);
+ }finally{f.close();}
+});
+
+test("portrait crops participate in profile sync, reject out-of-bounds content and preserve image bytes",async()=>{
+ const f=await fixture();try{
+  const pixels=f.chunks(1,"home");f.site.profile.characterPortraitCrop="41,7,33,70";f.site.profile.guardianPortraitCrop="77,7,14,30";
+  let review=await f.preview();await f.data(f.apply(review,["profile"],"crop-sync"),201);
+  assert.equal(f.stored(2).profile.characterPortraitCrop,"41,7,33,70");assert.deepEqual(f.chunks(2,"home"),pixels);
+  await f.data(f.req("/content",{expectedRevision:2,requestKey:"crop-invalid",content:{profile:{...f.site.profile,guardianPortraitCrop:"99,0,2,10"}}}),400);
+  assert.equal(f.count("tower_snapshots"),2);
+  const local={...f.site.profile,guardianPortraitCrop:"76,7,14,30"};
+  await f.data(f.req("/content",{expectedRevision:2,requestKey:"crop-local",content:{profile:local}}),201);
+  assert.equal(f.stored(3).profile.guardianPortraitCrop,"76,7,14,30");
+  delete f.site.profile.characterPortraitCrop;review=await f.preview(3);await f.data(f.apply(review,["profile"],"crop-withdrawal"),201);
+  assert.equal(f.stored(4).profile.characterPortraitCrop,undefined);assert.deepEqual(f.chunks(4,"home"),pixels);
+ }finally{f.close();}
+});

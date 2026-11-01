@@ -28,3 +28,27 @@ test('rejects hidden and accessor reference array values without executing acces
  const inherited=condoFixture();Object.setPrototypeOf(inherited.review.checks,{privacy:true});assert.throws(()=>validate(inherited));
  const expanded=condoFixture();Object.assign(expanded.artwork,{avatar:{file:'art/avatar.png',alt:'不需要獨立人像'}});assert.throws(()=>validate(expanded));
 });
+
+test('optional public-safe appearance descriptions retain private evidence and legacy compatibility',()=>{
+ const input=condoFixture();const legacy=project(input);
+ assert.equal(legacy.profile.characterAppearance,undefined);
+ for(const key of ['characterAppearance','guardianAppearance','guardianPersonality'])Object.assign(input.profile,{[key]:{description:`Public ${key}`,evidenceIds:[input.seed.evidence[0].id]}});
+ const site=project(input);
+ assert.equal(site.profile.characterAppearance,'Public characterAppearance');
+ assert.equal(site.profile.guardianAppearance,'Public guardianAppearance');
+ assert.equal(site.profile.guardianPersonality,'Public guardianPersonality');
+ assert.equal(JSON.stringify(site).includes('evidenceIds'),false);
+ assert.equal(site.home.id,legacy.home.id);assert.deepEqual(site.home.assets,legacy.home.assets);
+ Object.assign(input.profile,{characterAppearance:{description:'Invalid source',evidenceIds:['missing']}});
+ assert.throws(()=>validate(input));
+});
+
+test('portrait crops are bounded percentage metadata with private evidence, never CSS or URLs',()=>{
+ const input=condoFixture();
+ for(const key of ['characterPortraitCrop','guardianPortraitCrop'])Object.assign(input.profile,{[key]:{description:'41,7,33,70',evidenceIds:[input.seed.evidence[0].id]}});
+ assert.equal(project(input).profile.characterPortraitCrop,'41,7,33,70');
+ for(const value of ['-1,0,20,20','0,0,0,20','90,0,11,20','0,90,20,11','NaN,0,1,1','Infinity,0,1,1','0,0,1e2,1','0,0,20,20; color:red','https://evil.test','0,0,1,1,1']){
+  Object.assign(input.profile,{characterPortraitCrop:{description:value,evidenceIds:[input.seed.evidence[0].id]}});assert.throws(()=>validate(input),value);
+ }
+ for(const value of ['0,0,100,100','77,7,14,30','0.5,0.5,0.5,0.5']){Object.assign(input.profile,{characterPortraitCrop:{description:value,evidenceIds:[input.seed.evidence[0].id]}});validate(input);}
+});

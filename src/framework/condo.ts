@@ -3,13 +3,25 @@ import {publicHomeProjection} from './projection.ts';
 import {frameworkId, frameworkObject, frameworkString, validateFrameworkSeed} from './validation.ts';
 export const CONDO_TEMPLATE_VERSION = 'muse-condo-1' as const;
 export const CONDO_PROFILE_FIELDS = ['motto','about','interests','strengths','currentFocus','invitation'] as const;
+export const CONDO_APPEARANCE_FIELDS = ['characterAppearance','guardianAppearance','guardianPersonality'] as const;
+export const CONDO_PORTRAIT_CROP_FIELDS = ['characterPortraitCrop','guardianPortraitCrop'] as const;
+export const CONDO_OPTIONAL_PROFILE_FIELDS = [...CONDO_APPEARANCE_FIELDS,...CONDO_PORTRAIT_CROP_FIELDS] as const;
+export const CONDO_ALL_PROFILE_FIELDS = [...CONDO_PROFILE_FIELDS,...CONDO_OPTIONAL_PROFILE_FIELDS] as const;
+/** Percentage rectangle in the existing home scene; never arbitrary CSS or a URL. */
+export function parsePortraitCrop(value:unknown):{x:number;y:number;width:number;height:number}{
+ if(typeof value!=='string'||value.length>100||!/^\d+(?:\.\d+)?,\d+(?:\.\d+)?,\d+(?:\.\d+)?,\d+(?:\.\d+)?$/.test(value))throw Error('condo: invalid portrait crop');
+ const [x,y,width,height]=value.split(',').map(Number);
+ if(![x,y,width,height].every(Number.isFinite)||x<0||y<0||width<=0||height<=0||width>100-x||height>100-y)throw Error('condo: invalid portrait crop');
+ return {x,y,width,height};
+}
 export const CONDO_ARTWORK_KEYS = ['home','dream'] as const;
 export const CONDO_REVIEW_CHECKS = ['sameSpecies','sameStyle','selfInHome','activity','ownerHuman','ownerInHome','window','dreamGrounded','privacy'] as const;
-export type CondoProfile = Record<typeof CONDO_PROFILE_FIELDS[number],string>;
+export type CondoProfile = Record<typeof CONDO_PROFILE_FIELDS[number],string> & Partial<Record<typeof CONDO_OPTIONAL_PROFILE_FIELDS[number],string>>;
+type PrivateCondoProfile = Record<typeof CONDO_PROFILE_FIELDS[number],EvidenceDesign> & Partial<Record<typeof CONDO_OPTIONAL_PROFILE_FIELDS[number],EvidenceDesign>>;
 export interface CondoInput {
  templateVersion:typeof CONDO_TEMPLATE_VERSION;
  seed:FrameworkSeed;
- profile:Record<typeof CONDO_PROFILE_FIELDS[number],EvidenceDesign>;
+ profile:PrivateCondoProfile;
  dream:{entryId:string;wish:EvidenceDesign};
  artwork:Record<typeof CONDO_ARTWORK_KEYS[number],{file:string;alt:string}>;
  review:{digests:Record<typeof CONDO_ARTWORK_KEYS[number],string>;checks:Record<typeof CONDO_REVIEW_CHECKS[number],true>};
@@ -39,8 +51,10 @@ export function validateCondoInput(input:unknown):CondoInput{
  if(root.example!==undefined&&root.example!==true)fail('example');
  const seed=validateFrameworkSeed(root.seed),evidence=new Set(seed.evidence.map(item=>item.id));
  const design=(value:unknown,path:string):EvidenceDesign=>{const item=frameworkObject(value,['description','evidenceIds'],path);return {description:frameworkString(item.description,2000,path),evidenceIds:references(item.evidenceIds,evidence,path)};};
- const suppliedProfile=frameworkObject(root.profile,CONDO_PROFILE_FIELDS,'profile');
+ const suppliedProfile=frameworkObject(root.profile,CONDO_ALL_PROFILE_FIELDS,'profile');
  const profile=Object.fromEntries(CONDO_PROFILE_FIELDS.map(key=>[key,design(suppliedProfile[key],`profile.${key}`)])) as CondoInput['profile'];
+ for(const key of CONDO_OPTIONAL_PROFILE_FIELDS)if(suppliedProfile[key]!==undefined)profile[key]=design(suppliedProfile[key],`profile.${key}`);
+ for(const key of CONDO_PORTRAIT_CROP_FIELDS)if(profile[key]!==undefined)parsePortraitCrop(profile[key]!.description);
  const suppliedDream=frameworkObject(root.dream,['entryId','wish'],'dream'),entryId=frameworkId(suppliedDream.entryId,'dream.entryId');
  const entry=seed.dreams.find(item=>item.id===entryId);
  if(!entry||!entry.evidenceIds.some(id=>seed.evidence.some(item=>item.id===id&&(item.source==='dreams'||item.source==='ALIGNMENT_SYNTHESIS'))))fail('dream.source');
@@ -61,5 +75,5 @@ export function publicCondoProjection(input:unknown,id:string):PublicCondoSite{
  const entry=data.seed.dreams.find(item=>item.id===data.dream.entryId)!;
  const publish=data.seed.consent.publishDreams&&entry.publication==='public';
  home.dreams=publish?[{id:entry.id,type:'dream',title:entry.title,body:entry.body,occurredAt:entry.occurredAt,image:'./assets/dream.png',...(entry.reflection?{reflection:entry.reflection}:{})}]:[];
- return {templateVersion:CONDO_TEMPLATE_VERSION,home,homeAlt:data.artwork.home.alt,profile:Object.fromEntries(CONDO_PROFILE_FIELDS.map(key=>[key,data.profile[key].description])) as CondoProfile,dream:publish?{id:entry.id,title:entry.title,body:entry.body,occurredAt:entry.occurredAt,...(entry.reflection?{reflection:entry.reflection}:{}),wish:data.dream.wish.description,image:{src:'./assets/dream.png',alt:data.artwork.dream.alt}}:null,example:data.example===true};
+ return {templateVersion:CONDO_TEMPLATE_VERSION,home,homeAlt:data.artwork.home.alt,profile:Object.fromEntries(CONDO_ALL_PROFILE_FIELDS.flatMap(key=>data.profile[key]===undefined?[]:[[key,data.profile[key]!.description]])) as CondoProfile,dream:publish?{id:entry.id,title:entry.title,body:entry.body,occurredAt:entry.occurredAt,...(entry.reflection?{reflection:entry.reflection}:{}),wish:data.dream.wish.description,image:{src:'./assets/dream.png',alt:data.artwork.dream.alt}}:null,example:data.example===true};
 }

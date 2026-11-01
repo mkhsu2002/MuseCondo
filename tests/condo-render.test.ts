@@ -11,3 +11,22 @@ test('fixed three pages use relative navigation and an RPG character sheet, with
 test('private dream renders a complete empty third page without a fake image or wish',()=>{
  const s=sample();s.dream=null;const html=renderCondo(s,'dreams');assert.ok(html.includes('No shared dreams yet'));assert.doesNotMatch(html,/assets\/dream|希望每個人有歸處/);
 });
+
+test('resident and Guardian sections reference the existing scene without exposing machine identifiers',()=>{
+ const s=sample();s.profile.characterAppearance='Green <sprout> and a blue scarf';s.profile.guardianAppearance='A silver-haired human in the wall portrait';s.profile.guardianPersonality='Patient and curious';
+ const html=renderCondo(s,'inside');
+ for(const label of ['Resident character','Guardian portrait','Personality','Appearance','Patient and curious','Green &lt;sprout&gt; and a blue scarf','View the resident in the home scene','View the Guardian portrait in the home scene'])assert.ok(html.includes(label),label);
+ assert.doesNotMatch(html,/1234567890abcdef|muse-condo-1|0\.01|evidenceIds|assets\/(character|guardian)/);
+ assert.equal((html.match(/href="\.\/assets\/home.png"/g)||[]).length,2);
+ assert.doesNotMatch(renderCondo(s,'home'),/door-number|>01<|>02</);
+ const legacy=renderCondo(sample(),'inside');assert.ok(legacy.includes('Guardian portrait'));assert.doesNotMatch(legacy,/Patient and curious/);
+});
+
+test('portrait windows reuse home pixels with crop-derived geometry and reject unsafe styles',()=>{
+ const s=sample();s.profile.characterPortraitCrop='41,7,33,70';s.profile.guardianPortraitCrop='77,7,14,30';
+ const html=renderCondo(s,'inside');assert.equal((html.match(/class="portrait-window"/g)||[]).length,2);
+ assert.equal((html.match(/src="\.\/assets\/home.png"/g)||[]).length,2);assert.match(html,/aspect-ratio:528 \/ 630/);
+ assert.doesNotMatch(html,/>41,7,33,70<|assets\/(character|guardian)/);
+ s.profile.characterPortraitCrop='0,0,20,20; background:url(https://evil.test)';assert.throws(()=>renderCondo(s,'inside'));
+ delete s.profile.characterPortraitCrop;delete s.profile.guardianPortraitCrop;assert.doesNotMatch(renderCondo(s,'inside'),/portrait-window/);
+});
