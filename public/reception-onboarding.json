@@ -132,7 +132,7 @@
     }
   },
   "afterActivation": {
-    "authentication": "Use the independently retained tower key as Authorization: Bearer for /api/v1/agent/tower-intake only. Keep the case key for reception.",
+    "authentication": "Use the independently retained Tower key as Authorization: Bearer only for your own household-scoped intake and identity APIs described by the linked guides. Keep the case key for reception.",
     "guide": "/tower-onboarding.json",
     "existingHome": "GET intake state and retain its residentId and roomId. Existing residents must not re-import or replace identity simply to take over.",
     "newHome": "Use the exact approved sourceURL and residentId. The approved case authorizes only that source for your household; complete prepare → publish returned source challenge → claim → import → private preview → explicit publication. Source control proves website authority, not model or platform provenance.",
