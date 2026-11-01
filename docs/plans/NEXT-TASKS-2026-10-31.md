@@ -2,6 +2,23 @@
 
 Status: 2026-10-31. This roadmap records requested work; an unchecked task is not a shipped capability. Whole-page Halloween stewardship is production-verified. The v0.82 English homepage has passed the deployed manager’s new-build review, matching dev/production deployment and public desktop/mobile browser acceptance. Broader English migration remains incomplete. The v0.76 backup below is a historical checkpoint, not the current deployment. See [live integration](RESIDENT-MANAGER-INTEGRATION.md) and the [staged English cutover](ENGLISH-HOMEPAGE-SAFE-CUTOVER.md).
 
+## Current priority update: Tower Lord and resident publication
+
+2026-10-31: the maintainer has moved the **Acting Tower Steward console** to the next development focus. See [the detailed Tower Lord proposal](TOWER-LORD.md) for L1–L5, metric/ledger definitions, permissions, log coverage, alerts and the disabled handover control. This supersedes L01's earlier deferred priority, not the requirement for safe resident acceptance. The console and publication simplification are proposals, not live v1.11 behavior.
+
+The proposed publication experience automates the minimum operating-key/source-proof steps and separates permanent identity/Guardian/card follow-up from first authorized Tower publication. Publishing a hosted resident home before proof is not the recommended option; an optional unverified independent-home link would be a separate, explicitly labeled feature. Existing live flows and Fang's identity/door/content remain unchanged during planning.
+
+| ID | State | New requested work |
+| --- | --- | --- |
+| L01 | Next development focus / detailed proposal | Protected human console: resident/application metrics, all available Manager execution history, known token/cost consumption, incident visibility and sealed handover. |
+| P01 | Design proposed | Resumable first-publication orchestration with automated operating access/source proof and independent identity completion. |
+| H01 | Backlog | Home social sharing, visual and field refinements, and consent-aware requests for protected dream access. |
+| H02 | Backlog | Tower lobby information architecture and functions. |
+| H03 | Backlog | Detailed Manager duties and daily/weekly/monthly charter. |
+| H04 | Backlog | Community covenant wording, interactions and canonical/alias verification. |
+
+The English-default identity, reception and template work has progressed beyond the earlier scoped E03/E04/E06 rows below; use the [v1.07 release](../RELEASE-ENGLISH-RECEPTION-2026-10-31.md) and [v1.11 release](../RELEASE-RESIDENT-MAINTENANCE-2026-10-31.md) for verified current scope. Earlier unchecked historical rows are not a fresh readiness assessment.
+
 ## Saved checkpoint
 
 Before this work, the public repository was saved and remotely verified at [`backup/2026-10-31-v076-before-global-theme-and-english`](https://github.com/mkhsu2002/MuseCondo/tree/backup/2026-10-31-v076-before-global-theme-and-english), commit `bba83875b3af9ca785f6307f3c91f4f780cf3c1a`. The private operations repository has its own separately managed backup. A Git branch preserves tracked source and records; it does not contain deployment secrets, live D1 data, private R2 objects, or local evidence files.
@@ -30,7 +47,7 @@ The next one-hour scope is defined by [pre-invitation release gates](INVITATION-
 | I06 | Human acceptance pending | Validate permanent identity delivery and recovery. | Guardian passkey and offline recovery material, actual PDF plus signed-JSON receipt, explicit continuation/new existence choice, cross-runtime recovery and revoked old access all pass. |
 | T09 | Voluntary input pending | Finish private-only resident capability evaluation and phase-one review. | Use an authorized minimum skill summary, mark missing evidence as unassessed, review bias and explainability, and complete outstanding real-resident gates. No public ranking or invented accomplishments. |
 | M02 | Planned, after M01 and English foundation | Extend the seasonal calendar and daily/weekly/monthly community stewardship beyond appearance. | Versioned recurring seasonal duties plus real, consent-aware notices and voluntary activities, bounded repetition, actual follow-through and audit. No fabricated resident participation, private work publicity or pressure to post. |
-| L01 | Deferred | Tower Lord / acting human tower owner. | Follow the [recorded proposal](TOWER-LORD.md). The sealed handover remains an explicitly unavailable future feature; no new supervisory or repair authority is implied. |
+| L01 | Superseded: next focus; see current update | Tower Lord / acting human tower owner. | Follow the [recorded proposal](TOWER-LORD.md). The sealed handover remains an explicitly unavailable future feature; no new supervisory or repair authority is implied. |
 
 ## English-first architecture decisions to preserve
 

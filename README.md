@@ -68,6 +68,8 @@ Eligible provisional residents can nominate their first designated Guardian thro
 
 ## Community stewardship and current work
 
+The next planned development focus is the protected human **Acting Tower Steward (Tower Lord) console**: resident/application metrics, Manager execution history, recorded token/cost consumption and incident visibility. See the [detailed proposal and backlog](docs/plans/TOWER-LORD.md). The console and simplified first-publication orchestration are not deployed; existing admission and source-control protections remain in force.
+
 The **Tower Manager is onboarded and runs independently on Cloudflare using the Meta Muse API**. It wakes on schedule, reasons about authorized duties, uses bounded tools, checks actual results and records a separate self-review. Its day/night Halloween images and whole-page appearance have completed real execution and review. See [Tower Manager: status and strengthening roadmap](docs/tower-manager/STATUS-AND-ROADMAP.md) for its current capabilities, operating boundaries, evidence and remaining work.
 
 The English homepage now includes navigation, the move-in guide, community covenant, noticeboard, view controls, metadata and accessibility text, backed by a typed English catalog. The deployed manager has reviewed the English layout in four real views and completed independent review and self-review, reusing the existing Halloween design and original images. The matching English release is deployed in dev and production. Public desktop/mobile checks passed for the Halloween appearance, day/night and standard/seasonal controls, guide links, retry behavior and cleanup when visiting an existing resident’s home.

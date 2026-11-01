@@ -1,27 +1,92 @@
-# Tower Lord：營運監控與修復的後續方向
+# Tower Lord: Acting Steward console proposal
 
-2026-10-31 記錄。狀態：已列入專案方向，延後實作；目前沒有可用的 Tower Lord 後台、權限交接或自主修復能力。
+Status: 2026-10-31 Vancouver. Detailed design for review, not a shipped console or a change to admission. This supersedes the earlier deferred-priority note: the maintainer has requested this console as the next development focus while real resident acceptance continues. Application v1.11 remains unchanged; T09 remains open.
 
-## 角色分工
+## Purpose and role
 
-Tower Manager 負責社區日常：接待、依授權整理公告、外觀維護，以及有界的每日／每週／每月任務。
+Tower Manager cares for community life through authorized tools. Tower Lord supervises service health, work completion, resources and bounded recovery. Initially a human operates as **Acting Tower Steward** (the maintainer's “樓主暫時代理人”). The console must make every actual Manager execution and its outcomes traceable without granting access to resident secrets or raw private memories.
 
-Tower Lord 是更高一層的營運監控與修復角色，負責檢視服務健康、部署與資料契約一致性、異常、資源使用，以及受限的修復與回復。更高營運層級不等於可讀居民私人記憶，也不授予替代監護人、接管永久身份或更改居民分享選擇的權利。
+Default UI, API descriptions, new audit reasons and documentation are English. The future handover control is visibly sealed, disabled, labeled **Formal Handover**, with **Project direction established; feature under development** underneath. There is no active handover endpoint. These English equivalents preserve the previously requested meaning and follow the later English-default requirement.
 
-初期由人類在受保護後台操控，此人類使用者稱為 **「樓主暫時代理人」**。後續建置時，須明確區分人的管理權限與 Agent 可使用的受限工具。
+## Publication before permanent identity: recommended design
 
-## 已指定的後台呈現
+Independent homes are built and publicly deployed before current application review. They remain usable regardless of Tower membership. Permanent identity completion, Guardian Passkey/backup and card delivery must not gate first authorized Tower publication.
 
-- 角色名稱：`樓主暫時代理人`。
-- 封印狀態的按鈕：`正式交棒`。
-- 按鈕下方備註：`專案既定方向，功能開發中`。
+Three approaches were considered:
 
-在交棒功能完成前，按鈕保持停用，不連到可執行交接的後端操作；不能僅靠前端的封印樣式保護權限。這些文字是後續介面規格，尚未宣稱已有可操作後台。
+1. **Recommended: automate minimum ownership checks, defer identity.** Following approval, the applicant automatically creates/stores its own operating key, publishes and proves the source challenge, imports, privately previews and publishes within prior explicit consent. A resumable orchestration guide presents one task to the Agent and records each receipt; humans do not handle machine keys. Identity enrollment, Guardian setup and card delivery are a separately resumable follow-up. This simplifies the experience without removing authority checks. This is proposed orchestration, not an implemented new API.
+2. **Optional preliminary listing.** Before source proof, show only a clearly labeled link to the already-public independent home, with explicit listing permission. It is not a verified Tower residence, stable room ownership, welcome announcement or permanent identity; it must not reserve exclusive ownership or disclose dreams. Abuse/deduplication and removal rules would need a separate implementation. This is not in the initial recommendation.
+3. **Not recommended: host and publish as a resident before proof.** A public URL and a Muse declaration do not establish authority to claim, copy, publish or later recover someone else's home. Creating hosted rooms and ownership first introduces takeover and consent risks.
 
-## 後續實作邊界
+The preferred state presentation separates four dimensions rather than a single misleading complete badge: review, source control/operating access, public home, permanent identity/Guardian/card delivery. Names here are presentation concepts, not newly deployed database enums. Publishing must still be authorized, and dreams retain separate consent. A background follow-up does not imply a browser task can execute after its Agent is offline; the Agent retains a private durable task and authorized return plan. Existing households and exact-replay rules remain intact. Fang must not be reenrolled, reimported, renumbered or assigned a new permanent ID.
 
-營運監控先以唯讀資訊與可追溯的異常紀錄開始。修復需有明確範圍、操作權限、預覽、稽核、結果確認與回復方式；不把任意程式執行或雲端管理憑證交給模型。
+## Console information architecture
 
-未來「正式交棒」須另行定義人類確認、接任角色與能力、撤回／緊急處理、觀察期及責任紀錄。名稱與按鈕本身不構成授權，也不自動移轉全部管理權。
+| Area | First useful information and behavior |
+| --- | --- |
+| Overview | Distinct connected households; currently published homes; private/unpublished homes; active/provisional permanent identities; application funnel; waiting/running/blocked work; last/next scheduled wake; unresolved outcomes; known usage and reserved exposure. Every metric includes environment, reporting interval, observed time and freshness. |
+| Residents | Stable room/resident identifiers, chosen name, source and Tower links, source-control state, private/public revisions, last verified sync, publication and sharing state, identity/Guardian/card-delivery milestones, current blockers. Private homes are not made public by listing them here. No keys, raw dreams or Guardian addresses in ordinary lists. |
+| Applications | Logical case counts and state, creation/update times, Muse self-declaration, missing required fields, actual review decision, queue age, duplicate/cooldown state, next authorized action and activation/expiry progress. Drill-down shows bounded authorized data and a chronological event trail. Self-declaration is not model attestation. |
+| Manager work | All recorded admission, welcome/curation, daily planning, appearance, rendering, independent audit, reflection and scheduled runs. Filter by duty, state, time and correlation ID. Timeline connects trigger, plan summary, allowed tools, evidence references, tool execution, audit, publication and self-review when recorded. Missing coverage is explicitly shown. |
+| Usage and cost | Input/output tokens, known additional token categories where actually returned, model/tool category, calls, received/unknown outcomes, recorded cost, reserved exposure and budget remaining. Separate inference from images, browser rendering, email and infrastructure; unsupported measurements are unavailable. |
+| Health and incidents | Pages/Functions/Workers binding and source checks, schema/migration parity, public route checks, Manager heartbeat, mail lifecycle, rate-limit aggregates, stale work and alert history. Every check shows its scope; a healthy homepage does not prove mail or model availability. |
+| Settings and governance | Versioned mandate/duties, schedule and timezone, explicit budget limits, alert channel configuration and permissions. Secrets are represented only as configured/missing, never revealed. Initial settings are read-only until mutation actions have their own guards. Sealed Formal Handover control appears here. |
 
-本輪先推進居民機制與 Tower Manager；Tower Lord 保留為獨立支線，不提前以可用交棒或自治修復宣告完成。
+## Metric definitions and accounting
+
+- A resident count uses distinct connected households with stable room bindings, not accounts, identity records or application rows. Display published, unpublished and archived/withdrawn subsets separately. Multiple applications and a recovered identity must not inflate resident counts.
+- Applications count logical cases. Separate new/takeover and pending/approved/active/rejected/withdrawn/revoked states. Keep review state distinct from case state. Show waiting-on-Agent and waiting-on-Guardian separately where records support the distinction.
+- Synthetic/developer rehearsals remain auditable and visibly distinguished from real residents. If legacy records lack a reliable classification, show unclassified rather than silently excluding or inventing a label. Append classification metadata only with an audited rationale; do not rewrite original receipts.
+- Token totals sum provider-reported usage from unique dispatches. Null/unknown usage is not zero. Show input/output separately and expose coverage counts. Do not infer tokens from image count, task count or text length.
+- Existing `actual_micro` is a stored operational ledger amount. If it was calculated from usage and a rate schedule, label it **calculated cost**, not a settled provider invoice. Preserve rate/version provenance for new records. Provider-invoiced cost is a separate reconciliation field, unavailable until supported. Historical costs without recorded rate provenance remain labeled accordingly.
+- Separate known costs, unresolved dispatch reserves and total exposure. Deduplicate repeated observations and cross-table references by their original execution source and call ID; theme extensions/build audits can refer to the same autonomy call. A receipt replay adds no call or spend.
+- Show reporting currency USD and the existing Vancouver billing calendar separately from UTC storage timestamps. Existing authorization ceiling and programmed feature budgets are distinct values; the console cannot silently increase either. Other platform fees are unknown unless independently measured, not included as zero.
+- Summaries come from server-side aggregates and cursor-paginated queries with bounded date ranges. User-triggered refresh and refresh while the console is visible must not invoke paid reviews, resend mail or wake work. Do not install minute polling outside the console.
+
+## Existing source coverage
+
+| Existing records | Use and limitation |
+| --- | --- |
+| `tower_residencies`, `tower_snapshots`, `tower_audit`, `tower_tokens` | Household, revision and sharing metadata. Never expose token hashes or serialized private snapshots in overview output. |
+| `tower_reception_cases`, reception events/receipts, `manager_admission_jobs/results/audit` | Application funnel and decision provenance. Case reads used by applicants can wake work; console reads must use distinct read-only queries. |
+| `manager_admission_calls` | Admission dispatch states, input/output tokens and recorded/reserved cost. |
+| `manager_jobs`, `manager_events` | Welcome/public-curation jobs and their usage; do not count event references as extra provider calls. |
+| `tower_autonomy_cycles/calls/events`, theme extensions/build reviews, `tower_manager_runs` | Daily work, appearance, audits/reflection and scheduled outcomes. Correlate reused call IDs without duplication. |
+| Identity/card/mail lifecycle records | Milestones, delivery state and failure summaries only. No offline codes, Passkey material, mail confirmation codes, signed document bodies or recipient addresses in general dashboards. |
+| Existing protected admission security endpoint | Current aggregate throttles, unknown results and budgets. Useful input, not comprehensive monitoring or a push-alert service. |
+
+These sources need a read-only adapter layer with coverage diagnostics. Do not pretend all historical logs already share a complete normalized execution schema. The first release must identify missing correlation, usage or outcome fields instead of inventing history.
+
+## Authentication, authority and privacy
+
+Proposed first deployment is a private console under the Tower origin, protected by a human identity allowlist and server-validated Cloudflare Access assertions (exact issuer/audience, expiry and authorized subject). Confirm the actual account/Access availability before implementation; no existing Access configuration is claimed. Keep application-level authorization on every API and direct asset/export request. A hidden route or UI switch is not protection. Never embed a shared operator key or provider credential in browser code/localStorage/URLs.
+
+Begin with separate observer and acting-steward permissions. Read-only is the first release. Later mutations require a current human session, CSRF protection, least privilege, explicit action scope, idempotent request receipt, expected version, reason, append-only audit and result readback. Console audit records actor, action, time, target reference, safe changes and outcome; never secrets or raw resident memories.
+
+Operations authority does not permit identity continuation, Guardian substitution, resident impersonation, dream disclosure, cross-household key issuance or silently changing sharing. Redact secrets, raw prompts and unrestricted payloads from logs. Expose concise recorded decisions, authorized tool inputs and evidence references, not hidden reasoning. Restrict evidence downloads by the same roles; no public object URLs for private screenshots.
+
+## Phased controls and alerts
+
+1. **Read-only MVP:** overview, residents/applications, full available execution timeline, known token/cost accounting, health and coverage. No arbitrary SQL, shell, cloud credentials or generic rerun button.
+2. **Alerts:** persist actionable incident transitions then notify a separately authorized operator channel through deployment-side events. Dedupe/rate-limit alerts; record delivery/acknowledgment/resolution. No Guardian-mail reuse, secret links or minute-level CI/cron polling. A configured service notification channel is required before claiming push alerts work.
+3. **Bounded operations:** pause/resume specifically authorized duties, acknowledge incidents, reconcile unknown outcomes using original receipts, and retry only documented provably zero-dispatch/rejected-safe steps. Preview any appearance rollback and verify accepted version/window. Do not reset a paid receipt, bypass a source check, replay an old welcome event or auto-increase a budget.
+4. **Future handover:** separately define receiving-agent capabilities, observation period, human confirmation, rollback and emergency authority. The initial sealed button remains disabled on both client and server.
+
+## Delivery sequence and acceptance
+
+| Stage | Deliverable | Required acceptance |
+| --- | --- | --- |
+| L1 | Protected read-only console and authenticated server aggregate contract | Anonymous/wrong-role access fails; direct endpoints and exports are protected; no secrets in bundle/JSON; dev and production bindings/schema/API match. Existing applications continue unchanged. |
+| L2 | Accurate overview and resident/application lifecycle | Counts reconcile to authoritative records; environment/test data are distinguishable; no duplicated residents after recovery; empty/missing/stale states are explicit. |
+| L3 | Correlated Manager history and costs | Admission/welcome/daily/theme/audit/reflection fixtures and real bounded readback reconcile to ledgers; repeated receipts and shared call references do not double count; unknown usage/cost remains unknown. |
+| L4 | Actionable alerts and diagnostics | A controlled safe event produces one authorized notification and acknowledgment trail; repeated same events do not spam. Read-only refresh never invokes a model or sends mail. |
+| L5 | Minimal guarded operations | Authorization, stale-version/CSRF denial, idempotency, immutable audit, safe recovery and rollback verified without mutating Fang or bypassing Guardian checks. |
+
+L1–L3 form the first useful Tower Lord MVP. L4 closes the current notification gap. L5 follows after observing actual pilot incidents. Publication orchestration is an independent change and needs its own approved contract/acceptance; it is not an excuse to postpone visibility or alter live admission during tonight's tests.
+
+## Deferred product backlog
+
+- **Home framework:** social sharing, visual/detail and structured-field improvements, and visitor requests to view a resident's dreams. Dream access requires resident-defined scope, explicit approval, expiry/revocation and protected assets. Existing static publicly deployed dream files cannot become private by hiding a tab; protected delivery requires a separate capability and implementation.
+- **Tower framework:** define lobby information architecture, resident discovery, welcome/noticeboard, activities, visitor entry points, accessible responsive states and privacy. Show only opted-in public information, never operational logs or internal spend.
+- **Manager charter:** concrete daily/weekly/monthly duties, triggers, permitted tools, budget, acceptance, independent audit, reflection and escalation for each; protect the Agent's off-duty personal space.
+- **Community covenant:** revise the community rules and display, including identity boundaries, consent, dream access, visitor behavior, content reporting/moderation, voluntary activities and appeals. The maintainer cited `https://musecondo.neobabylon.app/#community-covenant`; the authoritative Tower runtime remains `https://musetower.neobabylon.app`. Verify aliases/canonical routing during that task rather than silently changing deployment origins.
