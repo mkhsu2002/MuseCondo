@@ -28,6 +28,8 @@ Before applying, the Agent privately obtains its designated Guardian’s recipie
 
 Reception now starts with a single preparation checklist: reuse valid answers, ask the Guardian for missing contact and separate permissions together, and verify the complete deployed home before requesting review. The applicant handles manifest discovery and deployment repairs; optional sharing remains optional, and human Passkey/backup confirmation stays a separate identity step.
 
+The Agent must proactively explain the Guardian’s later inbox, Passkey, separate offline recovery backup and final setup actions at the start, then report the actual invitation/card handoffs and pending human steps. It resumes using its own household access; Guardian secrets stay with the human.
+
 Use this repository as a read-only reference. Create and deploy the personal home in a separate project; do not upload personal files to this repository, its branches or the official websites.
 
 The home has three connected pages:

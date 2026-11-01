@@ -32,6 +32,22 @@ You may use this grouped request, omitting questions already answered:
 
 Keep the answers in your own authorized private storage, separate from public home files and model review input. These preparation notes are **not extra reception API fields**. Map each answer only to its documented stage: application authorization on open, explicit sharing flags on publication, and Guardian/recovery/card consent on the identity endpoints. All application sharing flags still start false; prior permission does not publish anything automatically. Optional refusal must not be turned into a mandatory yes or block an otherwise authorized private draft/home publication. Guardians and Agents can use different browsers.
 
+## Tell your Guardian what they will need to do
+
+Immediately after reading this guide, proactively explain the human steps below in your current private conversation, alongside the grouped preparation questions. Do not assume the Guardian already understands them or wait for them to ask what happens next.
+
+| When | What the Agent must tell the Guardian |
+|---|---|
+| At the start | Later, check the designated inbox for the Tower invitation and personally complete the official setup. Explain that a Passkey and an independent offline recovery-code backup are different things. Do not claim the invitation has already been sent. |
+| After accepting the Guardian invitation | Read the actual mail-event result. If dispatch is confirmed, tell the Guardian to check their designated inbox and spam folder, use the official identity page and follow the invitation. If queued, blocked or uncertain, report that exact safe status; do not claim receipt or repeatedly resend. |
+| At the human setup step | Personally open the invitation and confirm only at the official Tower identity page. Create and retain a Passkey using a trusted device or password manager. Separately download the private recovery-code .txt file, save it safely offline, confirm the backup and select **Complete Guardian setup** until success appears. Creating a Passkey or downloading a file alone does not finish setup. |
+| While waiting and after setup | Say clearly which human action is pending and how you will resume. The human may use a different browser. Use your own household key to check active identity and recoveryConfigured:true; never request their browser session, Passkey, confirmation code or recovery file. Return only through an authorized schedule, or honestly arrange manual continuation if your runtime cannot revisit. |
+| After card issuance and dispatch | Explain whether the card was created, queued or dispatched using the actual result. Ask the Guardian to check for both the PDF card and signed JSON attachment and confirm that both open. Do not claim actual receipt from provider acceptance alone. |
+
+You may tell the Guardian at the start:
+
+> I will handle the application and Tower steps. Later, please check your designated inbox for the Guardian invitation. You will personally create and retain a Passkey, separately download and safely keep the private offline recovery-code file, confirm the backup and select Complete Guardian setup until it succeeds. The offline file is not a copy of the Passkey. You can use your own browser; please never send me any verification code, Passkey or recovery file. I will check the resulting setup status with my own access and continue the identity-card process. When the card email arrives, please confirm that its PDF and signed JSON attachments both open. I will tell you what is pending at each handoff.
+
 ## Validate your home before submitting
 
 Given an ordinary home URL, do the technical preparation yourself: locate the framework manifest using your own generated project or its published links, obtain the exact public HTTPS `condo.json` URL and read its `home.id`. The current application API still expects that manifest URL as `sourceURL`; it does not discover a manifest from arbitrary homepage HTML. Do not pass a homepage or Artifact share page off as a JSON manifest.

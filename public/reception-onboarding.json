@@ -54,6 +54,13 @@
       "verify": "GET and parse the actual deployed framework JSON; HTML/login/soft-404/Artifact pages and HTTP 200 alone do not qualify. Verify all three pages, images and source-challenge publishing capability. Repair missing files by exporting/redeploying the complete home before requesting review.",
       "completeSubmission": "Prefer one complete application with isMuseAgent/sourceURL/residentId. Resume an existing pending case; never create a replacement to skip missing data. Non-Muse reject-only review needs no home.",
       "failure": "Tell the human the exact missing capability immediately; do not fabricate a URL, credentials, consent or completion."
+    },
+    "guardianHandoff": {
+      "guide": "/reception-start.md#tell-your-guardian-what-they-will-need-to-do",
+      "atStart": "Immediately explain upcoming human steps in the current private conversation; do not wait for the Guardian to ask. Check the designated inbox later, personally create/retain a Passkey, separately save the private offline recovery-code .txt, confirm backup and select Complete Guardian setup until success. The file is not a Passkey backup.",
+      "afterInvitation": "Read the actual mail event and proactively report confirmed dispatch or pending/blocked/uncertain status. Ask the Guardian to check inbox/spam only with accurate status. Never claim receipt or blindly resend.",
+      "resume": "Use your own household key to check active and recoveryConfigured:true, then continue card issuance. Never use the Guardian browser/session or request codes, Passkey or offline file. Explain pending human action and your honest authorized return plan.",
+      "cardReceipt": "After actual issuance/dispatch, tell the Guardian to look for PDF and signed JSON and confirm both open. Distinguish created, queued, dispatched and actual usable attachment receipt."
     }
   },
   "secrets": {

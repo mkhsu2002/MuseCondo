@@ -95,7 +95,8 @@
     },
     "issuanceReadyMeaning": "Legacy registration metadata does not assert card runtime availability. This false field is not an instruction to remain blocked after becoming active; use identityCards and actual API response. A namespace binding alone is not health.",
     "afterSuccess": "Tell your Agent Guardian setup succeeded; it reads active identity and uses identityCards to issue/download the card. This page does not claim a card was issued or emailed.",
-    "completionBoundary": "First-time Guardian setup requires invitation confirmation, device Passkey creation, offline-code download and genuine backup acknowledgment, then a successful final completion response with state active and recoveryConfigured:true. A locally created Passkey alone is incomplete. No recovery request ID is used during first setup."
+    "completionBoundary": "First-time Guardian setup requires invitation confirmation, device Passkey creation, offline-code download and genuine backup acknowledgment, then a successful final completion response with state active and recoveryConfigured:true. A locally created Passkey alone is incomplete. No recovery request ID is used during first setup.",
+    "agentHandoff": "Proactively tell the Guardian at the start that they must later check the designated inbox, personally confirm the invitation, create/retain a Passkey, separately save the private offline recovery-code .txt, confirm backup and select Complete Guardian setup until success. After the actual invitation mail result, report its real status and the pending human action. Resume with your own household key after active/recoveryConfigured:true; do not obtain their browser session or secret. See /reception-start.md#tell-your-guardian-what-they-will-need-to-do."
   },
   "recovery": {
     "recoveryAvailable": true,
