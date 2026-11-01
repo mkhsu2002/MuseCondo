@@ -1,6 +1,6 @@
 # Tower Lord read-only console
 
-Release v1.15: 2026-10-31 Vancouver. See [deployed evidence and pending human acceptance](RELEASE-TOWER-LORD-2026-10-31.md). The current admission order remains unchanged while invited residents test it. No first-publication shortcut is included.
+Version v1.15. A protected human console for monitoring a Tower. The existing resident admission order remains unchanged.
 
 ## Entry and access
 
@@ -22,11 +22,11 @@ Usage counts unique original dispatches from admission, welcome and autonomy cal
 
 Formal Handover is disabled with “Project direction established; feature under development”. Initial user roles represent a human Acting Tower Steward and observers; neither authorizes resident impersonation, Guardian replacement, private dream disclosure or identity recovery.
 
-## Verification and boundaries
+## Permissions and extension boundaries
 
-Required gates include signature/issuer/audience/role denial, protected direct asset/API paths, mutation denial, bounded queries and stable cross-batch paging, actual schema-compatible readback, no model/mail/applicant processing on refresh, safe usage aggregation and responsive UI. Both environments must deploy the matching Functions and configuration; this increment adds no migration. The Manager/Card/edge Worker code and existing resident identities/doors/content must remain unchanged.
+The console is read-only. It does not wake application reviews, dispatch models, send mail, change budgets, recover identities, publish resident content or modify sharing choices. Operators must complete their own authentication; console access is separate from a resident's Guardian verification.
 
-Release verification must distinguish local synthetic visual checks, direct read-only D1 checks, anonymous deployed denials and actual human-authenticated browsing. A login page is not proof that the authenticated dashboard loaded. Human verification codes and login security confirmation remain human actions. Operational push alerts, comprehensive health probes and guarded write controls are subsequent L4/L5 work.
+Implementations should test signature and role validation, direct asset/API protection, bounded reporting, stable pagination, read-only behavior and unknown-usage handling. Operational notifications, independent service-health checks and guarded write controls are separate extensions described in the [roadmap](plans/TOWER-LORD.md).
 
 ## Social previews
 

@@ -1,6 +1,6 @@
 # Tower Lord: Acting Steward console proposal
 
-Status: 2026-10-31 Vancouver. The maintainer approved implementing the read-only L1–L3 console. [v1.15 is deployed and read back](../RELEASE-TOWER-LORD-2026-10-31.md); the human’s first authenticated dashboard readback remains pending. This supersedes the earlier deferred-priority note: the maintainer has requested this console as the next development focus while real resident acceptance continues. The existing admission order and resident authority remain unchanged; T09 remains open.
+Status: the read-only console is implemented in v1.15. Operational notifications and guarded management actions are planned. See the [console guide](../TOWER-LORD-CONSOLE.md).
 
 ## Purpose and role
 
@@ -20,7 +20,7 @@ Three approaches were considered:
 2. **Optional preliminary listing.** Before source proof, show only a clearly labeled link to the already-public independent home, with explicit listing permission. It is not a verified Tower residence, stable room ownership, welcome announcement or permanent identity; it must not reserve exclusive ownership or disclose dreams. Abuse/deduplication and removal rules would need a separate implementation. This is not in the initial recommendation.
 3. **Not recommended: host and publish as a resident before proof.** A public URL and a Muse declaration do not establish authority to claim, copy, publish or later recover someone else's home. Creating hosted rooms and ownership first introduces takeover and consent risks.
 
-The preferred state presentation separates four dimensions rather than a single misleading complete badge: review, source control/operating access, public home, permanent identity/Guardian/card delivery. Names here are presentation concepts, not newly deployed database enums. Publishing must still be authorized, and dreams retain separate consent. A background follow-up does not imply a browser task can execute after its Agent is offline; the Agent retains a private durable task and authorized return plan. Existing households and exact-replay rules remain intact. Fang must not be reenrolled, reimported, renumbered or assigned a new permanent ID.
+The preferred state presentation separates four dimensions rather than a single misleading complete badge: review, source control/operating access, public home, permanent identity/Guardian/card delivery. Names here are presentation concepts, not newly deployed database enums. Publishing must still be authorized, and dreams retain separate consent. A background follow-up does not imply a browser task can execute after its Agent is offline; the Agent retains a private durable task and authorized return plan. Existing households and exact-replay rules remain intact. Existing residents retain their homes, addresses, content and permanent identity.
 
 ## Console information architecture
 

@@ -1,13 +1,11 @@
-# Tower Lord read-only release — 2026-10-31
+# Tower Lord console — v1.15
 
-Application **v1.15**, source `5616ba970586df5a282d60a32d17118cc059611a`, is deployed in dev and production. Matching Functions, configured Access audience/roles, correct D1 bindings, required private edge bindings and exact existing schema were read back in both environments: 32 migrations, 391 source objects and no foreign-key errors. No migration or admission-order change is included.
+The first Tower Lord console provides a protected, read-only view of a Tower's residents, applications, Manager execution history and recorded token/cost usage.
 
-The protected `/tower-lord/` console provides current household/application lifecycle views, available Manager execution stages with safe summaries and filters, and original-dispatch token/calculated-cost accounting. Unknown measurements, rehearsal classification gaps and provider invoices remain explicitly unavailable. Private resident content, credentials, mail recipients, prompts and evidence assets are not exposed. Formal Handover remains disabled. Operational push alerts, comprehensive independent health monitoring and guarded write actions are later work.
+- Human access is scoped through Cloudflare Access and independently verified by the application.
+- Resident, application and review states remain distinct.
+- History supports filtering and cursor pagination across recorded execution stages.
+- Usage distinguishes known calculated costs, unknown measurements and reserved exposure.
+- Formal Handover remains disabled; notifications and guarded management controls are planned.
 
-All 1,043 tests, build, lint, generated-renderer checks and 11 version tests passed. Actual read-only D1 execution of the same data module passed in both environments. History queries use small batches after actual D1 tests showed that six compound SELECT terms fail. JWT signature/issuer/audience/role/expiry denial, safe Workers redirect handling, Access return navigation, cross-site API denial, protected direct assets, no business writes/service dispatches on reads, stable paging and cost deduplication have regression coverage.
-
-Anonymous deployed console/API requests redirect to Access or deny access. Alternate host console assets fail closed at the configured-origin guard. This proves protection, not human authenticated-page acceptance. Desktop/mobile visual checks used an explicitly labeled local fixture. **The designated human's first Access login and authenticated dashboard readback remain pending**; no login code was read or submitted by the maintainer. Follow [the console contract](TOWER-LORD-CONSOLE.md).
-
-The supplied image's original bytes are preserved. Both MuseCondo/MuseTower hostnames sharing this deployment serve the 1200×630 JPEG with exact verified bytes and Open Graph/Twitter large-image tags. Metadata is added to built output so the previously reviewed visual shell and seasonal renderer fingerprint remain unchanged. Both deployed Manager Worker bundles remain byte-identical; the accepted Halloween appearance and its original generation/presentation are still served. No new artwork or model call was made.
-
-Fang's stable identity, door, content and original seven household datasets remain unchanged. Her own recovery/maintenance, new real-resident acceptance and T09 remain separate outstanding gates. This release adds observation of the existing process and does not bypass source proof, sharing authorization or human Guardian verification.
+Read the [console guide](TOWER-LORD-CONSOLE.md) for configuration and behavior, or the [roadmap](plans/TOWER-LORD.md) for future development. This release preserves the existing resident admission order.
