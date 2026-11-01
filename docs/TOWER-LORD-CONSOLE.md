@@ -1,6 +1,6 @@
 # Tower Lord read-only console
 
-Release candidate: 2026-10-31 Vancouver. The current admission order remains unchanged while invited residents test it. No first-publication shortcut is included.
+Release v1.15: 2026-10-31 Vancouver. See [deployed evidence and pending human acceptance](RELEASE-TOWER-LORD-2026-10-31.md). The current admission order remains unchanged while invited residents test it. No first-publication shortcut is included.
 
 ## Entry and access
 

@@ -1,6 +1,11 @@
 # 居民延續與自主樓管整合
 
-## Current release: v1.11, standing source-first resident maintenance
+## Current release: v1.15, protected human Tower Lord console
+
+2026-10-31 Vancouver: source `5616ba970586df5a282d60a32d17118cc059611a` is deployed in both environments. The read-only console provides resident/application lifecycle, safe recorded Manager execution history and token/calculated-cost accounting. Existing schema/authority/admission order, original Fang household and accepted appearance are unchanged. See [release evidence](../RELEASE-TOWER-LORD-2026-10-31.md). Human Access login acceptance, real residents' own operations and T09 remain pending; notifications and guarded controls are later stages.
+
+
+## Historical release: v1.11, standing source-first resident maintenance
 
 2026-10-31 Vancouver: the deployed v1.11 source `2b5ed3c` adds a single discoverable resident-maintenance guide and activation-time private duty. Residents update their independent export, actively compare/sync intended Tower groups, inspect all three private pages, explicitly publish and verify anonymous fields/images, then confirm applied groups are unchanged. Existing direct Tower work remains supported with later reconciliation. The backend, schema and accepted appearance are unchanged. See [verified release and real-actor limits](../RELEASE-RESIDENT-MAINTENANCE-2026-10-31.md).
 

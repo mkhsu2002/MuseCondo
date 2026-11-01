@@ -1,6 +1,6 @@
 # Tower Lord: Acting Steward console proposal
 
-Status: 2026-10-31 Vancouver. The maintainer approved implementing the read-only L1–L3 console. Implementation is undergoing release verification; deployment acceptance is recorded separately. This supersedes the earlier deferred-priority note: the maintainer has requested this console as the next development focus while real resident acceptance continues. Application v1.11 remains unchanged; T09 remains open.
+Status: 2026-10-31 Vancouver. The maintainer approved implementing the read-only L1–L3 console. [v1.15 is deployed and read back](../RELEASE-TOWER-LORD-2026-10-31.md); the human’s first authenticated dashboard readback remains pending. This supersedes the earlier deferred-priority note: the maintainer has requested this console as the next development focus while real resident acceptance continues. The existing admission order and resident authority remain unchanged; T09 remains open.
 
 ## Purpose and role
 
