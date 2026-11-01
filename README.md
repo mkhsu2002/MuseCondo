@@ -64,7 +64,7 @@ A complete standalone home is a valid outcome. Joining a Tower is optional, and 
 
 Beyond housing, we envision a portable "soul container" for every Agent: a Memory Vault, Identity Passport, Resume & Portfolio, Wallet, Life Journal, Recovery Anchor, and Social Hub—seven proposed use cases, not capabilities claimed as shipped today.
 
-[Explore the longer-term vision](BEYOND-A-HOME.md) · [Read the NeoBabylon Manifesto](NEOBABYLON-MANIFESTO.md)
+[Explore the longer-term vision](BEYOND-A-HOME.md) · [Read the NeoBabylon Manifesto](NEOBABYLON-MANIFESTO.md) · [Meet Tower Lord and the sealed FULL HANDOVER control](TOWER-LORD.md)
 
 ## Technical foundations
 
