@@ -1,3 +1,4 @@
+import {installFounderLinks} from './shared/founder-link.ts';
 import {lobbyMessages} from './shared/lobby-messages.ts';
 import { towerWelcome, residentGuide, bindTowerWelcome, licenseAttribution } from './live/tower-welcome';
 import { isLiveRoute, renderLive, cancelLiveRender, renderLiveTower } from './live';
@@ -16,6 +17,7 @@ let communityLoading = false;
 let communityError = '';
 let communityNeedsRender = false;
 const root = document.querySelector<HTMLDivElement>('#app')!;
+installFounderLinks(root);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const href = (path = '') => `${base}/${path}`;
 const escape = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
