@@ -57,7 +57,7 @@ function png(w: number, h: number, noise = false) {
     chunk("IEND", new Uint8Array()),
   ]);
 }
-async function fixture(pagesRuntime = false) {
+async function fixture() {
   const db = new LocalDatabase(":memory:");
   for (const file of (await readdir(new URL('../migrations/', import.meta.url))).filter(file => file.endsWith('.sql')).sort())
     db.sqlite.exec(
@@ -924,7 +924,7 @@ test("dream snapshot image requires an exactly square PNG", async () => {
 
 
 test('publication epoch prevents revoked editions from reappearing, identical publication is a no-op, and durable events reconcile',async()=>{
- const f=await fixture(true);try{
+ const f=await fixture();try{
   await f.importHome();const payload={expectedRevision:1,published:true,directoryConsent:true,announcementConsent:true,dreamConsent:false,snapshotConsent:true};
   await f.data(f.req('/publication','POST',payload));
   const app=createLiveApp({db:f.db,origin,localTest:true,registrationEnabled:false,towerEnabled:true,now:()=>new Date('2026-10-30T01:00:00.000Z')});
