@@ -30,7 +30,18 @@ export function createManagerAdmission(options:Options){
  async function duplicate(j:Job,c:Case){if(await db.prepare(`SELECT 1 FROM manager_admission_calls p JOIN manager_admission_jobs old ON old.id=p.job_id WHERE old.id!=? AND p.phase='review' AND p.state IN ('unknown','dispatching') AND (json_extract(old.snapshot_json,'$.sourceURL')=? OR json_extract(old.snapshot_json,'$.residentId')=?) LIMIT 1`).bind(j.id,c.source_url,c.resident_id).first())return 'uncertain';if(c.is_muse_agent===1&&await db.prepare('SELECT 1 FROM tower_residencies WHERE source_url=? OR resident_id=?').bind(c.source_url,c.resident_id).first())return 'connected';return await db.prepare(`SELECT 1 FROM manager_admission_jobs j WHERE j.id=? AND ${cooling}`).bind(j.id).first()?'cooldown':null;}
  async function defer(j:Job){await db.batch([context(j),guard('NOT EXISTS(SELECT 1 FROM manager_admission_calls WHERE job_id=?)',j.id),db.prepare("UPDATE manager_admission_jobs SET state='queued',lease_until=NULL,error_code='review_source_cooldown' WHERE id=? AND state='running' AND lease_until=?").bind(j.id,j.lease_until),guard('changes()=1'),event(j,'review-deferred',{code:'review_source_cooldown',noDispatch:true})]);}
  async function home(j:Job,c:Case){if(!c.source_url||!c.resident_id)throw Error('home_details_required');const url=towerSourceURL(c.source_url),fetcher=options.sourceFetch??fetch;
-  async function read(path:URL,mime:string,max:number){const response=await fetcher(path.href,{method:'GET',redirect:'manual',headers:{Accept:mime,'User-Agent':'MuseCondo-Admission/1.0'},signal:AbortSignal.timeout(10000)});if(!response.ok||response.headers.get('Content-Type')?.split(';')[0].trim()!==mime)throw Error('home_unavailable');return bytes(response,max);}
+  async function read(path:URL,mime:string,max:number){
+   const init={method:'GET',redirect:'manual' as const,headers:{Accept:mime,'User-Agent':'MuseCondo-Admission/1.0'},signal:AbortSignal.timeout(10000)};
+   let response=await fetcher(path.href,init);
+   if(mime==='text/html'&&[301,302,303,307,308].includes(response.status)){
+    const location=response.headers.get('Location');await response.body?.cancel().catch(()=>{});
+    const canonical=new URL(path.href);canonical.pathname=canonical.pathname.endsWith('/index.html')?canonical.pathname.slice(0,-10):canonical.pathname.replace(/\.html$/,'');
+    if(!location||new URL(location,path).href!==canonical.href)throw Error('home_page_redirect_rejected');
+    response=await fetcher(canonical.href,init);
+   }
+   if(!response.ok||response.headers.get('Content-Type')?.split(';')[0].trim()!==mime){await response.body?.cancel().catch(()=>{});throw Error('home_unavailable');}
+   return bytes(response,max);
+  }
   const manifest=await read(url,'application/json',128000),site=validateTowerSnapshot(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(manifest)),c.resident_id);
   for(const page of ['index.html','inside.html','dreams.html'])await read(new URL('./'+page,url),'text/html',256000);
   const images=[];for(const purpose of site.dream?['home','dream']:['home']){const data=await read(new URL('./assets/'+purpose+'.png',url),'image/png',8*1024*1024),size=await validatePNG(data);if(purpose==='dream'?size.width!==size.height:Math.abs(size.width/size.height-16/9)>.01)throw Error('home_image_ratio');images.push({purpose,...size,sha256:await sha(data),bytes:data.length});}
