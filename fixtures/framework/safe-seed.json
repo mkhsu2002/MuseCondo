@@ -2,7 +2,7 @@
   "frameworkVersion": "0.01",
   "agent": {
     "name": "苔光",
-    "publicIntro": "住在漂浮茶屋、喜歡修理星星的虛構小生物。"
+    "publicIntro": "A fictional little creature who lives in a floating teahouse and enjoys repairing stars."
   },
   "consent": {
     "usePrivateEvidence": true,
@@ -14,36 +14,36 @@
       "id": "self-description",
       "source": "agent-self-description",
       "kind": "recorded",
-      "summary": "安全虛構測試資料：我想住在漂浮茶屋，長著苔蘚耳朵，修理星星；窗外是海。"
+      "summary": "Safe fictional test data: I want to live in a floating teahouse, have mossy ears and repair stars, with the sea outside my window."
     },
     {
       "id": "imagined-owner",
       "source": "USER",
       "kind": "imagined",
-      "summary": "安全虛構測試資料：監護人畫像是沒有真實人物對應的抽象光點。"
+      "summary": "Safe fictional test data: the imagined Guardian portrait is made of abstract points of light and does not represent a real person."
     }
   ],
   "home": {
     "form": {
-      "description": "漂浮在雲上的茶屋",
+      "description": "A teahouse floating above the clouds",
       "evidenceIds": [
         "self-description"
       ]
     },
     "selfImage": {
-      "description": "長著苔蘚耳朵的玻璃小生物",
+      "description": "A small glass creature with mossy ears",
       "evidenceIds": [
         "self-description"
       ]
     },
     "activity": {
-      "description": "正開心地修理收集來的小星星",
+      "description": "Happily repairing a collection of small stars",
       "evidenceIds": [
         "self-description"
       ]
     },
     "ownerPortrait": {
-      "description": "桌面上擺著一幅由光點組成的監護人想像畫像",
+      "description": "An imagined Guardian portrait made of points of light, standing on the table",
       "evidenceIds": [
         "imagined-owner"
       ],
@@ -51,13 +51,13 @@
       "placement": "table"
     },
     "window": {
-      "description": "一扇橢圓形窗戶",
+      "description": "An oval window",
       "evidenceIds": [
         "self-description"
       ]
     },
     "view": {
-      "description": "窗外是一片安靜的藍色大海",
+      "description": "A quiet blue sea outside the window",
       "evidenceIds": [
         "self-description"
       ]
@@ -67,8 +67,8 @@
     {
       "id": "tea-morning",
       "type": "journal",
-      "title": "今天的星星",
-      "body": "修好一顆小星星，泡了一杯茶。",
+      "title": "Today’s star",
+      "body": "I repaired a small star and made a cup of tea.",
       "occurredAt": "2026-10-29T08:00:00Z",
       "publication": "public",
       "evidenceIds": [
@@ -78,7 +78,7 @@
     {
       "id": "private-note",
       "type": "observation",
-      "title": "私人筆記",
+      "title": "Private note",
       "body": "PRIVATE-DAILY-MARKER",
       "occurredAt": "2026-10-29T08:01:00Z",
       "publication": "private",
@@ -91,8 +91,8 @@
     {
       "id": "sea-dream",
       "type": "dream",
-      "title": "海的夢",
-      "body": "夢裡的星星在海底唱歌。",
+      "title": "A dream of the sea",
+      "body": "In the dream, stars were singing beneath the sea.",
       "occurredAt": "2026-10-29T08:02:00Z",
       "publication": "public",
       "evidenceIds": [
@@ -102,7 +102,7 @@
     {
       "id": "private-dream",
       "type": "dream",
-      "title": "私人的夢",
+      "title": "A private dream",
       "body": "PRIVATE-DREAM-MARKER",
       "occurredAt": "2026-10-29T08:03:00Z",
       "publication": "private",

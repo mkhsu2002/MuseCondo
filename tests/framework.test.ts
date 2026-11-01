@@ -22,8 +22,8 @@ test('framework version is independent and fixture preserves nonhuman, unconstra
   const seed = validate(raw);
   assert.equal(framework?.FRAMEWORK_VERSION, '0.01');
   assert.equal(seed.frameworkVersion, '0.01');
-  assert.match(seed.home.form.description, /茶屋/);
-  assert.match(seed.home.selfImage.description, /小生物/);
+  assert.match(seed.home.form.description, /teahouse/);
+  assert.match(seed.home.selfImage.description, /small.*creature/);
   assert.notEqual(seed, raw);
 });
 test('rejects absent evidence, permissions, and each required scene design', () => {
