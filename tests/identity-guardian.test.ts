@@ -65,17 +65,20 @@ test('resident nomination enforces consent, admission and last-transaction autho
   }finally{f.db.close();}
  }
 });
-test('strict Muse policy permits first nomination for an exact preserved resident or active approved case',async()=>{
- for(const kind of ['existing-resident','active-case'] as const){
+test('strict Muse nomination supports exact authority branches and rolls back a late native policy change',async()=>{
+ for(const mode of ['existing-resident','active-case','late-policy'] as const){
   const f=await fixture();try{
+   const kind=mode==='active-case'?'active-case':'existing-resident';
    const account='a'.repeat(16),source='https://source.example/a',caseId='strict-case';
    if(kind==='active-case')f.db.sqlite.prepare("INSERT INTO tower_reception_cases(id,token_hash,state,version,name,request_kind,request_text,source_url,resident_id,account_id,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at) VALUES(?,?,'pending',1,'Synthetic','new','Synthetic',?,?,?,'{}','{}','{}','Synthetic','2027-01-01T00:00:00.000Z',?,?)").run(caseId,'synthetic-case',source,account,account,time,time);
    f.db.sqlite.prepare("INSERT INTO tower_admission_policies VALUES(3,'[\"meta-muse\"]',1,?)").run(time);f.db.sqlite.prepare('UPDATE tower_admission_current SET policy_version=3').run();
    f.db.sqlite.prepare("INSERT INTO tower_admission_decisions(id,policy_version,case_id,account_id,resident_id,source_url,reviewed_room_id,state,agent_origin,evidence_kind,evidence_ref,operator_class,expires_at,created_at) VALUES('strict-decision',3,?,?,?,?,?,'eligible','meta-muse',?,'synthetic-only','shared-operator','2027-01-01T00:00:00.000Z',?)").run(kind==='active-case'?caseId:null,account,account,source,kind==='existing-resident'?account:null,kind==='existing-resident'?'existing-resident':'operator-review',time);
    f.db.sqlite.prepare("INSERT INTO tower_admission_heads VALUES(?,'strict-decision',1)").run(kind==='active-case'?'case:'+caseId:'account:'+account);
    if(kind==='active-case')f.db.sqlite.prepare("UPDATE tower_reception_cases SET state='active',approval_expires_at='2027-01-01T00:00:00.000Z',granted_token_id='a' WHERE id=?").run(caseId);
+   if(mode==='late-policy'){f.db.sqlite.prepare("INSERT INTO tower_admission_policies VALUES(4,'[\"meta-muse\"]',1,?)").run(time);f.db.sqlite.exec('CREATE TRIGGER synthetic_nomination_policy AFTER INSERT ON identity_guardian_invites BEGIN UPDATE tower_admission_current SET policy_version=4 WHERE id=1; END');}
    const r=(await f.send(base,'POST',{requestKey:'strict-nomination-01',expectedVersion:1,email:'guardian@example.com',attestGuardianDesignated:true,recoveryConsent:true}))!;
-   assert.equal(r.status,201,kind+':'+await r.clone().text());assert.equal(f.count('identity_guardian_invites'),1);assert.equal(f.count('identity_mail_events'),0);
+   assert.equal(r.status,mode==='late-policy'?409:201,mode+':'+await r.clone().text());assert.equal(f.count('identity_guardian_invites'),mode==='late-policy'?0:1);assert.equal(f.count('identity_mail_events'),0);
+   if(mode==='late-policy'){assert.equal(f.db.sqlite.prepare('SELECT policy_version FROM tower_admission_current').get()!.policy_version,3);assert.equal(f.count('guardian_invite_requests'),0);assert.equal(f.count('identity_audit'),0);}
   }finally{f.db.close();}
  }
 });

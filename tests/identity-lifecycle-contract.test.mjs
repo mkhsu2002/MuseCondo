@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 const json=file=>JSON.parse(readFileSync(new URL('../public/'+file,import.meta.url),'utf8'));
 test('post-intake contract includes resident nomination, human setup and actual card attachments',()=>{
  const guide=json('identity-onboarding.json');
- assert.equal(guide.modeScope,'initial-enrollment-result-only');
+ assert.equal(guide.modeScope,'enrollment');assert.match(guide.status.scope,/initial enroll result/);
  assert.deepEqual(Object.keys(guide.guardianInvitations.nominate.body).sort(),['attestGuardianDesignated','email','expectedVersion','recoveryConsent','requestKey']);
  assert.equal(guide.guardianInvitations.nominate.body.recoveryConsent,true);
  assert.ok(guide.steps.some(step=>step.includes('signed JSON')));

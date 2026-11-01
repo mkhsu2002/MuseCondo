@@ -258,7 +258,7 @@
     },
     "uiPath": "/identity/recover"
   },
-  "modeScope": "initial-enrollment-result-only",
+  "modeScope": "enrollment",
   "identityCards": {
     "apiBase": "/api/v1/agent/identity/card",
     "verificationPage": "/identity/verify/:credentialId",

@@ -182,13 +182,28 @@ export function createIdentityGuardian(env: Environment) {
     }
     const identity = (agent: string) => one<Identity>('SELECT * FROM agent_identities WHERE agent_id=?', agent);
     function identityGuard(i: Identity) { return stmt("SELECT CASE WHEN EXISTS(SELECT 1 FROM agent_identities i JOIN tower_residencies t ON t.account_id=i.account_id AND t.room_id=i.room_id AND t.resident_id=i.resident_id JOIN rooms r ON r.id=i.room_id AND r.account_id=i.account_id WHERE i.agent_id=? AND i.account_id=? AND i.room_id=? AND i.resident_id=? AND i.version=? AND i.authority_epoch=? AND i.state='provisional' AND i.recovery_consent=1) THEN 1 ELSE json('guardian-identity-conflict') END", i.agent_id, i.account_id, i.room_id, i.resident_id, i.version, i.authority_epoch); }
-    function nominationGuard(i:Identity){return stmt(`SELECT CASE WHEN EXISTS(SELECT 1 FROM agent_identities i JOIN tower_residencies t ON t.account_id=i.account_id AND t.room_id=i.room_id AND t.resident_id=i.resident_id WHERE i.agent_id=? AND i.account_id=? AND i.version=? AND i.state='provisional' AND i.recovery_consent=1 AND (
-      EXISTS(SELECT 1 FROM tower_admission_current c JOIN tower_admission_policies p ON p.version=c.policy_version WHERE c.id=1 AND p.allowed_agent_origins_json='["*"]' AND p.require_operator_review=0)
-      OR EXISTS(SELECT 1 FROM tower_admission_eligible d WHERE d.account_id=i.account_id AND d.resident_id=i.resident_id AND (d.source_url=t.source_url OR EXISTS(SELECT 1 FROM tower_admission_continuity k WHERE k.decision_id=d.id AND k.room_id=i.room_id)) AND (
-        d.case_id IS NULL AND d.evidence_kind='existing-resident' AND d.reviewed_room_id=i.room_id
-        OR EXISTS(SELECT 1 FROM tower_reception_cases c WHERE c.id=d.case_id AND c.state='active' AND c.account_id=i.account_id AND c.resident_id=i.resident_id AND c.source_url=d.source_url AND c.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND c.approval_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-        OR EXISTS(SELECT 1 FROM tower_admission_memberships m WHERE m.account_id=i.account_id AND m.room_id=i.room_id AND m.resident_id=i.resident_id AND m.decision_id=d.id)
-      )))) THEN 1 ELSE json('guardian-admission-changed') END`,i.agent_id,i.account_id,i.version);}
+    type NominationProof={kind:'open';policyVersion:number}|{kind:'reviewed';decisionId:string;authority:'existing-resident'|'active-case'|'membership'};
+    function scopeGuard(i:Identity,proof:Extract<NominationProof,{kind:'reviewed'}>){
+        const base="SELECT 1 FROM tower_admission_decisions d WHERE d.id=? AND d.account_id=? AND d.resident_id=? AND ";
+        const condition=proof.authority==='existing-resident'
+            ? "d.case_id IS NULL AND d.evidence_kind='existing-resident' AND d.reviewed_room_id=?"
+            : proof.authority==='active-case'
+                ? "EXISTS(SELECT 1 FROM tower_reception_cases c WHERE c.id=d.case_id AND c.state='active' AND c.account_id=d.account_id AND c.resident_id=d.resident_id AND c.source_url=d.source_url AND c.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND c.approval_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))"
+                : "EXISTS(SELECT 1 FROM tower_admission_memberships m WHERE m.account_id=d.account_id AND m.room_id=? AND m.resident_id=d.resident_id AND m.decision_id=d.id)";
+        return stmt("SELECT CASE WHEN EXISTS("+base+condition+") THEN 1 ELSE json('guardian-admission-scope-changed') END",proof.decisionId,i.account_id,i.resident_id,...(proof.authority==='active-case'?[]:[i.room_id]));
+    }
+    function nominationGuards(i:Identity,proof:NominationProof):Statement[]{
+        if(proof.kind==='open')return [identityGuard(i),stmt("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_admission_current c JOIN tower_admission_policies p ON p.version=c.policy_version WHERE c.id=1 AND p.version=? AND p.allowed_agent_origins_json='[\"*\"]' AND p.require_operator_review=0) THEN 1 ELSE json('guardian-admission-changed') END",proof.policyVersion)];
+        // Keep the large eligibility view flat: native D1 limits expression nesting to 100.
+        return [identityGuard(i),stmt("SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE json('guardian-admission-changed') END FROM tower_admission_eligible WHERE id=? AND account_id=? AND resident_id=?",proof.decisionId,i.account_id,i.resident_id),scopeGuard(i,proof)];
+    }
+    async function nominationProof(i:Identity):Promise<NominationProof>{
+        const open=await one<{version:number}>("SELECT p.version FROM tower_admission_current c JOIN tower_admission_policies p ON p.version=c.policy_version WHERE c.id=1 AND p.allowed_agent_origins_json='[\"*\"]' AND p.require_operator_review=0");
+        if(open)return {kind:'open',policyVersion:open.version};
+        const decisions=(await stmt('SELECT id FROM tower_admission_eligible WHERE account_id=? AND resident_id=? ORDER BY id LIMIT 20',i.account_id,i.resident_id).all<{id:string}>()).results;
+        for(const decision of decisions)for(const authority of ['existing-resident','active-case','membership'] as const){const proof:NominationProof={kind:'reviewed',decisionId:decision.id,authority};try{await scopeGuard(i,proof).first();return proof;}catch{/* Try only another existing, same-household authority branch. */}}
+        fail(403,'admission_required');
+    }
     async function checkIdentity(i: Identity) { try {
         await identityGuard(i).first();
     }
@@ -253,13 +268,14 @@ export function createIdentityGuardian(env: Environment) {
                     if (i.version !== v.expectedVersion)
                         fail(409, 'identity_conflict');
                     await checkIdentity(i);
-                    if(nomination)try{await nominationGuard(i).first();}catch{fail(403,'admission_required');}
+                    let proof:NominationProof|undefined;
+                    if(nomination){proof=await nominationProof(i);try{for(const guard of nominationGuards(i,proof))await guard.first();}catch{fail(403,'admission_required');}}
                     if (await one("SELECT 1 FROM identity_guardian_invites WHERE agent_id=? AND state IN ('proposed','accepted','registered')", i.agent_id))
                         fail(409, 'guardian_already_designated');
                     const created = stamp(), g: Invitation = { id: randomIdentityId(), agent_id: i.agent_id, account_id: i.account_id, version: 1, identity_version: i.version + 1, authority_epoch: i.authority_epoch, state: 'proposed', recipient_ciphertext: await encryptPrivate(env.contactKey, 'guardian-recipient', i.agent_id, email!), email_hash: await hashPrivate(env.contactKey, 'guardian-email', email!), invite_token_hash: null, expires_at: new Date(Date.parse(created) + 86400000).toISOString(), created_at: created };
                     const result = { invitation: await metadata(g), identityVersion: g.identity_version };
                     try {
-                        await batch(auth, [identityGuard(i), stmt("SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM identity_guardian_invites WHERE agent_id=? AND state IN ('proposed','accepted','registered')) THEN 1 ELSE json('guardian-already-designated') END", i.agent_id), advance(i), stmt("INSERT INTO identity_guardian_invites(id,agent_id,account_id,version,identity_version,authority_epoch,state,recipient_ciphertext,email_hash,expires_at,created_at,updated_at) VALUES(?,?,?,1,?,?,'proposed',?,?,?,?,?)", g.id, g.agent_id, g.account_id, g.identity_version, g.authority_epoch, g.recipient_ciphertext, g.email_hash, g.expires_at, created, created), audit(i.agent_id, 'guardian-proposed', g.id), receipt(auth, key, operation, digest, result, 201),...(nomination?[nominationGuard({...i,version:i.version+1}),...(auth.guard?[auth.guard()]:[])]:[])]);
+                        await batch(auth, [identityGuard(i), stmt("SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM identity_guardian_invites WHERE agent_id=? AND state IN ('proposed','accepted','registered')) THEN 1 ELSE json('guardian-already-designated') END", i.agent_id), advance(i), stmt("INSERT INTO identity_guardian_invites(id,agent_id,account_id,version,identity_version,authority_epoch,state,recipient_ciphertext,email_hash,expires_at,created_at,updated_at) VALUES(?,?,?,1,?,?,'proposed',?,?,?,?,?)", g.id, g.agent_id, g.account_id, g.identity_version, g.authority_epoch, g.recipient_ciphertext, g.email_hash, g.expires_at, created, created), audit(i.agent_id, 'guardian-proposed', g.id), receipt(auth, key, operation, digest, result, 201),...(proof?[...nominationGuards({...i,version:i.version+1},proof),...(auth.guard?[auth.guard()]:[])]:[])]);
                     }
                     catch (error) {
                         if (error instanceof Rejection)
