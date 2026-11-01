@@ -32,3 +32,11 @@ D1 原生 triggers 守住接待核准／啟用、Tower／legacy tokens、owner s
 root 須先以安全管理程序保存及重新核對既有住戶的精確 tuple、來源與原版本，再套 0024 並立即以受保護 operator 決定明確認定；在同輪環境更新完成前不開放新流程。通用 migration 沒有住戶 seed；若需零間隙切換，部署端以相同 schema SQL 與私密 exact-tuple 決定在原子管理交易完成，再對照 migration ledger，不能複製全帳戶 grandfather。兩環境獨立回讀 schema／deployed Pages／DO／政策及住戶 snapshot，再開放流程；原 Agent／真人資格與安全確認不能代做。
 
 本地合成測試明確建立自己的不限來源 Tower 政策，既有身份／郵件回歸不宣稱為官方 Muse 資格證明。沒有替任何真實案件核准、發 key、派門牌或寄信。
+
+## Durable qualification of an already enrolled existing resident
+
+Candidate operator-only extension, 2026-10-31; live release/individual execution must be recorded separately. POST `/api/v1/operator/tower-admission/decisions` may opt in with `durableExistingResidency:true` while retaining every existing field, including the exact `existingResidency:{roomId,revision,publicRevision}` object. This is not an applicant endpoint or a new permission.
+
+The flag only accepts state eligible, evidenceKind existing-resident, caseId null, expiresAt exactly `9999-12-31T23:59:59.999Z`, and continuityAgentId matching the already enrolled provisional/active permanent identity on the same currently eligible account/room/resident/source. Recovery consent and current identity version/epoch are checked. Missing identity, stale qualification/policy/head or a changed home tuple fails closed. Ordinary operator decisions retain the existing 366-day maximum; short-lived household keys and Guardian/email proofs are not extended.
+
+The operation appends a new decision and advances the existing head by CAS with a permanent request receipt and durable-qualification audit. It never changes historical decisions, membership, source, home revision/content or sharing. Prior eligibility is checked through a flat native view query at the start of the transaction; the new eligible head and exact identity/home tuple are checked again before commit. Policy changes, suspension or tuple changes roll back the entire decision/head/receipt/audit batch. This removes an arbitrary annual qualification expiry for a preserved permanent identity while retaining negative decisions, policy changes and explicit revocation.

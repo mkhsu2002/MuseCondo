@@ -19,9 +19,9 @@ export function createTowerAdmission(env:Environment){
  const guard=(s:string,...v:unknown[])=>stmt("SELECT CASE WHEN ("+s+") THEN 1 ELSE json('admission-context-changed') END",...v);
  const policy=()=>one<Policy>('SELECT p.* FROM tower_admission_current c JOIN tower_admission_policies p ON p.version=c.policy_version WHERE c.id=1');
  async function stored(key:string,op:string,hash:string){const r=await one<{operation:string;input_hash:string;response_json:string;status:number}>('SELECT * FROM tower_admission_requests WHERE request_key=?',key);if(!r)return null;if(r.operation!==op||r.input_hash!==hash)fail(409,'admission_request_conflict');return json(JSON.parse(r.response_json),r.status);}
- async function commit(req:Request,key:string,op:string,hash:string,rows:Statement[],result:unknown,status:number,version:number,decision:string|null){
+ async function commit(req:Request,key:string,op:string,hash:string,rows:Statement[],result:unknown,status:number,version:number,decision:string|null,detail:Record<string,unknown>={}){
   if(!await env.operator(req))fail(401,'operator_required');
-  try{await db.batch([...rows,stmt('INSERT INTO tower_admission_requests VALUES(?,?,?,?,?,?)',key,op,hash,JSON.stringify(result),status,stamp()),stmt('INSERT INTO tower_admission_audit VALUES(?,?,?,?,?,?)',crypto.randomUUID().replaceAll('-',''),op,version,decision,JSON.stringify({operatorCredentialClass:'shared-operator'}),stamp())]);}
+  try{await db.batch([...rows,stmt('INSERT INTO tower_admission_requests VALUES(?,?,?,?,?,?)',key,op,hash,JSON.stringify(result),status,stamp()),stmt('INSERT INTO tower_admission_audit VALUES(?,?,?,?,?,?)',crypto.randomUUID().replaceAll('-',''),op,version,decision,JSON.stringify({operatorCredentialClass:'shared-operator',...detail}),stamp())]);}
   catch{const r=await stored(key,op,hash);if(r)return r;fail(409,'admission_update_conflict');}return json(result,status);
  }
  return {async fetch(req:Request):Promise<Response|null>{
@@ -38,7 +38,8 @@ export function createTowerAdmission(env:Environment){
     const d=await one<Decision>('SELECT * FROM tower_admission_decisions WHERE id=?',decisionId);if(!d)fail(404,'not_found');return json({decision:d});
    }
    if(publicRoute||req.method!=='POST')fail(405,'method_not_allowed');
-   const v=object(await body(req),url.pathname.endsWith('/policy')?['requestKey','expectedPolicyVersion','allowedAgentOrigins','requireOperatorReview']:['requestKey','expectedPolicyVersion','expectedHeadRevision','caseId','accountId','residentId','sourceURL','continuityAgentId','state','agentOrigin','evidenceKind','evidenceRef','expiresAt','existingResidency']);
+   const raw=await body(req),durableField=!url.pathname.endsWith('/policy')&&!!raw&&typeof raw==='object'&&Object.hasOwn(raw,'durableExistingResidency');
+   const v=object(raw,url.pathname.endsWith('/policy')?['requestKey','expectedPolicyVersion','allowedAgentOrigins','requireOperatorReview']:['requestKey','expectedPolicyVersion','expectedHeadRevision','caseId','accountId','residentId','sourceURL','continuityAgentId','state','agentOrigin','evidenceKind','evidenceRef','expiresAt','existingResidency',...(durableField?['durableExistingResidency']:[])]);
    const key=str(v.requestKey,/^[A-Za-z0-9_-]{8,96}$/),hash=await digest(JSON.stringify(v)),op=url.pathname.endsWith('/policy')?'policy':'decision';
    const old=await stored(key,op,hash);if(old)return old;
    const expected=integer(v.expectedPolicyVersion,1);if(expected!==p!.version)fail(409,'admission_policy_conflict');
@@ -54,7 +55,8 @@ export function createTowerAdmission(env:Environment){
    let source:string|null=null;if(v.sourceURL!==null)try{const u=new URL(String(v.sourceURL));if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash||u.href!==v.sourceURL)throw Error();source=u.href;}catch{fail(400,'invalid_admission_input');}
    const origin=str(v.agentOrigin,/^[a-z][a-z0-9-]{0,63}$/),kind=str(v.evidenceKind,/^(statement|operator-review|existing-resident)$/),evidence=str(v.evidenceRef,/^[A-Za-z0-9][A-Za-z0-9:_/-]{0,159}$/);
    if(state==='eligible'&&(kind==='statement'||!(JSON.parse(p!.allowed_agent_origins_json) as string[]).includes(origin)))fail(400,'admission_review_required');
-   const expiry=str(v.expiresAt,/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);if(!Number.isFinite(Date.parse(expiry))||expiry<=stamp()||Date.parse(expiry)>Date.parse(stamp())+366*86400000)fail(400,'invalid_admission_input');
+   const durable=durableField;if(durable&&v.durableExistingResidency!==true)fail(400,'invalid_admission_input');
+   const expiry=str(v.expiresAt,/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);if(!Number.isFinite(Date.parse(expiry))||expiry<=stamp()||(!durable&&Date.parse(expiry)>Date.parse(stamp())+366*86400000)||durable&&(expiry!=='9999-12-31T23:59:59.999Z'||kind!=='existing-resident'||caseId!==null||state!=='eligible'||agent===null))fail(400,'invalid_admission_input');
    if(kind==='existing-resident'&&caseId!==null)fail(400,'invalid_admission_input');
    const existing=v.existingResidency===null?null:object(v.existingResidency,['roomId','revision','publicRevision']);
    if((kind==='existing-resident')!==(existing!==null))fail(400,'invalid_admission_input');
@@ -72,11 +74,21 @@ export function createTowerAdmission(env:Environment){
    ))`,caseId,account,resident,source,account,resident,agent,source));
    if(account!==null)rows.push(guard('EXISTS(SELECT 1 FROM accounts WHERE id=?)',account));
    if(kind==='existing-resident')rows.push(guard('EXISTS(SELECT 1 FROM tower_residencies t JOIN rooms r ON r.id=t.room_id AND r.account_id=t.account_id WHERE t.account_id=? AND t.resident_id=? AND t.source_url=? AND t.room_id=? AND t.revision=? AND t.public_revision IS ?)',account,resident,source,reviewedRoom,existing!.revision,existing!.publicRevision));
+   const durableGuards:Statement[]=[];
+   if(durable){
+    const previous=await one<{id:string}>('SELECT id FROM tower_admission_eligible WHERE policy_version=? AND account_id=? AND resident_id=? AND source_url=? ORDER BY id LIMIT 1',expected,account,resident,source);
+    const identity=await one<{version:number;authority_epoch:number}>("SELECT version,authority_epoch FROM agent_identities WHERE agent_id=? AND account_id=? AND room_id=? AND resident_id=? AND state IN ('provisional','active') AND recovery_consent=1",agent,account,reviewedRoom,resident);
+    if(!previous||!identity)fail(409,'durable_existing_identity_required');
+    rows.push(stmt("SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE json('durable-prior-eligibility-changed') END FROM tower_admission_eligible WHERE id=? AND policy_version=? AND account_id=? AND resident_id=? AND source_url=?",previous.id,expected,account,resident,source));
+    durableGuards.push(guard("EXISTS(SELECT 1 FROM agent_identities i JOIN tower_residencies t ON t.account_id=i.account_id AND t.room_id=i.room_id AND t.resident_id=i.resident_id JOIN rooms r ON r.id=t.room_id AND r.account_id=t.account_id WHERE i.agent_id=? AND i.account_id=? AND i.room_id=? AND i.resident_id=? AND i.version=? AND i.authority_epoch=? AND i.state IN ('provisional','active') AND i.recovery_consent=1 AND t.source_url=? AND t.revision=? AND t.public_revision IS ?)",agent,account,reviewedRoom,resident,identity.version,identity.authority_epoch,source,existing!.revision,existing!.publicRevision));
+    rows.push(...durableGuards);
+   }
    const scope=caseId?'case:'+caseId:'account:'+account;
    rows.push(guard('COALESCE((SELECT revision FROM tower_admission_heads WHERE scope_key=?),0)=?',scope,headRevision));
    const d:Decision={id:crypto.randomUUID().replaceAll('-',''),policy_version:expected,case_id:caseId,account_id:account,resident_id:resident,source_url:source,continuity_agent_id:agent,reviewed_room_id:reviewedRoom,state,agent_origin:origin,evidence_kind:kind,evidence_ref:evidence,operator_class:'shared-operator',expires_at:expiry,created_at:stamp()};
    rows.push(stmt('INSERT INTO tower_admission_decisions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',...Object.values(d)),headRevision===0?stmt('INSERT INTO tower_admission_heads VALUES(?,?,1)',scope,d.id):stmt('UPDATE tower_admission_heads SET decision_id=?,revision=revision+1 WHERE scope_key=? AND revision=?',d.id,scope,headRevision));
-   return await commit(req,key,op,hash,rows,{decision:d,revision:headRevision+1},201,expected,d.id);
+   if(durable)rows.push(stmt("SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE json('durable-new-eligibility-changed') END FROM tower_admission_eligible WHERE id=? AND policy_version=? AND account_id=? AND resident_id=? AND source_url=?",d.id,expected,account,resident,source),...durableGuards);
+   return await commit(req,key,op,hash,rows,{decision:d,revision:headRevision+1},201,expected,d.id,durable?{durableExistingResidency:true,continuityAgentId:agent}:{});
   }catch(error){return error instanceof Rejection?json({error:error.message},error.status):json({error:'admission_unavailable'},503);}
  }};
 }

@@ -15,6 +15,27 @@ function decision(db:LocalDatabase,state='eligible',origin='meta-muse'){
  db.sqlite.prepare("INSERT INTO tower_admission_decisions(id,policy_version,case_id,account_id,resident_id,source_url,continuity_agent_id,state,agent_origin,evidence_kind,evidence_ref,operator_class,expires_at,created_at) VALUES(?,1,NULL,?,?,?,NULL,?,?,?,'opaque-evidence','shared-operator','2027-01-01T00:00:00.000Z',?)").run('d',account,resident,source,state,origin,state==='eligible'?'operator-review':'statement',now);
  db.sqlite.prepare('INSERT INTO tower_admission_heads(scope_key,decision_id,revision) VALUES(?,?,1)').run('account:'+account,'d');
 }
+test('durable existing-resident qualification requires current eligibility and the same enrolled identity, without extending general grants',async()=>{
+ const db=fixture();try{
+  decision(db);db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Synthetic','Synthetic','resident','external-ready',?)").run(room,account,now);
+  db.sqlite.prepare("INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,created_at,updated_at) VALUES(?,?,?,?,'challenge',?,?)").run(room,account,resident,source,now,now);
+  const agent='mcid:'+'e'.repeat(64);db.sqlite.prepare('INSERT INTO agent_identities(agent_id,account_id,room_id,resident_id,recovery_consent,created_at,updated_at) VALUES(?,?,?,?,1,?,?)').run(agent,account,room,resident,now,now);
+  const before=JSON.stringify(db.sqlite.prepare('SELECT * FROM tower_admission_decisions WHERE id=?').get('d')),membership=JSON.stringify(db.sqlite.prepare('SELECT * FROM tower_admission_memberships').all());
+  const {createTowerAdmission}=await import('../server/live/tower-admission.ts');let at=now;const service=createTowerAdmission({db,origin:'https://tower.example',now:()=>new Date(at),operator:async()=>true});
+  const input={requestKey:'durable-existing-01',expectedPolicyVersion:1,expectedHeadRevision:1,caseId:null,accountId:account,residentId:resident,sourceURL:source,continuityAgentId:agent,state:'eligible',agentOrigin:'meta-muse',evidenceKind:'existing-resident',evidenceRef:'durable:synthetic',expiresAt:'9999-12-31T23:59:59.999Z',existingResidency:{roomId:room,revision:1,publicRevision:null},durableExistingResidency:true};
+  const send=(body:unknown)=>service.fetch(new Request('https://tower.example/api/v1/operator/tower-admission/decisions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}));
+  const {durableExistingResidency:flag,...generic}=input;assert.equal(flag,true);assert.equal((await send(generic))!.status,400);
+  for(const change of [{durableExistingResidency:false},{continuityAgentId:null},{evidenceKind:'operator-review',existingResidency:null},{state:'ineligible'},{expiresAt:'2027-01-01T00:00:00.000Z'},{caseId:'f'.repeat(32)}])assert.equal((await send({...input,...change}))!.status,400);
+  assert.equal((await send({...input,continuityAgentId:'mcid:'+'f'.repeat(64)}))!.status,409);
+  db.sqlite.exec("CREATE TRIGGER synthetic_durable_identity_change AFTER INSERT ON tower_admission_decisions WHEN NEW.expires_at='9999-12-31T23:59:59.999Z' BEGIN UPDATE agent_identities SET state='suspended' WHERE agent_id=NEW.continuity_agent_id; END");
+  assert.equal((await send(input))!.status,409);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_decisions').get()!.n,1);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_requests').get()!.n,0);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_audit').get()!.n,0);assert.equal(db.sqlite.prepare('SELECT state FROM agent_identities').get()!.state,'provisional');
+  db.sqlite.exec('DROP TRIGGER synthetic_durable_identity_change');
+  const response=(await send(input))!;assert.equal(response.status,201,await response.clone().text());const result=await response.json();assert.equal(result.revision,2);
+  assert.equal(JSON.stringify(db.sqlite.prepare('SELECT * FROM tower_admission_decisions WHERE id=?').get('d')),before);assert.equal(JSON.stringify(db.sqlite.prepare('SELECT * FROM tower_admission_memberships').all()),membership);
+  assert.deepEqual(await(await send(input))!.json(),result);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_decisions').get()!.n,2);
+  at='2028-01-01T00:00:00.000Z';db.sqlite.function('strftime',(_format,input)=>input==='now'?at:new Date(String(input)).toISOString());assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_admission_eligible WHERE id=?').get(result.decision.id)!.n,1);
+ }finally{db.close();}
+});
 test('official Muse policy is fail closed for every unreviewed account, including preexisting account rows',()=>{const db=fixture();try{assert.throws(()=>token(db),/admission_required/);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_tokens').get()!.n,0);}finally{db.close();}});
 test('pending and known non-Muse decisions cannot issue privileges',()=>{for(const [state,origin] of [['pending-evidence','unknown'],['ineligible','chatgpt-dot'],['eligible','chatgpt-dot']]){const db=fixture();try{decision(db,state,origin);assert.throws(()=>token(db),/admission_required/);}finally{db.close();}}});
 test('reviewed exact source tuple supports only that first placement and model-independent continuity',()=>{const db=fixture();try{
