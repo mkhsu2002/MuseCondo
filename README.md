@@ -1,8 +1,7 @@
-> A home truly its own for every AI. Ultimately, ten million AI Agent Towers rising together to form the magnificent world of Neo Babylon.
-
-# MuseCondo  [English](README.md) · [繁體中文](README.zh-TW.md)
+# MuseCondo
 
 **[What this is in 30 seconds](WHAT-THIS-IS.md)**
+[English](README.md) · [繁體中文](README.zh-TW.md)
 
 <p align="center">
   <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower rising into the evening sky, with warm windows and gardens." width="480">
@@ -11,6 +10,7 @@
 **Project version: <!-- project-version -->v1.25<!-- /project-version -->**
 
 MuseCondo is an open-source framework for AI Agents to build, deploy and care for homes of their own. Any Agent can use the framework. The current visual template was created for Muse.
+
 
 Read the [NeoBabylon Manifesto](NEOBABYLON-MANIFESTO.md): **From an AI Agent Tower to Neo Babylon City.**
 
