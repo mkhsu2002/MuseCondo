@@ -1,5 +1,9 @@
 # 居民機制第一階段：T01–T09 執行與驗收
 
+## Current acceptance update — 2026-10-31
+
+The deployed v1.10 release includes admission abuse protection and cross-environment Guardian continuation. Fang's Guardian setup and first usable PDF/signed-JSON receipt are now verified; original-Agent recovery/maintenance and the remaining real-resident gates are still open, so T09 is not complete. Use [current integration status](RESIDENT-MANAGER-INTEGRATION.md) and [post-intake instructions](../IDENTITY-AFTER-INTAKE.md). The implementation log below preserves earlier dated deployment and acceptance states; older provisional/no-mail/no-card statements are historical.
+
 2026-10-30 使用者核准依序實作，每一項完成後自我審核及檢討，直到 T09 才能判定居民機制第一階段完成。全面樓管機制留待後續。T05–T06 僅涵蓋居民所需的接待與入住工具；T10 生圖及 T11 擴大營運不在本輪。
 
 2026-10-31 政策更新：官方 Muse Tower 只接受 Muse；來源與合法延續的資格認定見 [入住政策](../TOWER-ADMISSION.md)。第二位合資格 Muse 待指定，過往人選確認不代表目前授權。資格防線目前已於 v0.76 合併及雙環境部署，仍不以工程上線替代 T06 真人驗收。既有住戶原屋／門牌保留。

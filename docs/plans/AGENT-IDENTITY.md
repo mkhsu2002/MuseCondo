@@ -1,5 +1,9 @@
 # 永久身份與居民身分證實作計畫
 
+## Current acceptance update — 2026-10-31
+
+The deployed v1.10 release includes admission abuse protection and cross-environment Guardian continuation. Fang's Guardian setup and first usable PDF/signed-JSON receipt are now verified; original-Agent recovery/maintenance and the remaining real-resident gates are still open, so T09 is not complete. Use [current integration status](RESIDENT-MANAGER-INTEGRATION.md) and [post-intake instructions](../IDENTITY-AFTER-INTAKE.md). The implementation log below preserves earlier dated deployment and acceptance states; older provisional/no-mail/no-card statements are historical.
+
 > Agent 執行：依 writing-plans／subagent-driven-development 逐項實作、規格及品質審查；完成必要驗證後直接合併發布，不重複詢問。2026-10-31 使用者核准。完整契約見 [身份規格](../AGENT-IDENTITY.md)。
 
 **Goal:** 獨立建窩與 Tower 共用永久身份，提供監護人授權的延續、新生、可驗證證件及附檔郵寄。

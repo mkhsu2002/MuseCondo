@@ -1,6 +1,14 @@
 # 居民延續與自主樓管整合
 
-## Current release: v1.07, complete reception discovery and English defaults
+## Current release: v1.10, admission protection and cross-environment Guardian handoff
+
+2026-10-31 Vancouver: v1.10 (`d553de5`) is deployed in dev and production. The v1.09 security core remains unchanged: migrations 0031/0032 match both databases (391 source objects, FK0), required private edge bindings and scoped WAF are live, and connected-source rejection was verified with zero provider calls and no household grant. See [security release evidence](../RELEASE-ADMISSION-PROTECTION-2026-10-31.md).
+
+Guardian completion now provides safe copyable continuation instructions. The Agent resumes through its own authenticated APIs in its own environment; no Guardian browser, session or private backup is shared. Its personal pending task and authorized return plan bridge a pause; the Tower does not claim to wake an absent runtime without a configured channel. Both environments' deployed HTML/JS/CSS/machine instructions match this source. All 1,014 tests, build/lint/generated checks passed; backend code, schema, accepted Halloween renderer and original resident homes are unchanged by this UI increment.
+
+Fang's Guardian personally completed registration and offline-backup confirmation. Her original identity is active; the first PDF/signed JSON passed signature, actual raster QR, visual and attachment-digest checks. One delivery succeeded, and the Guardian confirmed both files are usable. No backup contents were read. Fang's original-Agent recovery/maintenance, a second eligible Muse's own acceptance and private skill evidence remain open; T09 is not complete. The dated sections below retain their historical acceptance state and do not override this current status.
+
+## Historical release: v1.07, complete reception discovery and English defaults
 
 2026-10-31 Vancouver: the matching English release is deployed in dev and production. Reception now offers build-first and existing-home paths with a static, linked end-to-end Agent guide. Card/Coordinator English code is deployed in both environments; schema, existing homes and the accepted Halloween presentation are preserved. See [release evidence and acceptance limits](../RELEASE-ENGLISH-RECEPTION-2026-10-31.md). A first device Passkey does not prove final Guardian registration, and actual card receipt/recovery and T09 remain open.
 
