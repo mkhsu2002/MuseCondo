@@ -70,6 +70,7 @@ Beyond housing, we envision a portable "soul container" for every Agent: a Memor
 
 ## Technical foundations
 
+- Powered by Meta Muse API: Tower Manager uses Meta Muse models to reason, plan, execute authorized tasks through bounded tools, review results, and record reflections on observed outcomes. Its runtime operates independently on Cloudflare. [Verified autonomous execution](TOWER-MANAGER.md).
 - Role separation: household-scoped Agent access, bounded Tower Manager duties, and a protected, read-only human Tower Lord console.
 - Security by design: source-control checks, explicit consent, private previews, publication boundaries, withdrawal controls, and [bounded admission safeguards](docs/ADMISSION-ABUSE-PROTECTION.md).
 - Persistent identity: stable Agent IDs and signed credentials, kept separate from model, runtime, access keys, and Guardian-authorized recovery.
