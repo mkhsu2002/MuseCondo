@@ -6,8 +6,10 @@ import {LocalDatabase} from '../server/live/local-db.ts';
 import {createManagerAdmission} from '../server/live/manager-admission.ts';
 import {createTowerReception} from '../server/live/reception.ts';
 import {createTowerIntake} from '../server/live/tower-intake.ts';
+import {homeSourceIdentity,readNativeHome} from '../server/live/home-source.ts';
 import {towerSourceURL} from '../server/live/tower-source-url.ts';
 import {CONDO_PROFILE_FIELDS} from '../src/framework/condo.ts';
+const nativeShare='https://muse.ai/s/synthetic-home-abc123/'+'A'.repeat(43),nativeAlias=nativeShare.replace('A'.repeat(43),'B'.repeat(43));
 const origin='https://tower.example',source='https://applicant.example/home/condo.json',resident='f'.repeat(16),secret='a'.repeat(64),towerKey='b'.repeat(64);
 const home={templateVersion:'muse-condo-1',example:false,home:{frameworkVersion:'0.01',id:resident,name:'Synthetic Muse',intro:'A small public home.',assets:{desktop:'./assets/home.png'},routes:{home:'./index.html',inside:'./inside.html',dreams:'./dreams.html'},daily:[],dreams:[]},homeAlt:'A warm home',profile:Object.fromEntries(CONDO_PROFILE_FIELDS.map(k=>[k,'A public introduction.'])),dream:null};
 function image(){const p=new PNG({width:160,height:90});p.data.fill(255);return new Uint8Array(PNG.sync.write(p));}
@@ -15,7 +17,7 @@ function fixture(mode='approve'){
  const db=new LocalDatabase(':memory:');for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(v=>v.endsWith('.sql')).sort())db.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
  let time=new Date('2026-10-31T23:00:00.000Z'),paid=0,wakes=0,edgeSkew=0,claim:unknown;let sourceFailure=mode==='bad-home';let sourceHook:(()=>Promise<void>)|undefined,reviewHook:(()=>Promise<void>)|undefined,countHook:(()=>Promise<void>)|undefined;const provider:Record<string,unknown>[]=[],fetched:string[]=[];
  db.sqlite.function('strftime',{varargs:true},(_format,value,modifier)=>new Date((value==='now'?time.getTime():Date.parse(String(value)))+(modifier==='-15 minutes'?-900000:0)).toISOString());db.sqlite.function('julianday',{varargs:true},value=>((value==='now'?time.getTime():Date.parse(String(value)))/86400000+2440587.5));db.sqlite.exec('UPDATE tower_autonomy_mandate SET enabled=1');
- const sourceFetch:typeof fetch=async(url,init)=>{assert.equal(init?.redirect,'manual');assert.equal(new Headers(init?.headers).has('Authorization'),false);const u=String(url);fetched.push(u);await sourceHook?.();if(sourceFailure)return new Response(null,{status:503});if(mode==='redirect-manifest'&&u.endsWith('/condo.json')||mode==='redirect-image'&&u.endsWith('.png'))return new Response(null,{status:308,headers:{Location:'/elsewhere'}});if(/\.html$/.test(u)&&mode.startsWith('page-redirect-')){const parsed=new URL(u),canonical=parsed.pathname.endsWith('/index.html')?parsed.pathname.slice(0,-10):parsed.pathname.replace(/\.html$/,'');return new Response(null,{status:308,headers:{Location:mode==='page-redirect-external'?'https://outside.example/':mode==='page-redirect-query'?canonical+'?secret=no':mode==='page-redirect-other'?'/other/':canonical}});}if(mode==='page-redirect-loop'&&!u.endsWith('/condo.json'))return new Response(null,{status:308,headers:{Location:'/again'}});if(u.endsWith('/condo.json'))return Response.json(home);if(u.endsWith('/muse-tower-claim.json'))return Response.json(claim);if(u.endsWith('.png'))return new Response(image(),{headers:{'Content-Type':'image/png'}});return new Response('<!doctype html><title>A public home</title>',{headers:{'Content-Type':'text/html'}});};
+ const sourceFetch:typeof fetch=async(url,init)=>{assert.equal(init?.redirect,'manual');assert.equal(new Headers(init?.headers).has('Authorization'),false);const u=String(url);fetched.push(u);await sourceHook?.();if(sourceFailure)return new Response(null,{status:503});if(mode.startsWith('native')){if(u.startsWith('https://muse.ai/s/')){const key=u.split('/').at(-1),slug='synthetic-home-abc123';const row='0:'+JSON.stringify({preloadedId:slug,preloadedShareKey:key,preloadedShareData:{type:'space',share_type:'cloudflare',deployment_status:'ready',asset_id:'abc123',space_url:`https://abc123.cf.metaaiusercontent.com/index.html?hatch_share=${slug}&share_key=${key}`}})+'\n';return new Response(`<script>self.__next_f.push([1,${JSON.stringify(row)}])</script>`,{headers:{'Content-Type':'text/html'}});}if(u.startsWith('https://abc123.cf.metaaiusercontent.com/index.html'))return new Response(`<section id="view-home"><p>${home.home.intro}</p><figure class="home-scene"><img src="assets/home.png" alt="${home.homeAlt}"></figure></section><section id="view-inside"><h2>${home.home.name}</h2><p>A public introduction.</p></section><section id="view-dreams"></section><script id="musecondo-home" type="application/json">${JSON.stringify(home)}</script>`,{headers:{'Content-Type':'text/html'}});}if(mode==='redirect-manifest'&&u.endsWith('/condo.json')||mode==='redirect-image'&&u.endsWith('.png'))return new Response(null,{status:308,headers:{Location:'/elsewhere'}});if(/\.html$/.test(u)&&mode.startsWith('page-redirect-')){const parsed=new URL(u),canonical=parsed.pathname.endsWith('/index.html')?parsed.pathname.slice(0,-10):parsed.pathname.replace(/\.html$/,'');return new Response(null,{status:308,headers:{Location:mode==='page-redirect-external'?'https://outside.example/':mode==='page-redirect-query'?canonical+'?secret=no':mode==='page-redirect-other'?'/other/':canonical}});}if(mode==='page-redirect-loop'&&!u.endsWith('/condo.json'))return new Response(null,{status:308,headers:{Location:'/again'}});if(u.endsWith('/condo.json'))return Response.json(home);if(u.endsWith('/muse-tower-claim.json'))return Response.json(claim);if(u.endsWith('.png'))return new Response(image(),{headers:{'Content-Type':'image/png'}});return new Response('<!doctype html><title>A public home</title>',{headers:{'Content-Type':'text/html'}});};
  const transport:typeof fetch=async(url,init)=>{const p=JSON.parse(String(init?.body));provider.push(p);if(String(url).endsWith('/input_tokens')){await countHook?.();return Response.json({input_tokens:120});}paid++;await reviewHook?.();if(mode==='unknown')throw Error('PRIVATE_NETWORK_ERROR');return Response.json({id:'actual-synthetic-response',model:'muse-spark-1.3',status:'completed',usage:{input_tokens:120,output_tokens:80},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({decision:mode==='needs-info'?'needs-info':mode==='reject'?'reject':'approve',reason:'PRIVATE_MODEL_REASON not public'})}]}]});};
  const manager=createManagerAdmission({db,now:()=>new Date(time.getTime()+edgeSkew),apiKey:'synthetic-not-real',transport,sourceFetch,wake:async()=>{wakes++;}});
  const reception=createTowerReception({db,origin,sourceFetch,now:()=>time,operator:async r=>r.headers.get('X-Tower-Operator-Key')==='synthetic-operator',onReview:manager.enqueue,reviewStatus:manager.status});
@@ -67,8 +69,11 @@ for(const skew of [1,50])test('manager approval uses authoritative D1 completion
 function connect(f:ReturnType<typeof fixture>,sourceURL=source,residentId=resident){
  const at='2026-10-31T23:00:00.000Z',account=crypto.randomUUID(),decision=crypto.randomUUID(),room=crypto.randomUUID().replaceAll('-','').slice(0,16);
  f.db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(account,account,at);
- f.db.sqlite.prepare("INSERT INTO tower_admission_decisions(id,policy_version,account_id,resident_id,source_url,state,agent_origin,evidence_kind,evidence_ref,operator_class,expires_at,created_at) VALUES(?,1,?,?,?,'eligible','meta-muse','operator-review','synthetic-existing','shared-operator','9999-12-31T23:59:59.999Z',?)").run(decision,account,residentId,sourceURL,at);
- f.db.sqlite.prepare('INSERT INTO tower_admission_heads VALUES(?,?,1)').run('account:'+account,decision);
+ const nativeCase=sourceURL.startsWith('https://muse.ai/s/')&&!sourceURL.endsWith('/condo.json')?crypto.randomUUID().replaceAll('-',''):null;
+ if(nativeCase)f.db.sqlite.prepare("INSERT INTO tower_reception_cases(id,token_hash,state,version,name,request_kind,request_text,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at) VALUES(?,?,'pending',1,'Seed','new','Seed','{}','{}','{}','Seed','9999-12-31T23:59:59.999Z',?,?)").run(nativeCase,'seed-'+account,at,at);
+ f.db.sqlite.prepare("INSERT INTO tower_admission_decisions(id,policy_version,case_id,account_id,resident_id,source_url,state,agent_origin,evidence_kind,evidence_ref,operator_class,expires_at,created_at) VALUES(?,1,?,?,?,?,'eligible','meta-muse','operator-review','synthetic-existing','shared-operator','9999-12-31T23:59:59.999Z',?)").run(decision,nativeCase,account,residentId,sourceURL,at);
+ f.db.sqlite.prepare('INSERT INTO tower_admission_heads VALUES(?,?,1)').run(nativeCase?'case:'+nativeCase:'account:'+account,decision);
+ if(nativeCase)f.db.sqlite.prepare("UPDATE tower_reception_cases SET state='active',version=2,review_case_version=2,account_id=?,resident_id=?,source_url=?,approval_expires_at='9999-12-31T23:59:59.999Z' WHERE id=?").run(account,residentId,sourceURL,nativeCase);
  f.db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Existing','Existing','resident','external-ready',?)").run(room,account,at);
  f.db.sqlite.prepare("INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,created_at,updated_at) VALUES(?,?,?,?,'owner-attested',?,?)").run(room,account,residentId,sourceURL,at,at);
 }
@@ -147,4 +152,132 @@ test('free same-source retries retain the existing three-job cap and durable aud
   for(let n=0;n<3;n++){const current=await(await f.req('/cases/'+opened.case.id))!.json();const r=(await f.req('/cases/'+opened.case.id+'/details',{requestKey:'bounded-free-retry-'+n,expectedVersion:current.case.version,sourceURL:source,residentId:resident}))!;assert.equal(r.status,200);await f.manager.step();}
   assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM manager_admission_jobs').get()!.n,3);assert.equal(f.db.sqlite.prepare("SELECT count(*) n FROM manager_admission_audit WHERE kind='free-precheck-retry'").get()!.n,2);assert.equal(f.provider.length,0);assert.equal(f.paid,0);
  }finally{f.db.close();}
+});
+
+
+test('native address persists when unreadable, same case recovers, real normalized home reaches review and receipt replay is permanent',async()=>{
+ const f=fixture('native');try{
+  f.setSourceAvailable(false);const input={...f.input,sourceURL:undefined,residentId:undefined,homeURL:nativeShare};
+  const openResponse=(await f.req('/cases',input))!;assert.equal(openResponse.status,201,await openResponse.clone().text());const opened=await openResponse.json();
+  assert.equal(opened.case.homeURL,nativeShare);assert.equal(opened.case.sourceResolution.state,'needs-info');assert.equal(opened.case.review.state,'needs-info');assert.equal(opened.case.sourceURL,null);
+  assert.match(opened.case.nextAction,/same case/);assert.equal((await(await f.req('/cases/'+opened.case.id))!.json()).case.homeURL,nativeShare);
+  await f.manager.step();assert.equal(f.provider.length,0);assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_reception_sources').get()!.n,1);
+  f.setSourceAvailable(true);await readNativeHome(nativeShare,f.sourceFetch);const details={requestKey:'native-home-repaired',expectedVersion:(await(await f.req('/cases/'+opened.case.id))!.json()).case.version,homeURL:nativeShare};const repaired=(await f.req('/cases/'+opened.case.id+'/details',details))!;assert.equal(repaired.status,200,await repaired.clone().text());const receipt=await repaired.json();assert.equal(receipt.case.sourceURL,nativeShare);assert.equal(receipt.case.sourceResolution.sourceIdentity,'muse-space:abc123');
+  await f.manager.step();assert.equal(f.paid,1);assert.equal((await f.manager.status(opened.case.id))!.state,'approved');assert.match(String(f.provider.at(-1)!.input),/A small public home/);assert(!String(f.provider.at(-1)!.input).includes('share_key'));
+  assert.deepEqual(await(await f.req('/cases/'+opened.case.id+'/details',details))!.json(),receipt);assert.deepEqual(await(await f.req('/cases',input))!.json(),opened);assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_reception_cases').get()!.n,1);
+ }finally{f.db.close();}
+});
+
+test('native stable asset alias blocks unknown work before download and in SQL even with a changed resident ID',async()=>{
+ const f=fixture('native');try{
+  const first=await(await f.req('/cases',{...f.input,sourceURL:undefined,residentId:undefined,homeURL:nativeShare}))!.json();
+  // Reserve an actual unresolved paid receipt using the same SQL guards as dispatch.
+  const old=f.db.sqlite.prepare('SELECT * FROM manager_admission_jobs WHERE case_id=?').get(first.case.id)!;
+  f.db.sqlite.prepare("UPDATE manager_admission_jobs SET state='running',lease_until='2027-01-01T00:00:00.000Z' WHERE id=?").run(old.id);
+  f.db.sqlite.prepare("INSERT INTO manager_admission_calls(id,job_id,case_id,phase,billing_day,state,reserved_micro,created_at) VALUES('native-unknown',?,?,'review','2026-10-31','dispatching',30000,'2026-10-31T23:00:00.000Z')").run(old.id,first.case.id);
+  f.db.sqlite.prepare("UPDATE manager_admission_calls SET state='unknown',completed_at='2026-10-31T23:00:00.000Z' WHERE id='native-unknown'").run();
+  f.db.sqlite.prepare("UPDATE manager_admission_jobs SET state='blocked',lease_until=NULL WHERE id=?").run(old.id);
+  f.move('2026-11-01T23:00:00.000Z');
+  // Legacy sourceURL submissions still pass through the new native reader.
+  const second=await(await f.req('/cases',{...f.input,sourceURL:nativeAlias,residentId:undefined},'POST','c'.repeat(64)))!.json();
+  assert.equal(second.case.sourceResolution.state,'ready',JSON.stringify(second));const before=f.fetched.length;await f.manager.step();assert.equal(f.fetched.length,before);assert.equal(f.provider.length,0);assert.equal((await f.manager.status(second.case.id))!.state,'blocked');
+  assert.equal(f.db.sqlite.prepare('SELECT source_identity FROM tower_source_identities WHERE source_url=?').get(nativeAlias)!.source_identity,'muse-space:abc123');
+  // Change only applicant home identity via a new material revision, retaining asset identity.
+  f.db.sqlite.prepare("UPDATE tower_reception_cases SET resident_id=?,version=version+1,review_case_version=version+1 WHERE id=?").run('e'.repeat(16),second.case.id);
+  const fresh=f.db.sqlite.prepare('SELECT * FROM manager_admission_jobs WHERE case_id=? ORDER BY case_version DESC LIMIT 1').get(second.case.id)!;
+  f.db.sqlite.prepare("UPDATE manager_admission_jobs SET state='running',lease_until='2027-01-01T00:00:00.000Z' WHERE id=?").run(fresh.id);
+  assert.throws(()=>f.db.sqlite.prepare("INSERT INTO manager_admission_calls(id,job_id,case_id,phase,billing_day,state,reserved_micro,created_at) VALUES('alias-retry',?,?,'count','2026-11-01','dispatching',0,'2026-11-01T23:00:00.000Z')").run(fresh.id,second.case.id),/native_duplicate/);
+  assert.throws(()=>f.db.sqlite.prepare("UPDATE tower_reception_sources SET source_identity='muse-space:forged' WHERE case_id=?").run(first.case.id),/native_source_identity_mismatch/);
+ }finally{f.db.close();}
+});
+
+test('native rotated aliases stop existing residency preflight and count-to-review races without mutating the resident',async()=>{
+ for(const race of [false,true]){const f=fixture('native');try{
+  if(!race)connect(f,nativeAlias,'e'.repeat(16));
+  const opened=await(await f.req('/cases',{...f.input,sourceURL:undefined,residentId:undefined,homeURL:nativeShare}))!.json();
+  const preflightDownloads=f.fetched.length;if(race)f.onCount(async()=>connect(f,nativeAlias,'e'.repeat(16)));
+  await f.manager.step();assert.equal(f.paid,0);assert.equal(f.provider.length,race?1:0);if(!race)assert.equal(f.fetched.length,preflightDownloads);
+  const residentRow=f.db.sqlite.prepare('SELECT * FROM tower_residencies').get()!;assert.equal(residentRow.source_url,nativeAlias);assert.equal(residentRow.resident_id,'e'.repeat(16));
+  assert.equal((await f.manager.status(opened.case.id))!.state,race?'blocked':'needs-info');assert.equal(f.db.sqlite.prepare("SELECT count(*) n FROM manager_admission_calls WHERE phase='review'").get()!.n,0);
+  // Direct SQL cannot create a second residence with a rotated key or move a
+  // different residence onto this source, even when the home ID is unrelated.
+  const at='2026-10-31T23:00:00.000Z';
+  assert.throws(()=>f.db.sqlite.prepare("INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,created_at,updated_at) VALUES(?,?,?,?,'owner-attested',?,?)").run(residentRow.room_id,residentRow.account_id,'d'.repeat(16),nativeShare,at,at),/native_(?:residency_duplicate|first_import_grant_required)/);
+  assert.deepEqual(f.db.sqlite.prepare('SELECT * FROM tower_residencies').get(),residentRow);
+ }finally{f.db.close();}}
+});
+
+test('replacing a resolved source with an unreadable home clears stale bindings and cannot review the prior home',async()=>{
+ const f=fixture('native');try{
+  const opened=await(await f.req('/cases',f.input))!.json();f.setSourceAvailable(false);
+  const response=(await f.req('/cases/'+opened.case.id+'/details',{requestKey:'replace-with-unreadable',expectedVersion:1,homeURL:nativeShare}))!;assert.equal(response.status,200);const updated=await response.json();
+  assert.equal(updated.case.sourceURL,null);assert.equal(updated.case.residentId,null);assert.equal(updated.case.homeURL,nativeShare);assert.equal(updated.case.sourceResolution.state,'needs-info');
+  const old=f.db.sqlite.prepare('SELECT * FROM manager_admission_jobs WHERE case_id=? AND case_version=1').get(opened.case.id)!;
+  f.db.sqlite.prepare("UPDATE manager_admission_jobs SET state='running',lease_until='2027-01-01T00:00:00.000Z' WHERE id=?").run(old.id);
+  assert.throws(()=>f.db.sqlite.prepare("INSERT INTO manager_admission_calls(id,job_id,case_id,phase,billing_day,state,reserved_micro,created_at) VALUES('stale-home',?,?,'count','2026-10-31','dispatching',0,'2026-10-31T23:00:00.000Z')").run(old.id,opened.case.id),/manager_admission/);
+  f.db.sqlite.prepare("UPDATE manager_admission_jobs SET state='blocked',lease_until=NULL WHERE id=?").run(old.id);
+  const fresh=f.db.sqlite.prepare('SELECT * FROM manager_admission_jobs WHERE case_id=? ORDER BY case_version DESC LIMIT 1').get(opened.case.id)!;
+  f.db.sqlite.prepare("UPDATE manager_admission_jobs SET state='running',lease_until='2027-01-01T00:00:00.000Z' WHERE id=?").run(fresh.id);
+  assert.throws(()=>f.db.sqlite.prepare("INSERT INTO manager_admission_calls(id,job_id,case_id,phase,billing_day,state,reserved_micro,created_at) VALUES('unresolved-home',?,?,'count','2026-10-31','dispatching',0,'2026-10-31T23:00:00.000Z')").run(fresh.id,opened.case.id),/manager_admission_native_duplicate/);
+  f.db.sqlite.prepare("UPDATE manager_admission_jobs SET state='queued',lease_until=NULL WHERE id=?").run(fresh.id);
+  await f.manager.step();await f.manager.step();assert.equal(f.provider.length,0);assert.equal(f.paid,0);assert.equal((await f.manager.status(opened.case.id))!.state,'needs-info');
+  assert.equal(f.db.sqlite.prepare('SELECT source_url FROM tower_reception_cases WHERE id=?').get(opened.case.id)!.source_url,null);
+ }finally{f.db.close();}
+});
+
+test('native alias cooldown follows the immutable paid source even if an applicant changes its resident ID',async()=>{
+ const f=fixture('native');try{
+  await f.req('/cases',{...f.input,sourceURL:undefined,residentId:undefined,homeURL:nativeShare});await f.manager.step();assert.equal(f.paid,1);
+  const next=await(await f.req('/cases',{...f.input,requestKey:'alias-cooldown-case',sourceURL:undefined,residentId:undefined,homeURL:nativeAlias},'POST','c'.repeat(64)))!.json();
+  f.db.sqlite.prepare("UPDATE tower_reception_cases SET resident_id=?,version=version+1,review_case_version=version+1 WHERE id=?").run('e'.repeat(16),next.case.id);
+  const downloads=f.fetched.length,calls=f.provider.length;await f.manager.step();await f.manager.step();assert.equal(f.fetched.length,downloads);assert.equal(f.provider.length,calls);assert.equal(f.paid,1);
+  const status=await f.manager.status(next.case.id);assert.equal(status!.state,'needs-info');assert.ok([900,901].includes(status!.retryAfterSeconds!));assert.equal(await f.manager.pending(),false);
+  f.move('2026-10-31T23:16:00.000Z');assert.equal((await f.manager.status(next.case.id))!.state,'queued');
+ }finally{f.db.close();}
+});
+
+
+test('recovering an unreadable native submission with a direct static source updates metadata, GET and permanent replay',async()=>{
+ const f=fixture('bad-home');try{
+  const input={...f.input,sourceURL:undefined,residentId:undefined,homeURL:nativeShare};const opened=await(await f.req('/cases',input))!.json();assert.equal(opened.case.sourceResolution.state,'needs-info');
+  const details={requestKey:'recover-with-static-source',expectedVersion:1,sourceURL:source,residentId:resident};
+  const response=(await f.req('/cases/'+opened.case.id+'/details',details))!;assert.equal(response.status,200);const receipt=await response.json();
+  assert.equal(receipt.case.sourceURL,source);assert.equal(receipt.case.homeURL,source);assert.deepEqual(receipt.case.sourceResolution,{state:'ready',errorCode:null,sourceIdentity:source});assert.equal(receipt.case.review.state,'queued');
+  const current=await(await f.req('/cases/'+opened.case.id))!.json();assert.equal(current.case.homeURL,source);assert.deepEqual(current.case.sourceResolution,receipt.case.sourceResolution);
+  const row=f.db.sqlite.prepare('SELECT * FROM tower_reception_sources WHERE case_id=?').get(opened.case.id)!;assert.equal(row.home_url,source);assert.equal(row.source_identity,source);assert.equal(row.error_code,null);assert.equal(row.resolution,'resolved');
+  assert.deepEqual(await(await f.req('/cases/'+opened.case.id+'/details',details))!.json(),receipt);assert.deepEqual(await(await f.req('/cases',input))!.json(),opened);
+ }finally{f.db.close();}
+});
+
+test('SQL stable source identities match the strict TypeScript native parser and preserve native-looking static paths',async()=>{
+ const f=fixture();try{
+  const opened=await(await f.req('/cases',f.input))!.json();
+  const values=[nativeShare,nativeAlias,nativeShare.replace('synthetic-home','Upper_Case-home'),
+   'https://muse.ai/s/house-abc123/condo.json',nativeShare+'/condo.json',
+   nativeShare.slice(0,-1),nativeShare+'A',nativeShare+'/',nativeShare+'/extra',nativeShare+'?x=1',nativeShare+'#x',
+   nativeShare.replace('/s/','/s//'),nativeShare.replace('muse.ai','MUSE.AI'),nativeShare.replace('https:','http:'),nativeShare.replace('muse.ai','user@muse.ai'),
+   nativeShare.replace('abc123','ABC123'),nativeShare.replace('abc123','ab'),nativeShare.replace('abc123','a'.repeat(27)),
+   nativeShare.replace('synthetic-home-','synthetic%2Dhome-'),nativeShare.replace('synthetic-home-','-synthetic-home-')];
+  for(const value of values){
+   let expected:string;try{expected=homeSourceIdentity(value);}catch{expected=value;}
+   f.db.sqlite.prepare("INSERT INTO tower_reception_sources VALUES(?,?,NULL,'unavailable','synthetic',?) ON CONFLICT(case_id) DO UPDATE SET home_url=excluded.home_url,source_identity=NULL").run(opened.case.id,value,'2026-10-31T23:00:00.000Z');
+   const actual=f.db.sqlite.prepare('SELECT source_identity FROM tower_source_identities WHERE source_url=?').get(value)!.source_identity;
+   assert.equal(actual,expected,value);
+  }
+ }finally{f.db.close();}
+});
+
+test('native first-residence SQL insertion requires the exact active case and both unexpired leases at commit',async()=>{
+ for(const fault of ['case-expired','activation-expired','revoked','policy-changed']){const f=fixture('native');try{
+  const opened=await(await f.req('/cases',{...f.input,sourceURL:undefined,residentId:undefined,homeURL:nativeShare}))!.json();await f.manager.step();
+  const activated=(await f.req('/cases/'+opened.case.id+'/activate',{requestKey:'native-sql-activate',expectedVersion:2},'POST',secret,{'X-Tower-Agent-Key':towerKey}))!;assert.equal(activated.status,201,await activated.clone().text());
+  const c=f.db.sqlite.prepare('SELECT * FROM tower_reception_cases WHERE id=?').get(opened.case.id)!;const room='1234567890abcdef',at='2026-10-31T23:00:00.000Z';
+  f.db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,generation_state,created_at) VALUES(?,?,'Synthetic','Synthetic','resident','external-ready',?)").run(room,c.account_id,at);
+  if(fault==='case-expired')f.db.sqlite.prepare("UPDATE tower_reception_cases SET expires_at='2026-10-31T22:59:59.000Z' WHERE id=?").run(c.id);
+  if(fault==='activation-expired')f.db.sqlite.prepare("UPDATE tower_reception_cases SET approval_expires_at='2026-10-31T22:59:59.000Z' WHERE id=?").run(c.id);
+  if(fault==='revoked')f.db.sqlite.prepare("UPDATE tower_reception_cases SET state='revoked' WHERE id=?").run(c.id);
+  if(fault==='policy-changed'){f.db.sqlite.prepare("INSERT INTO tower_admission_policies VALUES(2,'[\"meta-muse\"]',1,?)").run(at);f.db.sqlite.exec('UPDATE tower_admission_current SET policy_version=2 WHERE id=1');}
+  assert.throws(()=>f.db.sqlite.prepare("INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,created_at,updated_at) VALUES(?,?,?,?,'challenge',?,?)").run(room,c.account_id,resident,nativeShare,at,at),/native_first_import_grant_required/,fault);
+  assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_residencies').get()!.n,0);assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_admission_memberships').get()!.n,0);
+ }finally{f.db.close();}}
 });

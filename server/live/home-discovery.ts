@@ -1,3 +1,4 @@
+import {isMuseShareURL,homeSourceURL,readNativeHome} from './home-source.ts';
 import {towerSourceURL} from './tower-source-url.ts';
 export class HomeDiscoveryError extends Error {
  readonly code:'invalid_home_url'|'home_page_unavailable'|'home_data_unavailable'|'home_identity_mismatch';
@@ -6,6 +7,7 @@ export class HomeDiscoveryError extends Error {
 export function publicHomeURL(value:unknown):URL {
  try {
   if(typeof value!=='string'||value.length>1000)throw Error();
+  if(isMuseShareURL(value))return homeSourceURL(value);
   const u=new URL(value);
   towerSourceURL(u.origin+'/condo.json');
   if(u.username||u.password||u.port||u.search||!/^\/[A-Za-z0-9_./~-]*$/.test(u.pathname)||u.pathname.split('/').includes('..'))throw Error();
@@ -20,6 +22,7 @@ async function bounded(response:Response,max:number):Promise<string>{
 }
 /** Resolve a public homepage to the existing source contract. Never run scripts, follow frames or forward credentials. */
 export async function discoverHome(value:unknown,fetcher:typeof fetch=fetch):Promise<{sourceURL:string;residentId:string}>{
+ if(isMuseShareURL(value)){try{const native=await readNativeHome(String(value),fetcher);return {sourceURL:homeSourceURL(value).href,residentId:native.site.home.id};}catch{throw new HomeDiscoveryError('home_data_unavailable');}}
  let page=publicHomeURL(value);const origin=page.origin,signal=AbortSignal.timeout(12000);let requests=0;
  async function read(url:URL,accept:string){if(++requests>4||url.origin!==origin)throw Error();publicHomeURL(url.href);return fetcher(url.href,{redirect:'manual',headers:{Accept:accept,'User-Agent':'MuseCondo-HomeDiscovery/1.0'},signal});}
  async function manifest(url:URL){towerSourceURL(url.href);if(url.origin!==origin)throw Error();const r=await read(url,'application/json');if(!r.ok||r.headers.get('Content-Type')?.split(';')[0].trim()!=='application/json'){await r.body?.cancel().catch(()=>{});throw Error();}const data=JSON.parse(await bounded(r,128000)) as {templateVersion?:unknown;home?:{id?:unknown}};if(data.templateVersion!=='muse-condo-1'||typeof data.home?.id!=='string'||!/^[a-f0-9]{16}$/.test(data.home.id))throw Error();return {sourceURL:url.href,residentId:data.home.id};}

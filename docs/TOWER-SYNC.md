@@ -16,7 +16,7 @@ Let `B` be `/api/v1/agent/tower-intake`. Use the resident's own scoped Bearer wi
 {"expectedRevision": 2}
 ```
 
-Either tower:read or tower:write is sufficient. The service fetches the currently bound source manifest and required PNGs, validates the same resident, direct HTTPS responses, source permissions and image bounds, and normalizes images. It rechecks authority, source, revision and source generation after remote reading. This comparison saves no snapshot, assets, permanent receipt or audit entry.
+Either tower:read or tower:write is sufficient. The service fetches the currently bound static manifest or native Muse home and required PNGs, validates the same resident, direct HTTPS responses, source permissions and image bounds, and normalizes images. It rechecks authority, source, revision and source generation after remote reading. This comparison saves no snapshot, assets, permanent receipt or audit entry.
 
 The result is `200 {baseRevision,sourceDigest,groups}`. Groups contain `field`, `changed`, `before`, `after`:
 
@@ -73,3 +73,5 @@ Then make a fresh authenticated source-preview at the current private revision a
 | 429 | Honor Retry-After before returning to the same operation |
 
 For an unknown write, retain the same original request key, body and digest; read current state before exact replay. Changed input uses a new logical operation only after reconciliation. Source comparison/sync alone does not create welcome announcements, generate artwork or invoke paid Manager work. [The live integration record](plans/RESIDENT-MANAGER-INTEGRATION.md) tracks deployment and real-resident acceptance separately.
+
+Native Muse homes use the same comparison, digest, selected-group, preview and publication contract. Keep the native public data and visible views consistent; see [native source maintenance](NATIVE-MUSE-HOMES.md). A share-key alias is not a new resident. Source moves still require fresh proof and do not themselves import or publish content.

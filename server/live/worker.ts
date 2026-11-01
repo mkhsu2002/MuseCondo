@@ -1,3 +1,4 @@
+import {createNativeSourceInspection} from './native-source-inspection.ts';
 import {towerLordRoute,type TowerLordBindings} from './tower-lord-routes.ts';
 import {checkEdgeGuard,type EdgeGuardBinding} from './edge-guard.ts';
 import {admissionSecurityStatus} from './admission-security-status.ts';
@@ -62,6 +63,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    if(![...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...MANAGER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
   }catch{return json({available:false,error:'database_unavailable',runtime:safe},503);}
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
+  const sourceInspection=await createNativeSourceInspection({operator:async()=>operator()})(request);if(sourceInspection)return sourceInspection;
   const mailControlResponse=await createIdentityMailControl({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request);if(mailControlResponse)return mailControlResponse;
   const scheduled=async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!request.headers.get('X-Manager-Schedule-Key')&&await digest(request.headers.get('X-Manager-Schedule-Key')!)===await digest(env.MANAGER_SCHEDULE_TRIGGER_KEY);
   const autonomyRoute=await createAutonomyRoutes({db,origin:env.PUBLIC_ORIGIN!,operator,scheduled,bucket:env.MANAGER_ASSETS,runtime:env.MANAGER_RUNTIME,trigger:env.MANAGER_SCHEDULE_TRIGGER_KEY,apiKey:env.meta_muse_api,assets:env.ASSETS}).fetch(request);if(autonomyRoute)return autonomyRoute;

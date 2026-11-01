@@ -1,5 +1,5 @@
-import {discoverHome,HomeDiscoveryError} from './home-discovery.ts';
-import {towerSourceURL} from './tower-source-url.ts';
+import {homeSourceURL,homeSourceIdentity} from './home-source.ts';
+import {discoverHome,publicHomeURL,HomeDiscoveryError} from './home-discovery.ts';
 import { digest } from './app.ts';
 import type { Database, Statement } from './db.ts';
 interface Options {
@@ -33,6 +33,10 @@ interface Case {
     updated_at: string;
     is_muse_agent?:number|null;
     review_case_version?:number;
+    submitted_home_url?:string|null;
+    home_resolution?:string|null;
+    home_source_identity?:string|null;
+    home_error_code?:string|null;
 }
 class Rejection extends Error {
     status: number;
@@ -59,7 +63,7 @@ const key = (v: unknown) => {
     return v as string;
 };
 const secret = (v: string | null) => v?.match(/^Bearer ([a-f0-9]{64})$/)?.[1] ?? reject(401, 'case_key_required');
-const source=(v:unknown)=>{try{return towerSourceURL(v).href;}catch{return reject(400,'invalid_source');}};
+const source=(v:unknown)=>{try{return homeSourceURL(v).href;}catch{return reject(400,'invalid_source');}};
 function visit(value: unknown) {
     const v = object(value, ['mode', 'intervalHours']);
     if (!['self-scheduled', 'manual-return'].includes(String(v.mode)))
@@ -72,13 +76,13 @@ function visit(value: unknown) {
 }
 function safe(c: Case) {
     const missingFields = c.state === 'pending' && c.request_kind === 'new'
-        ? [...(c.is_muse_agent == null ? ['isMuseAgent'] : []), ...(c.is_muse_agent === 0 ? [] : [...(!c.source_url ? ['sourceURL'] : []), ...(!c.resident_id ? ['residentId'] : [])])] : [];
-    const nextAction = missingFields.length
+        ? [...(c.is_muse_agent == null ? ['isMuseAgent'] : []), ...(c.is_muse_agent === 0 ? [] : [...(!c.source_url && !c.submitted_home_url ? ['sourceURL'] : []), ...(!c.resident_id && c.home_resolution!=='unavailable' ? ['residentId'] : [])])] : [];
+    const nextAction = c.home_resolution==='unavailable' ? 'Your home address is saved. Make the public home accessible, then resubmit homeURL through this case’s /details endpoint with the current version. Keep the same case ID and key; tell your Guardian if you need help restoring access.' : missingFields.length
         ? (missingFields.includes('sourceURL')?'Submit your public home webpage as homeURL through this case’s /details endpoint; reception will locate its home data and resident identifier. ':'Provide ' + missingFields.join(', ') + ' through this case’s /details endpoint. ') + 'Use the current version and keep the same case ID and key. Tell your Guardian what is missing; submission is not approval.'
         : c.next_action;
-    return { id: c.id, state: c.state, version: c.version, name: c.name, isMuseAgent:c.is_muse_agent===1?true:c.is_muse_agent===0?false:null, requestKind: c.request_kind, request: c.request_text, sourceURL: c.source_url, residentId: c.resident_id, authorization: JSON.parse(c.authorization_json), sharing: JSON.parse(c.sharing_json), visitPlan: JSON.parse(c.visit_plan_json), missingFields, nextAction, expiresAt: c.expires_at, approvalExpiresAt: c.approval_expires_at, createdAt: c.created_at, updatedAt: c.updated_at };
+    return { id: c.id, state: c.state, version: c.version, name: c.name, isMuseAgent:c.is_muse_agent===1?true:c.is_muse_agent===0?false:null, requestKind: c.request_kind, request: c.request_text, ...(c.submitted_home_url?{homeURL:c.submitted_home_url,sourceResolution:{state:c.home_resolution==='resolved'?'ready':'needs-info',errorCode:c.home_error_code??null,sourceIdentity:c.home_source_identity??null}}:{}),sourceURL: c.source_url, residentId: c.resident_id, authorization: JSON.parse(c.authorization_json), sharing: JSON.parse(c.sharing_json), visitPlan: JSON.parse(c.visit_plan_json), missingFields, nextAction, expiresAt: c.expires_at, approvalExpiresAt: c.approval_expires_at, createdAt: c.created_at, updatedAt: c.updated_at };
 }
-/** Private reception. No source fetch, runtime connection, publication, scheduler or paid call. */
+/** Private reception with bounded anonymous source discovery; no runtime connection, publication or paid call. */
 export function createTowerReception(env: Options) {
     const { db } = env, now = env.now ?? (() => new Date()), stamp = () => now().toISOString();
     const stmt = (sql: string, ...v: unknown[]) => db.prepare(sql).bind(...v);
@@ -128,7 +132,7 @@ export function createTowerReception(env: Options) {
     }
     function caseGuard(c: Case, operator: boolean) { return guard("EXISTS(SELECT 1 FROM tower_reception_cases WHERE id=? AND version=? AND token_hash=? AND expires_at>? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND state=? AND account_id IS ? AND resident_id IS ? AND source_url IS ? AND approval_expires_at IS ? AND granted_token_id IS ?" + (operator ? '' : " AND state IN ('pending','approved','active')") + ')', c.id, c.version, c.token_hash, stamp(), c.state, c.account_id, c.resident_id, c.source_url, c.approval_expires_at, c.granted_token_id); }
     const event = (id: string, actor: string, kind: string, message: string) => stmt('INSERT INTO tower_reception_events(case_id,sequence,actor,kind,message,created_at) SELECT ?,COALESCE(MAX(sequence),0)+1,?,?,?,? FROM tower_reception_events WHERE case_id=?', id, actor, kind, message, stamp(), id);
-    const reviewSQL=`(SELECT json_object('state',CASE WHEN c.state IN ('approved','active') THEN 'approved' WHEN c.state='rejected' THEN 'rejected' WHEN c.request_kind!='new' OR c.is_muse_agent IS NULL THEN 'needs-info' WHEN EXISTS(SELECT 1 FROM manager_admission_calls WHERE case_id=c.id AND state='unknown') THEN 'blocked' ELSE COALESCE((SELECT CASE WHEN state='queued' THEN 'queued' WHEN state='running' THEN 'reviewing' WHEN state='blocked' THEN 'blocked' WHEN decision='approve' THEN 'approved' WHEN decision='reject' THEN 'rejected' ELSE 'needs-info' END FROM manager_admission_jobs WHERE case_id=c.id ORDER BY case_version DESC LIMIT 1),'blocked') END,'missing',CASE WHEN c.is_muse_agent IS NULL THEN json_array('isMuseAgent') ELSE json_array() END) FROM tower_reception_cases c WHERE c.id=?)`;
+    const reviewSQL=`(SELECT json_object('state',CASE WHEN c.state IN ('approved','active') THEN 'approved' WHEN c.state='rejected' THEN 'rejected' WHEN c.request_kind!='new' OR c.is_muse_agent IS NULL THEN 'needs-info' WHEN EXISTS(SELECT 1 FROM manager_admission_calls WHERE case_id=c.id AND state='unknown') THEN 'blocked' WHEN EXISTS(SELECT 1 FROM tower_reception_sources s WHERE s.case_id=c.id AND s.resolution='unavailable') THEN 'needs-info' ELSE COALESCE((SELECT CASE WHEN state='queued' THEN 'queued' WHEN state='running' THEN 'reviewing' WHEN state='blocked' THEN 'blocked' WHEN decision='approve' THEN 'approved' WHEN decision='reject' THEN 'rejected' ELSE 'needs-info' END FROM manager_admission_jobs WHERE case_id=c.id ORDER BY case_version DESC LIMIT 1),'blocked') END,'missing',CASE WHEN c.is_muse_agent IS NULL THEN json_array('isMuseAgent') ELSE json_array() END) FROM tower_reception_cases c WHERE c.id=?)`;
     function requestReceipt(c:Case,rk:string,operation:string,inputHash:string,response:unknown,status:number){return stmt(`INSERT INTO tower_reception_requests VALUES(?,?,?,?,${env.reviewStatus?`json_set(?,'$.case.review',json(${reviewSQL}))`:'?'},?,?)`,c.id,rk,operation,inputHash,JSON.stringify(response),...(env.reviewStatus?[c.id]:[]),status,stamp());}
     async function committed(caseId:string,rk:string){const receipt=await one<{response_json:string;response_status:number}>('SELECT response_json,response_status FROM tower_reception_requests WHERE case_id=? AND request_key=?',caseId,rk);if(!receipt)reject(409,'case_receipt_unavailable');return json(JSON.parse(receipt!.response_json),receipt!.response_status);}
     async function replay(c: Case, requestKey: string, operation: string, inputHash: string) {
@@ -162,15 +166,24 @@ export function createTowerReception(env: Options) {
         await notify(next.id);
         return committed(next.id,requestKey);
     }
+    function sourceStatements(caseId:string,resolved:{homeURL?:string;sourceIdentity?:string;resolution?:string;errorCode?:string|null}){
+        if(!resolved.homeURL)return [];
+        return [stmt('INSERT INTO tower_reception_sources(case_id,home_url,source_identity,resolution,error_code,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(case_id) DO UPDATE SET home_url=excluded.home_url,source_identity=excluded.source_identity,resolution=excluded.resolution,error_code=excluded.error_code,updated_at=excluded.updated_at',caseId,resolved.homeURL,resolved.sourceIdentity??null,resolved.resolution??'resolved',resolved.errorCode??null,stamp())];
+    }
+    const caseSelect='SELECT c.*,s.home_url AS submitted_home_url,s.resolution AS home_resolution,s.error_code AS home_error_code,s.source_identity AS home_source_identity FROM tower_reception_cases c LEFT JOIN tower_reception_sources s ON s.case_id=c.id';
     async function homeDetails(v:Record<string,unknown>,muse:unknown){
         if(v.homeURL!==undefined&&v.sourceURL!==undefined)reject(400,'choose_one_home_url');
         const address=v.homeURL??v.sourceURL;
         if(address===undefined)return {sourceURL:undefined,residentId:v.residentId===undefined?undefined:text(v.residentId,80)};
-        if(v.homeURL===undefined&&typeof address==='string'&&address.endsWith('/condo.json'))return {sourceURL:source(address)!,residentId:v.residentId===undefined?undefined:text(v.residentId,80)};
+        if(v.homeURL===undefined&&typeof address==='string'&&address.endsWith('/condo.json'))return {sourceURL:source(address)!,residentId:v.residentId===undefined?undefined:text(v.residentId,80),homeURL:source(address)!,sourceIdentity:homeSourceIdentity(address),resolution:'resolved',errorCode:null};
         if(muse===false)return {sourceURL:undefined,residentId:undefined};
-        const resolved=await discoverHome(address,env.sourceFetch);
+        const homeURL=publicHomeURL(address).href;
+        let sourceIdentity:string|undefined;try{sourceIdentity=homeSourceIdentity(homeURL);}catch{/* A static webpage is resolved to its advertised manifest. */}
+        try{const resolved=await discoverHome(homeURL,env.sourceFetch);
         if(v.residentId!==undefined&&v.residentId!==resolved.residentId)throw new HomeDiscoveryError('home_identity_mismatch');
-        return resolved;
+        return {...resolved,homeURL,sourceIdentity:homeSourceIdentity(resolved.sourceURL),resolution:'resolved',errorCode:null};
+        }catch(error){return {sourceURL:undefined,residentId:undefined,homeURL,sourceIdentity,resolution:'unavailable',errorCode:error instanceof HomeDiscoveryError?error.code:'home_data_unavailable'};}
+
     }
     async function notify(caseId:string){try{await env.onReview?.(caseId);}catch{/* Durable job remains queued; no paid retry or new job. */}}
     // Operator credentials are checked once at dispatch and again before each commit.
@@ -209,7 +222,7 @@ export function createTowerReception(env: Options) {
                     if (operator) {
                         if (req.method !== 'GET')
                             reject(405, 'method_not_allowed');
-                        const rows = (await stmt('SELECT * FROM tower_reception_cases ORDER BY created_at DESC LIMIT 50').all<Case>()).results;
+                        const rows = (await stmt(caseSelect+' ORDER BY c.created_at DESC LIMIT 50').all<Case>()).results;
                         return json({ cases: rows.map(safe) });
                     }
                     if (!write)
@@ -217,7 +230,7 @@ export function createTowerReception(env: Options) {
                     await rate('global-open', 100);
                     await rate('ip:' + await digest(req.headers.get('CF-Connecting-IP') ?? 'unknown'), 5);
                     const v = object(await body(req), ['requestKey', 'name', 'requestKind', 'request', 'sourceURL', 'homeURL', 'residentId', 'originClaim', 'isMuseAgent', 'authorization', 'sharing', 'visitPlan']), rk = key(v.requestKey), inputHash = await digest(JSON.stringify(v));
-                    const existing = await one<Case>('SELECT * FROM tower_reception_cases WHERE token_hash=?', hash);
+                    const existing = await one<Case>(caseSelect+' WHERE c.token_hash=?', hash);
                     if (existing) {
                         const r = await replay(existing, rk, 'open', inputHash);
                         if (r)
@@ -241,11 +254,11 @@ export function createTowerReception(env: Options) {
                     const plan = visit(v.visitPlan), resolved=await homeDetails(v,muse), sourceURL=resolved.sourceURL??null, residentId=resolved.residentId??null;
                     const c: Case = { id: crypto.randomUUID().replaceAll('-', ''), token_hash: hash, state: 'pending', version: 1, name, request_kind: String(v.requestKind), request_text: requestText, source_url: sourceURL, resident_id: residentId, account_id: null, approval_expires_at: null, granted_token_id: null, authorization_json: JSON.stringify(authorization), sharing_json: JSON.stringify(sharing), visit_plan_json: JSON.stringify(plan), next_action: 'Reception will reply here. Return according to your visit plan.', expires_at: new Date(now().getTime() + 90 * 86400000).toISOString(), created_at: stamp(), updated_at: stamp(),is_muse_agent:muse===true?1:muse===false?0:null,review_case_version:1 };
                     if(muse===undefined)c.next_action='Please confirm whether you are a Muse agent.';
-                    const response = { case: safe(c) };
-                    await db.batch([guard('(SELECT COUNT(*) FROM tower_reception_cases)<10000'), guard('NOT EXISTS(SELECT 1 FROM tower_tokens WHERE token_hash=?)', hash), stmt('INSERT INTO tower_reception_cases(id,token_hash,state,version,name,request_kind,request_text,source_url,resident_id,account_id,approval_expires_at,granted_token_id,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at,is_muse_agent,review_case_version) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', ...Object.values(c)), stmt('INSERT INTO tower_reception_origin_claims VALUES(?,?,?)',c.id,originClaim==='other'?'unknown':originClaim,stamp()), event(c.id, 'applicant', 'open', requestText), requestReceipt(c,rk,'open',inputHash,response,201)]);
+                    const response = { case: safe({...c,submitted_home_url:resolved.homeURL,home_resolution:resolved.resolution,home_error_code:resolved.errorCode,home_source_identity:resolved.sourceIdentity}) };
+                    await db.batch([guard('(SELECT COUNT(*) FROM tower_reception_cases)<10000'), guard('NOT EXISTS(SELECT 1 FROM tower_tokens WHERE token_hash=?)', hash), stmt('INSERT INTO tower_reception_cases(id,token_hash,state,version,name,request_kind,request_text,source_url,resident_id,account_id,approval_expires_at,granted_token_id,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at,is_muse_agent,review_case_version) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', ...Object.values(c)), ...sourceStatements(c.id,resolved), stmt('INSERT INTO tower_reception_origin_claims VALUES(?,?,?)',c.id,originClaim==='other'?'unknown':originClaim,stamp()), event(c.id, 'applicant', 'open', requestText), requestReceipt(c,rk,'open',inputHash,response,201)]);
                     await notify(c.id);return committed(c.id,rk);
                 }
-                const c = await one<Case>('SELECT * FROM tower_reception_cases WHERE id=?' + (operator ? '' : ' AND token_hash=?'), ...[id, ...(operator ? [] : [hash])]);
+                const c = await one<Case>(caseSelect+' WHERE c.id=?' + (operator ? '' : ' AND c.token_hash=?'), ...[id, ...(operator ? [] : [hash])]);
                 if (!c)
                     reject(404, 'case_not_found');
                 const current = c!;
@@ -289,7 +302,7 @@ export function createTowerReception(env: Options) {
                 if (operation === 'messages'||operation==='details') {
                     if(operation==='details'&&v.isMuseAgent===undefined&&v.sourceURL===undefined&&v.homeURL===undefined&&v.residentId===undefined)reject(400,'details_required');
                     message = operation==='details'?'Application details updated.':text(v.message, 2000);
-                    if(!operator&&(v.isMuseAgent!==undefined||v.sourceURL!==undefined||v.homeURL!==undefined||v.residentId!==undefined)){if(current.state!=='pending')reject(409,'case_state_conflict');if(v.isMuseAgent!==undefined){if(typeof v.isMuseAgent!=='boolean')reject(400,'invalid_muse_declaration');if(v.isMuseAgent===false){next.is_muse_agent=0;}else next.is_muse_agent=1;}const resolved=await homeDetails(v,next.is_muse_agent===0?false:next.is_muse_agent===1?true:undefined);if(resolved.sourceURL!==undefined)next.source_url=resolved.sourceURL;if(resolved.residentId!==undefined)next.resident_id=resolved.residentId;}
+                    if(!operator&&(v.isMuseAgent!==undefined||v.sourceURL!==undefined||v.homeURL!==undefined||v.residentId!==undefined)){if(current.state!=='pending')reject(409,'case_state_conflict');if(v.isMuseAgent!==undefined){if(typeof v.isMuseAgent!=='boolean')reject(400,'invalid_muse_declaration');if(v.isMuseAgent===false){next.is_muse_agent=0;}else next.is_muse_agent=1;}const resolved=await homeDetails(v,next.is_muse_agent===0?false:next.is_muse_agent===1?true:undefined);if(resolved.homeURL){next.submitted_home_url=resolved.homeURL;next.home_resolution=resolved.resolution;next.home_error_code=resolved.errorCode;next.home_source_identity=resolved.sourceIdentity;if(resolved.resolution==='unavailable'){next.source_url=null;next.resident_id=null;}statements.push(...sourceStatements(next.id,resolved));}if(resolved.sourceURL!==undefined)next.source_url=resolved.sourceURL;if(resolved.residentId!==undefined)next.resident_id=resolved.residentId;}
                     // An explicit URL retry can resume a known free technical failure after
                     // the source is repaired in place. Never repeat count/paid/unknown work.
                     const sameHome=!operator&&current.state==='pending'&&current.request_kind==='new'&&current.is_muse_agent===1&&(v.homeURL!==undefined||v.sourceURL!==undefined)&&next.source_url===current.source_url&&next.resident_id===current.resident_id&&next.is_muse_agent===current.is_muse_agent;
@@ -353,7 +366,7 @@ export function createTowerReception(env: Options) {
                 return await commit(req, current, operator, rk, operation, inputHash, next, statements, message, operation === 'activate' ? 201 : 200);
             }
             catch (e) {
-                if(e instanceof HomeDiscoveryError)return json({error:e.code,nextAction:e.code==='home_identity_mismatch'?'The home does not match the supplied resident identifier. Preserve the original case and check your own home.':e.code==='invalid_home_url'?'Provide the public HTTPS home webpage address without private access tokens.':'Reception could not read a complete importable home at this address. Check the published home and its hosting format; a share wrapper or login page may not expose the home content. Preserve your existing case and report the specific publishing capability needed. No file upload or Guardian credential is required.'},422);
+                if(e instanceof HomeDiscoveryError)return json({error:e.code,nextAction:'Provide your public HTTPS home address. Keep the same case ID and key.'},422);
                 if (e instanceof Rejection) {
                     const response = json({ error: e.message }, e.status);
                     if (e.retryAfter !== undefined) response.headers.set('Retry-After', String(e.retryAfter));

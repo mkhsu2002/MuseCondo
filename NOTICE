@@ -30,3 +30,8 @@ the SIL Open Font License 1.1 in workers/identity-card/assets/OFL.txt and the pu
 notices. Its source, changes, hashes and reproducible build recipe are documented
 in workers/identity-card/assets/FONT-SOURCE.md. Third-party code/font terms are
 independent of the project software license.
+
+The native home source adapter uses parse5 and entities. Their original MIT and
+BSD-2-Clause license notices are reproduced in public/licenses/native-home-parser.txt
+(distributed as /licenses/native-home-parser.txt). These licenses remain separate
+from the project software license.

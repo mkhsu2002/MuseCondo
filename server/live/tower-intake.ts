@@ -1,4 +1,4 @@
-import {towerSourceURL} from './tower-source-url.ts';
+import {homeSourceURL, homeSourceIdentity, isMuseShareURL, readNativeHome, readNativeClaim} from './home-source.ts';
 import type { Database, Statement } from "./db.ts";
 import {createTowerActivities} from "./tower-activities.ts";
 import {createTowerVisits} from "./tower-visits.ts";
@@ -140,7 +140,7 @@ function date(v: unknown) {
     fail(400, "invalid_public_snapshot");
   return s;
 }
-/** The intake accepts only the versioned public export. Never accept a framework seed or source HTML. */
+/** Validate the versioned public projection, including native HTML mapped by the source adapter. */
 export function validateTowerSnapshot(
   value: unknown,
   residentId: string,
@@ -370,16 +370,34 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         stamp(),
       );
   async function source(value:unknown,accountId:string){
-    let url:URL;try{url=towerSourceURL(value);}catch{return fail(400,'source_url_rejected');}
+    let url:URL;try{url=homeSourceURL(value);}catch{return fail(400,'source_url_rejected');}
     if(!env.sourceOrigins.includes(url.origin)){
       const grant=await one(`SELECT 1 FROM tower_admission_eligible d WHERE d.account_id=? AND d.source_url=? AND (
        EXISTS(SELECT 1 FROM tower_reception_cases c WHERE c.id=d.case_id AND c.account_id=d.account_id AND c.resident_id=d.resident_id AND c.source_url=d.source_url AND c.state='active' AND c.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND c.approval_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))
        OR EXISTS(SELECT 1 FROM tower_residencies r WHERE r.account_id=d.account_id AND r.resident_id=d.resident_id AND r.source_url=d.source_url))`,accountId,url.href);
-      if(!grant)fail(400,'source_url_rejected');
+      // An existing household may prove control of a rotated share key for the
+      // same native asset. Current admission eligibility remains required;
+      // a readable native URL never authorizes a new household or another asset.
+      const nativeAlias = !grant && isMuseShareURL(url.href)
+        ? await one(`SELECT 1 FROM tower_admission_eligible d
+          JOIN tower_residencies r ON r.account_id=d.account_id AND r.resident_id=d.resident_id
+          JOIN tower_source_identities i ON i.source_url=r.source_url
+          WHERE d.account_id=? AND i.source_identity=? AND (
+            EXISTS(SELECT 1 FROM tower_admission_native_alias a WHERE a.decision_id=d.id AND a.account_id=r.account_id AND a.room_id=r.room_id AND a.resident_id=r.resident_id)
+            OR EXISTS(SELECT 1 FROM tower_admission_continuity k WHERE k.decision_id=d.id AND k.account_id=r.account_id AND k.room_id=r.room_id AND k.resident_id=r.resident_id)
+          )`, accountId, homeSourceIdentity(url.href))
+        : null;
+      if(!grant&&!nativeAlias)fail(400,'source_url_rejected');
     }
     return url;
   }
 
+  const firstImportGrantSQL = `SELECT 1 FROM tower_admission_eligible d
+    JOIN tower_reception_cases c ON c.id=d.case_id
+    WHERE d.account_id=? AND d.resident_id=? AND d.source_url=?
+      AND c.account_id=d.account_id AND c.resident_id=d.resident_id AND c.source_url=d.source_url
+      AND c.state='active' AND c.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')
+      AND c.approval_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')`;
   async function remote(url: URL, mime: string, max: number) {
     const controller = new AbortController(),
       timer = setTimeout(() => controller.abort(), 10000);
@@ -420,6 +438,11 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
     } finally {
       clearTimeout(timer);
     }
+  }
+  async function claimProof(url: URL): Promise<unknown> {
+    if (!isMuseShareURL(url.href)) return remoteJSON(new URL("./muse-tower-claim.json", url), 4096);
+    try { return await readNativeClaim(url.href, env.fetcher ?? fetch); }
+    catch { return fail(403, "claim_rejected"); }
   }
   async function remoteJSON(url: URL, max = 128000): Promise<unknown> {
     const bytes = await remote(url, "application/json", max);
@@ -674,8 +697,13 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
   const sourceGenerationGuard = (accountId: string, generation: number) =>
     db.prepare("SELECT CASE WHEN (" + sourceGenerationSQL + ")=? THEN 1 ELSE json('tower-source-conflict') END")
       .bind(accountId, generation);
+  async function nativeHome(url: URL, residentId: string) {
+    try { return await readNativeHome(url.href, env.fetcher ?? fetch, residentId); }
+    catch { return fail(400, "source_native_rejected"); }
+  }
   async function snapshot(url: URL, residentId: string) {
-    const site = validateTowerSnapshot(await remoteJSON(url), residentId),
+    const native = isMuseShareURL(url.href) ? await nativeHome(url, residentId) : null;
+    const site = validateTowerSnapshot(native ? native.site : await remoteJSON(url), residentId),
       images: {
         purpose: "home" | "dream";
         bytes: Uint8Array;
@@ -687,7 +715,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
     )[]) {
       const imageURL = new URL(`./assets/${purpose}.png`, url);
       const bytes = await cleanPNG(
-        await remote(imageURL, "image/png", 8 * 1024 * 1024),
+        native ? await native.readAsset(purpose) : await remote(imageURL, "image/png", 8 * 1024 * 1024),
         purpose,
       );
       images.push({ purpose, bytes, digest: await hash(bytes) });
@@ -1075,10 +1103,12 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
               residentId,
               challenge,
               expiresAt,
+              ...(isMuseShareURL(sourceURL) ? {sourceIdentity: homeSourceIdentity(sourceURL)} : {}),
             },
             result = {
               claimId,
-              claimURL: new URL("./muse-tower-claim.json", sourceURL).href,
+              claimURL: isMuseShareURL(sourceURL) ? sourceURL : new URL("./muse-tower-claim.json", sourceURL).href,
+              ...(isMuseShareURL(sourceURL) ? {claimPlacement: {kind: "html-json-script", elementId: "musecondo-claim", contentType: "application/json"}} : {}),
               claim,
             };
           await write(identity, [
@@ -1115,22 +1145,20 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
               residentId: claim!.resident_id,
               challenge: claim!.challenge,
               expiresAt: claim!.expires_at,
+              ...(isMuseShareURL(claim!.source_url) ? {sourceIdentity: homeSourceIdentity(claim!.source_url)} : {}),
             },
             remoteClaim = object(
-              await remoteJSON(
-                new URL("./muse-tower-claim.json", await source(claim!.source_url,accountId)),
-                4096,
-              ),
+              await claimProof(await source(claim!.source_url,accountId)),
               Object.keys(expected),
             );
-          if (Object.entries(expected).some(([k, v]) => remoteClaim[k] !== v))
+          if (claim!.expires_at <= stamp() || Object.entries(expected).some(([k, v]) => remoteClaim[k] !== v))
             fail(403, "claim_rejected");
           await write(identity, [
             db
               .prepare(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_claims WHERE id=? AND expires_at>?) THEN 1 ELSE json('claim-expired') END",
+                "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_claims WHERE id=? AND account_id=? AND resident_id=? AND source_url=? AND challenge=? AND expires_at=? AND expires_at>?) THEN 1 ELSE json('claim-expired') END",
               )
-              .bind(claim!.id, stamp()),
+              .bind(claim!.id, accountId, claim!.resident_id, claim!.source_url, claim!.challenge, claim!.expires_at, stamp()),
             db
               .prepare(
                 "UPDATE tower_claims SET verified=1 WHERE id=? AND account_id=?",
@@ -1158,13 +1186,17 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           const generation = await sourceGeneration(accountId),
             claimSQL = "SELECT id FROM tower_claims WHERE id=? AND account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?",
             claimArgs = () => [claimId, accountId, r!.resident_id, sourceURL.href, stamp()],
-            occupied = () => one("SELECT room_id FROM tower_residencies WHERE source_url=? AND room_id<>?", sourceURL.href, r!.room_id);
+            occupied = () => isMuseShareURL(sourceURL.href)
+              ? one("SELECT r.room_id FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE i.source_identity=? AND r.room_id<>?", homeSourceIdentity(sourceURL.href), r!.room_id)
+              : one("SELECT room_id FROM tower_residencies WHERE source_url=? AND room_id<>?", sourceURL.href, r!.room_id);
           if (!(await one(claimSQL, ...claimArgs())))
             fail(403, "verified_claim_required");
           if (await occupied()) fail(409, "source_already_claimed");
           // Verify the fresh manifest and stable resident identity only. A move
           // neither imports its content nor fetches/replaces any saved images.
-          validateTowerSnapshot(await remoteJSON(sourceURL), r!.resident_id);
+          validateTowerSnapshot(isMuseShareURL(sourceURL.href)
+            ? (await nativeHome(sourceURL, r!.resident_id)).site
+            : await remoteJSON(sourceURL), r!.resident_id);
           const result = { intake: safe({ ...r!, source_url: sourceURL.href, proof_method: "challenge" }) };
           try {
             await write(identity, [
@@ -1173,7 +1205,9 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
                 "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND resident_id=? AND revision=? AND source_url=? AND public_revision IS ? AND directory_consent=? AND announcement_consent=? AND dream_consent=? AND snapshot_consent=?) THEN 1 ELSE json('tower-source-conflict') END",
               ).bind(r!.room_id, accountId, r!.resident_id, expected, r!.source_url, r!.public_revision, r!.directory_consent, r!.announcement_consent, r!.dream_consent, r!.snapshot_consent),
               db.prepare("SELECT CASE WHEN EXISTS(" + claimSQL + ") THEN 1 ELSE json('tower-claim-expired') END").bind(...claimArgs()),
-              db.prepare("SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM tower_residencies WHERE source_url=? AND room_id<>?) THEN 1 ELSE json('tower-source-occupied') END").bind(sourceURL.href, r!.room_id),
+              db.prepare(isMuseShareURL(sourceURL.href)
+                ? "SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE i.source_identity=? AND r.room_id<>?) THEN 1 ELSE json('tower-source-occupied') END"
+                : "SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM tower_residencies WHERE source_url=? AND room_id<>?) THEN 1 ELSE json('tower-source-occupied') END").bind(homeSourceIdentity(sourceURL.href), r!.room_id),
               db.prepare("UPDATE tower_residencies SET source_url=?,proof_method='challenge',updated_at=? WHERE room_id=? AND account_id=? AND revision=? AND source_url=?")
                 .bind(sourceURL.href, stamp(), r!.room_id, accountId, expected, r!.source_url),
               receipt(identity, key, "source", inputHash, result),
@@ -1312,9 +1346,11 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           }
           if (
             await one(
-              "SELECT room_id FROM tower_residencies WHERE resident_id=? OR source_url=?",
+              isMuseShareURL(sourceURL.href)
+                ? "SELECT r.room_id FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE r.resident_id=? OR i.source_identity=?"
+                : "SELECT room_id FROM tower_residencies WHERE resident_id=? OR source_url=?",
               residentId,
-              sourceURL.href,
+              homeSourceIdentity(sourceURL.href),
             )
           )
             fail(409, "resident_already_claimed");
@@ -1336,6 +1372,10 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             ))
           )
             fail(403, "verified_claim_required");
+          const requiresSourceGrant = !env.sourceOrigins.includes(sourceURL.origin),
+            sourceGrantArgs = [accountId, residentId, sourceURL.href];
+          if (requiresSourceGrant && !await one(firstImportGrantSQL, ...sourceGrantArgs))
+            fail(403, "source_authorization_required");
           const data = await snapshot(sourceURL, residentId),
             roomId = random(8),
             rev = 1,
@@ -1349,6 +1389,8 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
               published: false,
             },
             statements: Statement[] = [];
+          if (requiresSourceGrant)
+            statements.push(db.prepare("SELECT CASE WHEN EXISTS(" + firstImportGrantSQL + ") THEN 1 ELSE json('source-authorization-expired') END").bind(...sourceGrantArgs));
           if (proof === "challenge")
             statements.push(
               db
@@ -1408,8 +1450,12 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             if (error instanceof TowerError) throw error;
             const retry = await prior(identity, key, route, inputHash);
             if (retry) return json(retry, 201);
+            if (requiresSourceGrant && !await one(firstImportGrantSQL, ...sourceGrantArgs))
+              fail(403, "source_authorization_required");
             const latest=await residency(accountId);
             if(latest)fail(409,"revision_or_identity_conflict");
+            if (isMuseShareURL(sourceURL.href) && await one("SELECT r.room_id FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE r.resident_id=? OR i.source_identity=?", residentId, homeSourceIdentity(sourceURL.href)))
+              fail(409, "resident_already_claimed");
             // Operation errors are private audit records, never public SQL/provider payloads.
             const detail={error:error instanceof Error?error.message.slice(0,500):"storage-error",cause:error instanceof Error&&error.cause instanceof Error?error.cause.message.slice(0,500):null};
             try{await db.batch([audit(accountId,null,"storage-failed",null,detail)]);}catch{/* Preserve the original safe error if audit storage is unavailable too. */}

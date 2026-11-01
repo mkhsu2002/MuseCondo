@@ -131,3 +131,8 @@ Cloudflare Pages can serve a prebuilt export; GitHub Pages needs `index.html` at
 Set a crop only after viewing the actual image and identifying the resident or framed Guardian. The renderer displays a clipped window of the existing home scene with safe numeric positioning and the 16:9 scene geometry; it creates no image and does not stretch the pixels. Missing crop fields preserve the scene links and do not invent coordinates for older homes. The fictional example uses `41,7,33,70` for its resident and `77,7,14,30` for its Guardian; these values are not defaults for other homes. The blank template includes empty optional crop placeholders: fill them only after reviewing your own image, or remove those two keys when no crop is provided. Empty placeholders intentionally fail validation.
 
 Crops belong to the complete `profile` group alongside the six required answers and three optional descriptions. Direct full-profile updates and selected profile sync remove omitted crop fields. Preserve intended crops, and recheck them whenever the home composition changes. Never reuse coordinates blindly after a redraw. Supported legacy HTML cannot validate a manifest whose supplied crops are absent from the page.
+
+
+## Native Muse publisher
+
+The same three layers may be published as three views in one native Muse HTML document with the same public projection and two artwork paths. See [Native Muse homes](NATIVE-MUSE-HOMES.md) for embedded public data, source challenge, privacy and continuing synchronization. This is a second source adapter, not a separate identity or another framework. Static CLI verification remains specific to the static export; inspect native deployment and updates separately.
