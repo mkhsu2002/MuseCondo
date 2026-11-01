@@ -1,3 +1,4 @@
+import {towerSourceURL} from './tower-source-url.ts';
 import type { Database, Statement } from "./db.ts";
 import {createTowerActivities} from "./tower-activities.ts";
 import {createTowerVisits} from "./tower-visits.ts";
@@ -362,35 +363,17 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         JSON.stringify(detail),
         stamp(),
       );
-  function source(value: unknown) {
-    const raw = string(value, 1000);
-    let url: URL;
-    try {
-      url = new URL(raw);
-    } catch {
-      fail(400, "source_url_rejected");
+  async function source(value:unknown,accountId:string){
+    let url:URL;try{url=towerSourceURL(value);}catch{return fail(400,'source_url_rejected');}
+    if(!env.sourceOrigins.includes(url.origin)){
+      const grant=await one(`SELECT 1 FROM tower_admission_eligible d WHERE d.account_id=? AND d.source_url=? AND (
+       EXISTS(SELECT 1 FROM tower_reception_cases c WHERE c.id=d.case_id AND c.account_id=d.account_id AND c.resident_id=d.resident_id AND c.source_url=d.source_url AND c.state='active' AND c.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND c.approval_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+       OR EXISTS(SELECT 1 FROM tower_residencies r WHERE r.account_id=d.account_id AND r.resident_id=d.resident_id AND r.source_url=d.source_url))`,accountId,url.href);
+      if(!grant)fail(400,'source_url_rejected');
     }
-    if (
-      url!.protocol !== "https:" ||
-      raw.includes("?") ||
-      raw.includes("#") ||
-      url!.username ||
-      url!.password ||
-      url!.port ||
-      url!.hash ||
-      url!.search ||
-      !env.sourceOrigins.includes(url!.origin) ||
-      !url!.hostname.includes(".") ||
-      /[\]:]/.test(url!.hostname) ||
-      url!.hostname.includes("[") ||
-      /^\d+(?:\.\d+)*$/.test(url!.hostname) ||
-      /(?:^|\.)(localhost|local|internal)$/.test(url!.hostname) ||
-      !/^\/(?:[A-Za-z0-9_-]+\/)*condo\.json$/.test(url!.pathname) ||
-      raw !== url!.href
-    )
-      fail(400, "source_url_rejected");
-    return url!;
+    return url;
   }
+
   async function remote(url: URL, mime: string, max: number) {
     const controller = new AbortController(),
       timer = setTimeout(() => controller.abort(), 10000);
@@ -1071,7 +1054,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         }
         if (route === "prepare" && req.method === "POST") {
           const input = await body(req),
-            sourceURL = source(input.sourceURL).href,
+            sourceURL = (await source(input.sourceURL,accountId)).href,
             residentId = id(input.residentId),
             key = requestKey(input.requestKey),
             inputHash = await hash(JSON.stringify({ sourceURL, residentId })),
@@ -1129,7 +1112,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             },
             remoteClaim = object(
               await remoteJSON(
-                new URL("./muse-tower-claim.json", source(claim!.source_url)),
+                new URL("./muse-tower-claim.json", await source(claim!.source_url,accountId)),
                 4096,
               ),
               Object.keys(expected),
@@ -1158,7 +1141,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             ]),
             expected = revision(input.expectedRevision),
             key = requestKey(input.requestKey),
-            sourceURL = source(input.sourceURL),
+            sourceURL = await source(input.sourceURL,accountId),
             claimId = id(input.claimId),
             // Only client input identifies the request. The old source changes on
             // success, and must never invalidate a saved receipt on replay.
@@ -1214,7 +1197,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           const input = await body(req, ["expectedRevision"]), expected = revision(input.expectedRevision);
           if (r!.revision !== expected) fail(409, "revision_conflict");
           const generation = await sourceGeneration(accountId), previous = await getSite(r!, false),
-            oldImages = await storedImages(r!), data = await snapshot(source(r!.source_url), r!.resident_id),
+            oldImages = await storedImages(r!), data = await snapshot(await source(r!.source_url,accountId), r!.resident_id),
             digest = await sourceDigest(r!, generation, data),
             before = syncValues(previous, oldImages), after = syncValues(data.site, data.images);
           // Read-only preview still revalidates authorization and the source generation
@@ -1243,7 +1226,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           if (replay) return json(replay, 201);
           if (r!.revision !== expected) fail(409, "revision_conflict");
           const generation = await sourceGeneration(accountId), previous = await getSite(r!, false),
-            oldImages = await storedImages(r!), data = await snapshot(source(r!.source_url), r!.resident_id);
+            oldImages = await storedImages(r!), data = await snapshot(await source(r!.source_url,accountId), r!.resident_id);
           if (await sourceDigest(r!, generation, data) !== reviewedSourceDigest)
             fail(409, "source_review_changed");
           const chosen = (group: SyncGroup) => apply.includes(group),
@@ -1290,7 +1273,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           route === "import" &&
           req.method === "POST"
         ) {
-          const input = await body(req), sourceURL = source(input.sourceURL),
+          const input = await body(req), sourceURL = await source(input.sourceURL,accountId),
             residentId = id(input.residentId), key = requestKey(input.requestKey), proof = input.proof;
           if (!["challenge", "owner-attested"].includes(String(proof)))
             fail(400, "proof_required");

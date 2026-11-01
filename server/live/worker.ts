@@ -1,3 +1,4 @@
+import {createManagerAdmission,MANAGER_ADMISSION_SCHEMA} from './manager-admission.ts';
 import {createIdentityMailControl,IDENTITY_MAIL_CONTROL_SCHEMA} from './identity-mail-control.ts';
 import {IDENTITY_MAIL_DELIVERY_SCHEMA} from './identity-mail-delivery.ts';
 import {createTowerAdmission,TOWER_ADMISSION_SCHEMA} from './tower-admission.ts';
@@ -52,7 +53,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const db=env.DB;if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')return json({available:false,error:'database_not_bound',runtime:safe},503);
   try{
    const rows=(await db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger','index','view')").all<{name:string}>()).results;
-   if(![...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
+   if(![...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...MANAGER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
   }catch{return json({available:false,error:'database_unavailable',runtime:safe},503);}
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
   const mailControlResponse=await createIdentityMailControl({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request);if(mailControlResponse)return mailControlResponse;
@@ -77,7 +78,8 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const recoveryResponse=await createIdentityRecovery({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,onMailEvent}).fetch(request);if(recoveryResponse)return recoveryResponse;
   const registrationResponse=await createIdentityRegistration({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY}).fetch(request);if(registrationResponse)return registrationResponse;
   const identityResponse=await createAgentIdentity({db,origin:env.PUBLIC_ORIGIN!}).fetch(request);if(identityResponse)return identityResponse;
-  const reception=createTowerReception({db,origin:env.PUBLIC_ORIGIN!,operator:async()=>operator()});
+  const receptionAdmission=createManagerAdmission({db,apiKey:env.meta_muse_api,wake:env.MANAGER_RUNTIME&&env.MANAGER_SCHEDULE_TRIGGER_KEY?async()=>{const response=await env.MANAGER_RUNTIME!.fetch(new Request('https://manager.internal/wake',{method:'POST',headers:{'X-Manager-Schedule-Key':env.MANAGER_SCHEDULE_TRIGGER_KEY!}}));if(!response.ok)throw Error('admission_wake_unavailable');}:undefined});
+  const reception=createTowerReception({db,origin:env.PUBLIC_ORIGIN!,operator:async()=>operator(),reviewStatus:receptionAdmission.status,onReview:receptionAdmission.enqueue});
   const receptionResponse=await reception.fetch(request);if(receptionResponse)return receptionResponse;
   const intake=createTowerIntake({db,origin:env.PUBLIC_ORIGIN!,localTest:false,sourceOrigins:sourceOrigins(env.TOWER_SOURCE_ORIGINS),operator:async()=>operator(),ownerAttestation:async()=>operator(),onChange:async()=>{await reconcile();}});
   const tower=await intake.fetch(request);if(tower)return tower;

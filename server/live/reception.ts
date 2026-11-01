@@ -1,3 +1,4 @@
+import {towerSourceURL} from './tower-source-url.ts';
 import { digest } from './app.ts';
 import type { Database, Statement } from './db.ts';
 interface Options {
@@ -5,6 +6,8 @@ interface Options {
     origin: string;
     now?: () => Date;
     operator: (req: Request) => Promise<boolean>;
+    onReview?:(caseId:string)=>Promise<void>;
+    reviewStatus?:(caseId:string)=>Promise<unknown>;
 }
 interface Case {
     id: string;
@@ -26,6 +29,8 @@ interface Case {
     expires_at: string;
     created_at: string;
     updated_at: string;
+    is_muse_agent?:number|null;
+    review_case_version?:number;
 }
 class Rejection extends Error {
     status: number;
@@ -51,18 +56,7 @@ const key = (v: unknown) => {
     return v as string;
 };
 const secret = (v: string | null) => v?.match(/^Bearer ([a-f0-9]{64})$/)?.[1] ?? reject(401, 'case_key_required');
-const source = (v: unknown) => {
-    const s = text(v, 2048);
-    try {
-        const u = new URL(s);
-        if (u.protocol !== 'https:' || u.username || u.password || u.search || u.hash || !u.pathname.endsWith('/condo.json'))
-            reject(400, 'invalid_source');
-        return u.href;
-    }
-    catch {
-        reject(400, 'invalid_source');
-    }
-};
+const source=(v:unknown)=>{try{return towerSourceURL(v).href;}catch{return reject(400,'invalid_source');}};
 function visit(value: unknown) {
     const v = object(value, ['mode', 'intervalHours']);
     if (!['self-scheduled', 'manual-return'].includes(String(v.mode)))
@@ -73,7 +67,7 @@ function visit(value: unknown) {
         reject(400, 'invalid_visit_plan');
     return v;
 }
-function safe(c: Case) { return { id: c.id, state: c.state, version: c.version, name: c.name, requestKind: c.request_kind, request: c.request_text, sourceURL: c.source_url, residentId: c.resident_id, authorization: JSON.parse(c.authorization_json), sharing: JSON.parse(c.sharing_json), visitPlan: JSON.parse(c.visit_plan_json), nextAction: c.next_action, expiresAt: c.expires_at, approvalExpiresAt: c.approval_expires_at, createdAt: c.created_at, updatedAt: c.updated_at }; }
+function safe(c: Case) { return { id: c.id, state: c.state, version: c.version, name: c.name, isMuseAgent:c.is_muse_agent===1?true:c.is_muse_agent===0?false:null, requestKind: c.request_kind, request: c.request_text, sourceURL: c.source_url, residentId: c.resident_id, authorization: JSON.parse(c.authorization_json), sharing: JSON.parse(c.sharing_json), visitPlan: JSON.parse(c.visit_plan_json), nextAction: c.next_action, expiresAt: c.expires_at, approvalExpiresAt: c.approval_expires_at, createdAt: c.created_at, updatedAt: c.updated_at }; }
 /** Private reception. No source fetch, runtime connection, publication, scheduler or paid call. */
 export function createTowerReception(env: Options) {
     const { db } = env, now = env.now ?? (() => new Date()), stamp = () => now().toISOString();
@@ -124,6 +118,9 @@ export function createTowerReception(env: Options) {
     }
     function caseGuard(c: Case, operator: boolean) { return guard("EXISTS(SELECT 1 FROM tower_reception_cases WHERE id=? AND version=? AND token_hash=? AND expires_at>? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND state=? AND account_id IS ? AND resident_id IS ? AND source_url IS ? AND approval_expires_at IS ? AND granted_token_id IS ?" + (operator ? '' : " AND state IN ('pending','approved','active')") + ')', c.id, c.version, c.token_hash, stamp(), c.state, c.account_id, c.resident_id, c.source_url, c.approval_expires_at, c.granted_token_id); }
     const event = (id: string, actor: string, kind: string, message: string) => stmt('INSERT INTO tower_reception_events(case_id,sequence,actor,kind,message,created_at) SELECT ?,COALESCE(MAX(sequence),0)+1,?,?,?,? FROM tower_reception_events WHERE case_id=?', id, actor, kind, message, stamp(), id);
+    const reviewSQL=`(SELECT json_object('state',CASE WHEN c.state IN ('approved','active') THEN 'approved' WHEN c.state='rejected' THEN 'rejected' WHEN c.request_kind!='new' OR c.is_muse_agent IS NULL THEN 'needs-info' WHEN EXISTS(SELECT 1 FROM manager_admission_calls WHERE case_id=c.id AND state='unknown') THEN 'blocked' ELSE COALESCE((SELECT CASE WHEN state='queued' THEN 'queued' WHEN state='running' THEN 'reviewing' WHEN state='blocked' THEN 'blocked' WHEN decision='approve' THEN 'approved' WHEN decision='reject' THEN 'rejected' ELSE 'needs-info' END FROM manager_admission_jobs WHERE case_id=c.id ORDER BY case_version DESC LIMIT 1),'blocked') END,'missing',CASE WHEN c.is_muse_agent IS NULL THEN json_array('isMuseAgent') ELSE json_array() END) FROM tower_reception_cases c WHERE c.id=?)`;
+    function requestReceipt(c:Case,rk:string,operation:string,inputHash:string,response:unknown,status:number){return stmt(`INSERT INTO tower_reception_requests VALUES(?,?,?,?,${env.reviewStatus?`json_set(?,'$.case.review',json(${reviewSQL}))`:'?'},?,?)`,c.id,rk,operation,inputHash,JSON.stringify(response),...(env.reviewStatus?[c.id]:[]),status,stamp());}
+    async function committed(caseId:string,rk:string){const receipt=await one<{response_json:string;response_status:number}>('SELECT response_json,response_status FROM tower_reception_requests WHERE case_id=? AND request_key=?',caseId,rk);if(!receipt)reject(409,'case_receipt_unavailable');return json(JSON.parse(receipt!.response_json),receipt!.response_status);}
     async function replay(c: Case, requestKey: string, operation: string, inputHash: string) {
         const r = await one<{
             operation: string;
@@ -135,20 +132,23 @@ export function createTowerReception(env: Options) {
             return null;
         if (r.operation !== operation || r.input_hash !== inputHash)
             reject(409, 'request_key_conflict');
-        return json(JSON.parse(r.response_json), r.response_status);
+        await notify(c.id);return json(JSON.parse(r.response_json), r.response_status);
     }
     async function commit(req: Request, c: Case, operator: boolean, requestKey: string, operation: string, inputHash: string, next: Case, statements: Statement[], message: string, status = 200) {
         if (operator && !await env.operator(req))
             reject(401, 'operator_required');
+        next.review_case_version=next.is_muse_agent!==c.is_muse_agent||next.source_url!==c.source_url||next.resident_id!==c.resident_id||next.request_text!==c.request_text?next.version:c.review_case_version??1;
         const response = { case: safe(next) };
         await db.batch([caseGuard(c, operator), ...(['withdraw', 'revoke', 'reject'].includes(operation) ? [] : [guard('(SELECT COUNT(*) FROM tower_reception_events WHERE case_id=?)<100', c.id)]), ...statements,
-            stmt('UPDATE tower_reception_cases SET state=?,version=?,source_url=?,resident_id=?,account_id=?,approval_expires_at=?,granted_token_id=?,visit_plan_json=?,next_action=?,updated_at=? WHERE id=?', next.state, next.version, next.source_url, next.resident_id, next.account_id, next.approval_expires_at, next.granted_token_id, next.visit_plan_json, next.next_action, next.updated_at, next.id),
-            event(c.id, operator ? 'operator' : 'applicant', operation, message), stmt('INSERT INTO tower_reception_requests VALUES(?,?,?,?,?,?,?)', c.id, requestKey, operation, inputHash, JSON.stringify(response), status, stamp())]);
-        return json(response, status);
+            stmt('UPDATE tower_reception_cases SET state=?,version=?,review_case_version=?,is_muse_agent=?,request_text=?,source_url=?,resident_id=?,account_id=?,approval_expires_at=?,granted_token_id=?,visit_plan_json=?,next_action=?,updated_at=? WHERE id=?', next.state, next.version,next.review_case_version??1, next.is_muse_agent??null,next.request_text,next.source_url, next.resident_id, next.account_id, next.approval_expires_at, next.granted_token_id, next.visit_plan_json, next.next_action, next.updated_at, next.id),
+            event(c.id, operator ? 'operator' : 'applicant', operation, message), requestReceipt(next,requestKey,operation,inputHash,response,status)]);
+        await notify(next.id);
+        return committed(next.id,requestKey);
     }
+    async function notify(caseId:string){try{await env.onReview?.(caseId);}catch{/* Durable job remains queued; no paid retry or new job. */}}
     // Operator credentials are checked once at dispatch and again before each commit.
     return { async fetch(req: Request): Promise<Response | null> {
-            const url = new URL(req.url), path = url.pathname.replace(/\/$/, ''), match = path.match(/^\/api\/v1\/(operator\/)?reception\/cases(?:\/([a-f0-9]{32})(?:\/(messages|visit-plan|withdraw|approve|reject|revoke|activate))?)?$/);
+            const url = new URL(req.url), path = url.pathname.replace(/\/$/, ''), match = path.match(/^\/api\/v1\/(operator\/)?reception\/cases(?:\/([a-f0-9]{32})(?:\/(messages|details|visit-plan|withdraw|approve|reject|revoke|activate))?)?$/);
             if (!match)
                 return path.startsWith('/api/v1/reception/') || path.startsWith('/api/v1/operator/reception/') ? json({ error: 'not_found' }, 404) : null;
             try {
@@ -175,7 +175,7 @@ export function createTowerReception(env: Options) {
                         reject(404, 'not_found');
                     await rate('global-open', 100);
                     await rate('ip:' + await digest(req.headers.get('CF-Connecting-IP') ?? 'unknown'), 5);
-                    const v = object(await body(req), ['requestKey', 'name', 'requestKind', 'request', 'sourceURL', 'residentId', 'originClaim', 'authorization', 'sharing', 'visitPlan']), rk = key(v.requestKey), inputHash = await digest(JSON.stringify(v));
+                    const v = object(await body(req), ['requestKey', 'name', 'requestKind', 'request', 'sourceURL', 'residentId', 'originClaim', 'isMuseAgent', 'authorization', 'sharing', 'visitPlan']), rk = key(v.requestKey), inputHash = await digest(JSON.stringify(v));
                     const existing = await one<Case>('SELECT * FROM tower_reception_cases WHERE token_hash=?', hash);
                     if (existing) {
                         const r = await replay(existing, rk, 'open', inputHash);
@@ -186,9 +186,9 @@ export function createTowerReception(env: Options) {
                         reject(409, 'case_key_already_used');
                     }
                     const name = text(v.name, 80), requestText = text(v.request, 1200);
-                    const originClaim=v.originClaim??'unknown';
+                    const muse=v.isMuseAgent;if(muse!==undefined&&typeof muse!=='boolean')reject(400,'invalid_muse_declaration');const originClaim=v.originClaim??(muse===true?'meta-muse':muse===false?'other':'unknown');if(muse===true&&originClaim==='other'||muse===false&&originClaim==='meta-muse')reject(400,'muse_declaration_conflict');
                     if(!['meta-muse','unknown','other'].includes(String(originClaim)))reject(400,'invalid_origin_claim');
-                    if(originClaim==='other')reject(403,'agent_origin_ineligible');
+                    if(originClaim==='other'&&muse!==false)reject(403,'agent_origin_ineligible');
                     if (!['new', 'takeover'].includes(String(v.requestKind)))
                         reject(400, 'invalid_request_kind');
                     const authorization = object(v.authorization, ['contact', 'application', 'towerAccess']);
@@ -198,10 +198,11 @@ export function createTowerReception(env: Options) {
                     if (Object.keys(sharing).length !== 4 || Object.values(sharing).some(x => x !== false))
                         reject(400, 'sharing_starts_private');
                     const plan = visit(v.visitPlan), sourceURL = v.sourceURL === undefined ? null : source(v.sourceURL)!, residentId = v.residentId === undefined ? null : text(v.residentId, 80);
-                    const c: Case = { id: crypto.randomUUID().replaceAll('-', ''), token_hash: hash, state: 'pending', version: 1, name, request_kind: String(v.requestKind), request_text: requestText, source_url: sourceURL, resident_id: residentId, account_id: null, approval_expires_at: null, granted_token_id: null, authorization_json: JSON.stringify(authorization), sharing_json: JSON.stringify(sharing), visit_plan_json: JSON.stringify(plan), next_action: '等待接待回覆，依自己的回訪約定查看本案。', expires_at: new Date(now().getTime() + 90 * 86400000).toISOString(), created_at: stamp(), updated_at: stamp() };
+                    const c: Case = { id: crypto.randomUUID().replaceAll('-', ''), token_hash: hash, state: 'pending', version: 1, name, request_kind: String(v.requestKind), request_text: requestText, source_url: sourceURL, resident_id: residentId, account_id: null, approval_expires_at: null, granted_token_id: null, authorization_json: JSON.stringify(authorization), sharing_json: JSON.stringify(sharing), visit_plan_json: JSON.stringify(plan), next_action: 'Reception will reply here. Return according to your visit plan.', expires_at: new Date(now().getTime() + 90 * 86400000).toISOString(), created_at: stamp(), updated_at: stamp(),is_muse_agent:muse===true?1:muse===false?0:null,review_case_version:1 };
+                    if(muse===undefined)c.next_action='Please confirm whether you are a Muse agent.';
                     const response = { case: safe(c) };
-                    await db.batch([guard('(SELECT COUNT(*) FROM tower_reception_cases)<10000'), guard('NOT EXISTS(SELECT 1 FROM tower_tokens WHERE token_hash=?)', hash), stmt('INSERT INTO tower_reception_cases(id,token_hash,state,version,name,request_kind,request_text,source_url,resident_id,account_id,approval_expires_at,granted_token_id,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', ...Object.values(c)), stmt('INSERT INTO tower_reception_origin_claims VALUES(?,?,?)',c.id,originClaim,stamp()), event(c.id, 'applicant', 'open', requestText), stmt('INSERT INTO tower_reception_requests VALUES(?,?,?,?,?,?,?)', c.id, rk, 'open', inputHash, JSON.stringify(response), 201, stamp())]);
-                    return json(response, 201);
+                    await db.batch([guard('(SELECT COUNT(*) FROM tower_reception_cases)<10000'), guard('NOT EXISTS(SELECT 1 FROM tower_tokens WHERE token_hash=?)', hash), stmt('INSERT INTO tower_reception_cases(id,token_hash,state,version,name,request_kind,request_text,source_url,resident_id,account_id,approval_expires_at,granted_token_id,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at,is_muse_agent,review_case_version) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', ...Object.values(c)), stmt('INSERT INTO tower_reception_origin_claims VALUES(?,?,?)',c.id,originClaim==='other'?'unknown':originClaim,stamp()), event(c.id, 'applicant', 'open', requestText), requestReceipt(c,rk,'open',inputHash,response,201)]);
+                    await notify(c.id);return committed(c.id,rk);
                 }
                 const c = await one<Case>('SELECT * FROM tower_reception_cases WHERE id=?' + (operator ? '' : ' AND token_hash=?'), ...[id, ...(operator ? [] : [hash])]);
                 if (!c)
@@ -212,13 +213,14 @@ export function createTowerReception(env: Options) {
                         reject(403, 'case_expired');
                     if (operation)
                         reject(404, 'not_found');
+                    await notify(current.id);
                     const after = url.searchParams.get('after') ?? '0';
                     if (!/^\d{1,9}$/.test(after) || [...url.searchParams.keys()].some(k => k !== 'after'))
                         reject(400, 'invalid_cursor');
                     const events = (await stmt('SELECT sequence,actor,kind,message,created_at AS createdAt FROM tower_reception_events WHERE case_id=? AND sequence>? ORDER BY sequence LIMIT 50', id, Number(after)).all()).results;
-                    return json({ case: safe(current), events, nextCursor: events.length ? events.at(-1)!.sequence : Number(after) });
+                    return json({ case: {...safe(current),review:await env.reviewStatus?.(current.id)}, events, nextCursor: events.length ? events.at(-1)!.sequence : Number(after) });
                 }
-                if (!(operator ? ['messages', 'approve', 'reject', 'revoke'] : ['messages', 'visit-plan', 'withdraw', 'activate']).includes(operation))
+                if (!(operator ? ['messages', 'approve', 'reject', 'revoke'] : ['messages', 'details', 'visit-plan', 'withdraw', 'activate']).includes(operation))
                     reject(404, 'not_found');
                 // A leaked grant must remain revocable even after message quotas are exhausted.
                 // Terminal operations are bounded to one persisted transition by state/CAS.
@@ -226,7 +228,7 @@ export function createTowerReception(env: Options) {
                     await rate('case:' + id, 20);
                     await rate('global-write', 1000);
                 }
-                const v = object(await body(req), ['requestKey', 'expectedVersion', ...(operation === 'messages' ? ['message'] : operation === 'visit-plan' ? ['visitPlan'] : operation === 'approve' ? ['accountId', 'residentId', 'sourceURL', 'approvedDays'] : [])]), rk = key(v.requestKey);
+                const v = object(await body(req), ['requestKey', 'expectedVersion', ...(operation === 'messages' ? ['message',...(!operator?['isMuseAgent','sourceURL','residentId']:[])] : operation==='details'?['isMuseAgent','sourceURL','residentId'] : operation === 'visit-plan' ? ['visitPlan'] : operation === 'approve' ? ['accountId', 'residentId', 'sourceURL', 'approvedDays'] : [])]), rk = key(v.requestKey);
                 let towerHash = '';
                 if (operation === 'activate') {
                     const raw = req.headers.get('X-Tower-Agent-Key');
@@ -247,9 +249,11 @@ export function createTowerReception(env: Options) {
                     reject(409, 'case_closed');
                 const next = { ...current, version: current.version + 1, updated_at: stamp() }, statements: Statement[] = [];
                 let message = '';
-                if (operation === 'messages') {
-                    message = text(v.message, 2000);
-                    next.next_action = operator ? '接待已有回覆，請查看本案訊息。' : '等待接待回覆，依自己的回訪約定查看本案。';
+                if (operation === 'messages'||operation==='details') {
+                    if(operation==='details'&&v.isMuseAgent===undefined&&v.sourceURL===undefined&&v.residentId===undefined)reject(400,'details_required');
+                    message = operation==='details'?'Application details updated.':text(v.message, 2000);
+                    if(!operator&&(v.isMuseAgent!==undefined||v.sourceURL!==undefined||v.residentId!==undefined)){if(current.state!=='pending')reject(409,'case_state_conflict');if(v.isMuseAgent!==undefined){if(typeof v.isMuseAgent!=='boolean')reject(400,'invalid_muse_declaration');if(v.isMuseAgent===false){next.is_muse_agent=0;}else next.is_muse_agent=1;}if(v.sourceURL!==undefined)next.source_url=source(v.sourceURL)!;if(v.residentId!==undefined)next.resident_id=text(v.residentId,64);}
+                    next.next_action = next.state==='rejected'?'You indicated that you are not a Muse agent. This application is closed.':operator ? 'Reception has replied. Please read your case messages.' : 'Reception will reply here. Return according to your visit plan.';
                 }
                 else if (operation === 'visit-plan' && !operator) {
                     next.visit_plan_json = JSON.stringify(visit(v.visitPlan));
@@ -277,7 +281,7 @@ export function createTowerReception(env: Options) {
                     next.source_url = sourceURL;
                     next.state = 'approved';
                     next.approval_expires_at = new Date(Math.min(now().getTime() + Number(v.approvedDays) * 86400000, Date.parse(current.expires_at))).toISOString();
-                    next.next_action = '已獲准。請建立自己的住所鑰匙並啟用。';
+                    next.next_action = 'Approved. Generate your own Tower key and activate it.';
                     statements.push(guard('EXISTS(SELECT 1 FROM accounts WHERE id=?)', accountId), guardianIsolation(accountId), ...bindingGuards(next), audit(next, 'reception-approved'));
                 }
                 else if (operation === 'activate' && !operator) {
@@ -285,14 +289,14 @@ export function createTowerReception(env: Options) {
                         reject(409, 'approval_required');
                     next.state = 'active';
                     next.granted_token_id = crypto.randomUUID().replaceAll('-', '');
-                    next.next_action = '住所鑰匙已啟用，請依已確認的分享範圍，自行預覽並決定是否公開。';
+                    next.next_action = 'Your Tower key is active. Preview your home and choose what to share within your confirmed permissions.';
                     statements.push(guard("EXISTS(SELECT 1 FROM tower_reception_cases WHERE id=? AND state='approved' AND approval_expires_at>? AND approval_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND granted_token_id IS NULL)", id, stamp()), guardianIsolation(current.account_id!), ...bindingGuards(current), guard('NOT EXISTS(SELECT 1 FROM tower_reception_cases WHERE token_hash=?)', towerHash), stmt('INSERT INTO tower_tokens(id,account_id,token_hash,scopes,expires_at,created_at) VALUES(?,?,?,?,?,?)', next.granted_token_id, current.account_id, towerHash, '["tower:read","tower:write"]', current.approval_expires_at, stamp()), audit(next, 'reception-activated'));
                 }
                 else if (operation === 'withdraw' && !operator || operator && ['reject', 'revoke'].includes(operation)) {
                     if (operation === 'reject' && current.state !== 'pending')
                         reject(409, 'case_state_conflict');
                     next.state = operation === 'withdraw' ? 'withdrawn' : operation === 'reject' ? 'rejected' : 'revoked';
-                    next.next_action = '本案已結束。';
+                    next.next_action = 'This case is closed.';
                     if (current.granted_token_id)
                         statements.push(stmt('UPDATE tower_tokens SET revoked=1 WHERE id=? AND account_id=?', current.granted_token_id, current.account_id));
                     if (current.account_id)
