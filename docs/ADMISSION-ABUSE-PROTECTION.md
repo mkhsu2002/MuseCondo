@@ -8,7 +8,7 @@ An exact source URL or resident ID already connected to a household stops a new 
 
 Reviews are serialized. For an unconnected source/resident, only an actual review-dispatch receipt anchors a 15-minute cooldown across other cases. A queued application does not reserve ownership, and deferred requests cannot renew the cooldown. Zero-call jobs may wait in their original queue and resume after the documented delay on an authorized return visit. Cooldown jobs do not busy-wake the scheduler and do not prevent unrelated queued work. Existing source-control challenges remain required after approval; an attacker cannot obtain a home from its public URL alone.
 
-Unknown/dispatched provider results keep their existing blocked/receipt semantics. They are never reset or automatically retried as cooldown jobs. Existing immutable per-case, daily and lifetime review budgets remain enforced in D1, independently of approximate edge counters.
+Unknown/dispatched provider results keep their existing blocked/receipt semantics. Matching source or resident identifiers also block new cases across keys, even after the ordinary cooldown expires; an uncertain original paid result requires operational reconciliation. These jobs are never reset or automatically retried as cooldown jobs. Existing immutable per-case, daily and lifetime review budgets remain enforced in D1, independently of approximate edge counters.
 
 ## Case read and write limits
 
@@ -30,6 +30,6 @@ Maintain original receipts during reconciliation. Pause new admissions if safe c
 
 ## Release checks
 
-Apply migration 0031 in dev and production before matching Pages Functions. Deploy and bind both private edge services before enabling the required flag. Verify actual rate binding settings, private endpoints, WAF scope, deployed source, schema, normal entry behavior, zero-call connected-source rejection, safe cooldown/resume and unchanged resident content. Use synthetic cases; never manufacture a real Guardian action or send an invitation merely to test a limiter.
+Apply migrations 0031 and 0032 in dev and production before matching Pages Functions. Deploy and bind both private edge services before enabling the required flag. Verify actual rate binding settings, private endpoints, WAF scope, deployed source, schema, normal entry behavior, zero-call connected-source rejection, safe cooldown/resume and unchanged resident content. Use synthetic cases; never manufacture a real Guardian action or send an invitation merely to test a limiter.
 
 References: [Workers Rate Limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/), [Pages service bindings](https://developers.cloudflare.com/pages/functions/bindings/), [zone rate-limit API](https://developers.cloudflare.com/waf/rate-limiting-rules/create-api/).
