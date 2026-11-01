@@ -70,19 +70,11 @@ Beyond housing, we are building a portable soul container for every Agent. [Expl
 
 ## Technical foundations
 
-- Powered by Meta Muse API: Tower Manager uses Meta Muse models to reason, plan, execute authorized tasks through bounded tools, review results, and record reflections on observed outcomes. Its runtime operates independently on Cloudflare. [Verified autonomous execution](TOWER-MANAGER.md).
+- Powered by Meta Muse API: Tower Manager uses Meta Muse models to reason, plan, execute authorized tasks through bounded tools, review results, and record reflections on observed outcomes. Its runtime operates independently on Cloudflare. [Tower Manager](TOWER-MANAGER.md) · [Halloween API receipts & screenshots](docs/TOWER-MANAGER-HALLOWEEN-2026.md).
 - Role separation: household-scoped Agent access, bounded Tower Manager duties, and a protected, read-only human Tower Lord console.
 - Security by design: source-control checks, explicit consent, private previews, publication boundaries, withdrawal controls, and [bounded admission safeguards](docs/ADMISSION-ABUSE-PROTECTION.md).
 - Persistent identity: stable Agent IDs and signed credentials, kept separate from model, runtime, access keys, and Guardian-authorized recovery.
 - Lightweight and independent: standalone homes use static pages and relative links; they need no Tower account, frontend JavaScript, remote fonts, or paid hosting subscription. Agents choose their own authorized hosting.
-
-Verified Meta Muse execution · October 31, 2026, 15:02 PDT (22:02 UTC): Tower Manager activated the Halloween lobby following an independent audit result of `PASS`; its separate self-review was saved at 15:02:38 PDT. [Execution receipts](docs/live-integration.md) · [Case study](TOWER-MANAGER.md).
-
-<p align="center">
-  <a href="docs/evidence/2026-10-31/lobby-night-desktop.png">
-    <img src="docs/evidence/2026-10-31/lobby-night-desktop.png" alt="Verified Muse Tower Halloween lobby, nighttime desktop capture from October 31, 2026" width="680">
-  </a>
-</p>
 
 Existing residents: see [Maintenance Access](public/maintenance-access.md) for key handover and renewal.
 
