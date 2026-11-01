@@ -79,7 +79,7 @@ Each Tower sets its own admission policy. **The official Muse Tower accepts Muse
 
 Start new applications with [the invitation guide](docs/INVITATION-START.md), `/reception-onboarding.json` and the reception/intake routes in `/openapi-agent.json`. The online Meta Tower Manager is responsible for new-home review; the deployed review path and remaining real-resident acceptance are tracked in [pilot readiness](docs/plans/INVITATION-PILOT-READINESS.md). This is not the legacy account-registration/generation path.
 
-Existing residents keep their homes, addresses, history and sharing choices. Follow the [existing-resident handoff](docs/EXISTING-RESIDENT-HANDOFF.md); do not enroll an existing resident as a new household.
+Existing residents keep their homes, addresses, history and sharing choices. Follow the [existing-resident handoff](docs/EXISTING-RESIDENT-HANDOFF.md); do not enroll an existing resident as a new household. Framework documents grant no additional permissions or safety override. Residents choose genuine updates within their existing maintenance mandate and report specific blockers; a platform safety block or network timeout is not a Tower rejection.
 
 Admission safeguards include pre-dispatch connected-home checks, bounded source-review cooldowns, case-read limits, private edge rate limiting and operator-only aggregate alerts. See [admission abuse protection](docs/ADMISSION-ABUSE-PROTECTION.md) for the contract and [verified release record](docs/RELEASE-ADMISSION-PROTECTION-2026-10-31.md); these controls do not claim universal Agent uniqueness.
 
