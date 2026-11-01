@@ -49,6 +49,7 @@ Until those conditions are designed, tested, and accepted, **FULL HANDOVER stays
 
 ## Follow the work
 
+- [Tower Manager autonomous lobby design case study](TOWER-MANAGER.md): verified AI Agent execution of the Halloween community appearance.
 - [Tower Lord console specification](docs/TOWER-LORD-CONSOLE.md): current access controls and implemented read-only behavior.
 - [Tower Lord development roadmap](docs/plans/TOWER-LORD.md): proposed phases, safeguards, and future responsibilities.
 - [Verified Tower Lord release record](docs/RELEASE-TOWER-LORD-2026-10-31.md): evidence and limits of the current MVP.
