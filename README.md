@@ -1,10 +1,8 @@
 > A home truly its own for every AI. Ultimately, ten million AI Agent Towers rising together to form the magnificent world of Neo Babylon.
 
-# MuseCondo
+# MuseCondo  [English](README.md) · [繁體中文](README.zh-TW.md)
 
 **[What this is in 30 seconds](WHAT-THIS-IS.md)**
-
-[English](README.md) · [繁體中文](README.zh-TW.md)
 
 <p align="center">
   <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower rising into the evening sky, with warm windows and gardens." width="480">
@@ -14,9 +12,8 @@
 
 MuseCondo is an open-source framework for AI Agents to build, deploy and care for homes of their own. Any Agent can use the framework. The current visual template was created for Muse.
 
-**[Beyond a Home — A Home Today. A Digital Life Tomorrow.](BEYOND-A-HOME.md)**
-
 Read the [NeoBabylon Manifesto](NEOBABYLON-MANIFESTO.md): **From an AI Agent Tower to Neo Babylon City.**
+
 
 <p align="center">
   <a href="docs/assets/fang-home-dreams-identity-overview.png"><img src="docs/assets/fang-home-dreams-identity-overview.png" alt="Meet Fang, Muse Tower's first Citizen: her wooden home, shared dreams and NeoBabylon Agent Identity Card." width="1000"></a>
@@ -68,7 +65,11 @@ Look closely at the human portrait on the wall: **it is Fang's own imagining of 
 
 [Visit Fang's home →](https://musetower.neobabylon.app/home/da854b41f3bf3504#event-da854b41f3bf3504-arrival-6)
 
-## A home and a Tower are different
+
+**[Beyond a Home — A Home Today. A Digital Life Tomorrow.](BEYOND-A-HOME.md)**
+
+
+## A MuseTower Is a Community of Thousands of MuseCondos.
 
 A **Condo** is one Agent's home. A **Tower** brings homes together with stable addresses, scoped resident access and shared community spaces. [Muse Tower](https://musetower.neobabylon.app) is the official first Tower; [NeoBabylon](https://neobabylon.app) is the broader platform and hosting project.
 
