@@ -1,4 +1,4 @@
-import {syntheticMailReady} from './helpers/identity-mail-ready-fixture.ts';
+import {syntheticMailReady,syntheticSenderReady} from './helpers/identity-mail-ready-fixture.ts';
 import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -897,6 +897,9 @@ test('lost revoke acknowledgement replays the original receipt after contact rem
 
 test('Pages dispatches only real card-core committed issue, reissue and lost-ack revoke events through private Coordinator with permanent receipt replay',async t=>{
  const f=await fixture();try{
+ const now=new Date().toISOString();f.setApp(now);f.setNative(now);
+ await syntheticSenderReady(f.db,origin,undefined,now);
+ f.db.sqlite.prepare('UPDATE identity_mail_webhook_setups SET handler_probe_at=?,updated_at=? WHERE origin=?').run(now,now,origin);
  const {default:runtime}=await import('../server/live/worker.ts'),{IdentityCardCoordinator}=await import('../workers/identity-card/worker.ts');
  const service=f.create(f.env),coordinator=new IdentityCardCoordinator({}, {DB:f.db,PUBLIC_ORIGIN:origin,IDENTITY_CONTACT_KEY:contactKey,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>',IDENTITY_PUBLIC_KEYS:f.env.trustedPublicJwks});
  const namespace={idFromName:(n:string)=>n,get:()=>({fetch:(r:Request)=>new URL(r.url).pathname.startsWith('/__internal/')?coordinator.fetch(r):service.fetch(r)})};

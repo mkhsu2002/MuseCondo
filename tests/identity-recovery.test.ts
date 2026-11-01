@@ -1,4 +1,4 @@
-import {syntheticMailReady} from './helpers/identity-mail-ready-fixture.ts';
+import {syntheticMailReady,syntheticSenderReady} from './helpers/identity-mail-ready-fixture.ts';
 import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from "node:test";
 import {
@@ -3246,7 +3246,9 @@ for (const lostAck of [false,true]) for (const method of ['passkey','offline']) 
 for(const decision of ['continue','new']) test('Pages automatically dispatches the authorized '+decision+' offline recovery receipt after default gate and provider failures leave the completed transaction intact',async t=>{
  const f=await fixture();try{
  const {default:runtime}=await import('../server/live/worker.ts'),{IdentityCardCoordinator}=await import('../workers/identity-card/worker.ts');
- f.setTime(new Date().toISOString());f.db.sqlite.function('strftime',{varargs:true},(...args)=>native.sqlite.prepare('SELECT strftime('+args.map(()=>'?').join(',')+') v').get(...args)!.v);
+ const now=new Date().toISOString();f.setTime(now);f.db.sqlite.function('strftime',{varargs:true},(...args)=>native.sqlite.prepare('SELECT strftime('+args.map(()=>'?').join(',')+') v').get(...args)!.v);
+ await syntheticSenderReady(f.db,origin,undefined,now);
+ f.db.sqlite.prepare('UPDATE identity_mail_webhook_setups SET handler_probe_at=?,updated_at=? WHERE origin=?').run(now,now,origin);
  const start=await offlineStart(f,decision),pair=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']),publicJwk=await crypto.subtle.exportKey('jwk',pair.publicKey);
  const coordinator=new IdentityCardCoordinator({}, {DB:f.db,PUBLIC_ORIGIN:origin,IDENTITY_CONTACT_KEY:contactKey,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>',IDENTITY_PUBLIC_KEYS:JSON.stringify({synthetic:publicJwk})});
  const env={DB:f.db,PUBLIC_ORIGIN:origin,IDENTITY_CONTACT_KEY:contactKey,IDENTITY_MAIL_FROM:'MuseCondo <identity@example.com>',IDENTITY_MAIL_API_KEY:'synthetic-runtime-key',IDENTITY_CARDS:{idFromName:(n:string)=>n,get:()=>({fetch:(r:Request)=>coordinator.fetch(r)})}};

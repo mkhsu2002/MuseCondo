@@ -1,3 +1,4 @@
+import {syntheticSenderReady} from './helpers/identity-mail-ready-fixture.ts';
 import test, {type TestContext} from 'node:test';
 import assert from 'node:assert/strict';
 import runtime from '../server/live/worker.ts';
@@ -6,6 +7,9 @@ import {envelopeFixture} from './helpers/identity-mail-fixture.ts';
 const base='/api/v1/agent/identity/card';
 async function fixture(t:TestContext) {
  const f=await envelopeFixture(),calls:string[]=[],controls:string[]=[];
+ const now=new Date().toISOString();f.setClock(now);f.setNative(now);
+ await syntheticSenderReady(f.db,f.env.origin,f.env.from,now);
+ f.db.sqlite.prepare('UPDATE identity_mail_webhook_setups SET handler_probe_at=?,updated_at=? WHERE origin=?').run(now,now,f.env.origin);
  f.db.sqlite.prepare('UPDATE identity_mail_events SET dedupe_key=? WHERE id=?').run('card:identity-card:'+f.cid,f.event);
  const jwk=await crypto.subtle.exportKey('jwk',f.pair.publicKey);
  const coordinator=new IdentityCardCoordinator({}, {DB:f.db,PUBLIC_ORIGIN:f.env.origin,IDENTITY_CONTACT_KEY:f.env.contactKey,IDENTITY_PUBLIC_KEYS:JSON.stringify({fixture:jwk}),IDENTITY_MAIL_FROM:f.env.from});
