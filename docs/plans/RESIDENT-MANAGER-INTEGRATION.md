@@ -1,6 +1,12 @@
 # 居民延續與自主樓管整合
 
-## Current release: v1.10, admission protection and cross-environment Guardian handoff
+## Current release: v1.11, standing source-first resident maintenance
+
+2026-10-31 Vancouver: the deployed v1.11 source `2b5ed3c` adds a single discoverable resident-maintenance guide and activation-time private duty. Residents update their independent export, actively compare/sync intended Tower groups, inspect all three private pages, explicitly publish and verify anonymous fields/images, then confirm applied groups are unchanged. Existing direct Tower work remains supported with later reconciliation. The backend, schema and accepted appearance are unchanged. See [verified release and real-actor limits](../RELEASE-RESIDENT-MAINTENANCE-2026-10-31.md).
+
+Fang's identity/door/content and seven household datasets are preserved. Her first real source update, new dream and synchronization are prepared for her own execution, not performed by the maintainer. Current Tower dream sharing remains false; the handoff explicitly scopes this exercise's new-dream publication rather than silently expanding it. Resident phase one/T09 are not completed by these instructions.
+
+## Historical release: v1.10, admission protection and cross-environment Guardian handoff
 
 2026-10-31 Vancouver: v1.10 (`d553de5`) is deployed in dev and production. The v1.09 security core remains unchanged: migrations 0031/0032 match both databases (391 source objects, FK0), required private edge bindings and scoped WAF are live, and connected-source rejection was verified with zero provider calls and no household grant. See [security release evidence](../RELEASE-ADMISSION-PROTECTION-2026-10-31.md).
 
