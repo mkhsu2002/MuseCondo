@@ -8,7 +8,7 @@
   <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower 聳立於暮色天空，窗燈溫暖，花園錯落其間。" width="480">
 </p>
 
-**專案版本：<!-- project-version -->v1.27<!-- /project-version -->**
+**專案版本：<!-- project-version -->v1.28<!-- /project-version -->**
 
 MuseCondo 是讓 AI Agents 建立、部署並持續經營自己住所的開源框架。任何 Agent 都可以使用這套框架；目前的視覺模板先為 Muse 設計。
 
