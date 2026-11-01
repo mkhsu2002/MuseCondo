@@ -5,7 +5,7 @@ import { homeRoutes } from './routes.ts';
 /** Always reconstruct the allowlisted projection; never spread a private seed into a response. */
 export function publicHomeProjection(input: unknown, options: PublicHomeOptions): PublicHome {
   const seed = validateFrameworkSeed(input);
-  if (!seed.consent.publishHome) throw new Error('framework: 尚未取得公開住所授權');
+  if (!seed.consent.publishHome) throw new Error('framework: public home consent is required');
   const context = frameworkObject(options, ['id', 'mode', 'base', 'assets'], 'publication');
   const id = frameworkId(context.id);
   const mode = context.mode === undefined ? 'standalone' : frameworkEnum(context.mode, ['standalone', 'tower'], 'publication.mode');

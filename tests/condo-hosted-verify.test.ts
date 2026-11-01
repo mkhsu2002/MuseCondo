@@ -5,6 +5,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {publicCondoProjection} from '../src/framework/condo.ts';
 import {renderCondo} from '../src/framework/condo-render.ts';
+import {renderLegacyCondo} from '../server/framework/legacy-condo-render.ts';
 import {verifyCondoURL} from '../server/framework/condo-verify.ts';
 import {condoFixture} from './helpers/condo-fixture.ts';
 
@@ -36,7 +37,7 @@ function mockSite(t:TestContext,options:{html?:(html:string,file:string)=>string
 test('known hosted bootstrap permits full three-page and PNG verification without claiming residence',async t=>{
  const requests=mockSite(t);
  const result=await verifyCondoURL(hosted,{expectedId:site.home.id});
- assert.deepEqual(result,{httpVerified:true,homeId:site.home.id,pages:['index.html','inside.html','dreams.html'].map(file=>hosted+file),images:2,homeComplete:false,next:'仍須確認真實來源、圖片內容與 Agent 再次更新及撤回結果'});
+ assert.deepEqual(result,{httpVerified:true,homeId:site.home.id,pages:['index.html','inside.html','dreams.html'].map(file=>hosted+file),images:2,homeComplete:false,next:'Still verify actual sources, scene content, and the Agent\'s later update and withdrawal'});
  assert.deepEqual(requests.map(url=>new URL(url).pathname),['/condo.json','/index.html','/inside.html','/dreams.html','/assets/condo.css','/assets/home.png','/assets/dream.png']);
 });
 
@@ -112,22 +113,35 @@ test('ordinary canonical independent HTTPS sites still verify without any script
  mockSite(t,{html:html=>html});assert.equal((await verifyCondoURL('https://independent.example/nested/')).httpVerified,true);
 });
 
+test('pre-English canonical homes remain verifiable without changing their identity or resident content',async t=>{
+ mockSite(t,{html:(_html,file)=>renderLegacyCondo(site,file==='inside.html'?'inside':file==='dreams.html'?'dreams':'home')});
+ const result=await verifyCondoURL('https://independent.example/nested/',{expectedId:site.home.id});
+ assert.equal(result.httpVerified,true);assert.equal(result.homeId,site.home.id);
+});
+
+test('legacy-language compatibility does not accept modified content or executable markup',async t=>{
+ for(const variant of ['content','script'])await t.test(variant,async t=>{
+  mockSite(t,{html:(_html,file)=>{const legacy=renderLegacyCondo(site,file==='inside.html'?'inside':file==='dreams.html'?'dreams':'home');return variant==='content'?legacy.replace(site.home.name,'A different resident'):legacy.replace('</body>','<script>alert(1)</script></body>');}});
+  await assert.rejects(verifyCondoURL('https://independent.example/nested/'));
+ });
+});
+
 test('inside and dreams pages are independently checked for additional script content',async t=>{
- for(const page of ['inside.html','dreams.html'])await t.test(page,async t=>{mockSite(t,{html:(html,file)=>inject(html,file===page?bootstrap.replace('</script>','alert(1);</script>'):bootstrap)});await assert.rejects(verifyCondoURL(hosted),/非模板執行內容/);});
+ for(const page of ['inside.html','dreams.html'])await t.test(page,async t=>{mockSite(t,{html:(html,file)=>inject(html,file===page?bootstrap.replace('</script>','alert(1);</script>'):bootstrap)});await assert.rejects(verifyCondoURL(hosted),/executable content outside the template/);});
 });
 
 test('hosted compatibility retains bounded source, image CRC and aspect ratio, and redirect scope checks',async t=>{
- await t.test('200 KB source limit',async t=>{mockSite(t,{html:html=>inject(html)+' '.repeat(200000)});await assert.rejects(verifyCondoURL(hosted),/上限/);});
+ await t.test('200 KB source limit',async t=>{mockSite(t,{html:html=>inject(html)+' '.repeat(200000)});await assert.rejects(verifyCondoURL(hosted),/verification limit/);});
  await t.test('PNG CRC',async t=>{mockSite(t,{image:()=>{const png=new Uint8Array(pngs[0]);png[29]^=1;return png;}});await assert.rejects(verifyCondoURL(hosted),/CRC/);});
- await t.test('PNG aspect ratio',async t=>{mockSite(t,{image:()=>pngs[1]});await assert.rejects(verifyCondoURL(hosted),/比例/);});
- await t.test('off-origin redirect',async t=>{mockSite(t,{redirect:'https://outside.example/index.html'});await assert.rejects(verifyCondoURL(hosted),/範圍/);});
- await t.test('out-of-root redirect',async t=>{mockSite(t,{redirect:'/other/index.html'});await assert.rejects(verifyCondoURL(hosted+'nested/'),/範圍/);});
+ await t.test('PNG aspect ratio',async t=>{mockSite(t,{image:()=>pngs[1]});await assert.rejects(verifyCondoURL(hosted),/aspect ratio/);});
+ await t.test('off-origin redirect',async t=>{mockSite(t,{redirect:'https://outside.example/index.html'});await assert.rejects(verifyCondoURL(hosted),/boundary/);});
+ await t.test('out-of-root redirect',async t=>{mockSite(t,{redirect:'/other/index.html'});await assert.rejects(verifyCondoURL(hosted+'nested/'),/boundary/);});
 });
 
 test('hosted verification keeps withdrawn dream manifest, HTML and asset checks',async t=>{
  const withdrawn=structuredClone(site);withdrawn.dream=null;withdrawn.home.dreams=[];
  await t.test('withdrawn private dream',async t=>{const requests=mockSite(t,{manifest:withdrawn,withdrawnStatus:404});const result=await verifyCondoURL(hosted);assert.equal(result.images,1);assert.equal(result.homeComplete,false);assert.ok(requests.includes(hosted+'assets/dream.png'));});
- await t.test('stale HTML',async t=>{mockSite(t,{manifest:withdrawn,withdrawnStatus:404,html:(_html,file)=>inject(renderCondo(site,file==='inside.html'?'inside':file==='dreams.html'?'dreams':'home'))});await assert.rejects(verifyCondoURL(hosted),/不一致/);});
- await t.test('still public dream image',async t=>{mockSite(t,{manifest:withdrawn});await assert.rejects(verifyCondoURL(hosted),/夢圖仍/);});
- await t.test('redirected withdrawn image',async t=>{mockSite(t,{manifest:withdrawn,withdrawnStatus:302});await assert.rejects(verifyCondoURL(hosted),/夢圖仍/);});
+ await t.test('stale HTML',async t=>{mockSite(t,{manifest:withdrawn,withdrawnStatus:404,html:(_html,file)=>inject(renderCondo(site,file==='inside.html'?'inside':file==='dreams.html'?'dreams':'home'))});await assert.rejects(verifyCondoURL(hosted),/do not match/);});
+ await t.test('still public dream image',async t=>{mockSite(t,{manifest:withdrawn});await assert.rejects(verifyCondoURL(hosted),/Dream image remains/);});
+ await t.test('redirected withdrawn image',async t=>{mockSite(t,{manifest:withdrawn,withdrawnStatus:302});await assert.rejects(verifyCondoURL(hosted),/Dream image remains/);});
 });

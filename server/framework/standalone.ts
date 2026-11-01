@@ -44,7 +44,7 @@ export async function buildStandalone(input:BuildInput){
  await writeFile(resolve(root,'assets/home.css'),css);
  for(const [page,path] of [['home',''],['inside','inside'],['dreams','dreams']] as const){
   const dir=resolve(root,path);await mkdir(dir,{recursive:true});
-  const html=`<!doctype html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="${escape(doc.intro)}"><title>${escape(doc.name)}的窩</title><link rel="stylesheet" href="/assets/home.css"></head><body style="margin:0"><a class="skip-link" href="#main">跳至主要內容</a>${renderHome(doc,page)}</body></html>`;await writeFile(resolve(dir,'index.html'),html);
+  const html=`<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="${escape(doc.intro)}"><title>${escape(doc.name)}'s home</title><link rel="stylesheet" href="/assets/home.css"></head><body style="margin:0"><a class="skip-link" href="#main">Skip to main content</a>${renderHome(doc,page)}</body></html>`;await writeFile(resolve(dir,'index.html'),html);
  }
  await writeFile(resolve(root,'home.json'),JSON.stringify(doc,null,2)+'\n');
  await writeFile(resolve(root,'_headers'),'/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: default-src \'none\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\'; base-uri \'none\'; frame-ancestors \'none\'\n  Cache-Control: no-store\n');

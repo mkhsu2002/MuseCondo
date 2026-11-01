@@ -33,24 +33,24 @@ test('invalid bytes, review, ratio and private publication fail before replacing
 });
 test('refuses unrelated output files, symlink output ancestors, escaped artwork and private inputs inside output',async()=>{
  const f=await fixture();try{
-  await mkdir(f.out);await writeFile(join(f.out,'precious.txt'),'KEEP');await assert.rejects(build(f.file,f.out),/本站輸出/);assert.equal(await readFile(join(f.out,'precious.txt'),'utf8'),'KEEP');
-  await symlink(f.dir,join(f.dir,'alias'));await assert.rejects(build(f.file,join(f.dir,'alias','new-site')),/符號連結/);
+  await mkdir(f.out);await writeFile(join(f.out,'precious.txt'),'KEEP');await assert.rejects(build(f.file,f.out),/home export/);assert.equal(await readFile(join(f.out,'precious.txt'),'utf8'),'KEEP');
+  await symlink(f.dir,join(f.dir,'alias'));await assert.rejects(build(f.file,join(f.dir,'alias','new-site')),/symlinks/);
   await assert.rejects(build(f.file,f.dir),/Private inputs/);
-  await rm(join(f.dir,'art/home.png'));const external=await mkdtemp(join(tmpdir(),'condo-external-'));try{await writeFile(join(external,'home.png'),png(16,9));await symlink(join(external,'home.png'),join(f.dir,'art/home.png'));await assert.rejects(build(f.file,join(f.dir,'safe-site')),/逃離/);}finally{await rm(external,{recursive:true,force:true});}
+  await rm(join(f.dir,'art/home.png'));const external=await mkdtemp(join(tmpdir(),'condo-external-'));try{await writeFile(join(external,'home.png'),png(16,9));await symlink(join(external,'home.png'),join(f.dir,'art/home.png'));await assert.rejects(build(f.file,join(f.dir,'safe-site')),/within its source directory/);}finally{await rm(external,{recursive:true,force:true});}
  }finally{await rm(f.dir,{recursive:true,force:true});}
 });
 
 test('requires exact digest receipts and rejects unknown or repeated CLI arguments',async()=>{
  const f=await fixture();try{
-  f.input.review.digests.home='0'.repeat(64);await writeFile(f.file,JSON.stringify(f.input));await assert.rejects(build(f.file,f.out),/收據/);
+  f.input.review.digests.home='0'.repeat(64);await writeFile(f.file,JSON.stringify(f.input));await assert.rejects(build(f.file,f.out),/visual review receipt/);
   assert.deepEqual(builder!.parseCondoBuildArgs(['--input','a.json','--out','site']),{input:'a.json',out:'site'});
   for(const args of [['--input','a','--out','b','--input','c'],['--input','a','--extra','b'],['--input','a'],['--input','--out','b'],['--input','a','--out','b','dangling']])assert.throws(()=>builder!.parseCondoBuildArgs(args));
  }finally{await rm(f.dir,{recursive:true,force:true});}
 });
 test('dream artwork must be exactly square and protected source directories cannot be output',async()=>{
  const f=await fixture();try{
-  const bytes=png(201,200);await writeFile(join(f.dir,'art/dream.png'),bytes);f.input.review.digests.dream=createHash('sha256').update(bytes).digest('hex');await writeFile(f.file,JSON.stringify(f.input));await assert.rejects(build(f.file,f.out),/比例/);
-  const protectedOutput=new URL('../src/unsafe-condo-output',import.meta.url).pathname;await assert.rejects(build(f.file,protectedOutput),/專用/);
+  const bytes=png(201,200);await writeFile(join(f.dir,'art/dream.png'),bytes);f.input.review.digests.dream=createHash('sha256').update(bytes).digest('hex');await writeFile(f.file,JSON.stringify(f.input));await assert.rejects(build(f.file,f.out),/aspect ratio/);
+  const protectedOutput=new URL('../src/unsafe-condo-output',import.meta.url).pathname;await assert.rejects(build(f.file,protectedOutput),/dedicated/);
  }finally{await rm(f.dir,{recursive:true,force:true});}
 });
 

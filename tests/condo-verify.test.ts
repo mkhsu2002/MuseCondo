@@ -19,7 +19,7 @@ async function fixture(mode='good'){
  });await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const address=server.address() as {port:number};
  return {url:`http://127.0.0.1:${address.port}/nested/condo/`,close:()=>new Promise<void>(r=>server.close(()=>r()))};
 }
-test('URL verification checks nested three pages and images without claiming full completion',async()=>{const f=await fixture();try{const r=await verifyCondoURL(f.url,{expectedId:'0123456789abcdef'});assert.equal(r.httpVerified,true);assert.equal(r.homeId,'0123456789abcdef');assert.equal(r.pages.length,3);assert.equal(r.images,2);assert.equal(r.homeComplete,false);await assert.rejects(verifyCondoURL(f.url,{expectedId:'ffffffffffffffff'}),/識別/);}finally{await f.close();}});
+test('URL verification checks nested three pages and images without claiming full completion',async()=>{const f=await fixture();try{const r=await verifyCondoURL(f.url,{expectedId:'0123456789abcdef'});assert.equal(r.httpVerified,true);assert.equal(r.homeId,'0123456789abcdef');assert.equal(r.pages.length,3);assert.equal(r.images,2);assert.equal(r.homeComplete,false);await assert.rejects(verifyCondoURL(f.url,{expectedId:'ffffffffffffffff'}),/home identity/);}finally{await f.close();}});
 test('URL verification refuses private manifest fields and SPA fallback posing as three pages',async()=>{for(const mode of ['private','spa']){const f=await fixture(mode);try{await assert.rejects(verifyCondoURL(f.url));}finally{await f.close();}}});
 test('URL input rejects embedded credentials, query tokens and insecure remote hosts',async()=>{for(const url of ['https://user:secret@example.com/','https://example.com/?token=secret','http://example.com/','https://example.com/#secret'])await assert.rejects(verifyCondoURL(url));});
 

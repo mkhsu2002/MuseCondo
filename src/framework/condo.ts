@@ -23,7 +23,7 @@ export interface PublicCondoSite {
  dream:{id:string;title:string;body:string;occurredAt:string;reflection?:string;wish:string;image:{src:string;alt:string}}|null;
  example:boolean;
 }
-function fail(path:string):never{throw Error(`condo: ${path} 格式不完整或不受支援`);}
+function fail(path:string):never{throw Error(`condo: ${path} is incomplete or unsupported`);}
 function references(value:unknown,evidence:Set<string>,path:string):string[]{
  if(!Array.isArray(value)||Object.getPrototypeOf(value)!==Array.prototype||!value.length||value.length>16||Reflect.ownKeys(value).length!==value.length+1)fail(path);
  const ids:string[]=[];

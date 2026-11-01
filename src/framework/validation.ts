@@ -1,6 +1,6 @@
 import { EVIDENCE_SOURCES, FRAMEWORK_VERSION, type DailyEntry, type DreamEntry, type EvidenceDesign, type FrameworkSeed, type OwnerPortrait } from './types.ts';
 
-function fail(path: string): never { throw new Error(`framework: ${path} 格式不完整或不受支援`); }
+function fail(path: string): never { throw new Error(`framework: ${path} is incomplete or unsupported`); }
 /** Rejects custom prototypes, symbols, hidden fields, and accessors without invoking getters. */
 export function frameworkObject(value: unknown, allowed: readonly string[], path: string): Record<string, unknown> {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) fail(path);

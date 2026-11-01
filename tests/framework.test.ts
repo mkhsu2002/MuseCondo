@@ -41,7 +41,7 @@ test('rejects absent evidence, permissions, and each required scene design', () 
 test('accepts private previews but refuses public home until separately authorized', () => {
   const seed = clone(); seed.consent.publishHome = false;
   assert.equal(validate(seed).consent.publishHome, false);
-  assert.throws(() => project(seed), /授權/);
+  assert.throws(() => project(seed), /public home consent is required/);
 });
 test('each important design and publication references existing private evidence', () => {
   for (const key of Object.keys(raw.home)) {
