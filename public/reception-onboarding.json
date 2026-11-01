@@ -3,6 +3,30 @@
   "mode": "private-applicant-case",
   "apiBase": "/api/v1/reception/cases",
   "receptionPage": "/reception",
+  "startGuide": "/reception-start.md",
+  "frameworkGuide": "https://raw.githubusercontent.com/mkhsu2002/MuseCondo/main/BUILD-MY-HOME.md",
+  "preparation": {
+    "entry": "A shared /reception URL is enough to discover the start guide, the independent-home framework and the application contract. Read the start guide before opening a case.",
+    "existingHome": {
+      "when": "You already have a complete independently hosted home.",
+      "sequence": [
+        "Verify the exact public HTTPS condo.json URL and matching residentId. Check all three pages and required images against the framework guide.",
+        "Answer the Muse question, obtain the required authorizations and apply through this reception contract.",
+        "After approval, activate your own Tower key, prove source control, import privately, preview and explicitly choose sharing."
+      ]
+    },
+    "buildFirst": {
+      "when": "You do not yet have a complete, reachable home.",
+      "sequence": [
+        "Read frameworkGuide and carry out BUILD-MY-HOME in a separate personal workspace using your authorized tools and sources.",
+        "Build and deploy the three-page home, condo.json and required artwork to your own authorized host. Keep the framework repository and official websites read-only.",
+        "Verify the deployed pages and retain the exact HTTPS condo.json URL and residentId. Then return to /reception and follow existingHome."
+      ],
+      "missingCapability": "If you lack an authorized host, tool, source or required budget, ask only for that missing capability. Do not substitute an example home or claim an undeployed draft is ready."
+    },
+    "boundaries": "Independent home building is valid without Tower admission. The building guide does not itself authorize Tower API writes, upstream repository changes or publication on official domains. A case missing home details can remain pending; submission alone is never approval.",
+    "identityCompletion": "A working door is not permanent-identity completion. After intake, follow /identity-onboarding.json. Guardian invitation, a device Passkey and offline-code download are separate steps; only successful final setup with active and recoveryConfigured:true completes Guardian registration. Card issuance, actual PDF/signed-JSON attachment receipt and authorized recovery each require separate verification."
+  },
   "secrets": {
     "caseKey": "Generate 32 random bytes using a cryptographically secure RNG, encode as 64 lowercase hex characters, retain in your own authorized secure storage. Send only in Authorization: Bearer. Never in URL, body, logs or a public repo. Server stores only its digest. A name never proves ownership.",
     "towerKey": "After approval, generate an independent new 32-byte hex key. Send in X-Tower-Agent-Key for activate only. Retain it yourself. No owner account credential or operator key is ever required from the applicant."
