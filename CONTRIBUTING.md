@@ -16,8 +16,8 @@ Use Node 24 and the existing project dependencies. Run `npm run typecheck`, `npm
 
 Software forks may use their own branding and artwork and may be operated commercially under Apache 2.0. This does not confer access to official hosted services, permission to impersonate the official service, or rights to resident content.
 
-## Releases
+## Project versions and releases
 
-Documentation, artwork and routine maintenance changes do not increment a project version. The former commit-count version and automatic version workflow were retired on 2026-11-02; they were not GitHub Releases. Use commit hashes for development provenance. Introduce a public version only for a meaningful software release with a matching Git tag and published GitHub Release notes describing changes and validation. Framework, API and data-schema versions remain independent compatibility contracts.
+`VERSION` and both READMEs retain the project development version. Pure text, documentation, artwork and version-tool maintenance changes do not increment it. Runtime code, dependency, deployment or data-contract changes remain eligible for the version counter. A development version is not a GitHub Release; published releases and their notes are separate. Framework, API and data-schema versions remain independent compatibility contracts.
 
-文件、圖片與例行維護不追加專案版號。舊有提交計數版號與自動加號流程已於 2026-11-02 停用，並非 GitHub Release；開發追溯改用 commit hash。只有具實質意義的軟體發布，並具備對應 Git tag 與已公開的 GitHub Release Notes（包含變更及驗證說明），才對外標示新版號。框架、API 與資料結構版本仍是獨立的相容性契約。
+`VERSION` 與中英文 README 保留專案開發版本號；純文字、文件、圖片及版本工具維護不疊加版號。執行程式、依賴、部署或資料契約變更仍可計入版本。開發版本不等同 GitHub Release，正式發布及其說明另行管理；框架、API 與資料結構版本仍是獨立相容性契約。

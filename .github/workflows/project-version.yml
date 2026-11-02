@@ -1,0 +1,82 @@
+name: Project version
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.mdx'
+      - '**/*.rst'
+      - '**/*.txt'
+      - '**/*.bk'
+      - '**/*.png'
+      - '**/*.jpg'
+      - '**/*.jpeg'
+      - '**/*.webp'
+      - '**/*.gif'
+      - '**/*.svg'
+      - '**/*.ico'
+      - '**/*.avif'
+      - '**/*.heic'
+      - '**/*.pdf'
+      - 'tests/**'
+      - '**/*.test.*'
+      - '**/*.spec.*'
+      - 'scripts/test-*'
+      - 'scripts/project-version.mjs'
+      - 'scripts/project-version.test.mjs'
+      - 'scripts/readme.test.mjs'
+      - '.github/workflows/project-version.yml'
+      - 'docs/**'
+      - 'audit/**'
+      - 'audits/**'
+      - 'tracker/**'
+      - 'handoff/**'
+      - 'outputs/**'
+      - 'VERSION'
+      - 'LICENSE*'
+      - 'COPYING*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: project-version-main
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Verify version behavior
+        run: node --test scripts/project-version.test.mjs
+      - name: Update version without a build or deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git checkout --detach origin/main
+            node scripts/project-version.mjs --write
+            version_files=(VERSION README.md)
+            if [[ -f README.zh-TW.md ]]; then
+              version_files+=(README.zh-TW.md)
+            fi
+            if git diff --quiet -- "${version_files[@]}"; then
+              exit 0
+            fi
+            git add -- "${version_files[@]}"
+            git commit -m 'docs: synchronize project version'
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+          done
+          echo 'Main changed repeatedly; version synchronization needs another code push.' >&2
+          exit 1

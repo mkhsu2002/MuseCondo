@@ -2,12 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-test('maintained READMEs share guide targets and development commands without an unpublished version', () => {
+test('maintained READMEs share guide targets and development commands with the project version', () => {
   const english = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
   const chinese = readFileSync(new URL('../README.zh-TW.md', import.meta.url), 'utf8');
+  const current = readFileSync(new URL('../VERSION', import.meta.url), 'utf8').trim();
   const links = text => [...text.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)].map(match => match[1]).filter(target => !/^README(?:\.zh-TW)?\.md$/.test(target));
   for (const text of [english, chinese]) {
-    assert.doesNotMatch(text, /project-version|Project version:|專案版本：/);
+    assert.deepEqual([...text.matchAll(/<!-- project-version -->v([^<]+)<!-- \/project-version -->/g)].map(match => match[1]), [current]);
     assert.match(text, /\[English\]\(README\.md\).*\[繁體中文\]\(README\.zh-TW\.md\)/);
     assert.doesNotMatch(text, /archived Traditional Chinese|Archived Traditional Chinese snapshot|v0\.79/);
   }
