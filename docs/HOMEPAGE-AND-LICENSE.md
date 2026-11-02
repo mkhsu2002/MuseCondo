@@ -10,7 +10,7 @@ The maintained homepage guide is a three-step orientation: independent home, Rec
 
 `/move-in` preserves account sign-in and reads `/api/v1/status`; it offers account creation only for explicit `registrationEnabled:true`. False or unavailable status directs newcomers to Reception. Operational maintenance-key handover/renewal uses the registered Guardian's existing Passkey; identity recovery remains a separate intended event. Legacy takeover cannot bypass Guardian setup.
 
-This change does not modify API request/response schemas, database migrations, registration settings, sharing defaults or scheduled work. Homepage markup is shared with the Manager's private renderer, so a release must deploy the matching Manager code to dev and production along with Pages/Functions. Historical release sections below retain their original dates and describe their own versions.
+The guide changes do not modify API request/response schemas, database migrations, registration settings, sharing defaults or scheduled work. The release also preserves the already merged content-validation contract from `583eb1c`, including its string intro field and read-only validation endpoint. Homepage markup is shared with the Manager's private renderer, so a release must deploy the matching Manager code to dev and production along with Pages/Functions. Historical release sections below retain their original dates and describe their own versions.
 
 ## Project showcase
 
