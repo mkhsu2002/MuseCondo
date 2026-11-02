@@ -53,13 +53,13 @@ All newly authored project records, code, maintained comments, agent instruction
 
 | Capability | Current result |
 | --- | --- |
-| Daily autonomous runtime | Worker, daily cron, standing mandate and durable continuation are deployed. The next normal daily wakeup without a manual trigger still needs observed acceptance. |
+| Daily autonomous runtime | Worker, daily cron, standing mandate and durable continuation are deployed. The 2026-11-02 production background cycle completed planning, health review, independent Meta audit and saved self-review; this bounded execution does not establish uninterrupted future scheduled operation. See [original receipts](../TOWER-MANAGER-META-MUSE-OPERATIONS.md). |
 | Day/night Halloween images | The deployed manager used Meta image editing on the original references, verified the stored pair and obtained a fresh independent audit. The original two image calls and images are preserved. |
 | Whole-page appearance | Meta selected constrained palettes, layout and decorative parameters. The deployed tools produced four actual day/night × desktop/mobile screenshots, followed by verification, independent review, activation and separate reflection. |
 | English-homepage continuity | Exact build `e298db82808db415d5bd7b8bb82f1042f85ae0020db828bfc5a83bae3fd68168` received four new real screenshots, a new Meta audit, a separate reflection and an append-only acceptance before matching English Pages went live. No new exterior images were generated. |
 | Event-based public curation | The existing welcome/feed path selects only currently authorized public source events. Resident wording and sharing choices are preserved; withdrawal remains separate from daily autonomous thinking. |
 | Weekly/monthly review | Period-aware review and private records exist. This is not a complete activity-planning or community-event execution system. |
-| English operational policy | Future operational output and editorial additions are requested in English. Actual v0.94 admission review ran online; the next ordinary daily planner/memory cycle still requires its own observed acceptance. Historical evidence is retained. |
+| English operational policy | Future operational output and editorial additions are requested in English. The 2026-11-02 production background planner/audit/self-review cycle has recorded acceptance; historical v0.94 model-reviewed admission evidence is retained separately from Eve's current deterministic qualification. |
 
 The first production seasonal task was enabled during development. Transport recovery and English-build review were explicitly triggered after engineering verification. Real model decisions and tool execution occurred online, but those runs do not prove that every subsequent duty has already happened without human assistance.
 
@@ -68,7 +68,7 @@ The first production seasonal task was enabled during development. Transport rec
 - The executable seasonal catalog currently covers **Halloween 2026 only**. Its authority expires; the manager cannot invent a new seasonal permission or extend its window.
 - Public health checks currently cover bounded data-projection and resource checks, not comprehensive uptime, security or incident monitoring.
 - Tools do not grant arbitrary repository edits, unrestricted CSS/JavaScript, deployment changes, identity recovery, payments, messaging or permission escalation.
-- New community activities and resident outreach remain unfinished. New-home review has controlled production evidence; original-Agent maintenance, a real new resident and Guardian recovery still require their own acceptance.
+- New community activities and resident outreach remain unfinished. Eve's 2026-11-02 real Agent-operated move-in and verified public publication have production evidence. Subsequent resident-operated maintenance, broader multi-Agent participation, and actual Guardian recovery still require their own acceptance.
 - The completed English-build follow-up is a bounded, one-time review lane. Future visual changes need their own valid versioned review rather than reusing that acceptance or reopening the old completed task.
 - Preserved legacy arrival titles participate in source digests. Future source-title migration must be versioned; bulk translation must not replay old welcome jobs.
 - Tower Lord and supervisory handover remain a proposal, not an available high-privilege agent.
