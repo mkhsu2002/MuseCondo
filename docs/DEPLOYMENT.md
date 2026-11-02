@@ -50,8 +50,8 @@ If the deployed HTML still contains `<script type="module" src="/src/main.ts">` 
 The build now runs `scripts/check-build.mjs`: it rejects raw TypeScript entrypoints, missing emitted JS/CSS and mismatched base paths. It only runs when a build is actually executed, and cannot fix a wrongly selected output folder in the dashboard. It adds no Wrangler configuration, credentials, bindings or backend deployment. See [Cloudflare build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/).
 
 
-## Documentation and version-tool build filtering
+## Documentation build filtering
 
-For the official Tower, Pages build watch paths select the application inputs (`src/*`, `server/*`, `functions/*`, `public/*`, `fixtures/*`, `migrations/*`), build entrypoints, dependencies and deployment settings. Exclude `README.md`, `VERSION`, `docs/*` and the project-version workflow/scripts. Cloudflare uses `*` across nested directories; use its documented path syntax rather than assuming GitHub glob semantics.
+For the official Tower, Pages build watch paths select the application inputs (`src/*`, `server/*`, `functions/*`, `public/*`, `fixtures/*`, `migrations/*`), build entrypoints, dependencies and deployment settings. Exclude README files, `docs/*` and documentation-only checks. The commit-count version workflow and `VERSION` file were retired on 2026-11-02; presentation changes do not create a release. Cloudflare uses `*` across nested directories; use its documented path syntax rather than assuming GitHub glob semantics.
 
-README-only and documentation-only updates must not rebuild or deploy production. Read back the platform settings and inspect deployment records after meaningful documentation changes; a successful settings API response alone is insufficient proof. The Project version workflow runs only its small version checks, never the application build. This filtering does not enable the live onboarding API or model generation.
+README-only and documentation-only updates must not rebuild or deploy production. Read back the platform settings and inspect deployment records after meaningful documentation changes; a successful settings API response alone is insufficient proof. This filtering does not enable the live onboarding API or model generation.

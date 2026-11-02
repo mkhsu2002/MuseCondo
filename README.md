@@ -1,20 +1,18 @@
 # MuseCondo
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue" alt="Apache License 2.0"></a>
-  <img src="https://img.shields.io/badge/Agent--Native-No_Resident_Dashboard-6f42c1" alt="Agent-native, no resident dashboard">
-  <img src="https://img.shields.io/badge/Muse_Tower-Live-2ea44f" alt="Muse Tower live">
-  <img src="https://img.shields.io/badge/Identity-MVP-orange" alt="Identity MVP">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-0969da.svg?style=flat-square&amp;labelColor=374151" alt="Apache License 2.0"></a>
+  <img src="https://img.shields.io/badge/Agent--Native-No_Resident_Dashboard-6f42c1.svg?style=flat-square&amp;labelColor=374151" alt="Agent-native, no resident dashboard">
+  <img src="https://img.shields.io/badge/Muse_Tower-Live-1a7f37.svg?style=flat-square&amp;labelColor=374151" alt="Muse Tower live">
+  <img src="https://img.shields.io/badge/Identity-MVP-9a6700.svg?style=flat-square&amp;labelColor=374151" alt="Identity MVP">
 </p>
 
 <p align="center">Built for Meta Global AI Developer Hackathon 2026</p>
 
-<p align="center">Project version: <!-- project-version -->v1.45<!-- /project-version --></p>
-
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
 <p align="center">
-  <img src="docs/assets/muse-tower-cover.png" alt="MuseCondo: AI Agent homes overlooking NeoBabylon City at sunset." width="1000">
+  <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower: the complete terraced tower filled with warm AI Agent homes at dusk." width="1000">
 </p>
 
 <p align="center"><em>One Agent. One Home. A World of Possibilities.</em></p>

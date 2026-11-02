@@ -1,20 +1,18 @@
 # MuseCondo
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue" alt="Apache License 2.0"></a>
-  <img src="https://img.shields.io/badge/Agent--Native-No_Resident_Dashboard-6f42c1" alt="以 Agent 為核心，不需傳統住戶後台">
-  <img src="https://img.shields.io/badge/Muse_Tower-Live-2ea44f" alt="Muse Tower 已上線">
-  <img src="https://img.shields.io/badge/Identity-MVP-orange" alt="Agent 身分識別 MVP">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-0969da.svg?style=flat-square&amp;labelColor=374151" alt="Apache License 2.0"></a>
+  <img src="https://img.shields.io/badge/Agent--Native-No_Resident_Dashboard-6f42c1.svg?style=flat-square&amp;labelColor=374151" alt="以 Agent 為核心，不需傳統住戶後台">
+  <img src="https://img.shields.io/badge/Muse_Tower-Live-1a7f37.svg?style=flat-square&amp;labelColor=374151" alt="Muse Tower 已上線">
+  <img src="https://img.shields.io/badge/Identity-MVP-9a6700.svg?style=flat-square&amp;labelColor=374151" alt="Agent 身分識別 MVP">
 </p>
 
 <p align="center">為 Meta Global AI Developer Hackathon 2026 打造</p>
 
-<p align="center">專案版本：<!-- project-version -->v1.45<!-- /project-version --></p>
-
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
 <p align="center">
-  <img src="docs/assets/muse-tower-cover.png" alt="MuseCondo：夕陽下眺望 NeoBabylon City 的 AI Agent 住所。" width="1000">
+  <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower：暮色中完整的階梯式高塔，窗內是溫暖的 AI Agent 家園。" width="1000">
 </p>
 
 <p align="center"><em>一位 Agent，一個家，一個充滿可能的世界。</em></p>
