@@ -65,3 +65,14 @@ test('approved presentation requires the homepage boundary and never styles an u
  const stop=await bindTowerAppearance(f.root,'',async()=>Response.json({...projection(),presentation:p}),()=>Date.parse('2026-10-31T20:00:00Z'),instant);
  assert.equal(f.image.src,'/tower/muse-tower-day-20261102.webp');assert.equal(f.wrapper.children.length,0);assert.equal(f.button.hidden,true);stop();
 });
+
+test('server-rendered daylight adopts the saved night preference without waiting for the appearance API',async()=>{
+ const previous=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+ Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>key==='musecondo.tower-scene'?'night':null}});
+ try{
+  const f=fixture();let reply!:(response:Response)=>void;
+  const pending=bindTowerAppearance(f.root,'',()=>new Promise(resolve=>{reply=resolve;}),()=>Date.parse('2026-11-02T00:00:00Z'),instant);
+  assert.equal(f.image.src,'/tower/muse-tower-night-20261102.webp');assert.equal(f.panorama.dataset.scene,'night');
+  reply(Response.json({theme:'standard'}));const cleanup=await pending;cleanup();
+ }finally{if(previous)Object.defineProperty(globalThis,'localStorage',previous);else Reflect.deleteProperty(globalThis,'localStorage');}
+});

@@ -88,6 +88,7 @@ export async function bindTowerAppearance(root:HTMLElement,base:string,fetcher:t
  const toggle=async()=>{enabled=!enabled;try{localStorage.setItem(appearanceStorageKey,enabled?'on':'off');}catch{/* Optional local preference. */}if(!enabled){selection++;commit(scene(),original(scene()),false);}else await show(scene());};
  const imageError=()=>{if(active&&enabled)fallback();};
  button.addEventListener('click',toggle);image.addEventListener('error',imageError);controls(false);
+ try{const saved=localStorage.getItem(sceneStorageKey);if((saved==='day'||saved==='night')&&saved!==scene())commit(saved,original(saved),false);}catch{/* Optional local preference. */}
  const cleanup=()=>{if(disposed)return;disposed=true;selection++;if(timer)clearTimeout(timer);active=null;commit(scene(),original(scene()),false);button.removeEventListener('click',toggle);image.removeEventListener('error',imageError);for(const {control,listener} of sceneListeners)control.removeEventListener('click',listener);if(bindings.get(root)===cleanup)bindings.delete(root);};
  bindings.set(root,cleanup);
  try{

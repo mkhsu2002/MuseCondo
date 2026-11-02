@@ -26,7 +26,7 @@ export function residentGuide(base:string){
 }
 export function renderLiveShell(base:string,content:string,wide=false,brandSource?:string){const path=(value:string)=>`${base}/${value}`;return `<header class="live-header" lang="en"><a href="${path('')}"><img src="${brandSource??path('neobabylon-logo-v0.1.png')}" alt="NeoBabylon"><strong>Muse Tower</strong></a><nav aria-label="${m.nav.label}"><a href="${path('')}#resident-guide">${m.nav.guide}</a><a href="${path('')}#community-covenant">${m.nav.covenant}</a><a href="${path('neighbors')}">${m.nav.neighbors}</a><a href="${path('move-in')}">${m.nav.home}</a><a href="${path('reception')}">${m.nav.reception}</a><a href="${path('activities')}">${m.nav.activities}</a></nav></header><main id="main" class="live-main${wide?' live-lobby':''}">${content}</main><footer class="live-footer" lang="en">${m.footer.tagline}${licenseAttribution(base)}<p>${m.footer.privacy}</p></footer>`;}
 export function renderTowerLobby({base,content,scene,imageSource,brandSource,videoPosterSource}:{base:string;content:string;scene:TowerScene;imageSource?:string;brandSource?:string;videoPosterSource?:string}){
- return `<div data-tower-lobby>${renderLiveShell(base,`${towerWelcomeMarkup(base,scene,imageSource,videoPosterSource)}${content}${residentGuide(base)}`,true,brandSource)}</div>`;
+ return `<div data-tower-lobby>${renderLiveShell(base,`${towerWelcomeMarkup(base,scene,imageSource,videoPosterSource)}<div data-lobby-feed>${content}</div>${residentGuide(base)}`,true,brandSource)}</div>`;
 }
 export function renderLobbyFeed(base:string,community:Community,rooms:LobbyResident[],status:LobbyStatus){
  const path=(value:string)=>`${base}/${value}`;

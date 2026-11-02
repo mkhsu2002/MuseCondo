@@ -2,6 +2,7 @@ import {createHomePreflightRoute} from './home-preflight-route.ts';
 import {createMoveInCompletion} from './move-in-completion.ts';
 import {createMoveInInvitationChoice} from './move-in-invitation-choice.ts';
 import {renderHomeDirectory} from '../../src/shared/home-directory.ts';
+import {renderTowerLobby,lobbyServiceMarkup} from '../../src/shared/lobby-markup.ts';
 import {createIdentityOffer,IDENTITY_OFFER_SCHEMA} from './identity-offer.ts';
 import {ASSISTED_ADMISSION_SCHEMA} from './assisted-admission-schema.ts';
 import {transportCheck} from './transport-check.ts';
@@ -186,7 +187,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));
    if(!directory.ok)return response;
    const {rooms}=await directory.json() as {rooms:{id:string;name:string}[]};
-   const markup=renderHomeDirectory('',rooms);
+   const markup=renderTowerLobby({base:'',scene:'day',content:lobbyServiceMarkup('loading','')+renderHomeDirectory('',rooms)});
    const html=(await response.clone().text()).replace('<div id="app"></div>',`<div id="app">${markup}</div>`);
    const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');for(const key of ['ETag','Content-Length','Content-Encoding','Last-Modified'])headers.delete(key);
    return new Response(html,{status:response.status,headers});

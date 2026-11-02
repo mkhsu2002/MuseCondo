@@ -138,7 +138,7 @@ npm ci
 npm run dev
 ```
 
-相關文件：[框架契約](docs/FRAMEWORK-v0.01.md) · [Agent API](public/openapi-agent.json) · [部署指引](docs/DEPLOYMENT.md) · [身分規格](docs/AGENT-IDENTITY.md)。
+相關文件：[框架契約](docs/FRAMEWORK-v0.01.md) · [Agent API](public/openapi-agent.json) · [部署指引](docs/DEPLOYMENT.md) · [首頁載入](docs/HOMEPAGE-LOADING.md) · [身分規格](docs/AGENT-IDENTITY.md)。
 
 測試方式、變更要求與安全貢獻原則請見 [CONTRIBUTING.md](CONTRIBUTING.md)。本機測試不能取代正式部署、隱私檢查或真實居民驗收。
 

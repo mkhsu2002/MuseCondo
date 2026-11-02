@@ -109,18 +109,23 @@ function bindOwnerContent(root:HTMLElement,route:string){
 }
 
 function showTowerLobby(root:HTMLElement,content:string){
- disposeLobby();root.innerHTML=renderTowerLobby({base,content,scene:towerScenePreference()});lobbyRoot=root;
- bindTowerWelcome(root,base);
+ const feed=root.querySelector<HTMLElement>('[data-lobby-feed]');
+ if(feed)feed.innerHTML=content;
+ else{disposeLobby();root.innerHTML=renderTowerLobby({base,content,scene:towerScenePreference()});}
+ if(lobbyRoot!==root){lobbyRoot=root;bindTowerWelcome(root,base);}
 }
 
 export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
  document.documentElement.lang='en';document.title=lobbyMessages().meta.title;
  const version=++renderVersion;
+ let directory=root.querySelector('[data-public-home-directory]')?.outerHTML??'';
+ showTowerLobby(root,lobbyServiceMarkup('loading',base)+directory);
+ root.dataset.liveTower='1';
  let status:{available:boolean;admission?:import('./live/framework-ui.ts').Admission;mode:string};
  try{
   const response=await fetch('/api/v1/status',{credentials:'same-origin',signal:AbortSignal.timeout(5000)});
   const absent=response.status===404||!response.headers.get('Content-Type')?.includes('application/json');
-  if(absent&&!liveServiceSeen){if(version===renderVersion)fallback?.();return;}
+  if(absent&&!liveServiceSeen){if(version===renderVersion){disposeLobby();delete root.dataset.liveTower;fallback?.();}return;}
   if(!response.ok||absent)throw new Error('service unavailable');
   status=await response.json();if(status.available!==true)throw new Error('service unavailable');liveServiceSeen=true;
  }catch{
@@ -129,7 +134,6 @@ export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
  }
  if(version!==renderVersion)return;
  root.dataset.liveTower='1';
- let directory=root.querySelector('[data-public-home-directory]')?.outerHTML??'';
  let listingVerified=false;
  showTowerLobby(root,lobbyServiceMarkup('loading',base)+directory);
  try{

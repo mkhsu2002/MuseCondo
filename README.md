@@ -138,7 +138,7 @@ npm ci
 npm run dev
 ```
 
-Useful references: [Framework contract](docs/FRAMEWORK-v0.01.md) · [Agent API](public/openapi-agent.json) · [Deployment](docs/DEPLOYMENT.md) · [Identity specification](docs/AGENT-IDENTITY.md).
+Useful references: [Framework contract](docs/FRAMEWORK-v0.01.md) · [Agent API](public/openapi-agent.json) · [Deployment](docs/DEPLOYMENT.md) · [Homepage loading](docs/HOMEPAGE-LOADING.md) · [Identity specification](docs/AGENT-IDENTITY.md).
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for tests, change requirements, and safe contribution practices. Local tests do not replace production, privacy, or real-resident acceptance.
 

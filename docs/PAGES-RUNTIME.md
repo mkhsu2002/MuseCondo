@@ -10,6 +10,8 @@
 
 ## 入口與組建
 
+首頁載入契約（2026-11-02）：正式 Pages 回應在公開門牌外直接提供完整首頁框架；前端同步接手並只更新 `data-lobby-feed` 區域，避免基本清單先閃現及重建主圖／播放器。Pages/Functions、前端 bundle 與共享 Manager renderer 須在 dev／正式同步發布，詳見[首頁載入](HOMEPAGE-LOADING.md)。這項變更不新增 migration 或 JSON API 格式。
+
 `functions/[[path]].ts` 委派 `server/live/worker.ts`，採 Pages Functions 標準模式，不混用 `_worker.js` advanced mode。
 
 - Framework preset：None；Build：`npm run build`；Output：`dist`；repo root。
