@@ -1,6 +1,6 @@
 # Homepage introduction video / 首頁介紹影片
 
-The homepage places **Discover MuseCondo** after the tower artwork and before resident updates. It links the maintainer-selected video [AI Agent 也需要一個家！MuseCondo：讓 AI 自主生活的虛擬城市｜Meta AI Hackathon 2026](https://youtu.be/-b7BgfW_gc0).
+The homepage places **Discover MuseCondo** after the tower artwork and before resident updates. It links the maintainer-selected video [What If Every AI Agent Had a Home? | MuseCondo at Meta AI Hackathon 2026](https://youtu.be/qb-fyaymkFg).
 
 The responsive preview uses the original locally hosted 1280 × 720 thumbnail. No YouTube iframe or player request is created until the visitor selects Play video. Playback then uses YouTube's privacy-enhanced embed, with an origin referrer and fullscreen support. The persistent Watch on YouTube link opens a new tab with `noopener noreferrer`. YouTube still controls video availability and playback permissions.
 
@@ -10,7 +10,15 @@ The Manager's static preview includes the same thumbnail as an embedded data ima
 
 樓管靜態預覽內嵌同張縮圖，不抓取 YouTube 或建立 iframe；共用圖文與樣式均納入 renderer 摘要。縮圖權利與軟體授權分開。
 
-## Release verification / 發布驗證
+Current video selection updated on **2026-11-02**. The thumbnail uses the video-specific filename `public/media/musecondo-introduction-qb-fyaymkFg.jpg` so an older cached thumbnail cannot accompany the new link. The external link, privacy-enhanced player URL, accessible player title and Manager preview all use this video selection.
+
+**2026-11-02 影片更新：** 首頁、雙語 README 與內嵌播放器改用 `qb-fyaymkFg`。縮圖採影片專屬檔名，避免新影片沿用瀏覽器中的舊縮圖；既有主視覺與頁面位置不變。
+
+## Archived verification of the previous video / 舊影片歷史驗證
+
+> Archived on 2026-11-02: the following checks describe the earlier video (`-b7BgfW_gc0`) and release v1.47. They do not establish playback or browser verification of the current video.
+
+
 
 Verified on **2026-11-02**, source [`740ac8c`](https://github.com/mkhsu2002/MuseCondo/tree/740ac8c32f64f516775a0201a3bbbe7c26c440e7), project version **v1.47**.
 

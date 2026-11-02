@@ -25,3 +25,7 @@ The homepage now selects the approved 1280 × 720 day/night pair with the `20261
 ## Presentation download
 
 The maintainer-supplied hackathon presentation is stored unchanged at [`../downloads/MuseCondo_Meta_Hackathon_2026.pptx`](../downloads/MuseCondo_Meta_Hackathon_2026.pptx). Both READMEs offer one download link and a separate introduction-video link; slides are not embedded into the README. The presentation is outside `public/`, so it is not copied into the website build. Its separate rights notice is in [ASSET-LICENSE.md](../../ASSET-LICENSE.md).
+
+## Current introduction-video thumbnail
+
+The homepage uses `public/media/musecondo-introduction-qb-fyaymkFg.jpg` for the maintainer-selected video `qb-fyaymkFg`. The older `public/media/musecondo-introduction.jpg` is retained as historical artwork and is no longer selected by the homepage or shared renderer. See [homepage video](../HOMEPAGE-VIDEO.md).

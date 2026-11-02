@@ -101,6 +101,8 @@ A new exception must name its exact path or a narrowly bounded set and state the
 
 ## Project introduction video preview
 
-`public/media/musecondo-introduction.jpg` is the unchanged YouTube thumbnail for the maintainer-linked MuseCondo introduction video, https://youtu.be/-b7BgfW_gc0, published by M.K. 暢談古往今來. It is included for the project's video preview; it is not covered by the Apache software license. Video and thumbnail rights remain with their respective rights holders.
+`public/media/musecondo-introduction-qb-fyaymkFg.jpg` is the unchanged YouTube thumbnail for the maintainer-linked MuseCondo introduction video, https://youtu.be/qb-fyaymkFg, published by M.K. 暢談古往今來. It is included for the project's video preview; it is not covered by the Apache software license. Video and thumbnail rights remain with their respective rights holders.
 
-`public/media/musecondo-introduction.jpg` 是維護者指定 MuseCondo 介紹影片的原始 YouTube 縮圖，用於本站影片預覽，不包含於 Apache 軟體授權；影片與縮圖權利仍屬各自權利人。
+`public/media/musecondo-introduction-qb-fyaymkFg.jpg` 是維護者指定 MuseCondo 介紹影片的原始 YouTube 縮圖，用於本站影片預覽，不包含於 Apache 軟體授權；影片與縮圖權利仍屬各自權利人。
+
+The retained `public/media/musecondo-introduction.jpg` is the historical preview thumbnail for the earlier introduction video. It is no longer used by the homepage. Its existing rights and exclusion from the Apache software license remain unchanged.
