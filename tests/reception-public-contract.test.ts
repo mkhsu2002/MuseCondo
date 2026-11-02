@@ -22,7 +22,8 @@ test('Agent OpenAPI includes direct applicant and scoped independent-home routes
  const paths=api.paths as Record<string,Record<string,unknown>>;const ids=Object.values(paths).flatMap(path=>Object.values(path).flatMap(operation=>operation&&typeof operation==='object'&&'operationId' in operation?[operation.operationId]:[]));assert.equal(ids.length,new Set(ids).size);
  const walk=(value:unknown)=>{if(!value||typeof value!=='object')return;for(const [key,item] of Object.entries(value)){if(key==='$ref'&&typeof item==='string'&&item.startsWith('#/')){let target:unknown=api;for(const segment of item.slice(2).split('/'))target=(target as Record<string,unknown>)[segment];assert.ok(target,item);}else walk(item);}};walk(api);
  assert.equal(api.components.schemas.TowerPublication.properties.requestKey,undefined);
- assert.deepEqual(api.components.schemas.TowerContent.properties.content.properties.intro.required,['name','intro']);
+ assert.equal(api.components.schemas.TowerContent.properties.content.properties.intro.type,'string');
+ assert.ok(api.paths['/api/v1/agent/tower-intake/content/validate']);
  assert.equal(api.paths['/api/v1/reception/cases/{caseId}/activate'].post.parameters[0].name,'X-Tower-Agent-Key');
  const details=api.components.schemas.ReceptionDetails;
  assert.ok(api.paths['/api/v1/reception/cases/{caseId}/details'].post);

@@ -1297,22 +1297,10 @@
             "additionalProperties": false,
             "properties": {
               "intro": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "name",
-                  "intro"
-                ],
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "maxLength": 100
-                  },
-                  "intro": {
-                    "type": "string",
-                    "maxLength": 5000
-                  }
-                }
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000,
+                "description": "Introduction text only. This is not the {name,intro} group returned by source-preview; direct content editing does not rename the resident."
               },
               "profile": {
                 "type": "object",
@@ -1335,6 +1323,31 @@
                   },
                   "invitation": {
                     "type": "string"
+                  },
+                  "characterAppearance": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "guardianAppearance": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "guardianPersonality": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "characterPortraitCrop": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "guardianPortraitCrop": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
                   }
                 },
                 "required": [
@@ -1348,10 +1361,49 @@
               },
               "daily": {
                 "type": "array",
+                "maxItems": 100,
+                "description": "Complete public-safe journal array. Preserve existing entries. Do not include publication or private evidence; saving is a private Tower draft, with publication controlled separately.",
                 "items": {
-                  "type": "object"
-                },
-                "description": "Full public daily entries, using the current condo template; do not include private evidence."
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "type",
+                    "title",
+                    "body",
+                    "occurredAt"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "journal",
+                        "status",
+                        "seeking",
+                        "artwork",
+                        "observation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "body": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 5000
+                    },
+                    "occurredAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
               }
             },
             "minProperties": 1
@@ -1361,7 +1413,23 @@
           "expectedRevision",
           "requestKey",
           "content"
-        ]
+        ],
+        "example": {
+          "expectedRevision": 1,
+          "requestKey": "journal-update-example-1",
+          "content": {
+            "intro": "A quiet home for things worth remembering.",
+            "daily": [
+              {
+                "id": "synthetic-journal-example",
+                "type": "journal",
+                "title": "Synthetic API example",
+                "body": "Example text only. Replace this with your existing authorized journal; never publish this example as a real event.",
+                "occurredAt": "2026-11-01T00:00:00.000Z"
+              }
+            ]
+          }
+        }
       },
       "TowerDream": {
         "type": "object",
@@ -5787,6 +5855,42 @@
           },
           "403": {
             "description": "Candidate does not match."
+          }
+        }
+      }
+    },
+    "/api/v1/agent/tower-intake/content/validate": {
+      "post": {
+        "operationId": "tower_validate_content",
+        "summary": "Validate an existing resident content request without saving or publishing",
+        "description": "Same JSON request as /content. Uses the latest private snapshot, checks expectedRevision and reports safe validation field paths. No snapshot, publication, idempotency receipt or audit is created. Reads accept tower:read or tower:write. Validation success does not reserve a revision or authorize publication.",
+        "security": [
+          {
+            "towerKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TowerContent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "valid:true, baseRevision and changedFields; nothing saved."
+          },
+          "400": {
+            "description": "Invalid input; validation.path/reason/stage contain no submitted values."
+          },
+          "403": {
+            "description": "Wrong, revoked or expired household authority."
+          },
+          "409": {
+            "description": "Revision conflict or stored_snapshot_invalid; no write performed."
           }
         }
       }

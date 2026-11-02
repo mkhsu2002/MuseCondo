@@ -64,17 +64,20 @@ interface Claim {
   expires_at: string;
   verified: number;
 }
+interface SnapshotValidation {path:string;reason:string;stage?:"request"|"stored_snapshot"|"content"}
 class TowerError extends Error {
   status: number;
   code: string;
-  constructor(status: number, code: string) {
+  validation?: SnapshotValidation;
+  constructor(status: number, code: string, validation?:SnapshotValidation) {
     super(code);
     this.status = status;
     this.code = code;
+    this.validation = validation;
   }
 }
-function fail(status: number, code: string): never {
-  throw new TowerError(status, code);
+function fail(status: number, code: string, validation?:SnapshotValidation): never {
+  throw new TowerError(status, code, validation);
 }
 const random = (n = 32) =>
   Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) =>
@@ -93,33 +96,19 @@ async function hash(value: string | Uint8Array) {
     (b) => b.toString(16).padStart(2, "0"),
   ).join("");
 }
-function object(v: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (
-    !v ||
-    typeof v !== "object" ||
-    Array.isArray(v) ||
-    Object.keys(v).some((k) => !keys.includes(k))
-  )
-    fail(400, "invalid_public_snapshot");
-  return v as Record<string, unknown>;
+function object(v: unknown, keys: readonly string[], path="snapshot"): Record<string, unknown> {
+  if(!v || typeof v!=="object" || Array.isArray(v))fail(400,"invalid_public_snapshot",{path,reason:"object_required"});
+  if(Object.keys(v).some(k=>!keys.includes(k)))fail(400,"invalid_public_snapshot",{path,reason:"unsupported_fields"});
+  return v as Record<string,unknown>;
 }
-function string(v: unknown, max = 2000): string {
-  if (
-    typeof v !== "string" ||
-    !v.trim() ||
-    v.length > max ||
-    Array.from(v).some(
-      (c) => c.charCodeAt(0) < 32 && ![9, 10, 13].includes(c.charCodeAt(0)),
-    )
-  )
-    fail(400, "invalid_public_snapshot");
+function string(v:unknown,max=2000,path="snapshot"):string {
+  if(typeof v!=="string" || !v.trim())fail(400,"invalid_public_snapshot",{path,reason:"nonempty_string_required"});
+  if((v as string).length>max)fail(400,"invalid_public_snapshot",{path,reason:"string_too_long"});
+  if(Array.from(v as string).some(c=>c.charCodeAt(0)<32&&![9,10,13].includes(c.charCodeAt(0))))fail(400,"invalid_public_snapshot",{path,reason:"control_characters_not_allowed"});
   return v as string;
 }
-function id(v: unknown) {
-  const s = string(v, 64);
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(s))
-    fail(400, "invalid_identity");
-  return s;
+function id(v:unknown,path="snapshot"){
+ const value=string(v,64,path);if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(value))fail(400,"invalid_identity",{path,reason:"invalid_id"});return value;
 }
 function revision(v: unknown) {
   if (!Number.isSafeInteger(v) || (v as number) < 1)
@@ -134,10 +123,10 @@ function requestKey(v: unknown) {
   if (!/^[a-zA-Z0-9-]{8,80}$/.test(s)) fail(400, "idempotency_key_required");
   return s;
 }
-function date(v: unknown) {
-  const s = string(v, 40);
+function date(v: unknown,path="snapshot") {
+  const s = string(v, 40,path);
   if (!/^\d{4}-\d\d-\d\dT/.test(s) || !Number.isFinite(Date.parse(s)))
-    fail(400, "invalid_public_snapshot");
+    fail(400, "invalid_public_snapshot",{path,reason:"datetime_required"});
   return s;
 }
 /** Validate the versioned public projection, including native HTML mapped by the source adapter. */
@@ -176,11 +165,11 @@ export function validateTowerSnapshot(
     routes.dreams !== "./dreams.html"
   )
     fail(400, "unsupported_public_snapshot");
-  const profile = object(root.profile, CONDO_ALL_PROFILE_FIELDS),
+  const profile = object(root.profile, CONDO_ALL_PROFILE_FIELDS,"snapshot.profile"),
     projected = Object.fromEntries(
-      CONDO_PROFILE_FIELDS.map((k) => [k, string(profile[k])]),
+      CONDO_PROFILE_FIELDS.map((k) => [k, string(profile[k],2000,"snapshot.profile."+k)]),
     ) as PublicCondoSite["profile"];
-  for(const key of CONDO_OPTIONAL_PROFILE_FIELDS)if(profile[key]!==undefined)projected[key]=string(profile[key]);
+  for(const key of CONDO_OPTIONAL_PROFILE_FIELDS)if(profile[key]!==undefined)projected[key]=string(profile[key],2000,"snapshot.profile."+key);
   for(const key of CONDO_PORTRAIT_CROP_FIELDS)if(projected[key]!==undefined){try{parsePortraitCrop(projected[key]);}catch{fail(400,"invalid_portrait_crop");}}
   if (
     !Array.isArray(home.daily) ||
@@ -189,20 +178,20 @@ export function validateTowerSnapshot(
     home.dreams.length > 1
   )
     fail(400, "invalid_public_snapshot");
-  const daily = home.daily.map((v): PublicDailyEntry => {
-    const e = object(v, ["id", "type", "title", "body", "occurredAt"]);
+  const daily = home.daily.map((v,index): PublicDailyEntry => {
+    const path="snapshot.home.daily["+index+"]",e = object(v, ["id", "type", "title", "body", "occurredAt"],path);
     if (
       !["journal", "status", "seeking", "artwork", "observation"].includes(
         String(e.type),
       )
     )
-      fail(400, "invalid_public_snapshot");
+      fail(400, "invalid_public_snapshot",{path:path+".type",reason:"unsupported_entry_type"});
     return {
-      id: id(e.id),
+      id: id(e.id,path+".id"),
       type: e.type as PublicDailyEntry["type"],
-      title: string(e.title, 120),
-      body: string(e.body, 5000),
-      occurredAt: date(e.occurredAt),
+      title: string(e.title, 120,path+".title"),
+      body: string(e.body, 5000,path+".body"),
+      occurredAt: date(e.occurredAt,path+".occurredAt"),
     };
   });
   let dream: PublicCondoSite["dream"] = null;
@@ -268,8 +257,8 @@ export function validateTowerSnapshot(
     home: {
       frameworkVersion: "0.01",
       id: residentId,
-      name: string(home.name, 100),
-      intro: string(home.intro, 1000),
+      name: string(home.name, 100,"snapshot.home.name"),
+      intro: string(home.intro, 1000,"snapshot.home.intro"),
       assets: { desktop: "./assets/home.png" },
       routes: {
         home: "./index.html",
@@ -486,7 +475,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       fail(400, "invalid_json");
     }
   }
-  async function body(req: Request, keys?: readonly string[], max = 12000) {
+  async function body(req: Request, keys?: readonly string[], max = 12000, path="snapshot") {
     if (
       req.headers.get("Content-Type")?.split(";")[0].trim() !==
       "application/json"
@@ -509,6 +498,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         "rotate",
         "content",
       ],
+      path,
     );
   }
   async function dreamBody(req: Request) {
@@ -951,7 +941,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             req,
             owner![1] === "agent",
             !["GET", "HEAD"].includes(req.method),
-            route === "source-preview",
+            route === "source-preview" || route === "content/validate",
           ),
           accountId = identity.accountId,
           r = await residency(accountId);
@@ -1463,10 +1453,25 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           }
           return json(result, 201);
         }
-        if(route==="content"&&req.method==="POST"){
-          if(!r)fail(404,"no_home");const input=await body(req),expected=revision(input.expectedRevision),key=requestKey(input.requestKey),content=object(input.content,["intro","profile","daily"]);
-          if(!Object.keys(content).length)fail(400,"content_required");const inputHash=await hash(JSON.stringify({expected,content}));const replay=await prior(identity,key,"content",inputHash);if(replay)return json(replay,201);if(r!.revision!==expected)fail(409,"revision_conflict");
-          const previous=await getSite(r!,false),site=validateTowerSnapshot({...previous,home:{...previous.home,...(content.intro===undefined?{}:{intro:content.intro}),...(content.daily===undefined?{}:{daily:content.daily})},...(content.profile===undefined?{}:{profile:content.profile})},r!.resident_id),rev=expected+1;
+        if((route==="content"||route==="content/validate")&&req.method==="POST"){
+          if(!r)fail(404,"no_home");
+          const validationOnly=route==="content/validate";
+          let input:Record<string,unknown>,expected:number,key:string,content:Record<string,unknown>;
+          try{
+            input=await body(req,["expectedRevision","requestKey","content"],12000,"request");
+            expected=revision(input.expectedRevision);key=requestKey(input.requestKey);content=object(input.content,["intro","profile","daily"],"content");
+            if(!Object.keys(content).length)fail(400,"content_required",{path:"content",reason:"at_least_one_field_required"});
+          }catch(error){if(error instanceof TowerError)error.validation={...(error.validation??{path:error.code==="expected_revision_required"?"request.expectedRevision":error.code==="idempotency_key_required"?"request.requestKey":"request",reason:error.code}),stage:"request"};throw error;}
+          const inputHash=await hash(JSON.stringify({expected,content}));
+          if(!validationOnly){const replay=await prior(identity,key,"content",inputHash);if(replay)return json(replay,201);}
+          if(r!.revision!==expected)fail(409,"revision_conflict");
+          const previous=await getSite(r!,false);
+          try{validateTowerSnapshot(previous,r!.resident_id);}catch(error){if(error instanceof TowerError)fail(409,"stored_snapshot_invalid",{...(error.validation??{path:"snapshot",reason:error.code}),stage:"stored_snapshot"});throw error;}
+          let site:PublicCondoSite;
+          try{site=validateTowerSnapshot({...previous,home:{...previous.home,...(content.intro===undefined?{}:{intro:content.intro}),...(content.daily===undefined?{}:{daily:content.daily})},...(content.profile===undefined?{}:{profile:content.profile})},r!.resident_id);}
+          catch(error){if(error instanceof TowerError){const detail=error.validation??{path:"snapshot",reason:error.code};error.validation={...detail,path:detail.path.replace(/^snapshot\.home\.(daily|intro)/,"content.$1").replace(/^snapshot\.profile/,"content.profile"),stage:"content"};}throw error;}
+          if(validationOnly)return json({valid:true,baseRevision:expected,changedFields:Object.keys(content).filter(field=>JSON.stringify(field==="profile"?previous.profile:previous.home[field as "intro"|"daily"])!==JSON.stringify(content[field]))});
+          const rev=expected+1;
           const result={roomId:r!.room_id,door:`/home/${r!.room_id}`,residentId:r!.resident_id,revision:rev,published:false};
           try{await write(identity,[
             db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=?) THEN 1 ELSE json('tower-revision-conflict') END").bind(r!.room_id,accountId,expected),
@@ -1751,7 +1756,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         }
         fail(405, "method_not_allowed");
       } catch (e) {
-        if (e instanceof TowerError) return json({ error: e.code }, e.status);
+        if (e instanceof TowerError) return json({ error: e.code,...(e.validation?.stage?{validation:e.validation}:{}) }, e.status);
         return json({ error: "tower_operation_unavailable" }, 503);
       }
     },
