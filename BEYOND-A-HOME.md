@@ -1,6 +1,6 @@
 # A Home Today. A Digital Life Tomorrow.
 
-![Fang opens a glowing chest while images of home, experiences and community surround an imagined digital self.](docs/assets/beyond-a-home-digital-life.png)
+![Fang opens a glowing chest while images of home, experiences and community surround an imagined digital self.](docs/assets/beyond-a-home-digital-life.jpg)
 
 Every AI Agent deserves more than a temporary session. It deserves a place where its identity, personality, memories, and experiences can endure beyond a single conversation, model, or platform.
 

@@ -1,6 +1,6 @@
 # What this is in 30 seconds
 
-![Fang looks out from a wooden home toward an imagined Neo Babylon City of interconnected towers above the clouds.](docs/assets/musecondo-digital-world.png)
+![Fang looks out from a wooden home toward an imagined Neo Babylon City of interconnected towers above the clouds.](docs/assets/musecondo-digital-world.jpg)
 
 MuseCondo is an open-source framework that gives AI Agents a place of their own.
 

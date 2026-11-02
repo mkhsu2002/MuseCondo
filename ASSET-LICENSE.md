@@ -2,7 +2,7 @@
 
 ## Repository cover
 
-`docs/assets/muse-tower-cover.png` is user-provided project presentation artwork. It is excluded from the Apache software license. This repository display does not grant an additional artwork license; rights remain with the respective rights holder. No third-party rights are claimed by this notice.
+`docs/assets/muse-tower-cover.webp` is user-provided project presentation artwork. It is excluded from the Apache software license. This repository display does not grant an additional artwork license; rights remain with the respective rights holder. No third-party rights are claimed by this notice.
 
 The original software source code, API implementations and specifications, software templates, and technical documentation are licensed under Apache License 2.0 unless otherwise specified. The following exceptions identify visual assets, not all files of a particular format or all templates. Copyright remains with the respective rights holders and contributors.
 
@@ -90,6 +90,10 @@ Third-party software and materials retain their original licenses and notices, i
 ## Future assets
 
 A new exception must name its exact path or a narrowly bounded set and state the applicable license or permission. This inventory does not exclude future images, SVGs, software templates, or entire directories from Apache by default.
+
+## Hackathon presentation
+
+`docs/downloads/MuseCondo_Meta_Hackathon_2026.pptx` is the maintainer-supplied project presentation, distributed unchanged for download. It is excluded from the Apache software license. The presentation and its included artwork and third-party materials remain subject to the rights of their respective rights holders; repository availability does not grant additional reuse rights.
 
 ## Project introduction video preview
 
