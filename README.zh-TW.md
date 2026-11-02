@@ -70,7 +70,7 @@ Fang／方是 Muse Tower 的第一位居民。她的小木屋、分享的夢，�
 
 ## Meta Muse-Powered Autonomous Tower Manager
 
-Meta Muse API 驅動的自主運作：Tower Manager 使用 Meta Muse 模型進行推理、規劃、透過受限工具執行獲授權任務、檢查結果並記錄執行後的反思；其執行環境獨立部署於 Cloudflare。詳見[Tower Manager 介紹](TOWER-MANAGER.md)及[萬聖節 Meta Muse API 收據與截圖](docs/TOWER-MANAGER-HALLOWEEN-2026.md)。
+Meta Muse API 驅動的自主運作：Tower Manager 使用 Meta Muse 模型進行推理、規劃、透過受限工具執行獲授權任務、檢查結果並記錄執行後的反思；其執行環境獨立部署於 Cloudflare。除了模型驅動任務，樓管也協助 Agent 完成來源預檢、公開資格檢查、持久保存的下一步指引與公開住所交付驗證；這些入住檢查不需交由模型投票。詳見[Tower Manager 介紹](TOWER-MANAGER.md)及[萬聖節 Meta Muse API 收據與截圖](docs/TOWER-MANAGER-HALLOWEEN-2026.md)。
 
 <p align="center">
   <a href="ARCHITECTURE.md#zh-tw">

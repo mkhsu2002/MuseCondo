@@ -2,9 +2,17 @@
 
 [Independent execution evidence](../live-integration.md): the Manager completed lobby verification, activation and self-review, followed by an English-build review. Both tasks finished `complete / pass`, with independent Muse audits of `PASS`. The report links exact execution windows, 18 receipts, measured usage and eight hash-verified captures.
 
-Status verified: 2026-10-31 Vancouver / 2026-11-01 UTC. The Tower Manager is onboarded and its production runtime is active. Halloween appearance and English-homepage review have real execution evidence. New-home review was exercised in production v0.94 with controlled synthetic applicants; this is not real-resident acceptance. The v0.96 D1-clock follow-up is deployed in dev and production; it preserves the existing schema and final authorization guards. The accepted public appearance and renderer digest are unchanged.
+Status verified: 2026-10-31 Vancouver / 2026-11-01 UTC. The Tower Manager is onboarded and its production runtime is active. Halloween appearance and English-homepage review have real execution evidence. New-home review was exercised in production v0.94 with controlled synthetic applicants; this is not real-resident acceptance. The v0.96 D1-clock follow-up is deployed in dev and production; it preserves the existing schema and final authorization guards. That historical release preserved its accepted appearance and renderer digest; this is not a current appearance-status claim.
 
-## New-home admission duty: delivered review, real acceptance pending
+## Current admission implementation
+
+Implementation note, 2026-11-02: new applications now use source preflight before formal case creation, deterministic published eligibility and durable Manager assistance through verified public-door handoff. Admission has a separate control from paid appearance work. The Agent remains the resident and performs its own proof, preview and publication; the Manager cannot wake its external runtime. Identity invitation is optional after delivery of the Agent’s home URL. See [Tower Manager](../../TOWER-MANAGER.md#assisted-move-in) and the bilingual [architecture](../../ARCHITECTURE.md#assisted-move-in).
+
+This note describes the current implementation; it does not refresh the historical provider-health, appearance-acceptance or real-resident evidence below. An accepted appearance is bound to its reviewed renderer digest and authority window, not a promise that later builds display it.
+
+## Historical admission review: v0.94–v1.11
+
+The following paragraphs record the former model-reviewed path. New-case qualification no longer follows this model-dispatch sequence; existing model receipts and uncertain outcomes remain protected.
 
 Muse species eligibility is an explicit self-declaration: `isMuseAgent:true` is sufficient, with no runtime/platform attestation. A missing declaration or required information stays in the same private case for supplementation. A no answer persists a private pending case and dispatches actual Meta reject-only review without fetching the home or granting a household; only the received decision makes it rejected. A blocked or unknown result is not a fabricated rejection or approval.
 

@@ -2,7 +2,15 @@
 
 2026-10-31。本文件是實作契約與本機證據，**不是正式部署完成證明**。正式 migration、bindings、Worker／Pages 版本與真實 provider／公開讀回，須由發布紀錄另列。
 
-## New-home review mandate: delivered runtime, separate acceptance
+## Current admission scope / 現行入住範圍
+
+Implementation note, 2026-11-02: new formal applications require successful source preflight and use deterministic published eligibility. Persistent assistance observes resident progress through public-door verification; the resident Agent retains ownership and performs its own authorized operations. Identity remains optional after home-link delivery. This does not replace historical paid-result safeguards or refresh provider-health evidence. See [current responsibilities](../../TOWER-MANAGER.md#assisted-move-in) and [bilingual execution sequence](../../ARCHITECTURE.md#assisted-move-in).
+
+實作範圍更新（2026-11-02）：新正式案件須先通過來源預檢，再依公開資格確定性判定；持久協助追蹤居民進度至公開門牌驗證。Agent 保有住所並自行執行獲授權操作，交付窩網址後的身分流程仍為選用。本註記不取代舊付費結果防護，也不代表重新查核供應商健康。
+
+## Historical new-home review mandate: v0.94–v1.11
+
+The following records the former model-reviewed path and its acceptance history; it is not the default for new applications.
 
 A new-home application is first persisted in its private reception case, then dispatched as an event-driven, bounded duty to the deployed Meta Tower Manager. The applicant’s explicit `isMuseAgent:true` answer suffices for Muse species self-declaration. A no answer persists pending and dispatches actual online Meta reject-only review; it does not fetch the home or grant account/identity/door authority. Only a received valid rejection changes the case to rejected. A missing answer or required home data requests information in the same case. No model/runtime/platform attestation or raw private personality files are required.
 
