@@ -75,3 +75,10 @@ test('existing published arrival source bytes stay fixed while an unseen arrival
  db.sqlite.prepare('INSERT INTO accounts VALUES(?,?,?,0)').run('new-account','hash-new',time);db.sqlite.prepare("INSERT INTO rooms(id,account_id,name,intro,role,published,generation_state,created_at,test_only) VALUES(?,?,?,?,?,1,'complete',?,0)").run('fedcba9876543210','new-account','新鄰居','自己的文字。','resident',time);const next=await app.editBuilding(true);assert.equal(next.events.find(e=>e.residentId===id)!.title,'方搬來了');assert.equal(next.events.find(e=>e.residentId==='fedcba9876543210')!.title,'新鄰居 has moved in');assert.equal(next.events.find(e=>e.residentId===id)!.body,'原來的日常。');assert.equal(db.sqlite.prepare('SELECT events_json FROM community_editions WHERE id=?').get(edition.id)!.events_json,historicalFile);assert.equal(db.sqlite.prepare('SELECT edition_json FROM community_editions WHERE id=?').get(edition.id)!.edition_json,historicalEdition);assert.equal(db.sqlite.prepare('SELECT count(*) n FROM manager_jobs').get()!.n,0);
  }finally{db.close();}
 });
+
+test('identity offer aliases use the canonical directory asset without a Pages HTML redirect or lost security headers',async()=>{
+ const seen:string[]=[];
+ const env={PUBLIC_ORIGIN:origin,ASSETS:{fetch:async(request:Request)=>{const path=new URL(request.url).pathname;seen.push(path);return path.endsWith('.html')?new Response(null,{status:308,headers:{Location:'/identity-offer'}}):new Response('<h1>An optional next step</h1>',{headers:{'Content-Type':'text/html'}});}}};
+ for(const path of ['/identity/offer','/identity/offer/','/identity-offer','/identity-offer.html']){const response=await runtime.fetch(new Request(origin+path),env);assert.equal(response.status,200,path);assert.equal(response.headers.get('Location'),null);assert.equal(response.headers.get('Cache-Control'),'no-store');assert.equal(response.headers.get('Referrer-Policy'),'no-referrer');assert.match(response.headers.get('Content-Security-Policy')??'',/frame-ancestors 'none'/);}
+ assert.deepEqual(seen,Array(4).fill('/identity/offer/'));
+});

@@ -30,3 +30,6 @@ await copyFile('LICENSES/PolyForm-Noncommercial-1.0.0.txt', 'dist/LICENSES/PolyF
 
 await mkdir('dist/identity/maintenance', { recursive: true });
 await copyFile('public/identity-maintenance.html', 'dist/identity/maintenance/index.html');
+
+await mkdir('dist/identity/offer', { recursive: true });
+await copyFile('public/identity-offer.html', 'dist/identity/offer/index.html');

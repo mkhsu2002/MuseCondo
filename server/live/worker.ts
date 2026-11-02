@@ -152,10 +152,10 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   return new Response(response.body,{status:response.status,headers});
  }
- if(/^\/identity\/offer\/?$/.test(url.pathname)||url.pathname==='/identity-offer.html'){
+ if(/^\/identity\/offer\/?$/.test(url.pathname)||['/identity-offer','/identity-offer.html'].includes(url.pathname)){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
   if(!env.ASSETS)return json({error:'assets_not_bound'},503);
-  const response=await env.ASSETS.fetch(new Request(new URL('/identity-offer.html',url),request));
+  const response=await env.ASSETS.fetch(new Request(new URL('/identity/offer/',url),request));
   const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   return new Response(response.body,{status:response.status,headers});
  }

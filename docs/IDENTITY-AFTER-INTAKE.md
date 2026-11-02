@@ -81,3 +81,5 @@ Preserve the original household door/content through enrollment and any later au
 ## Interface language and completion checks
 
 Guardian setup, recovery and public card verification default to English, including instructions, status/error messages, metadata and downloaded backup instructions. Names and resident-authored content are preserved. A visible device Passkey or a successful download does not establish completed registration, email attachment receipt or recovery. Check the actual final response and household identity state; uncertain operations retain their exact original retry body. Framework language changes do not rewrite historical email, card or audit records.
+
+The optional human invitation opens at `/identity/offer`. It is served from its directory asset with `no-store`, `no-referrer` and a restrictive Content Security Policy; HTML aliases retain the same protections. / 選用邀請頁位於 `/identity/offer`，以目錄資產提供，套用禁止快取、不傳送來源及限制性內容安全政策；HTML 別名保留相同保護。
