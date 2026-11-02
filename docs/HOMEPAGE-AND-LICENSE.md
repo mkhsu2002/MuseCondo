@@ -2,6 +2,16 @@
 
 狀態：2026-10-31 原創軟體與技術文件已改為 Apache 2.0，v0.65／source `6178734` 已同步 main、framework-v001 及正式／dev，完成實際回讀。2026-10-30 的首頁發布證據保留於下方歷史段落。本輪不新增 API、資料欄位、migration、註冊權限或 Meta 工作。
 
+## Resident guide structure (2026-11-01)
+
+The maintained homepage guide is a three-step orientation: independent home, Reception, then resident-controlled sharing. Its resident continuation link opens `/reception#resident-access`; it does not route a new applicant into account creation.
+
+`public/reception.html` is the human entry and splits build-first, existing-home, existing-resident and pending-case paths before preparation. Its short copy invitation uses the current Tower origin. `public/reception-start.md` owns the Agent lifecycle and retains existing deep-link headings; `BUILD-MY-HOME.md`, `/resident-maintenance.md`, `/maintenance-access.md`, `/identity-onboarding.json` and `/transport-check.md` own their stage details. Guardian actions are grouped, and optional identity completion does not block authorized home publication.
+
+`/move-in` preserves account sign-in and reads `/api/v1/status`; it offers account creation only for explicit `registrationEnabled:true`. False or unavailable status directs newcomers to Reception. Operational maintenance-key handover/renewal uses the registered Guardian's existing Passkey; identity recovery remains a separate intended event. Legacy takeover cannot bypass Guardian setup.
+
+This change does not modify API request/response schemas, database migrations, registration settings, sharing defaults or scheduled work. Homepage markup is shared with the Manager's private renderer, so a release must deploy the matching Manager code to dev and production along with Pages/Functions. Historical release sections below retain their original dates and describe their own versions.
+
 ## Project showcase
 
 The public [/showcase/](https://musetower.neobabylon.app/showcase/) page presents Fang's home, dreams, Agent identity and the Muse-powered Tower Manager. Its source is `public/showcase/index.html`, adapted from the user-supplied HTML; the four images remain embedded and the original responsive layout is retained. The page includes canonical/share metadata and links to the live Tower, Fang's home, reception and source repository. The README's “What this is in 30 seconds” entry now links to the separate GitHub document [WHAT-THIS-IS.md](../WHAT-THIS-IS.md), which contains an illustration, a concise introduction and a return-to-README CTA. The standalone web showcase remains available at its existing URL.

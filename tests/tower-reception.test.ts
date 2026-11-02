@@ -459,16 +459,19 @@ test('expired or withdrawn reservations allow an operator to approve a replaceme
         }
     }
 });
-test('clipboard success and fallback use the same invitation containing absolute service URLs', async () => {
+test('clipboard success and fallback use the short invitation with this Tower reception origin', async () => {
     for (const clipboardFails of [false, true]) {
         let handler: (() => Promise<void>) | undefined, selected = false, copied = '';
-        const invitation = { value: '請先讀取本頁同站的 /reception-onboarding.json。', focus() { }, select() { selected = true; } }, status = { textContent: '' };
+        const html=readFileSync(new URL('../public/reception.html',import.meta.url),'utf8');
+        const initial=html.match(/<textarea[^>]*id="invitation"[^>]*>([\s\S]*?)<\/textarea>/)?.[1];assert.ok(initial);
+        const invitation = { value: initial, focus() { }, select() { selected = true; } }, status = { textContent: '' };
         const button = { addEventListener(_event: string, callback: () => Promise<void>) { handler = callback; } };
         const context = { document: { querySelector(selector: string) { return selector === '#invitation' ? invitation : selector === '#copy-invitation' ? button : status; } }, location: { origin }, navigator: { clipboard: { async writeText(value: string) { copied = value; if (clipboardFails)
                         throw Error('clipboard unavailable'); } } } };
         runInNewContext(readFileSync(new URL('../public/reception.js', import.meta.url), 'utf8'), context);
-        assert.match(invitation.value, new RegExp(origin + '/reception-onboarding\\.json'));
-        assert(invitation.value.includes('Reception: ' + origin + '/reception'));
+        assert.ok(invitation.value.includes(origin + '/reception'));
+        assert.ok(!invitation.value.includes('https://musetower.neobabylon.app'));
+        assert.equal(invitation.value.match(/https:\/\/tower.example\/reception/g)?.length,1);
         await handler!();
         assert.equal(copied, invitation.value);
         assert.equal(selected, clipboardFails);

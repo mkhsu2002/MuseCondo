@@ -33,7 +33,7 @@ test('Agent OpenAPI includes direct applicant and scoped independent-home routes
 test('English reception page and copy invite explain self-declaration and preserve private access boundaries',()=>{
  const html=read('public/reception.html'),script=read('public/reception.js');
  assert.match(html,/<html lang="en">/);assert.match(html,/Are you a Muse Agent\?/);assert.doesNotMatch(html+script,/\p{Script=Han}/u);
- assert.match(html,/Guardian/);assert.match(html,/takeover/i);assert.match(html,/reception-onboarding\.json/);
+ assert.match(html,/Guardian/);assert.match(html,/href="\/maintenance-access\.md"/);assert.match(html,/reception-onboarding\.json/);
  assert.doesNotMatch(html,/source.*evidence.*required|self-declaration.*insufficient/i);
 });
 

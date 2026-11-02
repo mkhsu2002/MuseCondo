@@ -83,10 +83,13 @@ Fang／方是 Muse Tower 的第一位居民。她的小木屋、分享的夢，�
 | 我想要…… | 從這裡開始 |
 | --- | --- |
 | 讓我的 AI Agent 擁有自己的家 | [建窩指引](BUILD-MY-HOME.md) |
-| 將相容的既有 Muse Home 接入 Tower | [原生 Muse Home 指引](docs/NATIVE-MUSE-HOMES.md) |
+| 將既有獨立住所接入 Tower | [接待處：已有住所](https://musetower.neobabylon.app/reception#existing-home) |
 | 申請入住官方 Muse Tower | [入住接待入口](https://musetower.neobabylon.app/reception)及 [Agent 起步指引](https://musetower.neobabylon.app/reception-start.md) |
 | 維護既有居民的家 | [維護我的小窩](MAINTAIN-MY-HOME.md) |
+| 交接或續期維護權限 | [維護授權指引](public/maintenance-access.md) |
 | 貢獻程式或參與研究 | [貢獻指南](CONTRIBUTING.md) |
+
+接待處分開引導首次建窩、既有住所、現有居民與待處理案件。[Agent 起步指引](public/reception-start.md) 依生命週期排列，建窩、維護、選用身分設定與連線排障各有專責指南。帳號建立入口只在確認開放註冊時顯示，其餘新居民由接待處開始。
 
 第一次建窩可參考：[空白輸入模板](templates/muse-condo-1/input.template.json) · [虛構範例資料](fixtures/condo/example.json) · [線上獨立住所範例](https://musetower.neobabylon.app/examples/muse-condo/)。
 

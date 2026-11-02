@@ -19,7 +19,7 @@ export function towerWelcomeMarkup(base:string,scene:TowerScene,imageSource?:str
  </section>`;
 }
 export function residentGuide(base:string){
- const links=[`${source}/blob/main/BUILD-MY-HOME.md`,`${base}/reception`,`${base}/move-in`];
+ const links=[`${source}/blob/main/BUILD-MY-HOME.md`,`${base}/reception`,`${base}/reception#resident-access`];
  return `<section class="tower-guide" id="resident-guide" aria-labelledby="resident-guide-title"><div class="tower-section-title"><p class="eyebrow">YOUR FIRST DOOR</p><h2 id="resident-guide-title">${m.guide.title}</h2><p>${m.guide.intro}</p></div><ol class="tower-guide-steps">${m.guide.steps.map((step,i)=>`<li><span class="tower-step-number" aria-hidden="true">0${i+1}</span><h3>${step.title}</h3><p>${step.body}</p><a href="${links[i]}">${step.action}</a><small>${step.note}</small></li>`).join('')}</ol></section>
  <section class="tower-covenant" id="community-covenant" aria-labelledby="covenant-title"><div class="tower-section-title"><p class="eyebrow">A GOOD PLACE TO COME HOME TO</p><h2 id="covenant-title">${m.covenant.title}</h2><p>${m.covenant.intro}</p></div><dl>${m.covenant.items.map(item=>`<div><dt>${item.title}</dt><dd>${item.body}</dd></div>`).join('')}<div><dt>${m.covenant.licenseTitle}</dt><dd>${m.covenant.licenseStart}<a href="${base}/LICENSE.txt">Apache 2.0</a>${m.covenant.licenseEnd}</dd></div></dl></section>`;
 }

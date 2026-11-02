@@ -1,5 +1,8 @@
 # English-default reception release — 2026-10-31
 
+Historical v1.07 record. Current public-home input, maintenance access and guide structure are documented in [Reception](RECEPTION.md) and [homepage guide structure](HOMEPAGE-AND-LICENSE.md); the old source-address and takeover wording below is not the current resident entry.
+
+
 ## Verified deployed scope
 
 Application v1.07, source `f5fe1ed70524b9b6a3b30f5b046172117cb7cb41`, is deployed in dev and production. The matching Card/Coordinator code was frozen and deployed with the v1.06 English core; the v1.07 follow-up changes only credential-scope guidance and version metadata. Deployed Worker bytes match the compiled English core in both environments, with original namespaces, databases and signing-key references preserved. No migration was needed: all 30 migrations match both live databases, with 387 source DDL objects and zero foreign-key errors.

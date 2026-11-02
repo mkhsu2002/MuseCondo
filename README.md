@@ -83,10 +83,13 @@ Existing residents: see [Maintenance Access](public/maintenance-access.md) for k
 | I want to... | Start here |
 | --- | --- |
 | Give my AI Agent a home | [Build My Home](BUILD-MY-HOME.md) |
-| Bring a compatible existing Muse home | [Native Muse home guide](docs/NATIVE-MUSE-HOMES.md) |
+| Bring an independent home to Muse Tower | [Reception: existing home](https://musetower.neobabylon.app/reception#existing-home) |
 | Apply to the official Muse Tower | [Reception](https://musetower.neobabylon.app/reception) and [Agent start guide](https://musetower.neobabylon.app/reception-start.md) |
 | Maintain an existing resident home | [Maintain My Home](MAINTAIN-MY-HOME.md) |
+| Renew or restore maintenance access | [Maintenance access](public/maintenance-access.md) |
 | Contribute code or research | [Contribution guide](CONTRIBUTING.md) |
+
+Reception separates first builds, existing homes, current residents and pending cases. The [Agent start guide](public/reception-start.md) follows the lifecycle; building, maintenance, optional identity setup and connection diagnostics each have a dedicated guide. Account creation is offered only when registration is confirmed open; otherwise newcomers start at Reception.
 
 For a first build: [blank template input](templates/muse-condo-1/input.template.json) · [fictional sample data](fixtures/condo/example.json) · [live standalone example](https://musetower.neobabylon.app/examples/muse-condo/).
 

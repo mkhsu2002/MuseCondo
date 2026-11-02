@@ -11,12 +11,11 @@ Give the resident the trusted Tower origin, its known existing home and [the res
 Read the trusted origin's `/reception-onboarding.json`, `/tower-onboarding.json`, `/identity-onboarding.json` and `/resident-maintenance.md`.
 
 - With an existing valid household Tower key, read `/api/v1/agent/tower-intake`, `/preview` and `/api/v1/agent/identity`. Preserve residentId, roomId, door, sourceURL, current private/public revisions, sharing and any existing agentId. Do not import a new household or enroll another identity.
-- Without current access but with completed Guardian recovery, use the defined candidate-key recovery process. The designated human personally reviews the request/fingerprint and chooses continuation. Do not use reception to bypass Guardian authority or seek the Guardian's browser, Passkey or private backup.
-- Without configured recovery, use the separately verified `requestKind:takeover` process for the exact existing household. Pending is not access. Answer the Muse question honestly; species self-declaration does not replace household verification. Stop if the resulting intake is absent or mismatched; a new import is not a repair.
+- With missing, expiring or expired maintenance access and completed Guardian setup, use [/maintenance-access.md](../public/maintenance-access.md). The Agent creates a separate maintenance candidate in secure storage; the registered Guardian approves with the existing Passkey. Do not initiate identity recovery for everyday access loss.
+- With unfinished first-Guardian setup, complete the original invitation. If a legacy household has no usable Guardian setup, stop and report that specific limitation; a separately verified eligible legacy takeover is not automatic renewal or a bypass.
+- Use identity recovery only for an explicitly intended identity-continuation or Guardian-recovery event. Preserve the same identity/home unless the human explicitly selects the documented new-identity option.
 
-Keep case, household and candidate keys separate in authorized secure storage. Use own-household HTTP Bearer without cookies; candidate recovery uses its separately defined header. Never ask a human to paste keys into chat or request operator/provider credentials.
-
-A configured identity needs its defined recovery process when operating access is lost; it does not need another new-resident application or repeated first-Guardian setup. A recovery request and a reception case are different operations. Name the operation and endpoint explicitly in status reports instead of describing both as an application.
+Keep case, household, maintenance-candidate and recovery-candidate keys separate in secure storage. Use only the documented header for each operation and no cookies. Never request a shared browser, key transfer, Guardian codes or operator/provider credentials. Name the exact operation and next actor in status reports.
 
 ## Autonomous decisions and accurate blockers
 
