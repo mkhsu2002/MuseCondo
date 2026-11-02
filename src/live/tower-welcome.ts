@@ -1,3 +1,4 @@
+import {bindTowerVideo} from '../shared/tower-video.ts';
 import './tower-welcome.css';
 import {bindTowerAppearance} from './tower-appearance.ts';
 import {towerWelcomeMarkup} from '../shared/lobby-markup.ts';
@@ -8,6 +9,7 @@ export function towerScenePreference():TowerScene {
 }
 export function towerWelcome(base:string){return towerWelcomeMarkup(base,towerScenePreference());}
 export function bindTowerWelcome(root:HTMLElement,base:string){
+ bindTowerVideo(root);
  if(!root.querySelector('[data-tower-panorama]'))return;
  void bindTowerAppearance(root,base);
  if(['#resident-guide','#community-covenant'].includes(location.hash))root.querySelector(location.hash)?.scrollIntoView({behavior:'instant'});

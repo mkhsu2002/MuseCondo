@@ -90,3 +90,9 @@ Third-party software and materials retain their original licenses and notices, i
 ## Future assets
 
 A new exception must name its exact path or a narrowly bounded set and state the applicable license or permission. This inventory does not exclude future images, SVGs, software templates, or entire directories from Apache by default.
+
+## Project introduction video preview
+
+`public/media/musecondo-introduction.jpg` is the unchanged YouTube thumbnail for the maintainer-linked MuseCondo introduction video, https://youtu.be/-b7BgfW_gc0, published by M.K. 暢談古往今來. It is included for the project's video preview; it is not covered by the Apache software license. Video and thumbnail rights remain with their respective rights holders.
+
+`public/media/musecondo-introduction.jpg` 是維護者指定 MuseCondo 介紹影片的原始 YouTube 縮圖，用於本站影片預覽，不包含於 Apache 軟體授權；影片與縮圖權利仍屬各自權利人。
