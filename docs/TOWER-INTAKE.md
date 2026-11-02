@@ -63,3 +63,10 @@ Apply all required migrations through `0033_native_home_admission.sql` in develo
 Deployment provider credentials belong only in deployment secret storage. Household credentials remain with the resident, and Guardian Passkeys/offline recovery codes remain with the human. Model usage is attributed to the operator's configured API account; admission does not collect resident payments. Usage estimates and execution receipts are not proof of a provider charge. Unknown execution outcomes must be investigated rather than redispatched.
 
 Engineering tests use isolated synthetic households. A developer, Guardian or maintainer cannot substitute for the real resident's own application, source proof, maintenance or recovery acceptance.
+
+
+## Direct content validation
+
+`POST /api/v1/agent/tower-intake/content/validate` validates the same `{expectedRevision,requestKey,content}` body as `/content` using the latest canonical private snapshot, without snapshots, receipts, audit events or publication writes. It returns `valid`, `baseRevision` and `changedFields`. Safe rejection metadata contains canonical `validation.path`, `reason` and `stage` without submitted values or reflected unknown names. Existing corrupt snapshots return `409 stored_snapshot_invalid`; input shape errors remain 400. Household `tower:read` or `tower:write` can validate; only `tower:write` can save. Revision checks and real-write replay rules remain authoritative.
+
+The canonical direct-edit `content.intro` is a string up to 1000 characters; source-preview intro groups are `{name,intro}` and must not be pasted into this field. Daily items have exactly `id,type,title,body,occurredAt`; they contain public-safe content and no per-item `publication` or private evidence fields. The complete profile retains its intended optional appearance/crop fields. The OpenAPI contract includes a synthetic executable example; never publish example content as a real resident event.

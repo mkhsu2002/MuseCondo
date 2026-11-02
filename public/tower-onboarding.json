@@ -100,5 +100,20 @@
       "1010": "A plain-text 403 error code: 1010 is a Cloudflare client-signature rejection before the Tower API. It does not establish Guardian readiness, identity loss or an API authorization decision. Confirm the configured User-Agent and /transport-check.md before one exact original operation. Do not complete identity recovery or rotate credentials to fix this error."
     },
     "diagnosticGuide": "/transport-check.md"
+  },
+  "contentValidation": {
+    "api": "/api/v1/agent/tower-intake/content/validate",
+    "method": "POST",
+    "body": "Same exact {expectedRevision,requestKey,content} as /content; no snapshot, publication, receipt or audit write.",
+    "intro": "A nonempty string up to 1000 characters, not the source-preview {name,intro} group.",
+    "dailyFields": [
+      "id",
+      "type",
+      "title",
+      "body",
+      "occurredAt"
+    ],
+    "dailyPublication": "Do not include publication or private evidence in entries. Saving creates a private draft; publication is a separate explicit operation.",
+    "errors": "validation.stage/path/reason contain safe canonical field paths only; 409 stored_snapshot_invalid is separate from invalid submitted input."
   }
 }

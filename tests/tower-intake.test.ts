@@ -990,3 +990,56 @@ test('concurrent resident edits keep one winning revision and delegated content 
   f.db.batch=batch;f.db.sqlite.prepare('UPDATE tower_tokens SET revoked=0 WHERE id=?').run(token.id);assert.equal((await send('valid-agent-content'))!.status,201);assert.equal(f.db.sqlite.prepare('SELECT revision FROM tower_residencies').get()!.revision,3);
  }finally{f.db.close();}
 });
+
+test('content validation reports safe field paths without a revision, publication, receipt or audit write',async()=>{
+ const f=await fixture();try{
+  await f.importHome();const token=await f.data(f.req('/tokens','POST',{}),201);
+  const input={expectedRevision:1,requestKey:'validate-content-1',content:{daily:[{id:'new-journal',type:'journal',title:'Synthetic journal',body:'Synthetic content only',occurredAt:'2026-11-01T00:00:00.000Z'}]}};
+  const before={snapshots:f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_snapshots').get()!.n,receipts:f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_requests').get()!.n,audit:f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n};
+  const validate=()=>f.req('/api/v1/agent/tower-intake/content/validate','POST',input,'',{Authorization:'Bearer '+token.token});
+  const valid=await f.data(validate());assert.equal(valid.valid,true);assert.equal(valid.baseRevision,1);assert.deepEqual(valid.changedFields,['daily']);
+  assert.equal((await f.data(f.req())).intake.revision,1);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_snapshots').get()!.n,before.snapshots);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_requests').get()!.n,before.receipts);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n,before.audit);
+  const bad={...input,content:{daily:[{...input.content.daily[0],publication:'public',secretValue:'DO_NOT_ECHO_PRIVATE_VALUE'}]}};
+  const rejected=await f.data(f.req('/content/validate','POST',bad),400);assert.equal(rejected.error,'invalid_public_snapshot');assert.equal(rejected.validation.path,'content.daily[0]');assert.equal(rejected.validation.reason,'unsupported_fields');assert.equal(rejected.validation.stage,'content');assert.ok(!JSON.stringify(rejected).includes('DO_NOT_ECHO_PRIVATE_VALUE'));assert.ok(!JSON.stringify(rejected).includes('secretValue'));
+  const bodyError=await f.data(f.req('/content','POST',{...input,unexpectedPrivateField:'DO_NOT_ECHO'}),400);assert.equal(bodyError.validation.path,'request');assert.equal(bodyError.validation.stage,'request');
+  const committed=await f.data(f.req('/content','POST',input),201);assert.equal(committed.revision,2);
+  assert.equal((await f.req('/content/validate','POST',input))!.status,409);
+ }finally{f.close();}
+});
+
+test('content no-op validation accepts existing private dreams and separates corrupt stored data from bad input',async()=>{
+ const f=await fixture();try{
+  const home=await f.importHome(),current=await f.data(f.req('/preview'));const input={expectedRevision:1,requestKey:'validate-unchanged-1',content:{intro:current.site.home.intro,profile:current.site.profile,daily:current.site.home.daily}};
+  const valid=await f.data(f.req('/content/validate','POST',input));assert.equal(valid.valid,true);assert.deepEqual(valid.changedFields,[]);
+  const saved=f.db.sqlite.prepare('SELECT public_json FROM tower_snapshots WHERE room_id=? AND revision=1').get(home.roomId)!.public_json as string;
+  const malformed=JSON.parse(saved);malformed.profile.motto='';f.db.sqlite.prepare('UPDATE tower_snapshots SET public_json=? WHERE room_id=? AND revision=1').run(JSON.stringify(malformed),home.roomId);
+  const error=await f.data(f.req('/content/validate','POST',input),409);assert.equal(error.error,'stored_snapshot_invalid');assert.equal(error.validation.stage,'stored_snapshot');assert.equal(error.validation.path,'snapshot.profile.motto');
+  assert.equal((await f.data(f.req())).intake.revision,1);
+ }finally{f.close();}
+});
+
+test('published content contract matches runtime intro, portrait fields and public daily entry shape',async()=>{
+ const spec=JSON.parse(await readFile(new URL('../public/openapi-agent.json',import.meta.url),'utf8')),schema=spec.components.schemas.TowerContent,properties=schema.properties.content.properties;
+ assert.equal(properties.intro.type,'string');assert.equal(properties.intro.maxLength,1000);
+ for(const field of ['characterAppearance','guardianAppearance','guardianPersonality','characterPortraitCrop','guardianPortraitCrop'])assert.equal(properties.profile.properties[field].type,'string');
+ assert.equal(properties.daily.items.additionalProperties,false);assert.deepEqual(properties.daily.items.required,['id','type','title','body','occurredAt']);assert.ok(!('publication' in properties.daily.items.properties));
+ const f=await fixture();try{await f.importHome();const input=structuredClone(schema.example);input.expectedRevision=1;assert.equal((await f.req('/content','POST',input))!.status,201);}finally{f.close();}
+});
+
+test('content validation diagnoses the old documented intro object and rejects publication metadata with unchanged storage',async()=>{
+ const f=await fixture();try{await f.importHome();
+ for(const [content,path,reason]of [
+  [{intro:{name:'Synthetic',intro:'Synthetic introduction'}},'content.intro','nonempty_string_required'],
+  [{daily:[{id:'journal-one',type:'journal',title:'Synthetic',body:'Synthetic',occurredAt:'not-a-date'}]},'content.daily[0].occurredAt','datetime_required'],
+  [{daily:[{id:'journal-one',type:'journal',title:'Synthetic',body:'Synthetic',occurredAt:'2026-11-01T00:00:00Z',publication:'public'}]},'content.daily[0]','unsupported_fields'],
+  [{profile:{...f.raw.profile,about:''}},'content.profile.about','nonempty_string_required'],
+ ] as const){const error=await f.data(f.req('/content/validate','POST',{expectedRevision:1,requestKey:'safe-invalid-validation',content}),400);assert.equal(error.validation.path,path);assert.equal(error.validation.reason,reason);assert.equal(error.validation.stage,'content');}
+ const token=await f.data(f.req('/tokens','POST',{}),201);f.db.sqlite.prepare('UPDATE tower_tokens SET scopes=? WHERE id=?').run('["tower:read"]',token.id);
+ const input={expectedRevision:1,requestKey:'readonly-validation',content:{daily:f.raw.home.daily}};
+ assert.equal((await f.req('/api/v1/agent/tower-intake/content/validate','POST',input,'',{Authorization:'Bearer '+token.token}))!.status,200);
+ assert.equal((await f.req('/api/v1/agent/tower-intake/content','POST',input,'',{Authorization:'Bearer '+token.token}))!.status,403);
+ assert.equal((await f.req('/api/v1/agent/tower-intake/content/validate','POST',input,'',{Authorization:'Bearer '+'0'.repeat(64)}))!.status,403);
+ assert.equal((await f.req('/api/v1/agent/tower-intake/content/validate','POST',input,'',{Authorization:'Bearer '+token.token,Origin:'https://other.example'}))!.status,403);
+ assert.equal((await f.data(f.req())).intake.revision,1);
+ }finally{f.close();}
+});
