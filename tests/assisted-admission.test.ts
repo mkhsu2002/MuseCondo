@@ -78,8 +78,30 @@ test('objective admission runs with appearance autonomy disabled and no provider
  const f=fixture();try{f.db.sqlite.exec('UPDATE tower_autonomy_mandate SET enabled=0');const c=await(await f.req('/cases',f.input))!.json();assert.equal(await f.manager.pending(),true);await f.manager.step();assert.equal((await f.manager.status(c.case.id))!.state,'approved');assert.equal(f.paid,0);assert.equal(f.db.sqlite.prepare('SELECT enabled FROM tower_autonomy_mandate').get()!.enabled,0);}finally{f.db.close();}
 });
 test('the independent objective admission control can stop qualification safely',async()=>{
- const f=fixture();try{f.db.sqlite.exec('UPDATE manager_admission_control SET enabled=0');const c=await(await f.req('/cases',f.input))!.json();assert.equal(await f.manager.pending(),false);const before=f.db.sqlite.prepare('SELECT * FROM manager_move_in_progress').get();assert.equal((await f.manager.assistance.step()).handled,false);assert.deepEqual(f.db.sqlite.prepare('SELECT * FROM manager_move_in_progress').get(),before);await f.manager.step();assert.equal((await f.manager.status(c.case.id))!.state,'queued');assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM accounts').get()!.n,0);assert.equal(f.paid,0);}finally{f.db.close();}
+ const f=fixture();try{const c=await(await f.req('/cases',f.input))!.json();f.db.sqlite.exec('UPDATE manager_admission_control SET enabled=0');assert.equal(await f.manager.pending(),false);const before=f.db.sqlite.prepare('SELECT * FROM manager_move_in_progress').get();assert.equal((await f.manager.assistance.step()).handled,false);assert.deepEqual(f.db.sqlite.prepare('SELECT * FROM manager_move_in_progress').get(),before);await f.manager.step();assert.equal((await f.manager.status(c.case.id))!.state,'queued');assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM accounts').get()!.n,0);assert.equal(f.paid,0);}finally{f.db.close();}
 });
 test('SQL policy provenance cannot issue authority after objective admission is disabled',async()=>{
  const f=fixture();try{const c=await(await f.req('/cases',f.input))!.json(),job=c.case.id+':v1',account='1'.repeat(32),decision='2'.repeat(32);f.db.sqlite.prepare("UPDATE manager_admission_jobs SET state='running',lease_until='2027-01-01T00:00:00.000Z' WHERE id=?").run(job);f.db.sqlite.prepare('INSERT INTO manager_admission_home_proofs VALUES(?,?,?,?,?,?)').run(job,source,resident,'d'.repeat(64),'{"complete":true}',at);f.db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)').run(account,'synthetic',at);f.db.sqlite.prepare("INSERT INTO manager_admission_policy_results VALUES(?,?,1,'approve','Published requirements satisfied.','published-policy','muse-public-home-v1',?,?,?,?)").run(job,c.case.id,'d'.repeat(64),account,decision,at);f.db.sqlite.exec('UPDATE manager_admission_control SET enabled=0');assert.throws(()=>f.db.sqlite.prepare("INSERT INTO tower_admission_decisions(id,policy_version,case_id,account_id,resident_id,source_url,state,agent_origin,evidence_kind,evidence_ref,operator_class,expires_at,created_at) VALUES(?,1,?,?,?,?,'eligible','meta-muse','operator-review',?,'shared-operator','9999-12-31T23:59:59.999Z',?)").run(decision,c.case.id,account,resident,source,'published-policy:'+job,at),/published_policy_decision_scope/);}finally{f.db.close();}
+});
+test('paused admission rejects only new cases and preflight work; existing receipts and details survive',async()=>{
+ const f=fixture();try{
+  const first=(await f.req('/cases',f.input))!,opened=await first.json(),checks=f.checks;
+  f.db.sqlite.exec('UPDATE manager_admission_control SET enabled=0');
+  assert.deepEqual(await(await f.req('/cases',f.input))!.json(),opened);
+  const response=(await f.req('/cases',{...f.input,requestKey:'different-open-key'}))!;
+  assert.equal(response.status,409); // Same case key cannot silently create another case.
+  const newRequest=new Request(origin+'/api/v1/reception/cases',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+'b'.repeat(64)},body:JSON.stringify(f.input)});
+  const reception=createTowerReception({db:f.db,origin,operator:async()=>false,preflight:async()=>{throw Error('paused source must not be inspected');}});
+  const rejected=(await reception.fetch(newRequest))!;assert.equal(rejected.status,503);const body=await rejected.json();assert.equal(body.error,'admission_paused');assert.equal(body.formalCaseCreated,false);assert.equal(body.admission.applyURL,origin+'/reception');
+  const details=(await f.req('/cases/'+opened.case.id+'/details',{requestKey:'paused-details-01',expectedVersion:1,isMuseAgent:true}))!;assert.equal(details.status,200,await details.clone().text());
+  assert.equal(f.checks,checks);assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_reception_cases').get()!.n,1);
+ }finally{f.db.close();}
+});
+test('admission paused during source inspection rolls back all case records',async()=>{
+ const f=fixture();try{
+  const reception=createTowerReception({db:f.db,origin,operator:async()=>false,preflight:async()=>{f.db.sqlite.exec('UPDATE manager_admission_control SET enabled=0');return {ready:true,sourceURL:source,residentId:resident,sourceDigest:'d'.repeat(64),site,issues:[]};}});
+  const response=(await reception.fetch(new Request(origin+'/api/v1/reception/cases',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+secret},body:JSON.stringify(f.input)})))!;
+  assert.equal(response.status,503);assert.equal((await response.json()).error,'admission_paused');
+  for(const table of ['tower_reception_cases','tower_reception_events','tower_reception_requests','tower_reception_sources'])assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM '+table).get()!.n,0);
+ }finally{f.db.close();}
 });

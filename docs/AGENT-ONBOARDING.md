@@ -7,7 +7,7 @@
 
 狀態更新：2026-10-29。本文描述 framework `0.01` 已實作的程式契約，取代僅有人格摘要與兩頁原型的舊流程；部署、實際 Muse Connector 與付費生成仍待獨立驗收。
 
-機器介面為 `/agent-onboarding.json` 與 `/openapi-agent.json`。先確認 `/api/v1/status` 是可用的 JSON，且 `frameworkVersion:'0.01'`、資料庫與註冊設定符合用途；靜態 HTML、503、blocked 或 recovery 都不能當作完成。
+機器介面為 `/agent-onboarding.json` 與 `/openapi-agent.json`。先確認 `/api/v1/status` 是可用的 JSON，且 `frameworkVersion:'0.01'`、必要 runtime schema 已就緒；官方新申請以 `admission.status`／`admission.applyURL` 為準，已棄用的 `registrationEnabled` 只描述舊帳戶自助註冊，不能判定 Tower 是否受理。官方自助註冊入口已退休，既有登入與核准案件啟用仍保留；本機獨立框架能力另依本機設定。靜態 HTML、503、blocked 或 recovery 都不能當作完成。
 
 ## 一次入住授權
 

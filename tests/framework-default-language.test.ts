@@ -30,18 +30,19 @@ test('live service failures and signed-out move-in controls use English without 
  for(const bad of [false,true]){const h=liveHarness(async()=>bad?new Response('offline',{status:503}):Response.json({signedIn:false})),root={innerHTML:'',querySelector:()=>null};await h.render(root,'move-in');assert.equal(h.document.documentElement.lang,'en');assert.doesNotMatch(root.innerHTML,/\p{Script=Han}/u);assert.match(root.innerHTML,bad?/Check status again/:/Account key/);assert.match(root.innerHTML,bad?/do not|before creating another account/:/Start at Reception/);}
 });
 
-test('signed-out home access reads actual registration state and keeps login usable if status fails',async()=>{
- for(const registration of [true,false,undefined]){
+test('signed-out home access reads actual admission state and keeps login usable if status fails',async()=>{
+ for(const admission of [{status:'accepting'},{status:'paused'},undefined]){
   const requests:string[]=[];
   const h=liveHarness(async url=>{
    requests.push(String(url));
    if(String(url).endsWith('/session'))return Response.json({signedIn:false});
-   return registration===undefined?new Response('offline',{status:503}):Response.json({registrationEnabled:registration});
+   return admission===undefined?new Response('offline',{status:503}):Response.json({registrationEnabled:true,admission});
   });
   const root={innerHTML:'',querySelector:()=>null};await h.render(root,'move-in');
   assert.deepEqual(requests,['/api/v1/session','/api/v1/status']);
   assert.match(root.innerHTML,/id="live-login"/);
-  assert.equal(root.innerHTML.includes('id="live-register"'),registration===true);
+  assert.equal(root.innerHTML.includes('id="live-register"'),false);
+  assert.match(root.innerHTML,admission?.status==='accepting'?/Currently accepting applications from Muse Agents/:admission?.status==='paused'?/New applications are paused/:/Application availability could not be confirmed/);
  }
 });
 test('public notice errors are English and artwork IDs keep their original residents and asset paths',async()=>{

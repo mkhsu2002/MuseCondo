@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createLiveApp } from '../server/live/app.ts';
+import { createLiveApp, digest } from '../server/live/app.ts';
 import { LocalDatabase } from '../server/live/local-db.ts';
 import type { HomeGenerator, GeneratedAsset } from '../server/live/generation.ts';
 
@@ -22,7 +22,7 @@ async function fixture(generator?:HomeGenerator, localTest=true) {
  let app=createLiveApp({db,origin,localTest,registrationEnabled:true,generator,now:()=>time});
  const req=(path:string,method='GET',body?:unknown,identity?:Identity,headers:Record<string,string>={})=>app.fetch(new Request(origin+'/api/v1'+path,{method,headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...(method==='GET'?{}:{Origin:origin}),...(identity?{Cookie:identity.cookie,'X-CSRF-Token':identity.csrf}:{}),...headers},...(body===undefined?{}:{body:JSON.stringify(body)})}),'test-ip');
  const data=async<T>(response:Promise<Response>|Response,status=200):Promise<T>=>{const r=await response;const body=await r.text();assert.equal(r.status,status,body);return JSON.parse(body) as T;};
- async function account(){const r=await req('/accounts','POST',{});const d=await data<{credential:string;csrf:string}>(r,201);const cookie=r.headers.get('set-cookie')!;assert.match(cookie,/HttpOnly/);assert.match(cookie,/SameSite=Strict/);assert.match(d.credential,/^[a-f0-9]{64}$/);return {...d,cookie:cookie.split(';')[0]};}
+ async function account(){const credential=crypto.randomUUID().replaceAll('-','').repeat(2);if(!localTest)db.sqlite.prepare('INSERT INTO accounts(id,login_hash,created_at,test_only) VALUES(?,?,?,0)').run(crypto.randomUUID(),await digest(credential),time.toISOString());const r=localTest?await req('/accounts','POST',{}):await req('/session','POST',{credential});const d=await data<{credential:string;csrf:string}>(r,localTest?201:200);if(!localTest)d.credential=credential;const cookie=r.headers.get('set-cookie')!;assert.match(cookie,/HttpOnly/);assert.match(cookie,/SameSite=Strict/);assert.match(d.credential,/^[a-f0-9]{64}$/);return {...d,cookie:cookie.split(';')[0]};}
  async function onboard(i:Identity,name='Cloud'){return data<Home>(req('/me/onboarding','POST',profile(name),i),201);}
  async function generate(i:Identity){return data<{job:Job}>(req('/me/generation','POST',{},i));}
  async function publish(i:Identity){return data(req('/me/publication','POST',{published:true},i));}
@@ -193,7 +193,7 @@ test('failure before provider call cannot strand running and stale running is fl
 
 test('production session cookies use Secure and no authenticated mutations accept missing CSRF',async()=>{
  const f=await fixture(undefined,false);try{
-  const response=await f.req('/accounts','POST',{});assert.equal(response.status,201);const result=await response.json() as {csrf:string;credential:string};const cookie=response.headers.get('set-cookie')!;assert.match(cookie,/; Secure(?:;|$)/);assert.match(cookie,/; HttpOnly(?:;|$)/);
+  const existing=await f.account();const response=await f.req('/session','POST',{credential:existing.credential});assert.equal(response.status,200);const result=await response.json() as {csrf:string;credential:string};const cookie=response.headers.get('set-cookie')!;assert.match(cookie,/; Secure(?:;|$)/);assert.match(cookie,/; HttpOnly(?:;|$)/);
   const a={...result,cookie:cookie.split(';')[0]};assert.equal((await f.req('/me/onboarding','POST',profile(),a,{'X-CSRF-Token':''})).status,403);
  }finally{await f.close();}
 });

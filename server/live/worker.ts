@@ -65,12 +65,12 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const onMailEvent=identityMailEnv?identityMailEventDispatcher(identityMailEnv,context):async()=>{};
   if(isIdentityCardPath(url.pathname)){const response=await proxyIdentityCard(request,env.IDENTITY_CARDS);await dispatchIdentityCardResult(request,response,env.DB,onMailEvent);return response;}
   const metaSecretConfigured=typeof env.meta_muse_api==='string'&&env.meta_muse_api.trim().length>0,paidCallsApproved=env.META_PAID_CALLS_APPROVED==='true';
-  const safe={metaSecretConfigured,paidCallsApproved,registrationEnabled:env.REGISTRATION_ENABLED==='true'};
-  const db=env.DB;if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')return json({available:false,error:'database_not_bound',runtime:safe},503);
+  const safe={metaSecretConfigured,paidCallsApproved,registrationEnabled:false};
+  const db=env.DB;if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')return json({available:false,error:'database_not_bound',admission:{status:'unavailable',applyURL:env.PUBLIC_ORIGIN!+'/reception'},runtime:safe},503);
   try{
    const rows=(await db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger','index','view')").all<{name:string}>()).results;
-   if(![...['maintenance_authorities','maintenance_requests','maintenance_challenges','maintenance_request_binding','maintenance_challenge_binding'],...ASSISTED_ADMISSION_SCHEMA,...IDENTITY_OFFER_SCHEMA,...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...MANAGER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
-  }catch{return json({available:false,error:'database_unavailable',runtime:safe},503);}
+   if(![...['maintenance_authorities','maintenance_requests','maintenance_challenges','maintenance_request_binding','maintenance_challenge_binding'],...ASSISTED_ADMISSION_SCHEMA,...IDENTITY_OFFER_SCHEMA,...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...MANAGER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',admission:{status:'unavailable',applyURL:env.PUBLIC_ORIGIN!+'/reception'},runtime:safe},503);
+  }catch{return json({available:false,error:'database_unavailable',admission:{status:'unavailable',applyURL:env.PUBLIC_ORIGIN!+'/reception'},runtime:safe},503);}
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
   const completion=createMoveInCompletion({db,origin:env.PUBLIC_ORIGIN!});
   const preflight=await createHomePreflightRoute({db,origin:env.PUBLIC_ORIGIN!})(request);if(preflight)return preflight;

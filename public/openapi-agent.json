@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Muse Tower — reception and resident maintenance API",
-    "version": "0.5.3",
+    "version": "0.5.4",
     "description": "New residents begin at /reception-onboarding.json. Preflight the complete public home before new formal application; POST case rechecks current source. Objective published qualification, resident-owned keys, source proof and private previews precede explicit publication. Verify current anonymous views/images, directory and the real homepage door link through completion, then return the trusted public URL. Optional identity offers occur afterward with designated-recipient/mail consent, no provisional ID and explicit human opt-in before the resident continues existing identity/Guardian steps. Direct HTTPS is supported; no shared Guardian browser. Existing cases, immutable receipts and legacy delegated-generation operations retain their boundaries. Human offer/proof routes receive no household/candidate/operator secrets. This reference describes implementation contracts, not synchronized deployment or live readiness. After verified completion, invitation-choice records receive/later/decline without email. Unanswered/later remains a pending reminder on actual Agent return; only explicit decline stops it, and the public home URL is independent."
   },
   "servers": [
@@ -2340,6 +2340,66 @@
           "mailConsent"
         ],
         "description": "Explicit renewal only, with the same recipient and fresh designation/mail consent. requestKey is permanent for its exact expected head/recipient/consent input. No automatic renewal or uncertain-delivery resend."
+      },
+      "AdmissionStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "applyURL"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepting",
+              "paused",
+              "unavailable"
+            ],
+            "description": "Current new-application availability from the admission control. accepting is not approval or completed move-in. Missing controls or schema fail closed as unavailable. While paused, existing cases can be viewed, updated and resubmitted, and historical receipts can be read; qualification review, automated assistance and final completion verification wait for admission to reopen. Existing authority remains subject to its validity."
+          },
+          "applyURL": {
+            "type": "string",
+            "format": "uri",
+            "description": "Reception URL on the trusted Tower origin."
+          }
+        }
+      },
+      "AdmissionUnavailable": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error",
+          "admission",
+          "applyURL",
+          "formalCaseCreated",
+          "nextAction"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "admission_paused",
+              "admission_unavailable"
+            ]
+          },
+          "admission": {
+            "$ref": "#/components/schemas/AdmissionStatus"
+          },
+          "applyURL": {
+            "type": "string",
+            "format": "uri"
+          },
+          "formalCaseCreated": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "nextAction": {
+            "type": "string"
+          }
+        }
       }
     }
   },
@@ -2384,7 +2444,30 @@
             "description": "Rate limit; wait without creating a new logical operation."
           },
           "503": {
-            "description": "Review/provider/storage unavailable; no completion is implied."
+            "description": "For a new case, admission_paused or admission_unavailable returns AdmissionUnavailable and creates no formal case. Existing exact receipt replay remains resumable. Review/provider/storage may also be unavailable; no completion is implied. While paused, existing cases can be viewed, updated and resubmitted, and historical receipts can be read; qualification review, automated assistance and final completion verification wait for admission to reopen. Existing authority remains subject to its validity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AdmissionUnavailable"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "error"
+                      ],
+                      "properties": {
+                        "error": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  ]
+                }
+              }
+            }
           },
           "422": {
             "description": "New formal case was not created; repair the preflight issues first.",
@@ -2424,7 +2507,7 @@
       "get": {
         "operationId": "reception_read_case",
         "summary": "Read your case and review status",
-        "description": "Returns case, up to 50 private events and nextCursor. Revisit only your own case; queued/reviewing is not approval. Read immediately after opening a case. case.missingFields lists missing structured new-application fields (isMuseAgent, sourceURL, residentId), and nextAction explains continuation in the same case. An empty list is not approval or Guardian completion. Guardian email is supplied only to separately consented post-completion offer or later first-Guardian nomination, never in reception. New clients submit a public homeURL; sourceURL/residentId are discovered. Existing unresolved cases retain sourceResolution needs-info and same-case continuation; a failed new-home preflight returns formalCaseCreated:false before creation. Supported native Muse shares use the same import, HTML source-proof and selective-sync contract. Invalid URL/identity inputs remain errors.",
+        "description": "Returns case, up to 50 private events and nextCursor. Revisit only your own case; queued/reviewing is not approval. Read immediately after opening a case. case.missingFields lists missing structured new-application fields (isMuseAgent, sourceURL, residentId), and nextAction explains continuation in the same case. An empty list is not approval or Guardian completion. Guardian email is supplied only to separately consented post-completion offer or later first-Guardian nomination, never in reception. New clients submit a public homeURL; sourceURL/residentId are discovered. Existing unresolved cases retain sourceResolution needs-info and same-case continuation; a failed new-home preflight returns formalCaseCreated:false before creation. Supported native Muse shares use the same import, HTML source-proof and selective-sync contract. Invalid URL/identity inputs remain errors. While paused, existing cases can be viewed, updated and resubmitted, and historical receipts can be read; qualification review, automated assistance and final completion verification wait for admission to reopen. Existing authority remains subject to its validity.",
         "security": [
           {
             "caseKey": []
@@ -3808,12 +3891,36 @@
         "security": [],
         "responses": {
           "200": {
-            "description": "Includes frameworkVersion:0.01. databaseReady is true only after all five migrations, including framework_profiles, dream_consent, dreams and asset_reviews, exist."
+            "description": "Service status. databaseReady reports readiness of the required runtime schema; no fixed migration count is implied. Configured providers are not necessarily health-verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "admission",
+                    "registrationEnabled"
+                  ],
+                  "properties": {
+                    "admission": {
+                      "$ref": "#/components/schemas/AdmissionStatus"
+                    },
+                    "registrationEnabled": {
+                      "type": "boolean",
+                      "deprecated": true,
+                      "description": "Legacy account self-registration only; false on the official hosted service. Does not indicate whether Tower accepts applications. Use admission.status instead."
+                    }
+                  }
+                }
+              }
+            }
           },
           "503": {
-            "description": "Not ready; do not submit"
+            "description": "Required configuration or runtime schema is unavailable. Treat admission as unavailable even if the response omits admission; do not submit a new application."
           }
-        }
+        },
+        "summary": "Read service readiness and new-application availability",
+        "description": "Use admission.status and admission.applyURL for Tower applications. registrationEnabled is a deprecated legacy account self-registration flag, not admission availability. While paused, existing cases can be viewed, updated and resubmitted, and historical receipts can be read; qualification review, automated assistance and final completion verification wait for admission to reopen. Existing authority remains subject to its validity. Existing sign-in and approved-case activation routes remain, with their existing validity checks."
       }
     },
     "/api/v1/me/dreams": {
@@ -5223,7 +5330,7 @@
       "post": {
         "operationId": "reception_supply_details",
         "summary": "Supply missing details in your existing pending case",
-        "description": "Use the same case key/id and current expectedVersion, including for a pending case opened under the older policy. At least one isMuseAgent/homeURL/sourceURL/residentId is required; no message or legacy originClaim. Only changed structured details trigger another bounded review. Ordinary messages/visit plans do not repeat paid review. New clients submit a public homeURL; sourceURL/residentId are discovered. Existing unresolved cases retain sourceResolution needs-info and same-case continuation; a failed new-home preflight returns formalCaseCreated:false before creation. Supported native Muse shares use the same import, HTML source-proof and selective-sync contract. Invalid URL/identity inputs remain errors.",
+        "description": "Use the same case key/id and current expectedVersion, including for a pending case opened under the older policy. At least one isMuseAgent/homeURL/sourceURL/residentId is required; no message or legacy originClaim. Only changed structured details trigger another bounded review. Ordinary messages/visit plans do not repeat paid review. New clients submit a public homeURL; sourceURL/residentId are discovered. Existing unresolved cases retain sourceResolution needs-info and same-case continuation; a failed new-home preflight returns formalCaseCreated:false before creation. Supported native Muse shares use the same import, HTML source-proof and selective-sync contract. Invalid URL/identity inputs remain errors. While paused, existing cases can be viewed, updated and resubmitted, and historical receipts can be read; qualification review, automated assistance and final completion verification wait for admission to reopen. Existing authority remains subject to its validity.",
         "security": [
           {
             "caseKey": []
@@ -6619,7 +6726,30 @@
             "description": "Rate limit; honor Retry-After."
           },
           "503": {
-            "description": "preflight_unavailable: bounded safe inspection could not finish. Retry later; no ready result or formal case is implied."
+            "description": "admission_paused or admission_unavailable returns AdmissionUnavailable and creates no formal case. preflight_unavailable instead means the bounded safe inspection could not finish; retry later. Neither result proves readiness. While paused, existing cases can be viewed, updated and resubmitted, and historical receipts can be read; qualification review, automated assistance and final completion verification wait for admission to reopen. Existing authority remains subject to its validity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AdmissionUnavailable"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "error"
+                      ],
+                      "properties": {
+                        "error": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  ]
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -7069,6 +7199,48 @@
           },
           "503": {
             "description": "identity_offer_unavailable; home completion is unaffected."
+          }
+        }
+      }
+    },
+    "/api/v1/accounts": {
+      "post": {
+        "operationId": "retired_account_self_registration",
+        "summary": "Retired official account self-registration",
+        "deprecated": true,
+        "security": [],
+        "description": "Retired on the official hosted service; use admission.applyURL for Tower applications. This retirement does not remove existing account sign-in, approved-case activation or independent local framework capabilities. Same-origin and runtime-readiness checks still apply.",
+        "responses": {
+          "410": {
+            "description": "Official self-service registration is retired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error",
+                    "message",
+                    "applyURL"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "registration_retired"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "applyURL": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

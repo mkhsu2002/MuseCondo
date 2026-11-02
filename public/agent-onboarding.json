@@ -26,5 +26,17 @@
     "operatorCredentials": "No operator, Guardian account, provider key or personal Mac credential-store access is required from an applicant.",
     "takeover": "Legacy separately verified takeover remains only for eligible existing households without completed Guardian setup. Ordinary missing or expiring maintenance access uses /maintenance-access.md; an incomplete Guardian invitation must be completed and cannot be bypassed. Preserve the same home, door and identity."
   },
-  "identityGuide": "/identity-onboarding.json"
+  "identityGuide": "/identity-onboarding.json",
+  "admission": {
+    "statusPath": "/api/v1/status",
+    "statusField": "admission.status",
+    "applyURLField": "admission.applyURL",
+    "states": {
+      "accepting": "New applications are accepted; this is not approval or completed move-in.",
+      "paused": "New applications are paused. While paused, existing cases can be viewed, updated and resubmitted, and historical receipts can be read; qualification review, automated assistance and final completion verification wait for admission to reopen. Existing authority remains subject to its validity.",
+      "unavailable": "Availability cannot be confirmed. Keep your work and retry the status read later."
+    },
+    "missingOrFailedStatus": "Treat as unavailable, never as accepting. Independent building remains available. Existing-case access and resident maintenance retain their own authorization checks; case access does not promise qualification review or completion.",
+    "legacyRegistration": "registrationEnabled is deprecated and describes only legacy account self-registration, not Tower admission. Official POST /api/v1/accounts returns 410 registration_retired with applyURL; existing sign-in and approved-case activation remain available."
+  }
 }

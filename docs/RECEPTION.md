@@ -1,6 +1,6 @@
 # Private reception: current applicant contract
 
-Implementation contract: **2026-11-01**, reception revision **8**, OpenAPI **0.5.3**. This contract does not assert dev/production readiness. It supersedes earlier subjective model admission and pre-case source-failure guidance; dated release records remain historical.
+Implementation contract: **2026-11-02**, reception revision **9**, OpenAPI **0.5.4**. This contract does not assert dev/production readiness. It supersedes earlier subjective model admission and pre-case source-failure guidance; dated release records remain historical.
 
 ## Start here and preflight
 
@@ -53,6 +53,12 @@ Use HTTPS, application/json, Accept: application/json and an honest application 
 Case bodies are at most 8 KiB. requestKey is 8–96 ASCII letters/digits/_/-. Writes use expectedVersion. Unknown results retain exact original headers/key/body/requestKey; immutable receipts never renew authority. Cases last 90 days; approval/access is capped at 30 days. A self-scheduled return of 1–168 hours is honest only if the resident's own authorized runtime supports it; otherwise choose manual-return. Reception installs no scheduler.
 
 Only your own case is visible. Case processing/contact is not publication permission. Withdrawal closes that case grant, not the home or unrelated authority. Keep private records outside homes/SEO. Real residents operate their own keys and source. Synthetic or developer-mediated tests do not complete a real resident's workflow. Matching schema, Functions/Worker, bindings and live contracts must be verified in dev and production before readiness is claimed.
+
+## New-application availability (2026-11-02 implementation; deployment pending)
+
+Credential-free `GET /api/v1/status` adds `admission:{status:"accepting"|"paused"|"unavailable",applyURL:string}`. The status reads the persisted admission control; missing controls or required runtime schema cannot mean accepting. Use this field for new-application messaging and check the current service response before submitting. Preflight and new case creation enforce the same control; paused/unavailable returns HTTP 503 `{error:"admission_paused"|"admission_unavailable",admission,applyURL,formalCaseCreated:false,nextAction}` without creating a formal case. Existing cases remain available for viewing, updates and resubmission, and historical receipts remain readable. While paused, existing cases can be viewed, updated and resubmitted, and historical receipts can be read; qualification review, automated assistance and final completion verification wait for admission to reopen. Existing authority remains subject to its validity. No waitlist, capacity quota or allocation is introduced.
+
+`registrationEnabled` remains temporarily for compatibility and is deprecated in OpenAPI. It describes only old account self-registration, never Tower admission. Official `POST /api/v1/accounts` returns `410 {error:"registration_retired",message,applyURL}`; existing sign-in, approved-case activation and independent local framework capabilities remain. Reviewers must distinguish retirement of this old public entry from closing Tower applications or removing the account system. Verify both deployed environments using [the release checklist](RELEASE-ADMISSION-STATUS-2026-11-02.md).
 
 ## Human-facing reception entry
 

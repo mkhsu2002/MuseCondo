@@ -1,5 +1,7 @@
 # MuseCondo 開發交接
 
+> 2026-11-02 實作交接（部署驗證 pending）：新申請統一讀取 status 的 `admission.status` 與 `admission.applyURL`，官方舊帳戶自助註冊入口退休，既有登入／核准案件啟用路徑保留，仍依授權有效性。paused 時既有案件可查詢／補件／重送，資格審核、自動 assistance 與最終完成驗證待重新開放後才恢復，不能視為可持續完成入住。不可用 deprecated `registrationEnabled` 代表入住受理狀態；評審請區分舊入口退休與帳戶系統／入住流程仍保留。完整契約見 [RECEPTION](RECEPTION.md)，雙環境發布結果待填於 [本次 checklist](RELEASE-ADMISSION-STATUS-2026-11-02.md)。以下 dated baseline 不代表本次部署完成。
+
 > 歷史範圍註記（2026-10-30）：本文保留先前新建／獨立模板的當時狀態。獨立住所接回 Tower 與事件式 Meta 樓管已另發布，最新狀態見 [本輪發布驗收](RELEASE-TOWER-2026-10-30.md)。下方「尚未實作／規則樓管」不代表目前官方站點。
 
 

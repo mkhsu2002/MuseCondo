@@ -17,7 +17,7 @@ test('operator account bootstrap is protected, replayable, audited and leaves pu
   const a=await runtime.fetch(req({'X-Tower-Operator-Key':'operator-private'}),env);assert.equal(a.status,201);const first=await a.json();
   const second=await runtime.fetch(req({'X-Tower-Operator-Key':'operator-private'}),env);assert.deepEqual(await second.json(),first);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM accounts').get()!.n,1);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n,2);
   assert.doesNotMatch(JSON.stringify(db.sqlite.prepare('SELECT * FROM accounts').all()),new RegExp(credential));
-  assert.equal((await runtime.fetch(new Request(origin+'/api/v1/accounts',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:'{}'}),env)).status,403);
+  assert.equal((await runtime.fetch(new Request(origin+'/api/v1/accounts',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:'{}'}),env)).status,410);
  }finally{db.close();}
 });
 

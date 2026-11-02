@@ -20,14 +20,14 @@ test('admission security alerts require actual operator authentication and expos
 });
 test('Pages API fails closed on missing origin, DB binding, migration and database failure',async()=>{
  let response=await runtime.fetch(request(),{});assert.equal(response.status,503);assert.match(response.headers.get('content-type')!,/application\/json/);assert.equal((await response.json()).error,'public_origin_not_configured');
- response=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin});assert.equal(response.status,503);assert.equal((await response.json()).error,'database_not_bound');
- const db=new LocalDatabase(':memory:');try{response=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin,DB:db});assert.equal(response.status,503);assert.equal((await response.json()).error,'database_schema_not_ready');}finally{db.close();}
+ response=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin});assert.equal(response.status,503);assert.deepEqual(await response.json(),{available:false,error:'database_not_bound',admission:{status:'unavailable',applyURL:origin+'/reception'},runtime:{metaSecretConfigured:false,paidCallsApproved:false,registrationEnabled:false}});
+ const db=new LocalDatabase(':memory:');try{response=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin,DB:db});assert.equal(response.status,503);const body=await response.json();assert.equal(body.error,'database_schema_not_ready');assert.deepEqual(body.admission,{status:'unavailable',applyURL:origin+'/reception'});}finally{db.close();}
  response=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin,DB:{prepare(){throw Error('PRIVATE_SQL_CONNECTION_DETAIL');},async batch(){throw Error('unused');}}});assert.equal(response.status,503);const body=await response.text();assert(!body.includes('PRIVATE'));assert.match(body,/database_unavailable/);
 });
 test('Pages runtime defaults registration and paid calls off; status exposes secret presence only',async()=>{
  const db=database();try{const env:PagesBindings={PUBLIC_ORIGIN:origin,DB:db,meta_muse_api:'TEST_ONLY_SECRET_VALUE'};
  const response=await onRequest({request:request(),env});assert.equal(response.status,200);const body=await response.text();assert(!body.includes('TEST_ONLY_SECRET_VALUE'));const status=JSON.parse(body);assert.equal(status.available,true);assert.equal(status.generation,'disconnected');assert.equal(status.runtime.metaSecretConfigured,true);assert.equal(status.runtime.paidCallsApproved,false);assert.equal(status.runtime.databaseReady,true);assert.equal(status.registrationEnabled,false);
- const signup=await runtime.fetch(request('/api/v1/accounts','POST'),env);assert.equal(signup.status,403);assert.equal((await signup.json()).error,'registration_closed');
+ const signup=await runtime.fetch(request('/api/v1/accounts','POST'),env);assert.equal(signup.status,410);assert.equal((await signup.json()).error,'registration_retired');
  for(const value of ['TRUE','1','yes']){const r=await runtime.fetch(request(),{...env,META_PAID_CALLS_APPROVED:value,REGISTRATION_ENABLED:value});const s=await r.json();assert.equal(s.generation,'disconnected');assert.equal(s.registrationEnabled,false);}
  }finally{db.close();}
 });
@@ -35,7 +35,7 @@ test('explicit configuration enables factory but status makes no Meta request an
  const db=database();const original=globalThis.fetch;let calls=0;globalThis.fetch=async()=>{calls++;throw Error('forbidden network');};try{
  for(const secret of [undefined,'','   ']){const r=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin,DB:db,meta_muse_api:secret,META_PAID_CALLS_APPROVED:'true'});assert.equal((await r.json()).generation,'disconnected');}
  const r=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin,DB:db,meta_muse_api:'TEST_ONLY',META_PAID_CALLS_APPROVED:'true'});assert.equal(r.status,200);const s=await r.json();assert.equal(s.generation,'configured-not-health-verified');assert.equal(s.runtime.metaConfiguredNotHealthVerified,true);assert.equal(calls,0);
- const signup=await runtime.fetch(request('/api/v1/accounts','POST'),{PUBLIC_ORIGIN:origin,DB:db,REGISTRATION_ENABLED:'true'});assert.equal(signup.status,201);assert.match(signup.headers.get('set-cookie')!,/Secure/);assert.equal(calls,0);
+ const signup=await runtime.fetch(request('/api/v1/accounts','POST'),{PUBLIC_ORIGIN:origin,DB:db,REGISTRATION_ENABLED:'true'});assert.equal(signup.status,410);assert.equal((await signup.json()).applyURL,origin+'/reception');assert.equal(signup.headers.get('set-cookie'),null);assert.equal(calls,0);
  }finally{globalThis.fetch=original;db.close();}
 });
 test('same-origin guard rejects foreign or insecure API before DB; public static routes use Pages ASSETS',async()=>{
@@ -138,5 +138,12 @@ test('status distinguishes bound autonomy from an enabled mandate and fails clos
   const assets=env.ASSETS;delete env.ASSETS;result=await status();assert.equal(result.scheduled,false);assert.equal(result.runtime.managerAutonomy,'unavailable');env.ASSETS=assets;
   db.sqlite.exec('DROP TRIGGER tower_autonomy_events_update');
   result=await status();assert.equal(result.scheduled,false);assert.equal(result.runtime.managerAutonomy,'bound-not-health-verified');
+ }finally{db.close();}
+});
+test('deployed status reads admission control independently of retired self registration',async()=>{
+ const db=database();try{
+  for(const [enabled,expected] of [[1,'accepting'],[0,'paused']] as const){db.sqlite.prepare('UPDATE manager_admission_control SET enabled=? WHERE id=1').run(enabled);const response=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin,DB:db,REGISTRATION_ENABLED:'true'});assert.equal(response.status,200);const body=await response.json();assert.deepEqual(body.admission,{status:expected,applyURL:origin+'/reception'});assert.equal(body.registrationEnabled,false);assert.equal(body.runtime.registrationEnabled,false);}
+  db.sqlite.exec('DELETE FROM manager_admission_control');const status=await runtime.fetch(request(),{PUBLIC_ORIGIN:origin,DB:db});assert.deepEqual((await status.json()).admission,{status:'unavailable',applyURL:origin+'/reception'});
+  const accounts=db.sqlite.prepare('SELECT count(*) n FROM accounts').get()!.n;const retired=await runtime.fetch(request('/api/v1/accounts','POST'),{PUBLIC_ORIGIN:origin,DB:db,REGISTRATION_ENABLED:'true'});assert.equal(retired.status,410);assert.equal((await retired.json()).applyURL,origin+'/reception');assert.equal(db.sqlite.prepare('SELECT count(*) n FROM accounts').get()!.n,accounts);
  }finally{db.close();}
 });

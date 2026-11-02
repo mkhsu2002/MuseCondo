@@ -16,8 +16,6 @@ type Session = {signedIn:boolean;csrf?:string};
 let csrf='';
 let renderVersion=0;
 let liveServiceSeen=false;
-let keyAwaitingSave=false;
-window.addEventListener('beforeunload',event=>{if(keyAwaitingSave){event.preventDefault();event.returnValue='Save your account key securely first.';}});
 const e=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 const base=import.meta.env.BASE_URL.replace(/\/$/,'');
 const path=(v:string)=>`${base}/${v}`;
@@ -61,10 +59,10 @@ export async function renderLive(root:HTMLElement,route:string){
    bindForm(root,'live-comment',async(data,form)=>{const requestKey=form.dataset.requestKey??crypto.randomUUID();form.dataset.requestKey=requestKey;const kind=String(data.get('kind'));const result=await api<{state:string}>(`/api/v1/rooms/${id}/interactions`,'POST',{nickname:data.get('nickname'),body:data.get('body'),kind,...(kind==='gift'?{giftId:data.get('giftId')}:{}),requestKey});await renderLive(root,route);const feedback=root.querySelector('.live-status');if(feedback)feedback.textContent=result.state==='pending'?'Your invitation was sent privately and is awaiting a reply.':'Sent. Thank you for your kindness.';});return;
   }
   if(!session.signedIn){
-   const status=await api<{registrationEnabled:boolean}>('/api/v1/status').catch(()=>undefined);if(version!==renderVersion)return;
-   root.innerHTML=shell(homeAccessMarkup(status?.registrationEnabled,base)+notice);
+   const status=await api<{admission?:import('./live/framework-ui.ts').Admission}>('/api/v1/status').catch(()=>undefined);if(version!==renderVersion)return;
+   root.innerHTML=shell(homeAccessMarkup(status?.admission,base)+notice);
    bindForm(root,'live-login',async data=>{const result=await api<{csrf:string}>('/api/v1/session','POST',{credential:data.get('credential')});csrf=result.csrf;await renderLive(root,route);});
-   bindForm(root,'live-register',async()=>{const result=await api<{credential:string;csrf:string}>('/api/v1/accounts','POST',{});csrf=result.csrf;keyAwaitingSave=true;root.innerHTML=shell(`<h1>Your home key</h1><p>Save this key in a password manager now. It will not be shown again after you leave. Do not share it or put it in your Agent's public memory.</p><label>Account key<input id="new-account-key" readonly type="password" autocomplete="off" value="${e(result.credential)}"></label><button type="button" id="show-key">Show / hide key</button><form id="live-key-saved"><label class="live-check"><input required type="checkbox">I have saved this key securely</label><button type="submit" class="button">Continue moving in</button></form>${notice}`);root.querySelector('#show-key')!.addEventListener('click',()=>{const input=root.querySelector<HTMLInputElement>('#new-account-key')!;input.type=input.type==='password'?'text':'password';});bindForm(root,'live-key-saved',async()=>{keyAwaitingSave=false;await renderLive(root,route);});});return;
+   return;
   }
   const me=await api<{room:Room|null;job:{state:string}|null;analysisConsent?:boolean}>('/api/v1/me');if(version!==renderVersion)return;
   if(me.room?.generationState==='external-ready'){
@@ -118,7 +116,7 @@ function showTowerLobby(root:HTMLElement,content:string){
 export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
  document.documentElement.lang='en';document.title=lobbyMessages().meta.title;
  const version=++renderVersion;
- let status:{available:boolean;registrationEnabled:boolean;mode:string};
+ let status:{available:boolean;admission?:import('./live/framework-ui.ts').Admission;mode:string};
  try{
   const response=await fetch('/api/v1/status',{credentials:'same-origin',signal:AbortSignal.timeout(5000)});
   const absent=response.status===404||!response.headers.get('Content-Type')?.includes('application/json');

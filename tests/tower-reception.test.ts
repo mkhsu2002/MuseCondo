@@ -466,8 +466,8 @@ test('clipboard success and fallback use the short invitation with this Tower re
         const html=readFileSync(new URL('../public/reception.html',import.meta.url),'utf8');
         const initial=html.match(/<textarea[^>]*id="invitation"[^>]*>([\s\S]*?)<\/textarea>/)?.[1];assert.ok(initial);
         const invitation = { value: initial, focus() { }, select() { selected = true; } }, status = { textContent: '' };
-        const button = { addEventListener(_event: string, callback: () => Promise<void>) { handler = callback; } };
-        const context = { document: { querySelector(selector: string) { return selector === '#invitation' ? invitation : selector === '#copy-invitation' ? button : status; } }, location: { origin }, navigator: { clipboard: { async writeText(value: string) { copied = value; if (clipboardFails)
+        const button = { dataset: {}, addEventListener(_event: string, callback: () => Promise<void>) { handler = callback; } };
+        const context = { document: { querySelector(selector: string) { return selector === '#invitation' ? invitation : selector === '#copy-invitation' ? button : selector === '#copy-status' ? status : null; } }, location: { origin }, navigator: { clipboard: { async writeText(value: string) { copied = value; if (clipboardFails)
                         throw Error('clipboard unavailable'); } } } };
         runInNewContext(readFileSync(new URL('../public/reception.js', import.meta.url), 'utf8'), context);
         assert.ok(invitation.value.includes(origin + '/reception'));

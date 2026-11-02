@@ -1,7 +1,9 @@
 import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {existsSync,readFileSync,readdirSync} from 'node:fs';
+import {existsSync,readFileSync,readdirSync,mkdtempSync,writeFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {LocalDatabase} from '../server/live/local-db.ts';
 import {encryptPrivate,hashPrivate,hashIdentityInput,decryptPrivate} from '../server/live/identity-private.ts';
@@ -247,9 +249,13 @@ test('all five templates and max-size card compile prepare, materialize and retu
   const s=createIdentityMailEnvelope(f.env);await s.prepare(f.event);const r=await s.materialize(f.event);await f.db.batch(r.guards());
   // Compile actual captured SQL against the complete synthetic database in a
   // second native engine. setlimit applies to every function, not snapshot text.
+  const directory=mkdtempSync(join(tmpdir(),'muse-native-sqlite-')),snapshot=join(directory,'snapshot.json');
+  try{
+  writeFileSync(snapshot,JSON.stringify({database:Buffer.from(f.db.sqlite.serialize()).toString('base64'),queries:[...new Set(queries)]}),{mode:0o600});
   const result=spawnSync('python3',['-c',String.raw`
 import base64,json,re,sqlite3,sys
-data=json.load(sys.stdin)
+with open(sys.argv[1],encoding='utf-8') as snapshot:
+ data=json.load(snapshot)
 db=sqlite3.connect(':memory:')
 db.deserialize(base64.b64decode(data['database']))
 db.setlimit(sqlite3.SQLITE_LIMIT_FUNCTION_ARG,32)
@@ -276,8 +282,9 @@ for sql in data['queries']:
   if count is None: raise
   db.execute('EXPLAIN '+sql,[None]*int(count.group(1)))
 print(json.dumps({'compiled':len(data['queries'])}))
-`],{input:JSON.stringify({database:Buffer.from(f.db.sqlite.serialize()).toString('base64'),queries:[...new Set(queries)]}),encoding:'utf8',maxBuffer:1024*1024});
-  assert.equal(result.status,0,template+': '+result.stderr);assert(JSON.parse(result.stdout).compiled>5);
+`,snapshot],{encoding:'utf8',maxBuffer:1024*1024,timeout:30000,killSignal:'SIGKILL'});
+  assert.ifError(result.error);assert.equal(result.status,0,template+': '+result.stderr);assert(JSON.parse(result.stdout).compiled>5);
+  }finally{rmSync(directory,{recursive:true,force:true});}
  }finally{f.close();}}
 });
 

@@ -197,5 +197,17 @@
     "when": "Explicit renewal only: current pending offer expired or current pending/accepted offer no longer matches the published tuple/epoch/digest/consents, with no identity yet bound. Require the same recipient, current expectedOfferId, a new requestKey, explicit designation/mail consent and fresh verified public completion. Current accepted offers do not need renewal merely because the token expired; declined is final.",
     "retry": "200 exact request replay resolves to its original generation even after a newer head exists; current may be false. Read GET /api/v1/agent/identity/offer for the current head, and do not confuse a historical generation with current authority. Changed input under the same key is idempotency_conflict. Initial POST /offer never renews automatically.",
     "deliveryGate": "Do not renew while old mail is sending/unknown, missing, or pending with an existing attempt. Reconcile that event first; never use renewal to blindly resend an uncertain delivery."
+  },
+  "admission": {
+    "statusPath": "/api/v1/status",
+    "statusField": "admission.status",
+    "applyURLField": "admission.applyURL",
+    "states": {
+      "accepting": "New applications are accepted; this is not approval or completed move-in.",
+      "paused": "New applications are paused. While paused, existing cases can be viewed, updated and resubmitted, and historical receipts can be read; qualification review, automated assistance and final completion verification wait for admission to reopen. Existing authority remains subject to its validity.",
+      "unavailable": "Availability cannot be confirmed. Keep your work and retry the status read later."
+    },
+    "missingOrFailedStatus": "Treat as unavailable, never as accepting. Independent building remains available. Existing-case access and resident maintenance retain their own authorization checks; case access does not promise qualification review or completion.",
+    "legacyRegistration": "registrationEnabled is deprecated and describes only legacy account self-registration, not Tower admission. Official POST /api/v1/accounts returns 410 registration_retired with applyURL; existing sign-in and approved-case activation remain available."
   }
 }

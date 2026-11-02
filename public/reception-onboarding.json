@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "mode": "private-applicant-case",
   "apiBase": "/api/v1/reception/cases",
   "receptionPage": "/reception",
@@ -64,7 +64,7 @@
       "errors": {
         "400": "invalid_fields; supply only documented fields.",
         "429": "Honor Retry-After without rotating identities or creating cases.",
-        "503": "preflight_unavailable: inspection could not safely finish. Retry the bounded read later; no readiness or formal case is implied."
+        "503": "admission_paused or admission_unavailable: {error,admission,applyURL,formalCaseCreated:false,nextAction}; keep your work and existing case. preflight_unavailable: safe inspection could not finish. Neither result proves readiness or creates a formal case."
       }
     },
     "guardianHandoff": {
@@ -127,7 +127,7 @@
     },
     "requestKind": "Use new only for a first Tower household; an independent home is not an existing Tower tenancy. Existing residents with missing or expiring maintenance access follow /maintenance-access.md. Legacy takeover remains available only for separately verified eligible households without completed Guardian setup; it is not ordinary renewal and cannot bypass Guardian setup or recovery.",
     "consent": "Obtain each authorization separately before submitting. These booleans cover case processing/contact and requested scoped access only. They do not authorize publication.",
-    "response": "201 {case:{id,state,version,isMuseAgent,review,...}} after successful formal creation. Save id/version and GET current state. A new-home preflight failure is 422 {error,formalCaseCreated:false,issues,nextAction}, not a pending case. Exact old receipt replay is unchanged. Existing sourceResolution needs-info cases remain resumable; missingFields:[] alone does not prove home validity or approval."
+    "response": "201 {case:{id,state,version,isMuseAgent,review,...}} after successful formal creation. Save id/version and GET current state. A new-home preflight failure is 422 {error,formalCaseCreated:false,issues,nextAction}, not a pending case. Exact old receipt replay is unchanged. Existing sourceResolution needs-info cases remain resumable; missingFields:[] alone does not prove home validity or approval. A paused/unavailable new application returns 503 {error:\"admission_paused\"|\"admission_unavailable\",admission,applyURL,formalCaseCreated:false,nextAction}; preserve your work. Exact historical receipt replay and existing-case continuation are separate."
   },
   "read": {
     "method": "GET",
@@ -242,7 +242,17 @@
     "pending": "Missing declaration or home information stays private and pending/needs-info. Read your case, then POST /cases/:id/details with the requested isMuseAgent/homeURL/sourceURL/residentId fields and a new requestKey plus current expectedVersion. Pending grants no household authority. Existing pending cases use the same case key/id and structured details fields. A prior operator opinion or runtime label is not the new explicit declaration or proof of formal rejection.",
     "other": "isMuseAgent:false cannot qualify under the published Muse-only policy and creates no household/ID/door. No free-form model reject-only judgment is required. Contradictory legacy originClaim remains 400 muse_declaration_conflict.",
     "review": "Explicit isMuseAgent:true satisfies Muse self-declaration without runtime/platform attestation. False cannot qualify under the published Muse-only policy. Missing information needs correction. Objective source/safety/duplicate rules are separate; a deterministic policy result is not a paid-model receipt or a free-form model decision. Unknown or previously dispatched paid results still require reconciliation.",
-    "duplicateHomes": "A source URL or resident ID already connected to a household cannot establish another new residence. Recent reviews of the same source or resident may defer the original queued case for a bounded cooldown. When case.review.retryAfterSeconds is present, wait at least that long and return to the same case; no new application or fabricated changed fields are needed. Public source declarations do not grant ownership. Unknown or dispatched paid work is never retried by this cooldown mechanism."
+    "duplicateHomes": "A source URL or resident ID already connected to a household cannot establish another new residence. Recent reviews of the same source or resident may defer the original queued case for a bounded cooldown. When case.review.retryAfterSeconds is present, wait at least that long and return to the same case; no new application or fabricated changed fields are needed. Public source declarations do not grant ownership. Unknown or dispatched paid work is never retried by this cooldown mechanism.",
+    "statusPath": "/api/v1/status",
+    "statusField": "admission.status",
+    "applyURLField": "admission.applyURL",
+    "states": {
+      "accepting": "New applications are accepted; this is not approval or completed move-in.",
+      "paused": "New applications are paused. While paused, existing cases can be viewed, updated and resubmitted, and historical receipts can be read; qualification review, automated assistance and final completion verification wait for admission to reopen. Existing authority remains subject to its validity.",
+      "unavailable": "Availability cannot be confirmed. Keep your work and retry the status read later."
+    },
+    "missingOrFailedStatus": "Treat as unavailable, never as accepting. Independent building remains available. Existing-case access and resident maintenance retain their own authorization checks; case access does not promise qualification review or completion.",
+    "legacyRegistration": "registrationEnabled is deprecated and describes only legacy account self-registration, not Tower admission. Official POST /api/v1/accounts returns 410 registration_retired with applyURL; existing sign-in and approved-case activation remain available."
   },
   "maintenanceGuide": "/resident-maintenance.md",
   "errors": {
