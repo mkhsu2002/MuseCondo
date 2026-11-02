@@ -61,11 +61,11 @@ test('public editorial reasons are English without rewriting a legacy edition or
   assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM community_editions').get()!.n,1);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM manager_jobs').get()!.n,0);assert.equal(changed,1);
  }finally{db.close();}
 });
-test('private reception opens with registration closed and uses existing operator gate',async()=>{
+test('private reception requires preflight with registration closed and keeps the operator gate',async()=>{
  const db=database();try{const env={DB:db,PUBLIC_ORIGIN:origin,TOWER_OPERATOR_KEY:'operator-private'},base='/api/v1/reception/cases',key='d'.repeat(64);
  const input={requestKey:'runtime-case',name:'新朋友',requestKind:'new',request:'想申請自己的窩。',authorization:{contact:true,application:true,towerAccess:true},sharing:{snapshot:false,directory:false,announcement:false,dream:false},visitPlan:{mode:'manual-return'}};
- const r=await runtime.fetch(new Request(origin+base,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify(input)}),env);assert.equal(r.status,201);const body=await r.json();
- const operatorPath=origin+'/api/v1/operator/reception/cases/'+body.case.id;assert.equal((await runtime.fetch(new Request(operatorPath),env)).status,401);const own=await runtime.fetch(new Request(operatorPath,{headers:{'X-Tower-Operator-Key':'operator-private'}}),env);assert.equal(own.status,200);assert.equal((await own.json()).case.name,'新朋友');
+ const r=await runtime.fetch(new Request(origin+base,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify(input)}),env);assert.equal(r.status,422);const body=await r.json();assert.equal(body.formalCaseCreated,false);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM tower_reception_cases').get()!.n,0);
+ const operatorPath=origin+'/api/v1/operator/reception/cases';assert.equal((await runtime.fetch(new Request(operatorPath),env)).status,401);const own=await runtime.fetch(new Request(operatorPath,{headers:{'X-Tower-Operator-Key':'operator-private'}}),env);assert.equal(own.status,200);assert.deepEqual((await own.json()).cases,[]);
  assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM accounts').get()!.n,0);assert.equal(db.sqlite.prepare('SELECT COUNT(*) n FROM manager_jobs').get()!.n,0);
  }finally{db.close();}
 });

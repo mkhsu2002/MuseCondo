@@ -1043,3 +1043,7 @@ test('content validation diagnoses the old documented intro object and rejects p
  assert.equal((await f.data(f.req())).intake.revision,1);
  }finally{f.close();}
 });
+
+test('static source with declared custom local artwork paths imports the exact source assets',async()=>{
+ const f=await fixture();try{const custom=structuredClone(f.raw);custom.home.assets.desktop='./illustrations/home.png';if(custom.dream){custom.dream.image.src='./illustrations/dream.png';for(const d of custom.home.dreams)d.image='./illustrations/dream.png';}f.setManifest(custom);await f.importHome();assert.ok(f.calls.some(u=>u.endsWith('/illustrations/home.png')));assert.ok(!f.calls.some(u=>u.endsWith('/assets/home.png')));}finally{f.db.close();}
+});

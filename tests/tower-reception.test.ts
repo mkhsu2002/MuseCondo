@@ -1,9 +1,10 @@
+// SQL-seeded historical cases exercise current reads and mutations; new formal-intake preflight is covered by assisted-admission.test.ts.
 import {openSyntheticTower} from './helpers/tower-admission-fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { LocalDatabase } from '../server/live/local-db.ts';
-import { createTowerReception } from '../server/live/reception.ts';
+import { createTowerReception } from './helpers/legacy-reception.ts';
 import { createTowerIntake } from '../server/live/tower-intake.ts';
 import { digest } from '../server/live/app.ts';
 import { runInNewContext } from 'node:vm';

@@ -89,9 +89,14 @@ export function createIdentityMailDelivery(env:IdentityMailDeliveryEnvironment){
   try{
    const m:unknown=JSON.parse(await decryptPrivate(env.contactKey,'mail-envelope',id,row.metadata_ciphertext));
    if(!object(m)||m.version!==1||m.origin!==env.origin||typeof m.binding!=='string'||typeof m.text!=='string'||typeof m.subject!=='string'||m.subject.length>512||!senderDomain(m.from)||!recipient(m.to)||validateGuardianEmail(m.to)!==m.to||typeof m.templateVersion!=='string'||m.templateVersion!==row.template_version||!Array.isArray(m.attachmentRefs)||JSON.stringify(m.attachmentRefs)!==row.attachment_refs)return null;
-   const b:unknown=JSON.parse(m.binding);if(!object(b)||!object(b.e)||!object(b.i)||!eventId(row.id))return null;
+   const b:unknown=JSON.parse(m.binding);if(!object(b)||!object(b.e)||!eventId(row.id))return null;
    for(const k of ['id','kind','entity_id','dedupe_key','recipient_ciphertext','recipient_hash','payload_ciphertext','created_at'] as const)if(b.e[k]!==row[k])return null;
-   if(typeof b.i.agent_id!=='string'||typeof b.i.account_id!=='string'||typeof b.i.room_id!=='string'||typeof b.i.resident_id!=='string')return null;
+   if(m.copyRevision==='en-offer-1'){
+    // This historical binding proves delivery only; it grants no live household or identity authority.
+    if(object(b.i)||!object(b.o)||row.kind!=='guardian-invitation'||row.template_version!=='guardian-invitation-v1'||b.o.id!==row.entity_id||b.o.mail_event_id!==row.id||b.o.guardian_designated!==1||b.o.mail_consent!==1||b.o.recipient_ciphertext!==row.recipient_ciphertext||b.o.recipient_hash!==row.recipient_hash||row.dedupe_key!=='identity-offer:'+b.o.id||!Number.isSafeInteger(b.o.generation)||(b.o.generation as number)<1||!object(b.h)||b.h.account_id!==b.o.account_id||b.h.offer_id!==b.o.id||b.h.generation!==b.o.generation)return null;
+    if(typeof b.o.account_id!=='string'||typeof b.o.room_id!=='string'||typeof b.o.resident_id!=='string'||typeof b.o.public_url!=='string'||!Number.isSafeInteger(b.o.public_revision)||(b.o.public_revision as number)<1)return null;
+    const home=new URL(b.o.public_url);if(home.origin!==env.origin||home.pathname!=='/home/'+b.o.room_id||home.username||home.password||home.search||home.hash||home.href!==b.o.public_url)return null;
+   }else if(!object(b.i)||typeof b.i.agent_id!=='string'||typeof b.i.account_id!=='string'||typeof b.i.room_id!=='string'||typeof b.i.resident_id!=='string')return null;
    return {row,recipient:m.to as string,from:m.from as string,subject:m.subject};
   }catch{return null;}
  }

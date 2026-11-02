@@ -133,3 +133,9 @@ test('session asset reads retain the original deadline and cannot start a fresh 
  await new Promise(resolve=>setTimeout(resolve,30));
  await rejectsCode(()=>session.readAsset('home'),'timeout');assert.equal(f.calls.length,3);
 });
+test('declared PNG paths stay on the validated provider origin and share session budgets',async()=>{
+ const f=fixture(),seen:string[]=[];const fetcher:typeof fetch=async(input,init)=>{const url=String(input);if(url.endsWith('/pictures/room-scene.png')){seen.push(url);assert.equal(new Headers(init?.headers).get('Cookie'),'__Host-cf_space_read=synthetic_read_cookie');return new Response(png,{headers:{'Content-Type':'image/png'}});}return f.fetcher(input,init);};
+ const session=await openMusePublicShare(share,fetcher,{maxRequests:4});
+ for(const path of ['https://evil.example/a.png','//evil.example/a.png','/private.png','../private.png','./x/../private.png','./x/%2e%2e/private.png','./x.png?token=x','./x.svg','./a\\b.png','./a.png#x'])await rejectsCode(()=>session.readAssetPath(path),'invalid_asset_path');
+ assert.equal(f.calls.length,3);assert.deepEqual(await session.readAssetPath('./pictures/room-scene.png'),png);assert.deepEqual(seen,[host+'/pictures/room-scene.png']);await rejectsCode(()=>session.readAsset('home'),'request_limit');
+});

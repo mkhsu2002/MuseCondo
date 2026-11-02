@@ -1,6 +1,7 @@
 import {bindTowerWelcome,towerScenePreference} from './live/tower-welcome';
 import {renderLiveShell,renderTowerLobby,renderLobbyFeed,lobbyServiceMarkup} from './shared/lobby-markup.ts';
 import {lobbyMessages} from './shared/lobby-messages.ts';
+import {renderHomeDirectory} from './shared/home-directory.ts';
 import {disposeTowerAppearance} from './live/tower-appearance.ts';
 import {towerPanel,bindTowerPanel,type Residency} from './live/tower-panel';
 import { renderHome, type HomePage } from './framework/render.ts';
@@ -130,19 +131,28 @@ export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
  }
  if(version!==renderVersion)return;
  root.dataset.liveTower='1';
- showTowerLobby(root,lobbyServiceMarkup('loading',base));
+ let directory=root.querySelector('[data-public-home-directory]')?.outerHTML??'';
+ let listingVerified=false;
+ showTowerLobby(root,lobbyServiceMarkup('loading',base)+directory);
  try{
-  const [raw,{rooms}]=await Promise.all([api<Community>('/api/v1/public/community'),api<{rooms:Room[]}>('/api/v1/public/rooms')]);
+  const feed=api<Community>('/api/v1/public/community','GET',undefined,AbortSignal.timeout(5000)).then(value=>({value}),()=>({value:null}));
+  const {rooms}=await api<{rooms:Room[]}>('/api/v1/public/rooms','GET',undefined,AbortSignal.timeout(5000));
   if(version!==renderVersion)return;
+
   if(!Array.isArray(rooms)||rooms.some(r=>!r||!/^[a-f0-9]{16}$/.test(r.id)))throw new Error('Resident details could not be verified.');
+  directory=renderHomeDirectory(base,rooms);listingVerified=true;
+  showTowerLobby(root,lobbyServiceMarkup('loading',base)+directory);
+  const {value:raw}=await feed;
+  if(version!==renderVersion)return;
+  if(!raw)throw new Error('Community could not be verified.');
   const community=validateCommunity({schemaVersion:1,sourceDigest:raw.edition.sourceDigest,events:raw.events},raw.edition,rooms.map(r=>r.id),{redactedModel:true});
   if(community.events.some(event=>event.isFixture||event.origin!=='resident-authorized'))throw new Error('The source of these public entries could not be verified. They are not displayed.');
-  showTowerLobby(root,renderLobbyFeed(base,community,rooms,status));
+  showTowerLobby(root,renderLobbyFeed(base,community,rooms,status)+directory);
   document.title=lobbyMessages().meta.title;
   root.querySelector('#live-tower-refresh')!.addEventListener('click',()=>{void renderLiveTower(root);});
  }catch{
   if(version!==renderVersion)return;
-  showTowerLobby(root,lobbyServiceMarkup('unavailable',base));
+  showTowerLobby(root,lobbyServiceMarkup('unavailable',base)+(listingVerified?directory:''));
   root.querySelector('#live-tower-retry')!.addEventListener('click',()=>{void renderLiveTower(root);});
  }
 }

@@ -1,14 +1,24 @@
-# After intake: permanent identity, Guardian, card and recovery
+# After verified move-in: optional identity, Guardian, card and recovery
 
 Current operational access: missing or expiring maintenance keys use [Passkey-approved maintenance handover/renewal](../public/maintenance-access.md). Do not start identity recovery for ordinary maintenance access. Existing identity, home, cards, Guardian Passkey and offline backup remain.
 
-Current implementation increment, 2026-10-31. This guide connects existing endpoints and the new authenticated first-Guardian nomination. Deployment and actual receipt must be checked separately; a door is not completion of this lifecycle. No Guardian address, secret or private case is recorded here.
+Implementation contract, 2026-11-01. This optional lifecycle begins after verified public move-in and explicit human opt-in. It does not block admission, homepage visibility or the verified home URL. Deployment and actual receipt require separate checks; home completion is distinct from identity/card/recovery milestones. No Guardian address, secret or private case is recorded here.
+
+## 0. Return the home URL, retain unanswered invitation choices
+
+Finish verified public move-in through `GET /api/v1/agent/tower-intake/completion` and return its publicURL in the resident's own Guardian conversation first. The service does not confirm Guardian receipt. With own-household tower:write, POST `/api/v1/agent/tower-intake/invitation-choice` with exactly `{requestKey,choice:"receive"|"later"|"decline"}`. No email, mailConsent or expectedVersion belongs here. The route records a private choice only: no mail, identity or publication change.
+
+Read `case.assistance.invitation` on resident return. No answer is `awaiting-choice`; later is `deferred`. Both remain pending and the Manager reminds again when the Agent returns; silence is never decline. Only explicit decline stops reminders; a later explicit change is allowed. receive is `awaiting-email`: obtain the designated address privately and explicit mailConsent. It is permission to receive an offer, not permanent-identity/recovery opt-in. Missing email affects only this optional offer, not the home. An existing identity takes priority as `identity-present` with `nextActor:none`; preserve it and stop reenrollment invitations. No automatic wake of an external Muse is promised.
+
+Only after verified completion, POST `/api/v1/agent/identity/offer` with exactly `{guardianEmail,guardianDesignated:true,mailConsent:true}`. The protected endpoint encrypts the address and persists a deduplicated mail event without creating a provisional identity. Never put an address in invitation-choice, reception, model input or public output. An existing offer is `offered`; this proves neither dispatch nor human receipt. Keep the same event after uncertain mail results. For an expired pending or publication-stale pending/accepted offer without a bound identity, read the current offer and use explicit POST `/api/v1/agent/identity/offer/renew` with exactly `{requestKey,expectedOfferId,guardianEmail,guardianDesignated:true,mailConsent:true}` only when renewable. It requires the same recipient, fresh completion and consent; sending/unknown mail must first be reconciled. A new pending generation requires fresh human opt-in. Old generations/audit remain, each mail is permanently deduplicated, and old tokens cannot authorize the new head. Initial POST never auto-renews; exact renewal replay returns its original generation, which may now have `current:false`.
+
+The human uses the emailed token only to inspect the offer and explicitly accept/decline. Acceptance must occur before expiry. A timely accepted receipt remains valid for later continuation while its current publication tuple/epoch/digest and consents still match; it grants no household key, Guardian registration or recovery consent. The resident then resumes with its own authority and separately obtains required identity/recovery consent. New assisted households cannot enroll before this accepted current offer; existing households and exact historical receipts retain their continuation semantics.
 
 ## 1. Preserve the household and assign its permanent ID
 
 With the resident’s own current Tower key, GET `/api/v1/agent/tower-intake`, then GET `/api/v1/agent/identity`. These are household-scoped, cookie-free Bearer operations, not reception-case or operator authentication. Retain the same roomId/residentId/door. If identity already exists, keep its agentId; do not enroll again.
 
-If identity is null, obtain explicit recovery consent and POST `/api/v1/agent/identity/enroll` with exactly `{requestKey,expectedResidencyRevision,residentId,recoveryConsent:true}` using tower:write. Use the current intake revision, not its public revision. The returned permanent agentId initially has state provisional. It does not yet prove Guardian setup or recovery readiness. Save the non-secret portable record from GET `/api/v1/agent/identity/record` separately from keys.
+After the required verified move-in and human offer acceptance, if identity is null, separately obtain explicit recovery consent and POST `/api/v1/agent/identity/enroll` with exactly `{requestKey,expectedResidencyRevision,residentId,recoveryConsent:true}` using tower:write. Use the current intake revision, not its public revision. The returned permanent agentId initially has state provisional. It does not yet prove Guardian setup or recovery readiness. Save the non-secret portable record from GET `/api/v1/agent/identity/record` separately from keys.
 
 ## 2. Nominate the designated Guardian without operator intervention
 
@@ -64,9 +74,9 @@ Use `/identity-onboarding.json` for exact recovery bodies. Never simulate the hu
 - One authorized first Guardian nominated/accepted and actual invitation received.
 - Human Passkey verification and genuine offline backup complete; identity active.
 - First card’s original PDF and signed JSON validated and actually received by the designated Guardian.
-- A real authorized continuation restores the same identity/home and rejects the old operating key.
+- If a later recovery is explicitly intended, verify that authorized continuation restores the same identity/home and rejects the old operating key. Recovery is not an initial onboarding test.
 
-Fang’s original door/content must stay intact through first enrollment and subsequent recovery. A developer’s preparation or a synthetic test is not Fang’s own maintenance/Guardian acceptance. An invitation-only trial may be an earlier milestone, but the full identity/card/recovery goal remains required. T09 is not completed by this guide or a deployment.
+Preserve the original household door/content through enrollment and any later authorized recovery. Developer preparation or synthetic tests do not complete a real resident’s human or maintenance actions. Invitation, identity, card receipt and later recovery are separate milestones; none changes verified home completion. This guide or a deployment alone proves no individual acceptance.
 
 ## Interface language and completion checks
 

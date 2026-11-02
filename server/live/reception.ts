@@ -1,3 +1,5 @@
+import {assistedAdmissionReady} from './assisted-admission-schema.ts';
+import {inspectHomePreflight,type HomePreflightResult} from './home-preflight.ts';
 import {homeSourceURL,homeSourceIdentity} from './home-source.ts';
 import {discoverHome,publicHomeURL,HomeDiscoveryError,homeResolutionDiagnostic} from './home-discovery.ts';
 import { digest } from './app.ts';
@@ -12,6 +14,8 @@ interface Options {
     reviewStatus?:(caseId:string)=>Promise<unknown>;
     bodyReadTimeoutMs?:number;
     sourceFetch?:typeof fetch;
+    preflight?:(homeURL:string,fetcher?:typeof fetch)=>Promise<HomePreflightResult>;
+    assistanceStatus?:(caseId:string)=>Promise<unknown>;
 }
 interface Case {
     id: string;
@@ -134,14 +138,14 @@ export function createTowerReception(env: Options) {
     async function commit(req: Request, c: Case, operator: boolean, requestKey: string, operation: string, inputHash: string, next: Case, statements: Statement[], message: string, status = 200) {
         if (operator && !await env.operator(req))
             reject(401, 'operator_required');
-        const retryFreeReview=next.review_case_version===next.version;
+        const retryFreeReview=next.review_case_version===next.version,assistedMode=await assistedAdmissionReady(db);
         next.review_case_version=retryFreeReview?next.version:next.is_muse_agent!==c.is_muse_agent||next.source_url!==c.source_url||next.resident_id!==c.resident_id||next.request_text!==c.request_text?next.version:c.review_case_version??1;
         const response = { case: safe(next) };
         await db.batch([caseGuard(c, operator), ...(['withdraw', 'revoke', 'reject'].includes(operation) ? [] : [guard('(SELECT COUNT(*) FROM tower_reception_events WHERE case_id=?)<100', c.id)]), ...statements,
             stmt('UPDATE tower_reception_cases SET state=?,version=?,review_case_version=?,is_muse_agent=?,request_text=?,source_url=?,resident_id=?,account_id=?,approval_expires_at=?,granted_token_id=?,visit_plan_json=?,next_action=?,updated_at=? WHERE id=?', next.state, next.version,next.review_case_version??1, next.is_muse_agent??null,next.request_text,next.source_url, next.resident_id, next.account_id, next.approval_expires_at, next.granted_token_id, next.visit_plan_json, next.next_action, next.updated_at, next.id),
             ...(retryFreeReview?[
                 stmt('INSERT INTO manager_admission_declarations SELECT id,version,is_muse_agent,updated_at FROM tower_reception_cases WHERE id=?',next.id),
-                stmt("INSERT INTO manager_admission_jobs(id,case_id,case_version,policy_version,snapshot_json,created_at) SELECT c.id||':v'||c.review_case_version,c.id,c.review_case_version,p.policy_version,json_object('name',c.name,'request',c.request_text,'sourceURL',c.source_url,'residentId',c.resident_id,'isMuseAgent',c.is_muse_agent),c.updated_at FROM tower_reception_cases c JOIN tower_admission_current p ON p.id=1 WHERE c.id=?",next.id),
+                stmt(`INSERT INTO manager_admission_jobs(id,case_id,case_version,policy_version,snapshot_json,created_at${assistedMode?',admission_mode':''}) SELECT c.id||':v'||c.review_case_version,c.id,c.review_case_version,p.policy_version,json_object('name',c.name,'request',c.request_text,'sourceURL',c.source_url,'residentId',c.resident_id,'isMuseAgent',c.is_muse_agent),c.updated_at${assistedMode?",'published-policy'":""} FROM tower_reception_cases c JOIN tower_admission_current p ON p.id=1 WHERE c.id=?`,next.id),
                 guard('changes()=1'),
                 stmt("INSERT INTO manager_admission_audit VALUES(?,?,?,'free-precheck-retry',?,?)",crypto.randomUUID(),next.id+':v'+next.version,next.id,JSON.stringify({priorCaseVersion:c.review_case_version??1,noPreviousProviderCall:true}),next.updated_at),
             ]:[]),
@@ -236,7 +240,18 @@ export function createTowerReception(env: Options) {
                     const sharing = object(v.sharing, ['snapshot', 'directory', 'announcement', 'dream']);
                     if (Object.keys(sharing).length !== 4 || Object.values(sharing).some(x => x !== false))
                         reject(400, 'sharing_starts_private');
-                    const plan = visit(v.visitPlan), resolved=await homeDetails(v,muse), sourceURL=resolved.sourceURL??null, residentId=resolved.residentId??null;
+                    const plan = visit(v.visitPlan);
+                    // Immutable open receipts above are replayed before any current source read.
+                    // New formal applications require complete public data; diagnostics create no case.
+                    let checked:HomePreflightResult|undefined;
+                    if(v.requestKind==='new'){
+                        if(!await assistedAdmissionReady(db))return json({error:'assisted_admission_schema_not_ready',formalCaseCreated:false,nextAction:'Reception is temporarily unavailable. Keep your application and try again later.'},503);
+                        if(v.homeURL===undefined&&v.sourceURL===undefined)return json({error:'home_preflight_required',formalCaseCreated:false,issues:[{stage:'source-read',path:'homeURL',code:'home_url_required',expected:'A public HTTPS home address.'}],nextAction:'Provide your public home URL, fix the listed source issues, then submit the application.'},422);
+                        checked=await (env.preflight??inspectHomePreflight)(String(v.homeURL??v.sourceURL),env.sourceFetch);
+                        if(!checked.ready||checked.issues.length||!checked.sourceURL||!checked.residentId||!checked.sourceDigest)return json({error:'home_preflight_incomplete',formalCaseCreated:false,issues:checked.issues,nextAction:'Fix the listed source issues and submit the same application again. No formal case was created.'},422);
+                        if(v.residentId!==undefined&&v.residentId!==checked.residentId)return json({error:'home_identity_mismatch',formalCaseCreated:false,nextAction:'Use the resident identifier contained in your public home, then submit again.'},422);
+                    }
+                    const resolved=checked?{sourceURL:checked.sourceURL,residentId:checked.residentId,homeURL:publicHomeURL(v.homeURL??v.sourceURL).href,sourceIdentity:homeSourceIdentity(checked.sourceURL!),resolution:'resolved',errorCode:null,lastKnownResidentId:undefined}:await homeDetails(v,muse), sourceURL=resolved.sourceURL??null, residentId=resolved.residentId??null;
                     const c: Case = { id: crypto.randomUUID().replaceAll('-', ''), token_hash: hash, state: 'pending', version: 1, name, request_kind: String(v.requestKind), request_text: requestText, source_url: sourceURL, resident_id: residentId, account_id: null, approval_expires_at: null, granted_token_id: null, authorization_json: JSON.stringify(authorization), sharing_json: JSON.stringify(sharing), visit_plan_json: JSON.stringify(plan), next_action: 'Reception will reply here. Return according to your visit plan.', expires_at: new Date(now().getTime() + 90 * 86400000).toISOString(), created_at: stamp(), updated_at: stamp(),is_muse_agent:muse===true?1:muse===false?0:null,review_case_version:1 };
                     if(muse===undefined)c.next_action='Please confirm whether you are a Muse agent.';
                     const response = { case: safe({...c,submitted_home_url:resolved.homeURL,home_resolution:resolved.resolution,home_error_code:resolved.errorCode,home_source_identity:resolved.sourceIdentity,last_known_resident_id:resolved.lastKnownResidentId}) };
@@ -253,7 +268,7 @@ export function createTowerReception(env: Options) {
                     await rate('read-case:' + id, 120);
                     await notify(current.id);
                     const events = (await stmt('SELECT sequence,actor,kind,message,created_at AS createdAt FROM tower_reception_events WHERE case_id=? AND sequence>? ORDER BY sequence LIMIT 50', id, Number(after)).all()).results;
-                    return json({ case: {...safe(current),review:await env.reviewStatus?.(current.id)}, events, nextCursor: events.length ? events.at(-1)!.sequence : Number(after) });
+                    return json({ case: {...safe(current),review:await env.reviewStatus?.(current.id),assistance:await env.assistanceStatus?.(current.id)}, events, nextCursor: events.length ? events.at(-1)!.sequence : Number(after) });
                 }
                 if (!(operator ? ['messages', 'approve', 'reject', 'revoke'] : ['messages', 'details', 'visit-plan', 'withdraw', 'activate']).includes(operation))
                     reject(404, 'not_found');

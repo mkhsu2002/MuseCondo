@@ -133,10 +133,11 @@ test('enrollment rejects an account and resident paired with another account roo
  assert.throws(()=>db.sqlite.prepare("INSERT INTO agent_identities(agent_id,account_id,room_id,resident_id,recovery_consent,created_at,updated_at) VALUES(?,?,?,?,1,?,?)").run('mcid:'+'a'.repeat(64),account,other,resident,now,now),/admission_identity_tuple/);
  }finally{db.close();}
 });
-test('unknown contact remains pending without rights, explicit non-Muse is rejected, and an operator can decide a case without creating an account',async()=>{
+test('historical unknown contact remains pending without rights, explicit non-Muse is rejected, and an operator can decide a case without creating an account',async()=>{
  const db=fixture();try{
- const {createTowerReception}=await import('../server/live/reception.ts'),{createTowerAdmission}=await import('../server/live/tower-admission.ts');
- const reception=createTowerReception({db,origin:'https://tower.example',now:()=>new Date(now),operator:async()=>true});
+ const {createTowerAdmission}=await import('../server/live/tower-admission.ts');
+ const {createTowerReception:createLegacyReceptionFixture}=await import('./helpers/legacy-reception.ts');
+ const reception=createLegacyReceptionFixture({db,origin:'https://tower.example',now:()=>new Date(now),operator:async()=>true});
  const input={requestKey:'new-contact-1',name:'Synthetic',requestKind:'new',request:'minimum request',sourceURL:source,residentId:resident,originClaim:'unknown',authorization:{contact:true,application:true,towerAccess:true},sharing:{snapshot:false,directory:false,announcement:false,dream:false},visitPlan:{mode:'manual-return'}};
  const open=(value:unknown,token:string)=>reception.fetch(new Request('https://tower.example/api/v1/reception/cases',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token.repeat(64)},body:JSON.stringify(value)}));
  assert.equal((await open({...input,originClaim:'other'},'e'))!.status,403);

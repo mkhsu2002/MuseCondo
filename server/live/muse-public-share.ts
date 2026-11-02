@@ -7,6 +7,7 @@ export interface MusePublicShareSession {
  readonly assetId:string;
  readHtml():Promise<string>;
  readAsset(kind:'home'|'dream'):Promise<Uint8Array>;
+ readAssetPath(path:string):Promise<Uint8Array>;
 }
 export interface MusePublicShareOptions {
  /** Limits may only reduce the built-in ceilings. All session reads share these budgets. */
@@ -128,16 +129,13 @@ export async function openMusePublicShare(value:unknown,fetcher:typeof fetch=fet
  }
  if(!page.ok||mime(page)!=='text/html'){cancel(page);return fail('read_unavailable');}
  const html=decode(await bytes(page,HTML_MAX));
- return {
-  assetId:data.assetId,
-  async readHtml(){return html;},
-  async readAsset(kind:'home'|'dream'){
-   if(kind!=='home'&&kind!=='dream')return fail('invalid_asset_path');
-   const response=await request(data.origin+'/assets/'+kind+'.png',headers('image/png'));
+ async function readAssetPath(path:string){
+   if(typeof path!=='string'||path.length>240||!/^(?:\.\/)?(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+\.png$/.test(path))return fail('invalid_asset_path');
+   const response=await request(data.origin+'/'+path.replace(/^\.\//,''),headers('image/png'));
    if(!response.ok||mime(response)!=='image/png'){cancel(response);return fail('invalid_asset');}
    const result=await bytes(response,PNG_MAX);
    if(result.length<8||![137,80,78,71,13,10,26,10].every((byte,i)=>result[i]===byte))return fail('invalid_asset');
    return result;
-  },
- };
+ }
+ return {assetId:data.assetId,async readHtml(){return html;},readAssetPath,async readAsset(kind:'home'|'dream'){if(kind!=='home'&&kind!=='dream')return fail('invalid_asset_path');return readAssetPath('./assets/'+kind+'.png');}};
 }

@@ -62,6 +62,16 @@ test('application guidance collects Guardian contact privately and requires imme
  const reception=json('public/reception-onboarding.json');
  assert.match(reception.preparation.guardianContact.beforeApplying,/recipient email|recipient|email/i);
  assert.match(reception.preparation.guardianContact.submitOnlyTo,/Reception accepts no email field/);
+ assert.match(reception.preparation.guardianContact.beforeApplying,/First preparation does not require a contact choice or email/);
+ assert.match(reception.preparation.guardianContact.beforeApplying,/Only after verified move-in and delivery of the home URL, ask/);
+ assert.match(reception.preparation.guardianContact.beforeApplying,/already volunteered.*reuse them without asking again/);
+ assert.match(reception.preparation.guardianContact.beforeApplying,/Only if willing/);
+ assert.match(reception.preparation.guardianContact.beforeApplying,/not a choice to create permanent identity/);
+ assert.match(reception.preparation.guardianContact.beforeApplying,/does not block admission, homepage visibility or returning the verified home URL/);
+ assert.match(reception.preparation.guardianContact.submitOnlyTo,/Only after verified public move-in/);
+ assert.match(reception.preparation.guardianContact.submitOnlyTo,/authenticated POST \/api\/v1\/agent\/identity\/offer for encryption/);
+ assert.match(reception.read.progressReporting,/externalAgentWakeSupported:false/);
+ assert.match(reception.read.progressReporting,/nextActor,nextAction/);
  assert.match(reception.read.immediateFollowUp,/Immediately GET/);
  assert.match(reception.read.immediateFollowUp,/missingFields/);
  assert.match(reception.read.progressReporting,/no shared browser/);
@@ -71,4 +81,69 @@ test('application guidance collects Guardian contact privately and requires imme
   assert.match(read(file),/email/);
   assert.match(read(file),/block/i);
  }
+});
+
+test('optional invitation choices remain private pending reminders without blocking the verified home',()=>{
+ const api=json('public/openapi-agent.json');
+ for(const file of ['public/reception-onboarding.json','public/tower-onboarding.json','public/identity-onboarding.json']) {
+  const choice=json(file).invitationChoice;
+  assert.equal(choice.path,'/api/v1/agent/tower-intake/invitation-choice');
+  assert.deepEqual(Object.keys(choice.body).sort(),['choice','requestKey']);
+  assert.deepEqual(choice.allowedChoices,['receive','later','decline']);
+  assert.equal(choice.requestRules.additionalFields,false);
+  assert.equal(choice.requestRules.maxBytes,1024);
+  assert.match(choice.authentication,/tower:write/);
+  assert.match(choice.authentication,/Never send email/);
+  assert.match(choice.states['awaiting-choice'],/every Agent return.*Silence is never decline/);
+  assert.match(choice.states.deferred,/next return visit.*stays pending/);
+  assert.match(choice.states.declined,/Only explicit decline stops reminders/);
+  assert.match(choice.states['awaiting-email'],/not permanent-identity\/recovery opt-in/);
+  assert.match(choice.states['awaiting-email'],/Only after verified move-in.*protected identity\/offer API for encryption/);
+  assert.match(choice.states.offered,/neither dispatch, human receipt nor acceptance/);
+  assert.match(choice.states['identity-present'],/nextActor:none.*preserve|nextActor:none.*stop/i);
+  assert.match(choice.identityContinuity,/priority over offers and preferences/);
+  assert.match(choice.identityContinuity,/historical exact choice receipts keep their original snapshot/);
+  assert.match(choice.boundaries,/never blocks admission, homepage visibility or the home URL/);
+  assert.match(choice.boundaries,/stores no email, sends no mail, enrolls no ID and changes no publication/);
+  assert.match(choice.boundaries,/externalAgentWakeSupported:false/);
+ }
+ const op=api.paths['/api/v1/agent/tower-intake/invitation-choice'].post;
+ assert.deepEqual(op.security,[{towerKey:[]}]);
+ assert.equal(op.requestBody.content['application/json'].schema.$ref,'#/components/schemas/MoveInInvitationChoiceRequest');
+ const body=api.components.schemas.MoveInInvitationChoiceRequest;
+ assert.equal(body.additionalProperties,false);
+ assert.deepEqual(body.required,['requestKey','choice']);
+ assert.deepEqual(Object.keys(body.properties).sort(),['choice','requestKey']);
+ assert.equal(body.properties.choice.type,'string');
+ assert.deepEqual(body.properties.choice.enum,['receive','later','decline']);
+ assert.equal(api.components.schemas.MoveInAssistance.properties.invitation.$ref,'#/components/schemas/MoveInInvitationStatus');
+ assert.deepEqual(api.components.schemas.MoveInInvitationStatus.properties.state.enum,['awaiting-choice','awaiting-email','deferred','declined','offered','identity-present']);
+ assert.match(op.description,/permanent historical receipt under current authorization/);
+});
+
+
+test('optional offer renewal documents current generations and rejects blind uncertain resend',()=>{
+ const api=json('public/openapi-agent.json'),identity=json('public/identity-onboarding.json');
+ const renewal=identity.optionalOffer.renew;
+ assert.equal(renewal.path,'/api/v1/agent/identity/offer/renew');
+ assert.deepEqual(Object.keys(renewal.body).sort(),['expectedOfferId','guardianDesignated','guardianEmail','mailConsent','requestKey']);
+ assert.equal(renewal.requestRules.additionalFields,false);
+ assert.equal(renewal.requestRules.maxBytes,2048);
+ assert.equal(renewal.requestRules.bodyReadDeadlineSeconds,10);
+ assert.match(renewal.eligibility,/pending\/accepted offer.*no identity yet bound/);
+ assert.match(renewal.eligibility,/Current accepted offers do not need renewal merely because the token expired/);
+ assert.match(renewal.deliveryGate,/sending\/unknown/);
+ assert.match(renewal.result,/new pending generation/);
+ assert.match(renewal.result,/Human must explicitly opt in to the new generation/);
+ assert.match(renewal.retry,/original generation.*current may be false/);
+ assert.match(renewal.retry,/Initial POST \/offer never renews automatically/);
+ const op=api.paths[renewal.path].post;
+ assert.deepEqual(op.security,[{towerKey:[]}]);
+ assert.equal(op.requestBody.content['application/json'].schema.$ref,'#/components/schemas/IdentityOfferRenewRequest');
+ assert.equal(api.components.schemas.IdentityOfferRenewRequest.additionalProperties,false);
+ for(const field of ['generation','current','renewalRequired','renewable'])assert.ok(api.components.schemas.IdentityOffer.required.includes(field));
+ assert.match(api.paths['/api/v1/identity/offer/inspect'].post.responses['409'].description,/offer_superseded/);
+ assert.match(api.paths['/api/v1/identity/offer/decision'].post.responses['409'].description,/offer_superseded/);
+ assert.match(api.components.schemas.MoveInCompletion.description,/real homepage door link/);
+ assert.match(api.paths['/api/v1/reception/preflight'].post.responses['503'].description,/preflight_unavailable/);
 });

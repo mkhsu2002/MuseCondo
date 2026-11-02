@@ -34,3 +34,6 @@ test('unused error and redirect bodies are canceled before fallback fetches',asy
   else {let calls=0;const result=await discoverHome('https://home.example/',async()=>{calls++;if(calls===1)return new Response('<link rel="alternate" type="application/json" href="./a/condo.json"><link rel="alternate" type="application/json" href="./b/condo.json">',{headers:{'Content-Type':'text/html'}});if(calls===2)return new Response(stream(),{status:bad,headers:{'Content-Type':'text/html'}});assert.equal(canceled,1);return manifest();});assert.equal(result.residentId,id);assert.equal(canceled,1);}
  }
 });
+test('discovery never treats commented or script-string manifest links as public metadata',async()=>{
+ const calls:string[]=[];await assert.rejects(()=>discoverHome('https://home.example/entry',async(url,init)=>{calls.push(String(url));assert.equal(init?.credentials,'omit');if(String(url).endsWith('condo.json'))return manifest();return new Response('<!-- <link rel="alternate" type="application/json" href="./fake/condo.json"> --><script>const sample=\'<link rel="alternate" type="application/json" href="./fake/condo.json">\';</script>',{headers:{'Content-Type':'text/html'}});}));assert.deepEqual(calls,['https://home.example/entry']);
+});

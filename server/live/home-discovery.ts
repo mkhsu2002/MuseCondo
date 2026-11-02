@@ -1,8 +1,9 @@
+import {parse, type DefaultTreeAdapterMap} from 'parse5';
 import {isMuseShareURL,homeSourceURL,readNativeHome,HomeSourceError} from './home-source.ts';
 import {MusePublicShareError} from './muse-public-share.ts';
 import {towerSourceURL} from './tower-source-url.ts';
 export class HomeDiscoveryError extends Error {
- readonly code:'invalid_home_url'|'home_page_unavailable'|'home_data_unavailable'|'home_identity_mismatch'|'native_public_data_required'|'native_share_unavailable'|'native_share_timeout'|'native_share_rejected'|'invalid_identity'|'invalid_public_snapshot'|'unsupported_native_journal'|'source_visible_mismatch'|'source_identity_changed';
+ readonly code:'invalid_home_url'|'home_page_unavailable'|'home_data_unavailable'|'home_identity_mismatch'|'native_public_data_required'|'native_share_unavailable'|'native_share_timeout'|'native_share_rejected'|'invalid_identity'|'invalid_public_snapshot'|'unsupported_native_journal'|'source_visible_mismatch'|'source_identity_changed'|'unsupported_fields'|'invalid_portrait_crop'|'invalid_image_source'|'unsupported_public_snapshot'|'inconsistent_dream'|'snapshot_too_large'|'date_timezone_required'|'unmapped_visible_content';
  constructor(code:HomeDiscoveryError['code']){super(code);this.code=code;}
 }
 export const NATIVE_HOME_GUIDE='https://raw.githubusercontent.com/mkhsu2002/MuseCondo/main/docs/NATIVE-MUSE-HOMES.md';
@@ -31,12 +32,12 @@ async function bounded(response:Response,max:number):Promise<string>{
 /** Resolve a public homepage to the existing source contract. Never run scripts, follow frames or forward credentials. */
 export async function discoverHome(value:unknown,fetcher:typeof fetch=fetch):Promise<{sourceURL:string;residentId:string}>{
  if(isMuseShareURL(value)){try{const native=await readNativeHome(String(value),fetcher);return {sourceURL:homeSourceURL(value).href,residentId:native.site.home.id};}catch(error){
-  if(error instanceof HomeSourceError&&['native_public_data_required','invalid_identity','invalid_public_snapshot','unsupported_native_journal','source_visible_mismatch','source_identity_changed'].includes(error.code))throw new HomeDiscoveryError(error.code as HomeDiscoveryError['code']);
+  if(error instanceof HomeSourceError&&['native_public_data_required','invalid_identity','invalid_public_snapshot','unsupported_native_journal','source_visible_mismatch','source_identity_changed','unsupported_fields','invalid_portrait_crop','invalid_image_source','unsupported_public_snapshot','inconsistent_dream','snapshot_too_large','date_timezone_required','unmapped_visible_content'].includes(error.code))throw new HomeDiscoveryError(error.code as HomeDiscoveryError['code']);
   if(error instanceof MusePublicShareError)throw new HomeDiscoveryError(error.code==='read_unavailable'?'native_share_unavailable':error.code==='timeout'?'native_share_timeout':'native_share_rejected');
   throw new HomeDiscoveryError('home_data_unavailable');
  }}
  let page=publicHomeURL(value);const origin=page.origin,signal=AbortSignal.timeout(12000);let requests=0;
- async function read(url:URL,accept:string){if(++requests>4||url.origin!==origin)throw Error();publicHomeURL(url.href);return fetcher(url.href,{redirect:'manual',headers:{Accept:accept,'User-Agent':'MuseCondo-HomeDiscovery/1.0'},signal});}
+ async function read(url:URL,accept:string){if(++requests>4||url.origin!==origin)throw Error();publicHomeURL(url.href);return fetcher(url.href,{credentials:'omit',redirect:'manual',headers:{Accept:accept,'User-Agent':'MuseCondo-HomeDiscovery/1.0'},signal});}
  async function manifest(url:URL){towerSourceURL(url.href);if(url.origin!==origin)throw Error();const r=await read(url,'application/json');if(!r.ok||r.headers.get('Content-Type')?.split(';')[0].trim()!=='application/json'){await r.body?.cancel().catch(()=>{});throw Error();}const data=JSON.parse(await bounded(r,128000)) as {templateVersion?:unknown;home?:{id?:unknown}};if(data.templateVersion!=='muse-condo-1'||typeof data.home?.id!=='string'||!/^[a-f0-9]{16}$/.test(data.home.id))throw Error();return {sourceURL:url.href,residentId:data.home.id};}
  if(page.pathname.endsWith('/condo.json')){try{return await manifest(page);}catch{throw new HomeDiscoveryError('home_data_unavailable');}}
  let html:string;
@@ -48,8 +49,10 @@ export async function discoverHome(value:unknown,fetcher:typeof fetch=fetch):Pro
   if(!response.ok||response.headers.get('Content-Type')?.split(';')[0].trim()!=='text/html'){await response.body?.cancel().catch(()=>{});throw Error();}html=await bounded(response,256000);
  }catch{throw new HomeDiscoveryError('home_page_unavailable');}
  const candidates:URL[]=[];
- for(const tag of html.match(/<link\b[^>]{0,2048}>/gi)??[]){
-  const attr=(name:string)=>tag.match(new RegExp('\\b'+name+'\\s*=\\s*(?:"([^"<>]*)"|\'([^\'<>]*)\'|([^\\s<>]+))','i'))?.slice(1).find(v=>v!==undefined);
+ const links:DefaultTreeAdapterMap['element'][]=[];
+ const visit=(node:DefaultTreeAdapterMap['node'])=>{if('tagName' in node&&node.tagName==='link')links.push(node);if('childNodes' in node)for(const child of node.childNodes)visit(child);};visit(parse(html));
+ for(const tag of links){
+  const attr=(name:string)=>tag.attrs.find(a=>a.name===name)?.value;
   if(!/^(?:application\/json)$/i.test(attr('type')??'')||!/(?:^|\s)(?:alternate|musecondo)(?:\s|$)/i.test(attr('rel')??''))continue;
   const href=attr('href');if(!href||href.includes('&'))continue;
   try{const u=new URL(href,page);towerSourceURL(u.href);if(u.origin===origin)candidates.push(u);}catch{/* Untrusted links are not fetch instructions. */}

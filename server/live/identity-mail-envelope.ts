@@ -23,8 +23,8 @@ const exact=(v:unknown,keys:string[]):v is Record<string,unknown>=>!!v&&typeof v
 const digest=async(bytes:Uint8Array<ArrayBuffer>)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
 interface Event {id:string;kind:string;entity_id:string;recipient_ciphertext:string;recipient_hash:string;payload_ciphertext:string;state:string;created_at:string}
 interface Stored {event_id:string;template_version:string;metadata_ciphertext:string;body_digest:string;body_length:number;attachment_refs:string}
-interface Metadata {version:1;locale?:'en';copyRevision?:'en-1';origin:string;from:string;to:string;subject:string;text:string;templateVersion:string;binding:string;attachmentRefs:IdentityMailAttachmentRef[]}
-interface Qualified {context:string;binding:string;agent:string;sql:string;values:unknown[];card?:Card;token?:string}
+interface Metadata {version:1;locale?:'en';copyRevision?:'en-1'|'en-offer-1';origin:string;from:string;to:string;subject:string;text:string;templateVersion:string;binding:string;attachmentRefs:IdentityMailAttachmentRef[]}
+interface Qualified {context:string;binding:string;agent?:string;sql:string;values:unknown[];card?:Card;token?:string;offer?:{token:string;homeURL:string;expiresAt:string}}
 interface Card {credential_id:string;agent_id:string;signed_json:string;pdf_digest:string;json_digest:string;pdf_length:number;json_length:number;pdf_chunks:number;json_chunks:number}
 interface Chunk {chunk_index:number;data_base64:string}
 interface Artifacts {refs:IdentityMailAttachmentRef[];attachments:{filename:string;content:string}[];guards:Statement[]}
@@ -58,6 +58,19 @@ export function createIdentityMailEnvelope(env:IdentityMailEnvelopeEnvironment){
   configured(id);
   const event=await one<Event>('SELECT * FROM identity_mail_events WHERE id=?',id);if(!event)fail('event_unavailable');if(event.state!=='pending')fail('event_already_processed');if(!canonicalTime(event.created_at))fail('event_time_unavailable');
   let payload:unknown;try{payload=JSON.parse(await decryptPrivate(env.contactKey,'mail-payload',id,event.payload_ciphertext));}catch{fail('private_payload_unavailable');}
+  if(event.kind==='guardian-invitation'&&exact(payload,['template','token'])&&payload.template==='identity-application-offer-v1'){
+   if(typeof payload.token!=='string'||!/^[a-f0-9]{64}$/.test(payload.token))fail('unsupported_mail_payload');
+   const tokenHash=await hashPrivate(env.contactKey,'identity-offer-token:'+event.entity_id,payload.token);
+   const columns=['id','account_id','generation','room_id','resident_id','public_revision','public_url','guardian_designated','mail_consent','recipient_ciphertext','recipient_hash','token_hash','mail_event_id','state','created_at','expires_at'];
+   const proof=['publication_epoch','snapshot_digest','offer_digest'];
+   const groups:[string,string[]][]=[['e',eventFields],['o',columns],['proof',proof],['h',['account_id','offer_id','generation']],['t',['publication_epoch','public_revision','directory_consent','snapshot_consent']],['r',['id','account_id']]];
+   const sql='SELECT '+snapshot(groups)+' context,'+snapshot([['e',eventFields],['o',columns.filter(c=>c!=='state')],['proof',proof],['h',['account_id','offer_id','generation']]])+` binding,o.id offer_id,o.room_id room_id,o.public_url home_url,o.expires_at FROM identity_mail_events e JOIN identity_offers o ON o.id=e.entity_id AND o.mail_event_id=e.id JOIN identity_offer_heads h ON h.account_id=o.account_id AND h.offer_id=o.id AND h.generation=o.generation JOIN identity_offers proof ON proof.id=o.id JOIN tower_residencies t ON t.account_id=o.account_id AND t.room_id=o.room_id AND t.resident_id=o.resident_id JOIN rooms r ON r.id=o.room_id AND r.account_id=o.account_id WHERE e.id=? AND e.kind='guardian-invitation' AND e.state='pending' AND o.state='pending' AND o.guardian_designated=1 AND o.mail_consent=1 AND t.public_revision=o.public_revision AND t.publication_epoch=o.publication_epoch AND t.directory_consent=1 AND t.snapshot_consent=1 AND r.published=1 AND EXISTS(SELECT 1 FROM tower_snapshots s WHERE s.room_id=t.room_id AND s.revision=t.public_revision AND s.content_digest=o.snapshot_digest) AND NOT EXISTS(SELECT 1 FROM agent_identities i WHERE i.account_id=o.account_id) AND o.token_hash=? AND o.recipient_ciphertext=e.recipient_ciphertext AND o.recipient_hash=e.recipient_hash AND e.dedupe_key='identity-offer:'||o.id AND o.created_at=e.created_at AND o.created_at<=? AND o.created_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND o.expires_at>? AND o.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND e.recipient_ciphertext=? AND e.recipient_hash=? AND e.payload_ciphertext=? AND e.created_at=?`;
+   const values=[id,tokenHash,stamp(),stamp(),event.recipient_ciphertext,event.recipient_hash,event.payload_ciphertext,event.created_at];
+   const row=await one<{context:string;binding:string;offer_id:string;room_id:string;home_url:string;expires_at:string}>(sql,...values);if(!row)fail('event_qualification_blocked');
+   let home:URL;try{home=new URL(row.home_url);}catch{fail('event_qualification_blocked');}if(home.origin!==env.origin||home.pathname!=='/home/'+row.room_id||home.username||home.password||home.search||home.hash||home.href!==row.home_url)fail('event_qualification_blocked');
+   let email:string;try{email=validateGuardianEmail(await decryptPrivate(env.contactKey,'identity-offer-recipient',row.offer_id,event.recipient_ciphertext));if(await hashPrivate(env.contactKey,'guardian-email',email)!==event.recipient_hash)fail('recipient_unavailable');}catch{fail('recipient_unavailable');}
+   return {event,q:{context:row.context,binding:row.binding,sql,values,offer:{token:payload.token,homeURL:row.home_url,expiresAt:row.expires_at}},email,template:'guardian-invitation-v1'};
+  }
   let sql:string,template:string;const values:unknown[]=[id];
   const groups:[string,string[]][]=[...commonGroups,['v',inviteFields]];
   // Permanent content/recipient binding excludes ordinary home revisions and
@@ -96,7 +109,7 @@ export function createIdentityMailEnvelope(env:IdentityMailEnvelopeEnvironment){
   return {event,q,email,template};
  }
  // Refresh injected time at execution; SQLite independently checks its own native clock.
- function contextGuard(q:Qualified){const values=[...q.values];if(q.token){values[2]=stamp();values[3]=stamp();}return guard('EXISTS(SELECT 1 FROM ('+q.sql+') WHERE context=?)',...values,q.context);}
+ function contextGuard(q:Qualified){const values=[...q.values];if(q.token||q.offer){values[2]=stamp();values[3]=stamp();}return guard('EXISTS(SELECT 1 FROM ('+q.sql+') WHERE context=?)',...values,q.context);}
  async function artifacts(q:Qualified):Promise<Artifacts>{
   if(!q.card)return {refs:[],attachments:[],guards:[]};
   const c=q.card;
@@ -127,6 +140,7 @@ export function createIdentityMailEnvelope(env:IdentityMailEnvelopeEnvironment){
   guards.push(guard('EXISTS(SELECT 1 FROM identity_credentials WHERE credential_id=? AND signed_json=?)',c.credential_id,c.signed_json));return {refs,attachments,guards};
  }
  function message(template:string,q:Qualified,event:Event):{subject:string;text:string}{
+  if(q.offer)return {subject:'Optional permanent identity application · MuseCondo',text:'Your Agent’s public home is ready: '+q.offer.homeURL+'\n\nYou were designated to receive this optional invitation to apply for a permanent identity. No identity application has been started.\n\nChoose whether to continue: '+env.origin+'/identity/offer#'+event.entity_id+'.'+q.offer.token+'\n\nIf you agree, your Agent can begin the application. Guardian designation and Passkey setup are separate steps that you complete yourself. Ignoring or declining this invitation leaves the public home available.\n\nThis invitation expires at '+q.offer.expiresAt+'.'};
   const identity='Agent ID: '+q.agent+'\n\n';
   const occurred='Event time: '+event.created_at+'\n\n';
   if(template==='guardian-invitation-v1')return {subject:'MuseCondo Guardian invitation',text:'You have been invited to be a MuseCondo Guardian.\n\n'+identity+'Invitation ID: '+event.entity_id+'\n\nOne-time confirmation code: '+q.token+'\n\nEnter these two values separately at the official page: '+env.origin+'/identity\n\nThis confirmation code expires within 24 hours. It is not a recovery code. If you did not expect this invitation, ignore this email.'};
@@ -145,10 +159,10 @@ export function createIdentityMailEnvelope(env:IdentityMailEnvelopeEnvironment){
   if(!row){
    if(!senderDomain(env.from))fail('sender_unavailable');
    // v1 identifies the payload family. Copy revisions apply only before the first freeze; replay uses stored text verbatim.
-   metadata={version:1,locale:'en',copyRevision:'en-1',origin:env.origin,from:env.from!,to:email,...message(template,q,event),templateVersion:template,binding:q.binding,attachmentRefs:a.refs};
+   metadata={version:1,locale:'en',copyRevision:q.offer?'en-offer-1':'en-1',origin:env.origin,from:env.from!,to:email,...message(template,q,event),templateVersion:template,binding:q.binding,attachmentRefs:a.refs};
    const encoded=body(metadata,id,a.attachments),cipher=await encryptPrivate(env.contactKey,'mail-envelope',id,JSON.stringify(metadata));if(cipher.length>32768)fail('envelope_metadata_too_large');
    const candidate:Stored={event_id:id,template_version:template,metadata_ciphertext:cipher,body_digest:await hashPrivate(env.contactKey,'mail-body:'+id,encoded),body_length:encoder.encode(encoded).length,attachment_refs:JSON.stringify(a.refs)},now=stamp();
-   const detail=JSON.stringify({bodyDigest:candidate.body_digest,bodyLength:candidate.body_length,templateVersion:template,locale:'en',copyRevision:'en-1',attachmentRefs:a.refs});
+   const detail=JSON.stringify({bodyDigest:candidate.body_digest,bodyLength:candidate.body_length,templateVersion:template,locale:'en',copyRevision:q.offer?'en-offer-1':'en-1',attachmentRefs:a.refs});
    if(expectedDigest!==undefined&&expectedDigest!==candidate.body_digest)fail('envelope_expected_digest_mismatch');
    let committed=false;
    try{await db.batch([...a.guards,contextGuard(q),stmt('INSERT INTO identity_mail_envelopes(event_id,template_version,metadata_ciphertext,body_digest,body_length,attachment_refs,created_at) VALUES(?,?,?,?,?,?,?)',id,template,cipher,candidate.body_digest,candidate.body_length,candidate.attachment_refs,now),stmt("INSERT INTO identity_mail_audit(id,event_id,action,detail_json,created_at) VALUES(?,?,'prepared',?,?)",randomIdentityId(),id,detail,now)]);committed=true;}catch{if(!await stored(id))fail('envelope_prepare_unavailable');}

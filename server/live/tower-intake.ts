@@ -1,4 +1,4 @@
-import {homeSourceURL, homeSourceIdentity, isMuseShareURL, readNativeHome, readNativeClaim} from './home-source.ts';
+import {homeSourceURL, homeSourceIdentity, isMuseShareURL, readNativeHome, readNativeClaim, validateHomeSnapshot, homeSourceMapping, HomeSourceError} from './home-source.ts';
 import type { Database, Statement } from "./db.ts";
 import {createTowerActivities} from "./tower-activities.ts";
 import {createTowerVisits} from "./tower-visits.ts";
@@ -31,6 +31,7 @@ export interface TowerIntakeEnvironment {
     sourceURL: string,
   ) => Promise<boolean>;
   onChange?: (roomId: string) => Promise<void>;
+  onProgress?: (accountId: string) => Promise<void>;
   operator?: (request: Request) => Promise<boolean>;
 }
 interface Residency {
@@ -639,6 +640,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       }
       throw error;
     }
+    try{await env.onProgress?.(identity.accountId);}catch{/* Committed progress remains dirty for bounded recovery. */}
   }
   async function prior(
     identity: Identity,
@@ -689,11 +691,18 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       .bind(accountId, generation);
   async function nativeHome(url: URL, residentId: string) {
     try { return await readNativeHome(url.href, env.fetcher ?? fetch, residentId); }
-    catch { return fail(400, "source_native_rejected"); }
+    catch(error) { if(error instanceof HomeSourceError)return fail(400,error.code);return fail(400, "source_native_rejected"); }
+  }
+  function staticHome(value:unknown,residentId:string){
+    try{return validateHomeSnapshot(value,residentId);}
+    catch(error){if(error instanceof HomeSourceError)fail(error.code==="source_identity_changed"?409:400,error.code);throw error;}
   }
   async function snapshot(url: URL, residentId: string) {
     const native = isMuseShareURL(url.href) ? await nativeHome(url, residentId) : null;
-    const site = validateTowerSnapshot(native ? native.site : await remoteJSON(url), residentId),
+    const source = native ? native.site : await remoteJSON(url);
+    const normalized = native ? native.site : staticHome(source,residentId);
+    const mapping = native ? native.normalization : homeSourceMapping(source);
+    const site = validateTowerSnapshot(normalized, residentId),
       images: {
         purpose: "home" | "dream";
         bytes: Uint8Array;
@@ -703,7 +712,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       | "home"
       | "dream"
     )[]) {
-      const imageURL = new URL(`./assets/${purpose}.png`, url);
+      const imageURL = new URL(mapping.assets[purpose] ?? `./assets/${purpose}.png`, url);
       const bytes = await cleanPNG(
         native ? await native.readAsset(purpose) : await remote(imageURL, "image/png", 8 * 1024 * 1024),
         purpose,
@@ -1186,7 +1195,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           // neither imports its content nor fetches/replaces any saved images.
           validateTowerSnapshot(isMuseShareURL(sourceURL.href)
             ? (await nativeHome(sourceURL, r!.resident_id)).site
-            : await remoteJSON(sourceURL), r!.resident_id);
+            : staticHome(await remoteJSON(sourceURL),r!.resident_id), r!.resident_id);
           const result = { intake: safe({ ...r!, source_url: sourceURL.href, proof_method: "challenge" }) };
           try {
             await write(identity, [

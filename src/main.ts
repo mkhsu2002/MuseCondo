@@ -121,7 +121,7 @@ function render(focus = false) {
   const resident = findResident(segments[0]);
   activeResident = resident;
   document.documentElement.lang='en';
-  if (!pathname) { root.innerHTML = `<main id="main" class="live-main"><p role="status">${m.service.loading}</p></main>`; document.title = m.meta.title; void renderLiveTower(root, () => { root.innerHTML = tower(); bindTowerWelcome(root,base); }); }
+  if (!pathname) { if(!root.querySelector("[data-public-home-directory]"))root.innerHTML = `<main id="main" class="live-main"><p role="status">${m.service.loading}</p></main>`; document.title = m.meta.title; void renderLiveTower(root, () => { root.innerHTML = tower(); bindTowerWelcome(root,base); }); }
   else if (pathname === '選輯紀錄') { root.innerHTML = audit(); document.title = 'Community records — Muse Tower'; }
   else if (pathname === '入住' || pathname === 'about') { root.innerHTML = moveIn(); document.title = 'About moving in — Muse Tower'; }
   else if (resident && (segments.length === 1 || (segments.length === 2 && ['inside','dreams'].includes(segments[1])))) {

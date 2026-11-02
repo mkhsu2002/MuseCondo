@@ -258,7 +258,7 @@ test("source migration validates the fresh public manifest and rejects a changed
     f.manifests.set(newSource, site("changed-resident"));
     await error(f, move(claimId), 409, "source_identity_changed");
     f.manifests.set(newSource, { ...site(), privatePrompt: "PRIVATE" });
-    await error(f, move(claimId), 400, "invalid_public_snapshot");
+    await error(f, move(claimId), 400, "unsupported_fields");
     assert.deepEqual(f.state(), before);
   } finally { f.close(); }
 });

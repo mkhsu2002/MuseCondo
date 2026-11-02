@@ -1,3 +1,9 @@
+import {createHomePreflightRoute} from './home-preflight-route.ts';
+import {createMoveInCompletion} from './move-in-completion.ts';
+import {createMoveInInvitationChoice} from './move-in-invitation-choice.ts';
+import {renderHomeDirectory} from '../../src/shared/home-directory.ts';
+import {createIdentityOffer,IDENTITY_OFFER_SCHEMA} from './identity-offer.ts';
+import {ASSISTED_ADMISSION_SCHEMA} from './assisted-admission-schema.ts';
 import {transportCheck} from './transport-check.ts';
 import {createNativeSourceInspection} from './native-source-inspection.ts';
 import {towerLordRoute,type TowerLordBindings} from './tower-lord-routes.ts';
@@ -63,13 +69,18 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const db=env.DB;if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')return json({available:false,error:'database_not_bound',runtime:safe},503);
   try{
    const rows=(await db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger','index','view')").all<{name:string}>()).results;
-   if(![...['maintenance_authorities','maintenance_requests','maintenance_challenges','maintenance_request_binding','maintenance_challenge_binding'],...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...MANAGER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
+   if(![...['maintenance_authorities','maintenance_requests','maintenance_challenges','maintenance_request_binding','maintenance_challenge_binding'],...ASSISTED_ADMISSION_SCHEMA,...IDENTITY_OFFER_SCHEMA,...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...MANAGER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',runtime:safe},503);
   }catch{return json({available:false,error:'database_unavailable',runtime:safe},503);}
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
+  const completion=createMoveInCompletion({db,origin:env.PUBLIC_ORIGIN!});
+  const preflight=await createHomePreflightRoute({db,origin:env.PUBLIC_ORIGIN!})(request);if(preflight)return preflight;
+  const verifiedCompletion=await completion.fetch(request);if(verifiedCompletion)return verifiedCompletion;
+  const invitationChoice=await createMoveInInvitationChoice({db,origin:env.PUBLIC_ORIGIN!}).fetch(request);if(invitationChoice)return invitationChoice;
+  const identityOffer=await createIdentityOffer({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,verifyCompletion:completion.verify,onMailEvent}).fetch(request);if(identityOffer)return identityOffer;
   const sourceInspection=await createNativeSourceInspection({operator:async()=>operator()})(request);if(sourceInspection)return sourceInspection;
   const mailControlResponse=await createIdentityMailControl({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request);if(mailControlResponse)return mailControlResponse;
   const scheduled=async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!request.headers.get('X-Manager-Schedule-Key')&&await digest(request.headers.get('X-Manager-Schedule-Key')!)===await digest(env.MANAGER_SCHEDULE_TRIGGER_KEY);
-  const autonomyRoute=await createAutonomyRoutes({db,origin:env.PUBLIC_ORIGIN!,operator,scheduled,bucket:env.MANAGER_ASSETS,runtime:env.MANAGER_RUNTIME,trigger:env.MANAGER_SCHEDULE_TRIGGER_KEY,apiKey:env.meta_muse_api,assets:env.ASSETS}).fetch(request);if(autonomyRoute)return autonomyRoute;
+  const autonomyRoute=await createAutonomyRoutes({db,origin:env.PUBLIC_ORIGIN!,operator,scheduled,bucket:env.MANAGER_ASSETS,runtime:env.MANAGER_RUNTIME,trigger:env.MANAGER_SCHEDULE_TRIGGER_KEY,apiKey:env.meta_muse_api,assets:env.ASSETS,verifyCompletion:completion.verify}).fetch(request);if(autonomyRoute)return autonomyRoute;
   const managerRoute=await createManagerRoutes({db,bucket:env.MANAGER_ASSETS,origin:env.PUBLIC_ORIGIN!,operator,scheduleAuthorized:async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!request.headers.get('X-Manager-Schedule-Key')&&await digest(request.headers.get('X-Manager-Schedule-Key')!)===await digest(env.MANAGER_SCHEDULE_TRIGGER_KEY)}).fetch(request);if(managerRoute)return managerRoute;
   if(url.pathname==='/api/v1/operator/identity/mail-readiness')return (await createIdentityMailReadiness({db,origin:env.PUBLIC_ORIGIN!,from:env.IDENTITY_MAIL_FROM,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request))!;
   const admissionResponse=await createTowerAdmission({db,origin:env.PUBLIC_ORIGIN!,operator}).fetch(request);if(admissionResponse)return admissionResponse;
@@ -90,10 +101,10 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const recoveryResponse=await createIdentityRecovery({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,onMailEvent}).fetch(request);if(recoveryResponse)return recoveryResponse;
   const registrationResponse=await createIdentityRegistration({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY}).fetch(request);if(registrationResponse)return registrationResponse;
   const identityResponse=await createAgentIdentity({db,origin:env.PUBLIC_ORIGIN!}).fetch(request);if(identityResponse)return identityResponse;
-  const receptionAdmission=createManagerAdmission({db,apiKey:env.meta_muse_api,wake:env.MANAGER_RUNTIME&&env.MANAGER_SCHEDULE_TRIGGER_KEY?async()=>{const response=await env.MANAGER_RUNTIME!.fetch(new Request('https://manager.internal/wake',{method:'POST',headers:{'X-Manager-Schedule-Key':env.MANAGER_SCHEDULE_TRIGGER_KEY!}}));if(!response.ok)throw Error('admission_wake_unavailable');}:undefined});
-  const reception=createTowerReception({db,origin:env.PUBLIC_ORIGIN!,operator:async()=>operator(),reviewStatus:receptionAdmission.status,onReview:receptionAdmission.enqueue});
+  const receptionAdmission=createManagerAdmission({db,apiKey:env.meta_muse_api,verifyCompletion:completion.verify,wake:env.MANAGER_RUNTIME&&env.MANAGER_SCHEDULE_TRIGGER_KEY?async()=>{const response=await env.MANAGER_RUNTIME!.fetch(new Request('https://manager.internal/wake',{method:'POST',headers:{'X-Manager-Schedule-Key':env.MANAGER_SCHEDULE_TRIGGER_KEY!}}));if(!response.ok)throw Error('admission_wake_unavailable');}:undefined});
+  const reception=createTowerReception({db,origin:env.PUBLIC_ORIGIN!,operator:async()=>operator(),reviewStatus:receptionAdmission.status,onReview:receptionAdmission.enqueue,assistanceStatus:receptionAdmission.assistance.status});
   const receptionResponse=await reception.fetch(request);if(receptionResponse)return receptionResponse;
-  const intake=createTowerIntake({db,origin:env.PUBLIC_ORIGIN!,localTest:false,sourceOrigins:sourceOrigins(env.TOWER_SOURCE_ORIGINS),operator:async()=>operator(),ownerAttestation:async()=>operator(),onChange:async()=>{await reconcile();}});
+  const intake=createTowerIntake({db,origin:env.PUBLIC_ORIGIN!,localTest:false,sourceOrigins:sourceOrigins(env.TOWER_SOURCE_ORIGINS),operator:async()=>operator(),ownerAttestation:async()=>operator(),onProgress:async accountId=>{const rows=(await db.prepare("SELECT id FROM tower_reception_cases WHERE account_id=? AND state IN ('approved','active')").bind(accountId).all<{id:string}>()).results;for(const row of rows)await receptionAdmission.enqueue(row.id);},onChange:async()=>{await reconcile();}});
   const tower=await intake.fetch(request);if(tower)return tower;
   if(url.pathname.startsWith('/api/v1/operator/')){
    if(request.headers.has('Cookie')||request.headers.has('Origin')&&request.headers.get('Origin')!==env.PUBLIC_ORIGIN||request.headers.get('Sec-Fetch-Site')==='cross-site')return json({error:'origin_rejected'},403);
@@ -141,6 +152,13 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   return new Response(response.body,{status:response.status,headers});
  }
+ if(/^\/identity\/offer\/?$/.test(url.pathname)||url.pathname==='/identity-offer.html'){
+  if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
+  if(!env.ASSETS)return json({error:'assets_not_bound'},503);
+  const response=await env.ASSETS.fetch(new Request(new URL('/identity-offer.html',url),request));
+  const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  return new Response(response.body,{status:response.status,headers});
+ }
  if(/^\/identity\/recover\/?$/.test(url.pathname)||url.pathname==='/identity-recovery.html'){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
   if(!env.ASSETS)return json({error:'assets_not_bound'},503);
@@ -160,6 +178,20 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
  }
  const legacy=legacyHomeRedirect(request,env.LEGACY_HOME_REDIRECTS);if(legacy)return legacy;
  if(!env.ASSETS)return json({available:false,error:'assets_not_bound'},503);
+ if(url.pathname==='/'&&request.method==='GET'&&env.DB&&url.origin===env.PUBLIC_ORIGIN){
+  const limited=await checkEdgeGuard(request,env);if(limited)return limited;
+  const response=await env.ASSETS.fetch(request);
+  if(!response.ok||!response.headers.get('Content-Type')?.startsWith('text/html'))return response;
+  try{
+   const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));
+   if(!directory.ok)return response;
+   const {rooms}=await directory.json() as {rooms:{id:string;name:string}[]};
+   const markup=renderHomeDirectory('',rooms);
+   const html=(await response.clone().text()).replace('<div id="app"></div>',`<div id="app">${markup}</div>`);
+   const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');for(const key of ['ETag','Content-Length','Content-Encoding','Last-Modified'])headers.delete(key);
+   return new Response(html,{status:response.status,headers});
+  }catch{return response;}
+ }
  if(/^\/(move-in|neighbors|home\/[a-f0-9]{16}(\/(inside|dreams))?)\/?$/.test(url.pathname)){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
   const target=new URL('/',url);return env.ASSETS.fetch(new Request(target,request));

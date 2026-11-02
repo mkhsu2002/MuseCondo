@@ -32,6 +32,14 @@ export function createAgentIdentity(env:Environment){
  const one=<T>(sql:string,...values:unknown[])=>db.prepare(sql).bind(...values).first<T>();
  const row=(account:string)=>one<IdentityRow>(`SELECT i.*,CASE WHEN i.state='active' AND EXISTS(SELECT 1 FROM identity_guardians g JOIN identity_guardian_invites v ON v.id=g.invitation_id AND v.agent_id=g.agent_id AND v.state='registered' JOIN identity_guardian_passkeys p ON p.guardian_id=g.guardian_id AND p.agent_id=g.agent_id AND p.revoked_at IS NULL JOIN identity_offline_recovery_codes c ON c.agent_id=g.agent_id AND c.consumed_at IS NULL AND c.authority_epoch=i.authority_epoch AND c.identity_version=i.version WHERE g.agent_id=i.agent_id) THEN 1 ELSE 0 END recovery_configured FROM agent_identities i WHERE i.account_id=?`,account);
  const residence=(account:string)=>one<Residency>('SELECT t.account_id,t.room_id,t.resident_id,t.revision FROM tower_residencies t JOIN rooms r ON r.id=t.room_id AND r.account_id=t.account_id WHERE t.account_id=?',account);
+ /** New assisted approvals need the human's current opt-in. Historical identities and exact receipts return before this guard. */
+ async function assistedOfferGuard(account:string,residency:Residency):Promise<Statement|null>{
+  if(!await one("SELECT 1 FROM sqlite_master WHERE type='table' AND name='manager_admission_policy_results'"))return null;
+  const sql=`NOT EXISTS(SELECT 1 FROM manager_admission_policy_results WHERE account_id=? AND decision='approve') OR EXISTS(SELECT 1 FROM identity_offers o JOIN identity_offer_heads h ON h.account_id=o.account_id AND h.offer_id=o.id AND h.generation=o.generation JOIN tower_residencies t ON t.account_id=o.account_id AND t.room_id=o.room_id AND t.resident_id=o.resident_id JOIN rooms r ON r.id=t.room_id AND r.account_id=t.account_id JOIN tower_snapshots s ON s.room_id=t.room_id AND s.revision=t.public_revision WHERE o.account_id=? AND o.room_id=? AND o.resident_id=? AND o.state='accepted' AND o.guardian_designated=1 AND o.mail_consent=1 AND o.decided_at>=o.created_at AND o.decided_at<o.expires_at AND o.decided_at<=? AND o.decided_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND t.public_revision=o.public_revision AND t.publication_epoch=o.publication_epoch AND t.snapshot_consent=1 AND t.directory_consent=1 AND r.published=1 AND s.content_digest=o.snapshot_digest AND EXISTS(SELECT 1 FROM identity_offer_audit a WHERE a.offer_id=o.id AND a.action='accepted' AND a.created_at=o.decided_at))`;
+  const guard=()=>db.prepare("SELECT CASE WHEN ("+sql+") THEN 1 ELSE json('identity-human-optin-required') END").bind(account,account,residency.room_id,residency.resident_id,stamp());
+  try{await guard().first();}catch{fail(409,'human_identity_opt_in_required');}
+  return guard();
+ }
  async function authorize(request:Request,scope:string):Promise<Authorization>{
   if(request.headers.has('Cookie'))fail(403,'separate_agent_authorization_required');
   if(request.headers.get('Sec-Fetch-Site')==='cross-site'||request.headers.has('Origin')&&request.headers.get('Origin')!==env.origin)fail(403,'origin_rejected');
@@ -76,8 +84,10 @@ export function createAgentIdentity(env:Environment){
    await rate(auth,v.requestKey,digest);
    if(await row(auth.accountId)){const replay=await prior(auth,v.requestKey,digest);if(replay)return replay;fail(409,'identity_already_bound');}
    const residency=await residence(auth.accountId);if(!residency||residency.resident_id!==v.residentId||residency.revision!==v.expectedResidencyRevision)fail(409,'residency_conflict');
+   const offerGuard=await assistedOfferGuard(auth.accountId,residency);
    const createdAt=stamp(),identity:IdentityRow={agent_id:createAgentId(),state:'provisional',version:1,authority_epoch:1,resident_id:residency.resident_id,room_id:residency.room_id,created_at:createdAt,updated_at:createdAt},result={identity:metadata(identity)};
    try{await batch(auth,[
+    ...(offerGuard?[offerGuard]:[]),
     db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies t JOIN rooms r ON r.id=t.room_id AND r.account_id=t.account_id WHERE t.account_id=? AND t.room_id=? AND t.resident_id=? AND t.revision=?) AND NOT EXISTS(SELECT 1 FROM agent_identities WHERE account_id=?) AND (SELECT COUNT(*) FROM agent_identities)<10000 THEN 1 ELSE json('identity-binding-conflict') END").bind(auth.accountId,residency.room_id,v.residentId,v.expectedResidencyRevision,auth.accountId),
     db.prepare("INSERT INTO agent_identities(agent_id,account_id,room_id,resident_id,version,authority_epoch,state,recovery_consent,created_at,updated_at) VALUES(?,?,?,?,1,1,'provisional',1,?,?)").bind(identity.agent_id,auth.accountId,identity.room_id,identity.resident_id,createdAt,createdAt),
     db.prepare("INSERT INTO identity_audit(id,agent_id,action,detail_json,created_at) VALUES(?,?,'enrolled','{}',?)").bind(crypto.randomUUID(),identity.agent_id,createdAt),
@@ -87,6 +97,7 @@ export function createAgentIdentity(env:Environment){
     const replay=await prior(auth,v.requestKey,digest);if(replay)return replay;
     if(await row(auth.accountId))fail(409,'identity_already_bound');
     const latest=await residence(auth.accountId);if(!latest||latest.room_id!==residency.room_id||latest.resident_id!==v.residentId||latest.revision!==v.expectedResidencyRevision)fail(409,'residency_conflict');
+    await assistedOfferGuard(auth.accountId,latest);
     if(await one('SELECT 1 FROM agent_identities LIMIT 1 OFFSET 9999'))fail(409,'identity_capacity_reached');
     throw error;
    }
