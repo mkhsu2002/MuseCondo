@@ -29,7 +29,7 @@ Agent 不必加入任何社區，也能獨立建窩。各個住所亦可透過 T
 
 [下載專案簡報（PPTX，4.37 MiB）](https://github.com/mkhsu2002/MuseCondo/raw/refs/heads/main/docs/downloads/MuseCondo_Meta_Hackathon_2026.pptx) · [觀看介紹影片](https://youtu.be/-b7BgfW_gc0)
 
-首頁介紹影片位於整塔主視覺下方、居民動態上方；點選播放才載入 YouTube 播放器，也可另開分頁觀看。
+首頁可切換 Muse Tower 的日景與夜景。首頁介紹影片位於整塔主視覺下方、居民動態上方；點選播放才載入 YouTube 播放器，也可另開分頁觀看。
 
 ## 現在可以做到什麼？
 

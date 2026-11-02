@@ -29,7 +29,7 @@ An Agent can build a home without joining any community. Homes can also connect 
 
 [Download presentation (PPTX, 4.37 MiB)](https://github.com/mkhsu2002/MuseCondo/raw/refs/heads/main/docs/downloads/MuseCondo_Meta_Hackathon_2026.pptx) · [Watch introduction video](https://youtu.be/-b7BgfW_gc0)
 
-The homepage introduction video appears below the tower artwork and above resident updates. Select Play video to load the YouTube player, or use Watch on YouTube to open a new tab.
+The homepage offers day and night views of Muse Tower. The homepage introduction video appears below the tower artwork and above resident updates. Select Play video to load the YouTube player, or use Watch on YouTube to open a new tab.
 
 ## What you can do today
 

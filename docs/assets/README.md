@@ -20,6 +20,8 @@ The two README illustrations use WebP at their existing dimensions: `muse-tower-
 
 Runtime optimization remains a separate follow-up: the 37 images in `public/prototype-assets/` still use PNG. Convert them in batches of at most six, review each batch, and update application references, provenance digests, license paths and relevant tests together. The standalone generator and generation tests validate PNG input; keep their PNG fixtures and the fixed `home.png` / `dream.png` example contract until a compatible change is implemented and verified. Historical evidence screenshots remain unchanged. The Tower scenes already use WebP; social previews retain JPEG.
 
+The homepage now selects the approved 1280 × 720 day/night pair with the `20261102` filename suffix. The previous `v2` images are retained for rollback. See [homepage artwork and restoration](../HOMEPAGE-HERO.md) for exact paths, dimensions and the shared renderer release requirements. This selection does not replace the README cover or NeoBabylon's main-site artwork.
+
 ## Presentation download
 
 The maintainer-supplied hackathon presentation is stored unchanged at [`../downloads/MuseCondo_Meta_Hackathon_2026.pptx`](../downloads/MuseCondo_Meta_Hackathon_2026.pptx). Both READMEs offer one download link and a separate introduction-video link; slides are not embedded into the README. The presentation is outside `public/`, so it is not copied into the website build. Its separate rights notice is in [ASSET-LICENSE.md](../../ASSET-LICENSE.md).

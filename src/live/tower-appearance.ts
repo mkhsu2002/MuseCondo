@@ -1,6 +1,6 @@
 const appearanceStorageKey='musecondo.tower-decoration',sceneStorageKey='musecondo.tower-scene';
 import {lobbyThemeCSS,validateLobbyTheme,type LobbyThemeManifest} from '../shared/lobby-theme.ts';
-import {towerScenes,type TowerScene} from '../shared/tower-scenes.ts';
+import {towerScenes,towerSceneImage,type TowerScene} from '../shared/tower-scenes.ts';
 import {lobbyMessages} from '../shared/lobby-messages.ts';
 const messages=lobbyMessages();
 export {towerScenes,appearanceControls,type TowerScene} from '../shared/tower-scenes.ts';
@@ -47,7 +47,7 @@ export async function bindTowerAppearance(root:HTMLElement,base:string,fetcher:t
  const sceneButtons=Array.from(panorama.querySelectorAll<HTMLButtonElement>('[data-tower-scene]'));
  let active:Projection|null=null,enabled=true,disposed=false,selection=0,timer:ReturnType<typeof setTimeout>|undefined;
  const scene=():TowerScene=>panorama.dataset.scene==='night'?'night':'day';
- const original=(value:TowerScene)=>`${base}/tower/muse-tower-${value}-v2.webp`;
+ const original=(value:TowerScene)=>towerSceneImage(base,value);
  const source=(value:TowerScene)=>active&&enabled&&active.endsAt>clock()?`${base}${active.images[value]}`:original(value);
  function controls(show:boolean){panorama!.dataset.theme=show?'halloween':'standard';button!.hidden=!active||active.endsAt<=clock();button!.textContent=show?messages.scene.standard:messages.scene.seasonal;}
  function clearPresentation(){

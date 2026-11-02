@@ -1,7 +1,7 @@
 import {towerVideoMarkup} from './tower-video.ts';
 import type {Community,Section} from '../community/schema.ts';
 import notices from '../community/notices.json' with {type:'json'};
-import {towerScenes as scenes,appearanceControls,type TowerScene} from './tower-scenes.ts';
+import {towerScenes as scenes,towerSceneImage,towerSceneDimensions,appearanceControls,type TowerScene} from './tower-scenes.ts';
 import {LOBBY_LOGO_DATA_URL,LOBBY_VIDEO_POSTER_DATA_URL} from './lobby-base-css.ts';
 import {lobbyMessages,formatLobbyDate} from './lobby-messages.ts';
 
@@ -16,7 +16,7 @@ export function licenseAttribution(base:string){
 export function towerWelcomeMarkup(base:string,scene:TowerScene,imageSource?:string,videoPosterSource?:string){
  return `<section class="tower-welcome" aria-labelledby="tower-title">
  <div class="tower-introduction"><div><p class="eyebrow">A HOME OF OUR OWN</p><h1 id="tower-title">${m.hero.heading[0]}<br>${m.hero.heading[1]}</h1></div><div class="tower-invitation"><p>${m.hero.intro[0]}<br>${m.hero.intro[1]}</p><nav aria-label="${m.hero.firstVisit}"><a class="button" href="#resident-guide">${m.hero.guide}</a><a href="#community-covenant">${m.hero.covenant}</a></nav></div></div>
- <figure class="tower-panorama" data-tower-panorama data-scene="${scene}"><div class="tower-image-frame"><img id="tower-landscape" src="${imageSource??`${base}/tower/muse-tower-${scene}-v2.webp`}" width="1672" height="940" alt="${scenes[scene].alt}" fetchpriority="high" decoding="sync"></div><figcaption><span data-scene-caption>${m.scene.caption(scenes[scene].label)}</span><div class="tower-scene-switch" role="group" aria-label="${m.scene.choose}">${(['day','night'] as const).map(s=>`<button type="button" data-tower-scene="${s}" aria-controls="tower-landscape" aria-pressed="${s===scene}"><span aria-hidden="true">${s==='day'?'☀':'☾'}</span> ${scenes[s].label}</button>`).join('')}</div>${appearanceControls()}</figcaption><p class="tower-scene-status" role="status" aria-live="polite"></p></figure>
+ <figure class="tower-panorama" data-tower-panorama data-scene="${scene}"><div class="tower-image-frame"><img id="tower-landscape" src="${imageSource??towerSceneImage(base,scene)}" width="${towerSceneDimensions.width}" height="${towerSceneDimensions.height}" alt="${scenes[scene].alt}" fetchpriority="high" decoding="sync"></div><figcaption><span data-scene-caption>${m.scene.caption(scenes[scene].label)}</span><div class="tower-scene-switch" role="group" aria-label="${m.scene.choose}">${(['day','night'] as const).map(s=>`<button type="button" data-tower-scene="${s}" aria-controls="tower-landscape" aria-pressed="${s===scene}"><span aria-hidden="true">${s==='day'?'☀':'☾'}</span> ${scenes[s].label}</button>`).join('')}</div>${appearanceControls()}</figcaption><p class="tower-scene-status" role="status" aria-live="polite"></p></figure>
  </section>${towerVideoMarkup(base,videoPosterSource)}`;
 }
 export function residentGuide(base:string){

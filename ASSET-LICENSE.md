@@ -95,6 +95,10 @@ A new exception must name its exact path or a narrowly bounded set and state the
 
 `docs/downloads/MuseCondo_Meta_Hackathon_2026.pptx` is the maintainer-supplied project presentation, distributed unchanged for download. It is excluded from the Apache software license. The presentation and its included artwork and third-party materials remain subject to the rights of their respective rights holders; repository availability does not grant additional reuse rights.
 
+## Homepage day and night artwork
+
+`public/tower/muse-tower-day-20261102.webp` is the maintainer-supplied homepage artwork. `public/tower/muse-tower-night-20261102.webp` is an AI-assisted nighttime adaptation approved for the same homepage. Both are excluded from the Apache software license; artwork and branding rights remain with their respective rights holders. Repository display does not grant an additional reuse or trademark license. The existing rights notices for the retained older Tower images remain unchanged.
+
 ## Project introduction video preview
 
 `public/media/musecondo-introduction.jpg` is the unchanged YouTube thumbnail for the maintainer-linked MuseCondo introduction video, https://youtu.be/-b7BgfW_gc0, published by M.K. 暢談古往今來. It is included for the project's video preview; it is not covered by the Apache software license. Video and thumbnail rights remain with their respective rights holders.
