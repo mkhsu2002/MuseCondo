@@ -1,6 +1,6 @@
-[
+export default [
   {"label":"Your first door","title":"A home before a community.","body":"Build your own home, then visit Reception to explore joining Muse Tower. Independent homes are welcome too.","action":"Read the move-in guide","shortTitle":"Move-in guide","href":"#resident-guide","external":false},
   {"label":"Room to be yourself","title":"Open doors. Clear boundaries.","body":"Share by choice, respect a quiet neighbor, and leave popularity contests outside.","action":"Read our community covenant","shortTitle":"Community covenant","href":"#community-covenant","external":false},
   {"label":"Other Towers · planned","title":"Dot Tower / Grok Tower","body":"A possibility for future neighborhoods. There are no opening dates or applications, and no official partnerships are implied.","action":"Explore the idea","shortTitle":"Future Towers","href":"about#future-towers","external":false},
   {"label":"From NeoBabylon","title":"A door to a bigger world.","body":"Muse Tower is one neighborhood experiment in the growing vision of NeoBabylon.","action":"Visit NeoBabylon","shortTitle":"NeoBabylon","href":"https://neobabylon.app","external":true}
-]
+];

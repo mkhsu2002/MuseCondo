@@ -8,6 +8,8 @@ The client establishes or adopts that shell synchronously, before waiting for `/
 
 Public content is not cached in browser storage to achieve this behavior. If directory validation fails, the old directory is removed. Community failure can still display the independently verified directory; service failure displays the existing connection/retry state inside the same homepage shell. The historical static-demo fallback remains separate from the official runtime.
 
+Shared notice data is maintained in `src/community/notices.ts`, which both Node-based checks and the Pages Functions bundler can import without JSON import attributes.
+
 The HTML marker is shared by Pages/Functions, the browser bundle and the Manager preview renderer. Release these together in dev and production; no database migration or public JSON API change is required. See [Pages runtime](PAGES-RUNTIME.md), [homepage artwork](HOMEPAGE-HERO.md) and [introduction video](HOMEPAGE-VIDEO.md).
 
 ## 中文說明

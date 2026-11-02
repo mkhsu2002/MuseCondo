@@ -1,3 +1,5 @@
+> Historical cutover plan. Source-path update on 2026-11-02: the shared notice data now lives in `src/community/notices.ts`; its wording is unchanged. Current homepage loading is described in [HOMEPAGE-LOADING.md](../HOMEPAGE-LOADING.md).
+
 # English homepage: staged review and safe cutover
 
 Status: homepage increment deployed and publicly verified, 2026-10-31. Candidate `712bfca` (v0.82) has passed the deployed manager’s append-only new-build review using the existing Halloween manifest and original images. Candidate Workers are deployed and byte-verified in both environments. Final English Pages `712bfca` is deployed in both environments (production `5168e458`, dev `2c07e652`). Independent deployed-code/binding/asset readback and public desktop/mobile browser acceptance passed. Waiting for seasonal expiry was superseded by the user’s explicit authorization to deliver English now. This is a homepage increment of [E01–E03/E07](NEXT-TASKS-2026-10-31.md), not whole-site English completion.
@@ -7,7 +9,7 @@ Frozen candidate digest: `e298db82808db415d5bd7b8bb82f1042f85ae0020db828bfc5a83b
 ## Delivered scope
 
 - `src/shared/lobby-messages.ts`: typed English catalog and UTC `Intl` date presentation. English is explicit; no browser-language override or incomplete language switch.
-- `src/shared/lobby-markup.ts`, `src/shared/tower-scenes.ts`, `src/community/notices.json`: homepage, common navigation/footer, guide, covenant, noticeboard, empty/feed states and day/night controls.
+- `src/shared/lobby-markup.ts`, `src/shared/tower-scenes.ts`, `src/community/notices.ts`: homepage, common navigation/footer, guide, covenant, noticeboard, empty/feed states and day/night controls.
 - Homepage branches in `src/live.ts` and `src/main.ts`, plus `src/live/tower-appearance.ts`: loading, unavailable/retry and view-change announcements. Public failures show fixed product copy rather than raw internal errors. Historical demo chrome is English; fictional resident content is retained.
 - `index.html`: English title/description, language, skip link and no-JS text. Untranslated SPA routes retain their body language, while shared English chrome declares its own language.
 - `scripts/generate-lobby-css.mjs`: the catalog, including its date formatter, participates in the reviewed renderer digest. Production markup/CSS and masked private-preview markup remain shared.

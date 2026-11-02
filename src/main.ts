@@ -7,7 +7,7 @@ import { homeArtwork, decorReferences, giftCatalog, characterArtwork, prototypeA
 import { residents, findResident, type Resident } from './residents';
 import { addInteraction, readInteractions, STORAGE_KEY, type InteractionKind } from './interactions';
 
-import notices from './community/notices.json';
+import notices from './community/notices.ts';
 import { loadCommunity } from './community/client';
 import { sourcePath, type Community, type Pick, type PublicEvent, type Section } from './community/schema';
 

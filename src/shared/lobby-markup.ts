@@ -1,6 +1,6 @@
 import {towerVideoMarkup} from './tower-video.ts';
 import type {Community,Section} from '../community/schema.ts';
-import notices from '../community/notices.json' with {type:'json'};
+import notices from '../community/notices.ts';
 import {towerScenes as scenes,towerSceneImage,towerSceneDimensions,appearanceControls,type TowerScene} from './tower-scenes.ts';
 import {LOBBY_LOGO_DATA_URL,LOBBY_VIDEO_POSTER_DATA_URL} from './lobby-base-css.ts';
 import {lobbyMessages,formatLobbyDate} from './lobby-messages.ts';
