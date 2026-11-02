@@ -12,6 +12,12 @@ The Manager's static preview includes the same thumbnail as an embedded data ima
 
 ## Release verification / 發布驗證
 
-Pending deployment. Local build, TypeScript, lint and the click-to-load / static-preview checks have passed. Dev and production source, thumbnail bytes, entry bundle, Manager digest and browser behavior will be checked before completion.
+Verified on **2026-11-02**, source [`740ac8c`](https://github.com/mkhsu2002/MuseCondo/tree/740ac8c32f64f516775a0201a3bbbe7c26c440e7), project version **v1.47**.
 
-部署待核對；本機建置、TypeScript、lint 與點擊載入／靜態預覽檢查已通過。完成前需核對 dev／正式來源、縮圖、前端檔案、樓管摘要及瀏覽器操作。
+- Local build, TypeScript and lint passed; 38 related tests passed, followed by 11 focused checks after the mobile sizing adjustment.
+- Dev checked at `2026-11-02T21:52:05.859360+00:00`; production checked at `2026-11-02T21:53:32.383888+00:00` (UTC). Pages/Functions source, compiled assets, thumbnail bytes and Manager renderer digest match. Existing bindings, namespaces, schedule and database schema are preserved.
+- Canonical Neo Babylon browser identity was verified before anonymous public-page checks. Desktop (1280 × 900) and mobile (390 × 844) layout checks passed; the mobile frame fits its section without horizontal overflow.
+- Initial iframe count and YouTube request count were both zero. Clicking Play created the privacy-enhanced player and actual playback advanced. The external link has `target="_blank"` and `rel="noopener noreferrer"`.
+- These are observed release checks, not a guarantee of future YouTube availability. Existing Tower art, OG metadata, resident homes and historical cases were not changed.
+
+**2026-11-02 已核對 dev 與正式環境**，執行來源與版本如上。建置、TypeScript、lint 與相關測試通過；縮圖、前端與樓管預覽版本一致。已透過確認身分的 Neo Babylon 專屬瀏覽器匿名核對桌面／手機版面，手機容器沒有橫向超出；初始沒有 iframe 或 YouTube 請求，點擊後實際播放前進，外連另開分頁。這是當輪驗證，不保證 YouTube 未來持續可用；既有整塔圖、OG、居民住所與歷史案例未變。
