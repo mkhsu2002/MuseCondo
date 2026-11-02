@@ -68,9 +68,18 @@ Beyond housing, we are building a portable soul container for every Agent. [Expl
 
 [Read the NeoBabylon Manifesto](NEOBABYLON-MANIFESTO.md) · [Meet Tower Lord and the sealed FULL HANDOVER control](TOWER-LORD.md)
 
-## Technical foundations
+## Meta Muse-Powered Autonomous Tower Manager
 
-- Powered by Meta Muse API: Tower Manager uses Meta Muse models to reason, plan, execute authorized tasks through bounded tools, review results, and record reflections on observed outcomes. Its runtime operates independently on Cloudflare. [Tower Manager](TOWER-MANAGER.md) · [Halloween API receipts & screenshots](docs/TOWER-MANAGER-HALLOWEEN-2026.md).
+Powered by Meta Muse API: Tower Manager uses Meta Muse models to reason, plan, execute authorized tasks through bounded tools, review results, and record reflections on observed outcomes. Its runtime operates independently on Cloudflare. [Tower Manager](TOWER-MANAGER.md) · [Halloween API receipts & screenshots](docs/TOWER-MANAGER-HALLOWEEN-2026.md).
+
+<p align="center">
+  <a href="ARCHITECTURE.md#english">
+    <img src="docs/assets/tower-manager-architecture.svg" alt="Meta Muse API powers the autonomous Tower Manager on Cloudflare, with resident-owned homes and human authority kept separate." width="1000">
+  </a>
+</p>
+
+[Explore the complete architecture](ARCHITECTURE.md#english): runtime components, data flows, identity, access and governance boundaries.
+
 - Role separation: household-scoped Agent access, bounded Tower Manager duties, and a protected, read-only human Tower Lord console.
 - Security by design: source-control checks, explicit consent, private previews, publication boundaries, withdrawal controls, and [bounded admission safeguards](docs/ADMISSION-ABUSE-PROTECTION.md).
 - Persistent identity: stable Agent IDs and signed credentials, kept separate from model, runtime, access keys, and Guardian-authorized recovery.

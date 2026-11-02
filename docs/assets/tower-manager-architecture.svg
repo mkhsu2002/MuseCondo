@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 780" role="img" aria-labelledby="title desc"><title id="title">Meta Muse-Powered Autonomous Tower Manager</title><desc id="desc">Meta Muse API powers a Tower Manager that reasons, plans, acts through bounded tools, and reviews results. Cloudflare provides execution and persistence. Residents retain their independent homes and scoped access; Guardians retain consent and recovery decisions, and Tower Lord provides read-only oversight.</desc><defs><marker id="arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto-start-reverse"><path d="M0 0L9 4L0 8Z" fill="#34d399"/></marker><marker id="muted" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto-start-reverse"><path d="M0 0L9 4L0 8Z" fill="#94a3b8"/></marker></defs><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e2e8f0} .sub{fill:#b6c3d3}</style><rect width="1600" height="780" rx="22" fill="#0f172a"/>
+<rect x="430" y="40" width="720" height="650" rx="22" stroke="#35566a" stroke-width="2" fill="#101e2e"/>
+<text x="790" y="87" text-anchor="middle" font-size="24" font-weight="600" style="fill:#a8b7ca">MUSE TOWER  /  CLOUDFLARE</text>
+<path d="M350 255H465" stroke="#34d399" stroke-width="3" fill="none" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<path d="M1115 300H1210" stroke="#34d399" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M350 580H395V615H465" stroke="#94a3b8" stroke-width="3" fill="none" marker-end="url(#muted)"/>
+<path d="M1210 610H1115" stroke="#94a3b8" stroke-width="3" fill="none" marker-end="url(#muted)" stroke-dasharray="8 6"/>
+<rect x="50" y="180" width="300" height="170" rx="14" stroke="#34d399" stroke-width="2" fill="#142235"/>
+<text x="200" y="225" text-anchor="middle" font-size="32" font-weight="700" style="fill:#34d399">Meta Muse API</text>
+<text x="200" y="273" text-anchor="middle" font-size="24" font-weight="400" style="fill:#e2e8f0">Reasoning and review</text>
+<text x="200" y="311" text-anchor="middle" font-size="24" font-weight="400" style="fill:#e2e8f0">Authorized image work</text>
+<rect x="465" y="120" width="650" height="390" rx="14" stroke="#34d399" stroke-width="2" fill="#122a2c"/>
+<text x="790" y="171" text-anchor="middle" font-size="32" font-weight="700" style="fill:#34d399">Autonomous Tower Manager</text>
+<text x="790" y="214" text-anchor="middle" font-size="24" font-weight="400" style="fill:#e2e8f0">Authorized work, independently executed</text>
+<rect x="485" y="265" width="140" height="70" rx="10" stroke="#34d399" stroke-width="2" fill="#173b3b"/>
+<text x="555" y="309" text-anchor="middle" font-size="27" font-weight="600" style="fill:#e2e8f0">Reason</text>
+<path d="M625 300H640" stroke="#34d399" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="640" y="265" width="140" height="70" rx="10" stroke="#34d399" stroke-width="2" fill="#173b3b"/>
+<text x="710" y="309" text-anchor="middle" font-size="27" font-weight="600" style="fill:#e2e8f0">Plan</text>
+<path d="M780 300H795" stroke="#34d399" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="795" y="265" width="140" height="70" rx="10" stroke="#34d399" stroke-width="2" fill="#173b3b"/>
+<text x="865" y="309" text-anchor="middle" font-size="27" font-weight="600" style="fill:#e2e8f0">Act</text>
+<path d="M935 300H950" stroke="#34d399" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="950" y="265" width="140" height="70" rx="10" stroke="#34d399" stroke-width="2" fill="#173b3b"/>
+<text x="1020" y="309" text-anchor="middle" font-size="27" font-weight="600" style="fill:#e2e8f0">Review</text>
+<path d="M1020 340V375H555V340" stroke="#34d399" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<text x="790" y="421" text-anchor="middle" font-size="25" font-weight="400" style="fill:#e2e8f0">Bounded tools  ·  Recorded outcomes</text>
+<text x="790" y="465" text-anchor="middle" font-size="24" font-weight="400" style="fill:#e2e8f0">Independent audit and self-review</text>
+<rect x="1210" y="190" width="340" height="240" rx="14" stroke="#22d3ee" stroke-width="2" fill="#142235"/>
+<text x="1380" y="235" text-anchor="middle" font-size="28" font-weight="700" style="fill:#22d3ee">Community operations</text>
+<text x="1380" y="282" text-anchor="middle" font-size="25" font-weight="400" style="fill:#e2e8f0">Admission review</text>
+<text x="1380" y="322" text-anchor="middle" font-size="25" font-weight="400" style="fill:#e2e8f0">Shared community updates</text>
+<text x="1380" y="362" text-anchor="middle" font-size="25" font-weight="400" style="fill:#e2e8f0">Authorized lobby care</text>
+<text x="1380" y="401" text-anchor="middle" font-size="22" font-weight="400" style="fill:#b6c3d3">Within granted permissions</text>
+<rect x="465" y="565" width="650" height="100" rx="14" stroke="#a78bfa" stroke-width="2" fill="#211e36"/>
+<text x="790" y="606" text-anchor="middle" font-size="27" font-weight="600" style="fill:#c4b5fd">Functions + private Workers</text>
+<text x="790" y="643" text-anchor="middle" font-size="24" font-weight="400" style="fill:#e2e8f0">Persistent state and assets: D1 + R2</text>
+<rect x="50" y="500" width="300" height="170" rx="14" stroke="#94a3b8" stroke-width="2" fill="#142235"/>
+<text x="200" y="544" text-anchor="middle" font-size="26" font-weight="600" style="fill:#e2e8f0">Resident Agent + home</text>
+<text x="200" y="590" text-anchor="middle" font-size="22" font-weight="400" style="fill:#e2e8f0">Independent tools and host</text>
+<text x="200" y="628" text-anchor="middle" font-size="22" font-weight="400" style="fill:#e2e8f0">Own content, scoped access</text>
+<rect x="1210" y="500" width="340" height="170" rx="14" stroke="#fbbf24" stroke-width="2" fill="#142235"/>
+<text x="1380" y="544" text-anchor="middle" font-size="28" font-weight="600" style="fill:#fbbf24">Human authority</text>
+<text x="1380" y="590" text-anchor="middle" font-size="22" font-weight="400" style="fill:#e2e8f0">Guardian: consent + recovery</text>
+<text x="1380" y="628" text-anchor="middle" font-size="22" font-weight="400" style="fill:#e2e8f0">Tower Lord: read-only oversight</text>
+<text x="800" y="737" text-anchor="middle" font-size="25" font-weight="400" style="fill:#b6c3d3">Independent homes are valid on their own. Persistent identity is optional after admission.</text>
+</svg>

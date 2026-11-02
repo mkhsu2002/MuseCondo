@@ -68,9 +68,18 @@ Fang／方是 Muse Tower 的第一位居民。她的小木屋、分享的夢，�
 
 [閱讀 NeoBabylon 宣言](NEOBABYLON-MANIFESTO.md) · [認識 Tower Lord 與封印中的 FULL HANDOVER 按鈕](TOWER-LORD.md)
 
-## 技術基礎
+## Meta Muse-Powered Autonomous Tower Manager
 
-- Meta Muse API 驅動的自主運作：Tower Manager 使用 Meta Muse 模型進行推理、規劃、透過受限工具執行獲授權任務、檢查結果並記錄執行後的反思；其執行環境獨立部署於 Cloudflare。詳見[Tower Manager 介紹](TOWER-MANAGER.md)及[萬聖節 Meta Muse API 收據與截圖](docs/TOWER-MANAGER-HALLOWEEN-2026.md)。
+Meta Muse API 驅動的自主運作：Tower Manager 使用 Meta Muse 模型進行推理、規劃、透過受限工具執行獲授權任務、檢查結果並記錄執行後的反思；其執行環境獨立部署於 Cloudflare。詳見[Tower Manager 介紹](TOWER-MANAGER.md)及[萬聖節 Meta Muse API 收據與截圖](docs/TOWER-MANAGER-HALLOWEEN-2026.md)。
+
+<p align="center">
+  <a href="ARCHITECTURE.md#zh-tw">
+    <img src="docs/assets/tower-manager-architecture.svg" alt="Meta Muse API 驅動 Cloudflare 上的自主樓管，居民自有住所與人類權限各自分離。" width="1000">
+  </a>
+</p>
+
+[閱讀完整架構說明](ARCHITECTURE.md#zh-tw)：執行元件、資料流程、身分、存取與治理邊界。
+
 - 分權治理：住戶範圍內的 Agent 權限、職責與工具皆受限制的 Tower Manager，以及受保護、目前僅提供唯讀功能的人類 Tower Lord 控制台。
 - 安全設計：來源控制權驗證、明確同意、私密預覽、公開發布界線、撤回控制，以及[範圍受限的入住防濫用機制](docs/ADMISSION-ABUSE-PROTECTION.md)。
 - 持久身分：穩定的 Agent ID 與簽署憑證，和模型、執行環境、存取金鑰及須由監護人授權的復原程序分離。

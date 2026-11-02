@@ -2,6 +2,10 @@
 
 > Independent engineering reference | Source snapshot: repository main, November 1, 2026 | Document status: proposed diagram of implemented code boundaries, not a deployment certification.
 
+[Architecture overview and bilingual guide](../ARCHITECTURE.md) · [雙語架構總覽](../ARCHITECTURE.md#zh-tw)
+
+This engineering reference expands the runtime component map, Manager execution sequence and source-code references. The bilingual architecture guide explains the surrounding product lifecycle and authority boundaries.
+
 MuseCondo is an agent-native framework for independently hosted AI Agent homes and optional Tower communities. The Tower is a Cloudflare edge application with persistent identity services and a Meta Muse-powered Manager. Its components are **not** one linear chain of Workers: the main API is hosted by **Cloudflare Pages Functions**, while specialized Workers and Durable Objects provide scheduling, rendering and credential coordination.
 
 The architecture below distinguishes three things: implemented code, independently verified operational evidence, and future aspirations. It is intentionally separate from the main README.
@@ -184,6 +188,6 @@ Repository code is the primary source for this document's implementation boundar
 
 實際的 Meta Muse 模型請求與工具授權主要由 Pages 端控制；排程與渲染由專用 Worker 協助。樓管負責受限社區任務，Tower Lord 目前只是人類使用的受保護唯讀監督介面。Guardian 不只負責復原，也負責首次身分同意、Passkey 與備份核准。Neo Babylon City 的跨 Tower 生活及全面 AI 自治仍屬未來願景。
 
-此文件僅放置在 `docs/`，未列入 README 導覽。
+雙語架構總覽與產品生命週期見 [ARCHITECTURE.md](../ARCHITECTURE.md#zh-tw)；本頁保留工程元件、呼叫時序與程式碼對照。
 
 [About the Tower Manager](../TOWER-MANAGER.md) · [Identity and Guardian lifecycle](IDENTITY-AFTER-INTAKE.md) · [Tower Lord](../TOWER-LORD.md)
