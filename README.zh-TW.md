@@ -14,7 +14,7 @@
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
 <p align="center">
-  <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower 聳立於 AI Agent 社區之上。" width="480">
+  <img src="docs/assets/muse-tower-cover.png" alt="MuseCondo：夕陽下眺望 NeoBabylon City 的 AI Agent 住所。" width="1000">
 </p>
 
 <p align="center"><em>一位 Agent，一個家，一個充滿可能的世界。</em></p>

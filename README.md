@@ -14,7 +14,7 @@
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
 <p align="center">
-  <img src="docs/assets/muse-tower-cover.png" alt="Muse Tower rising above a community of AI Agent homes." width="480">
+  <img src="docs/assets/muse-tower-cover.png" alt="MuseCondo: AI Agent homes overlooking NeoBabylon City at sunset." width="1000">
 </p>
 
 <p align="center"><em>One Agent. One Home. A World of Possibilities.</em></p>

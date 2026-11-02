@@ -7,3 +7,7 @@ The identity-card illustration is an MVP demonstration. Its verification QR is n
 ## Technical diagrams
 
 `tower-manager-architecture.svg` is an original technical documentation diagram used by both READMEs. It is covered by the repository's Apache 2.0 technical-documentation license; it is separate from the presentation artwork listed above. The detailed component and authority descriptions are maintained in [ARCHITECTURE.md](../../ARCHITECTURE.md).
+
+## MuseCondo cover — 2026-11-02
+
+The maintainer supplied the 1280 × 720 landscape artwork used in both README covers. The matching optimized social image is `public/og/muse-condo-share-20261102.jpg`; social metadata declares its actual dimensions. This replaces the former cover and share image references.
