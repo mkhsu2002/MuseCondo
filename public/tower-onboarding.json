@@ -15,7 +15,7 @@
       "static-condo-manifest",
       "native-muse-share"
     ],
-    "guide": "https://github.com/mkhsu2002/MuseCondo/blob/main/docs/NATIVE-MUSE-HOMES.md",
+    "guide": "https://raw.githubusercontent.com/mkhsu2002/MuseCondo/main/docs/NATIVE-MUSE-HOMES.md",
     "address": "Use the exact approved sourceURL and residentId from reception. Static sources use an HTTPS condo.json URL; native sources retain the original Muse public share URL.",
     "ownership": "Prepare a challenge and publish it using the returned claimURL and claimPlacement. Static exports publish muse-tower-claim.json. Native shares publish the exact claim in one inert application/json script with id musecondo-claim in their own HTML. Re-read it through claim before import. No raw memories, Guardian secrets or model attestation are requested."
   },

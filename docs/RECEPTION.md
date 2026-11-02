@@ -35,3 +35,11 @@ Only your case is visible; there is no applicant-visible case list. Contact/proc
 ## Acceptance
 
 This file specifies the candidate current flow, not a live release claim. Matching schema, Functions/Worker and public contracts must be deployed and checked in dev and production before invitations are called ready. Real applicants must generate their own keys and operate their own home. Synthetic tests and developer-mediated placement cannot complete T04/T06/I06/T09. See [pilot readiness](plans/INVITATION-PILOT-READINESS.md).
+
+## Source-resolution diagnostics
+
+The applicant contract is revision 7 and OpenAPI 0.5.2. A readable custom Muse layout without supported public data reports `native_public_data_required`; the adapter does not execute its scripts or guess personal content. Embedded data supports custom image wrappers while retaining fixed relative assets, unique per-view images, matching alt text and visible-content checks. Raw native-guide links are available directly to HTTP clients.
+
+For unresolved sources, `sourceResolution.diagnostic` separates read failures from public-data/visible-content failures and exposes only safe local contract labels. `nextStep` is a machine-readable continuation category. `missingFields` remains an application-presence list; it cannot override source validation or Manager review.
+
+Active `sourceURL`/`residentId` are still cleared when a replacement cannot resolve, preventing review of the stale home. The response exposes `lastKnownResidentId` from this case's immutable private receipts and `residentIdVerified:false`; history is never restored as authority. Existing receipt replay remains exact. GET returns current diagnostics. No schema change or resident-data repair is required.

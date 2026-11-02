@@ -234,14 +234,19 @@ function legacySite(root:Node,id:string):PublicCondoSite {
  return {templateVersion:'muse-condo-1',example:false,home:{frameworkVersion:'0.01',id,name:text(one(card,n=>tag(n,'h2'))),intro:classText(home,'intro'),assets:{desktop:'./assets/home.png'},routes:{home:'./index.html',inside:'./inside.html',dreams:'./dreams.html'},daily:[],dreams:dream?[{id:dream.id,type:'dream',title:dream.title,body:dream.body,occurredAt:dream.occurredAt,image:'./assets/dream.png',...(dream.reflection?{reflection:dream.reflection}:{})}]:[]},homeAlt:image(home,'home'),profile:profile as PublicCondoSite['profile'],dream};
 }
 const normalized=(value:string)=>value.replace(/\s+/g,' ').trim();
+function projectedImage(root:Node,purpose:'home'|'dream'):string {
+ const matches=all(root,n=>tag(n,'img')&&['assets/'+purpose+'.png','./assets/'+purpose+'.png'].includes(attr(n,'src')??''));
+ if(matches.length!==1||hidden(matches[0]))throw new HomeSourceError('source_visible_mismatch');
+ return string(attr(matches[0],'alt'),500);
+}
 function assertVisible(root:Node,site:PublicCondoSite){
  const home=view(root,'home'),inside=view(root,'inside'),dreams=view(root,'dreams');
- if(image(home,'home')!==site.homeAlt)throw new HomeSourceError('source_visible_mismatch');
+ if(projectedImage(home,'home')!==site.homeAlt)throw new HomeSourceError('source_visible_mismatch');
  const includes=(node:Node,value:string)=>{if(!normalized(text(node)).includes(normalized(value)))throw new HomeSourceError('source_visible_mismatch');};
  includes(home,site.home.intro);includes(inside,site.home.name);for(const [key,value] of Object.entries(site.profile))if(value!==undefined&&!(CONDO_PORTRAIT_CROP_FIELDS as readonly string[]).includes(key))includes(inside,value);
  for(const entry of site.home.daily){includes(inside,entry.title);includes(inside,entry.body);}
  if(!site.dream&&all(dreams,n=>cls(n,'dream-story')||tag(n,'img')).length)throw new HomeSourceError('source_visible_mismatch');
- if(site.dream){const visibleDate=attr(one(dreams,n=>tag(n,'time')),'datetime');if(!visibleDate||Date.parse(visibleDate)!==Date.parse(site.dream.occurredAt))throw new HomeSourceError('source_visible_mismatch');if(image(dreams,'dream')!==site.dream.image.alt)throw new HomeSourceError('source_visible_mismatch');for(const value of [site.dream.title,site.dream.body,site.dream.reflection,site.dream.wish])if(value)includes(dreams,value);}
+ if(site.dream){const visibleDate=attr(one(dreams,n=>tag(n,'time')),'datetime');if(!visibleDate||Date.parse(visibleDate)!==Date.parse(site.dream.occurredAt))throw new HomeSourceError('source_visible_mismatch');if(projectedImage(dreams,'dream')!==site.dream.image.alt)throw new HomeSourceError('source_visible_mismatch');for(const value of [site.dream.title,site.dream.body,site.dream.reflection,site.dream.wish])if(value)includes(dreams,value);}
 }
 export async function readNativeHome(sourceURL:string,fetcher:typeof fetch=fetch,expectedResidentId?:string):Promise<{site:PublicCondoSite;html:string;readAsset:(purpose:'home'|'dream')=>Promise<Uint8Array>;sourceIdentity:string}>{
  if(!isMuseShareURL(sourceURL))throw new HomeSourceError('source_url_rejected');
@@ -249,7 +254,7 @@ export async function readNativeHome(sourceURL:string,fetcher:typeof fetch=fetch
  if(sourceIdentity!=='muse-space:'+session.assetId)throw new HomeSourceError('source_identity_changed');
  const html=await session.readHtml(),root=dom(html),embedded=inert(root,'musecondo-home',128000,false),localId=(await digest(sourceIdentity)).slice(0,16);
  let value:unknown=embedded;
- if(embedded===undefined)value=legacySite(root,localId);
+ if(embedded===undefined){try{value=legacySite(root,localId);}catch(error){if(error instanceof HomeSourceError&&error.code==='source_native_rejected')throw new HomeSourceError('native_public_data_required');throw error;}}
  else if(embedded&&typeof embedded==='object'&&!Array.isArray(embedded)&&'home' in embedded){const home=embedded.home;if(home&&typeof home==='object'&&!Array.isArray(home)&&!Object.hasOwn(home,'id'))value={...embedded,home:{...home,id:localId}};}
  const candidate=value as PublicCondoSite;
  const residentId=expectedResidentId??candidate?.home?.id;

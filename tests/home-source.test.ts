@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isMuseShareURL,homeSourceURL,homeSourceIdentity,readNativeHome,readNativeClaim} from '../server/live/home-source.ts';
+import {isMuseShareURL,homeSourceURL,homeSourceIdentity,readNativeHome,readNativeClaim,HomeSourceError} from '../server/live/home-source.ts';
+import {discoverHome,HomeDiscoveryError} from '../server/live/home-discovery.ts';
 const key='A'.repeat(43),slug='synthetic-home-abc123',share=`https://muse.ai/s/${slug}/${key}`,host='https://abc123.cf.metaaiusercontent.com';
 const site=()=>({templateVersion:'muse-condo-1',example:false,home:{frameworkVersion:'0.01',id:'1234567890abcdef',name:'Synthetic',intro:'Intro',assets:{desktop:'./assets/home.png'},routes:{home:'./index.html',inside:'./inside.html',dreams:'./dreams.html'},daily:[],dreams:[]},homeAlt:'An illustrated home',profile:{motto:'Motto',about:'About',interests:'Interests',strengths:'Skills',currentFocus:'Focus',invitation:'Invite'},dream:null});
 const script=(id:string,value:unknown)=>`<script id="${id}" type="application/json">${JSON.stringify(value)}</script>`;
@@ -13,8 +14,23 @@ function fixture(html:string,assetId='abc123'){
 }
 const legacy=()=>`<section id="view-home"><p class="intro">Intro &amp; welcome</p><figure class="home-scene"><img src="assets/home.png" alt="Home art"></figure></section><section id="view-inside"><aside class="character-card"><h2>Synthetic</h2><p class="character-motto">Motto</p><dl><div><dt>喜歡的事</dt><dd>Interests</dd></div></dl></aside>${[['角色故事','About'],['天賦技能','Skills'],['進行中的任務','Focus'],['組隊偏好','Invite']].map(([h,p])=>`<section class="sheet-block"><h2><span aria-hidden="true">✧</span>${h}</h2><p class="prose">${p}</p></section>`).join('')}<section class="chronicle"><p class="empty-note">Empty</p></section></section><section id="view-dreams"><figure class="dream-scene"><img src="assets/dream.png" alt="Dream art"><time datetime="2026-10-29">Date</time></figure><div class="dream-story"><h2>Dream</h2><p class="prose">Body</p><div class="reflection"><p class="prose">Reflection</p></div><section class="wish"><p class="prose">Wish</p></section></div></section>`;
 test('strict source parsing and stable identity ignore rotated share key',()=>{assert.ok(isMuseShareURL(share));assert.equal(homeSourceIdentity(share),'muse-space:abc123');assert.equal(homeSourceIdentity(share.replace(key,'B'.repeat(43))),'muse-space:abc123');assert.equal(homeSourceURL('https://example.test/condo.json').href,'https://example.test/condo.json');});
+test('a readable unsupported native layout requests structured public data rather than claiming a fetch failure',async()=>{
+ const html='<section id="view-home"><h1>Synthetic home</h1></section><section id="view-inside"><p>Profile</p></section><section id="view-dreams"><p>Private</p></section>';
+ await assert.rejects(()=>readNativeHome(share,fixture(html).fetcher),(e:unknown)=>e instanceof HomeSourceError&&e.code==='native_public_data_required');
+ await assert.rejects(()=>discoverHome(share,fixture(html).fetcher),(e:unknown)=>e instanceof HomeDiscoveryError&&e.code==='native_public_data_required');
+});
+test('native source discovery preserves safe validation reasons without echoing arbitrary errors',async()=>{
+ const value={...site(),home:{...site().home,id:'bad-id'}};
+ await assert.rejects(()=>discoverHome(share,fixture(visible()+script('musecondo-home',value)).fetcher),(e:unknown)=>e instanceof HomeDiscoveryError&&e.code==='invalid_identity');
+ await assert.rejects(()=>discoverHome(share,async()=>{throw Error('private upstream content');}),(e:unknown)=>e instanceof HomeDiscoveryError&&e.code==='native_share_unavailable'&&!e.message.includes('private'));
+});
 test('reject malformed native URLs before fetch',async()=>{for(const url of [share+'?x',share+'#x',share.replace('https:','http:'),share.replace('muse.ai','MUSE.AI'),share.replace('abc123','ABC123'),share.replace('muse.ai','user@muse.ai')]){assert.equal(isMuseShareURL(url),false);const f=fixture('');assert.throws(()=>homeSourceURL(url));await assert.rejects(()=>readNativeHome(url,f.fetcher));assert.equal(f.count(),0);}});
 test('reads embedded public snapshot without executing script',async()=>{const f=fixture(visible()+script('musecondo-home',site())+'<script>throw Error("execute")</script>');const r=await readNativeHome(share,f.fetcher);assert.deepEqual(r.site,site());assert.equal(r.sourceIdentity,'muse-space:abc123');assert.equal((await r.readAsset('home')).length,8);});
+test('structured native homes can use their own image layout while retaining exact visible asset and alt checks',async()=>{
+ const html=visible().replace('class="home-scene"','class="home-art"');
+ assert.deepEqual((await readNativeHome(share,fixture(html+script('musecondo-home',site())).fetcher)).site,site());
+ for(const changed of [html.replace('assets/home.png','assets/other.png'),html.replace('An illustrated home','Unrelated image'),html.replace('</figure>','<img src="assets/home.png" alt="An illustrated home"></figure>')])await assert.rejects(()=>readNativeHome(share,fixture(changed+script('musecondo-home',site())).fetcher));
+});
 test('embedded existing resident identity is retained and mismatches fail',async()=>{const f=fixture(visible()+script('musecondo-home',site()));assert.equal((await readNativeHome(share,f.fetcher,'1234567890abcdef')).site.home.id,'1234567890abcdef');await assert.rejects(()=>readNativeHome(share,f.fetcher,'fedcba0987654321'));});
 test('duplicate embedded data rejected rather than first match',async()=>{await assert.rejects(()=>readNativeHome(share,fixture(script('musecondo-home',site()).repeat(2)).fetcher));});
 test('executable or externally loaded metadata is rejected',async()=>{for(const html of [script('musecondo-home',site()).replace('application/json','text/javascript'),script('musecondo-home',site()).replace('<script','<script src="https://evil.test/a"')])await assert.rejects(()=>readNativeHome(share,fixture(html).fetcher));});

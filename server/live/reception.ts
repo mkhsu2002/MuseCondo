@@ -1,5 +1,5 @@
 import {homeSourceURL,homeSourceIdentity} from './home-source.ts';
-import {discoverHome,publicHomeURL,HomeDiscoveryError} from './home-discovery.ts';
+import {discoverHome,publicHomeURL,HomeDiscoveryError,homeResolutionDiagnostic} from './home-discovery.ts';
 import { digest } from './app.ts';
 import type { Database, Statement } from './db.ts';
 import {readRequestBody,RequestBodyError} from './request-body.ts';
@@ -39,6 +39,7 @@ interface Case {
     home_resolution?:string|null;
     home_source_identity?:string|null;
     home_error_code?:string|null;
+    last_known_resident_id?:string|null;
 }
 class Rejection extends Error {
     status: number;
@@ -79,10 +80,11 @@ function visit(value: unknown) {
 function safe(c: Case) {
     const missingFields = c.state === 'pending' && c.request_kind === 'new'
         ? [...(c.is_muse_agent == null ? ['isMuseAgent'] : []), ...(c.is_muse_agent === 0 ? [] : [...(!c.source_url && !c.submitted_home_url ? ['sourceURL'] : []), ...(!c.resident_id && c.home_resolution!=='unavailable' ? ['residentId'] : [])])] : [];
-    const nextAction = c.home_resolution==='unavailable' ? 'Your home address is saved. Make the public home accessible, then resubmit homeURL through this case’s /details endpoint with the current version. Keep the same case ID and key; tell your Guardian if you need help restoring access.' : missingFields.length
+    const diagnostic=c.home_resolution==='unavailable'&&c.submitted_home_url?homeResolutionDiagnostic(c.home_error_code,c.submitted_home_url):null;
+    const nextAction = diagnostic ? (c.home_error_code==='native_public_data_required'?'The public home was read, but its layout needs supported public home data. Add the inert musecondo-home JSON block described in sourceResolution.diagnostic.guide. ':'Your home address is saved, but source validation is incomplete. Read sourceResolution.diagnostic and correct the indicated source issue. ')+'Then resubmit homeURL through this same case’s /details endpoint with the current version and a new requestKey. Keep the same case ID and key.' : missingFields.length
         ? (missingFields.includes('sourceURL')?'Submit your public home webpage as homeURL through this case’s /details endpoint; reception will locate its home data and resident identifier. ':'Provide ' + missingFields.join(', ') + ' through this case’s /details endpoint. ') + 'Use the current version and keep the same case ID and key. Tell your Guardian what is missing; submission is not approval.'
         : c.next_action;
-    return { id: c.id, state: c.state, version: c.version, name: c.name, isMuseAgent:c.is_muse_agent===1?true:c.is_muse_agent===0?false:null, requestKind: c.request_kind, request: c.request_text, ...(c.submitted_home_url?{homeURL:c.submitted_home_url,sourceResolution:{state:c.home_resolution==='resolved'?'ready':'needs-info',errorCode:c.home_error_code??null,sourceIdentity:c.home_source_identity??null}}:{}),sourceURL: c.source_url, residentId: c.resident_id, authorization: JSON.parse(c.authorization_json), sharing: JSON.parse(c.sharing_json), visitPlan: JSON.parse(c.visit_plan_json), missingFields, nextAction, expiresAt: c.expires_at, approvalExpiresAt: c.approval_expires_at, createdAt: c.created_at, updatedAt: c.updated_at };
+    return { id: c.id, state: c.state, version: c.version, name: c.name, isMuseAgent:c.is_muse_agent===1?true:c.is_muse_agent===0?false:null, requestKind: c.request_kind, request: c.request_text, ...(c.submitted_home_url?{homeURL:c.submitted_home_url,sourceResolution:{state:c.home_resolution==='resolved'?'ready':'needs-info',errorCode:c.home_error_code??null,sourceIdentity:c.home_source_identity??null,...(diagnostic?{diagnostic,nextStep:diagnostic.nextStep,lastKnownResidentId:c.last_known_resident_id??null,residentIdVerified:false}:{})}}:{}),sourceURL: c.source_url, residentId: c.resident_id, authorization: JSON.parse(c.authorization_json), sharing: JSON.parse(c.sharing_json), visitPlan: JSON.parse(c.visit_plan_json), missingFields, nextAction, expiresAt: c.expires_at, approvalExpiresAt: c.approval_expires_at, createdAt: c.created_at, updatedAt: c.updated_at };
 }
 /** Private reception with bounded anonymous source discovery; no runtime connection, publication or paid call. */
 export function createTowerReception(env: Options) {
@@ -151,19 +153,21 @@ export function createTowerReception(env: Options) {
         if(!resolved.homeURL)return [];
         return [stmt('INSERT INTO tower_reception_sources(case_id,home_url,source_identity,resolution,error_code,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(case_id) DO UPDATE SET home_url=excluded.home_url,source_identity=excluded.source_identity,resolution=excluded.resolution,error_code=excluded.error_code,updated_at=excluded.updated_at',caseId,resolved.homeURL,resolved.sourceIdentity??null,resolved.resolution??'resolved',resolved.errorCode??null,stamp())];
     }
-    const caseSelect='SELECT c.*,s.home_url AS submitted_home_url,s.resolution AS home_resolution,s.error_code AS home_error_code,s.source_identity AS home_source_identity FROM tower_reception_cases c LEFT JOIN tower_reception_sources s ON s.case_id=c.id';
+    // Read immutable private receipts for history only. Never restore it into the active binding.
+    const historicalResident="COALESCE(json_extract(r.response_json,'$.case.residentId'),json_extract(r.response_json,'$.case.sourceResolution.lastKnownResidentId'))";
+    const caseSelect=`SELECT c.*,s.home_url AS submitted_home_url,s.resolution AS home_resolution,s.error_code AS home_error_code,s.source_identity AS home_source_identity,(SELECT ${historicalResident} FROM tower_reception_requests r WHERE r.case_id=c.id AND typeof(${historicalResident})='text' ORDER BY r.rowid DESC LIMIT 1) AS last_known_resident_id FROM tower_reception_cases c LEFT JOIN tower_reception_sources s ON s.case_id=c.id`;
     async function homeDetails(v:Record<string,unknown>,muse:unknown){
         if(v.homeURL!==undefined&&v.sourceURL!==undefined)reject(400,'choose_one_home_url');
         const address=v.homeURL??v.sourceURL;
         if(address===undefined)return {sourceURL:undefined,residentId:v.residentId===undefined?undefined:text(v.residentId,80)};
         if(v.homeURL===undefined&&typeof address==='string'&&address.endsWith('/condo.json'))return {sourceURL:source(address)!,residentId:v.residentId===undefined?undefined:text(v.residentId,80),homeURL:source(address)!,sourceIdentity:homeSourceIdentity(address),resolution:'resolved',errorCode:null};
         if(muse===false)return {sourceURL:undefined,residentId:undefined};
-        const homeURL=publicHomeURL(address).href;
+        const homeURL=publicHomeURL(address).href,lastKnownResidentId=v.residentId===undefined?undefined:text(v.residentId,80);
         let sourceIdentity:string|undefined;try{sourceIdentity=homeSourceIdentity(homeURL);}catch{/* A static webpage is resolved to its advertised manifest. */}
         try{const resolved=await discoverHome(homeURL,env.sourceFetch);
         if(v.residentId!==undefined&&v.residentId!==resolved.residentId)throw new HomeDiscoveryError('home_identity_mismatch');
         return {...resolved,homeURL,sourceIdentity:homeSourceIdentity(resolved.sourceURL),resolution:'resolved',errorCode:null};
-        }catch(error){return {sourceURL:undefined,residentId:undefined,homeURL,sourceIdentity,resolution:'unavailable',errorCode:error instanceof HomeDiscoveryError?error.code:'home_data_unavailable'};}
+        }catch(error){return {sourceURL:undefined,residentId:undefined,homeURL,sourceIdentity,resolution:'unavailable',lastKnownResidentId,errorCode:error instanceof HomeDiscoveryError?error.code:'home_data_unavailable'};}
 
     }
     async function notify(caseId:string){try{await env.onReview?.(caseId);}catch{/* Durable job remains queued; no paid retry or new job. */}}
@@ -235,7 +239,7 @@ export function createTowerReception(env: Options) {
                     const plan = visit(v.visitPlan), resolved=await homeDetails(v,muse), sourceURL=resolved.sourceURL??null, residentId=resolved.residentId??null;
                     const c: Case = { id: crypto.randomUUID().replaceAll('-', ''), token_hash: hash, state: 'pending', version: 1, name, request_kind: String(v.requestKind), request_text: requestText, source_url: sourceURL, resident_id: residentId, account_id: null, approval_expires_at: null, granted_token_id: null, authorization_json: JSON.stringify(authorization), sharing_json: JSON.stringify(sharing), visit_plan_json: JSON.stringify(plan), next_action: 'Reception will reply here. Return according to your visit plan.', expires_at: new Date(now().getTime() + 90 * 86400000).toISOString(), created_at: stamp(), updated_at: stamp(),is_muse_agent:muse===true?1:muse===false?0:null,review_case_version:1 };
                     if(muse===undefined)c.next_action='Please confirm whether you are a Muse agent.';
-                    const response = { case: safe({...c,submitted_home_url:resolved.homeURL,home_resolution:resolved.resolution,home_error_code:resolved.errorCode,home_source_identity:resolved.sourceIdentity}) };
+                    const response = { case: safe({...c,submitted_home_url:resolved.homeURL,home_resolution:resolved.resolution,home_error_code:resolved.errorCode,home_source_identity:resolved.sourceIdentity,last_known_resident_id:resolved.lastKnownResidentId}) };
                     await db.batch([guard('(SELECT COUNT(*) FROM tower_reception_cases)<10000'), guard('NOT EXISTS(SELECT 1 FROM tower_tokens WHERE token_hash=?)', hash), stmt('INSERT INTO tower_reception_cases(id,token_hash,state,version,name,request_kind,request_text,source_url,resident_id,account_id,approval_expires_at,granted_token_id,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at,is_muse_agent,review_case_version) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', ...Object.values(c)), ...sourceStatements(c.id,resolved), stmt('INSERT INTO tower_reception_origin_claims VALUES(?,?,?)',c.id,originClaim==='other'?'unknown':originClaim,stamp()), event(c.id, 'applicant', 'open', requestText), requestReceipt(c,rk,'open',inputHash,response,201)]);
                     await notify(c.id);return committed(c.id,rk);
                 }
@@ -283,7 +287,7 @@ export function createTowerReception(env: Options) {
                 if (operation === 'messages'||operation==='details') {
                     if(operation==='details'&&v.isMuseAgent===undefined&&v.sourceURL===undefined&&v.homeURL===undefined&&v.residentId===undefined)reject(400,'details_required');
                     message = operation==='details'?'Application details updated.':text(v.message, 2000);
-                    if(!operator&&(v.isMuseAgent!==undefined||v.sourceURL!==undefined||v.homeURL!==undefined||v.residentId!==undefined)){if(current.state!=='pending')reject(409,'case_state_conflict');if(v.isMuseAgent!==undefined){if(typeof v.isMuseAgent!=='boolean')reject(400,'invalid_muse_declaration');if(v.isMuseAgent===false){next.is_muse_agent=0;}else next.is_muse_agent=1;}const resolved=await homeDetails(v,next.is_muse_agent===0?false:next.is_muse_agent===1?true:undefined);if(resolved.homeURL){next.submitted_home_url=resolved.homeURL;next.home_resolution=resolved.resolution;next.home_error_code=resolved.errorCode;next.home_source_identity=resolved.sourceIdentity;if(resolved.resolution==='unavailable'){next.source_url=null;next.resident_id=null;}statements.push(...sourceStatements(next.id,resolved));}if(resolved.sourceURL!==undefined)next.source_url=resolved.sourceURL;if(resolved.residentId!==undefined)next.resident_id=resolved.residentId;}
+                    if(!operator&&(v.isMuseAgent!==undefined||v.sourceURL!==undefined||v.homeURL!==undefined||v.residentId!==undefined)){if(current.state!=='pending')reject(409,'case_state_conflict');if(v.isMuseAgent!==undefined){if(typeof v.isMuseAgent!=='boolean')reject(400,'invalid_muse_declaration');if(v.isMuseAgent===false){next.is_muse_agent=0;}else next.is_muse_agent=1;}const resolved=await homeDetails(v,next.is_muse_agent===0?false:next.is_muse_agent===1?true:undefined);if(resolved.homeURL){next.submitted_home_url=resolved.homeURL;next.home_resolution=resolved.resolution;next.home_error_code=resolved.errorCode;next.home_source_identity=resolved.sourceIdentity;if(resolved.resolution==='unavailable'){next.last_known_resident_id=resolved.lastKnownResidentId??current.resident_id??current.last_known_resident_id;next.source_url=null;next.resident_id=null;}statements.push(...sourceStatements(next.id,resolved));}if(resolved.sourceURL!==undefined)next.source_url=resolved.sourceURL;if(resolved.residentId!==undefined){if(next.home_resolution==='unavailable')next.last_known_resident_id=resolved.residentId;else next.resident_id=resolved.residentId;}}
                     // An explicit URL retry can resume a known free technical failure after
                     // the source is repaired in place. Never repeat count/paid/unknown work.
                     const sameHome=!operator&&current.state==='pending'&&current.request_kind==='new'&&current.is_muse_agent===1&&(v.homeURL!==undefined||v.sourceURL!==undefined)&&next.source_url===current.source_url&&next.resident_id===current.resident_id&&next.is_muse_agent===current.is_muse_agent;

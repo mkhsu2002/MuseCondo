@@ -628,3 +628,46 @@ test('non-Muse homepage submissions never fetch the source or create household a
  let reads=0;const f=fixture(undefined,async()=>{reads++;throw Error('must not fetch');});
  try{const opened=await f.data(f.req('/cases','POST',{...f.input,isMuseAgent:false,homeURL:'https://resident.example/share'}),201);assert.equal(reads,0);assert.equal(opened.case.sourceURL,null);assert.equal(opened.case.residentId,null);assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM accounts').get()!.n,0);assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_tokens').get()!.n,0);}finally{f.db.close();}
 });
+
+test('failed discovery keeps a prior resident ID as history only, including later reads and supplements',async()=>{
+ const f=fixture(undefined,async()=>new Response('<h1>Readable but no home data</h1>',{headers:{'Content-Type':'text/html'}}));
+ try{
+  const id='1234567890abcdef',opened=await f.data(f.req('/cases','POST',{...f.input,isMuseAgent:true,sourceURL:'https://resident.example/condo.json',residentId:id}),201),path='/cases/'+opened.case.id;
+  const updated=await f.data(f.req(path+'/details','POST',{requestKey:'unreadable-replacement',expectedVersion:1,homeURL:'https://resident.example/'}));
+  assert.equal(updated.case.residentId,null);assert.equal(updated.case.sourceURL,null);
+  assert.equal(updated.case.sourceResolution.lastKnownResidentId,id);assert.equal(updated.case.sourceResolution.residentIdVerified,false);
+  assert.equal((await f.data(f.req(path))).case.sourceResolution.lastKnownResidentId,id);
+  const message=await f.data(f.req(path+'/messages','POST',{requestKey:'follow-up-without-data',expectedVersion:2,message:'I will repair my home.'}));
+  assert.equal(message.case.sourceResolution.lastKnownResidentId,id);assert.equal(message.case.residentId,null);
+  const candidate='fedcba0987654321',supplement=await f.data(f.req(path+'/details','POST',{requestKey:'candidate-id-only',expectedVersion:3,residentId:candidate}));
+  assert.equal(supplement.case.residentId,null);assert.equal(supplement.case.sourceResolution.lastKnownResidentId,candidate);
+  assert.equal((await f.data(f.req(path))).case.sourceResolution.lastKnownResidentId,candidate);
+  assert.equal(f.db.sqlite.prepare('SELECT resident_id FROM tower_reception_cases WHERE id=?').get(opened.case.id)!.resident_id,null);
+  assert.equal(f.db.sqlite.prepare('SELECT count(*) n FROM tower_residencies').get()!.n,0);
+ }finally{f.db.close();}
+});
+
+test('an explicit resident ID accompanying an unreadable first home remains unverified history',async()=>{
+ const f=fixture(undefined,async()=>new Response(null,{status:503}));try{
+  const id='1234567890abcdef',opened=await f.data(f.req('/cases','POST',{...f.input,isMuseAgent:true,homeURL:'https://resident.example/',residentId:id}),201);
+  assert.equal(opened.case.residentId,null);assert.equal(opened.case.sourceResolution.lastKnownResidentId,id);
+  assert.equal((await f.data(f.req('/cases/'+opened.case.id))).case.sourceResolution.lastKnownResidentId,id);
+ }finally{f.db.close();}
+});
+
+test('readable native homes with unsupported markup receive a data-repair diagnosis and no access-restoration advice',async()=>{
+ const shareKey='A'.repeat(43),slug='synthetic-home-abc123',homeURL=`https://muse.ai/s/${slug}/${shareKey}`;
+ const sourceFetch:typeof fetch=async input=>{
+  if(String(input)===homeURL){const row='0:'+JSON.stringify({preloadedId:slug,preloadedShareKey:shareKey,preloadedShareData:{type:'space',share_type:'cloudflare',deployment_status:'ready',asset_id:'abc123',space_url:`https://abc123.cf.metaaiusercontent.com/index.html?hatch_share=${slug}&share_key=${shareKey}`}})+'\n';return new Response(`<script>self.__next_f.push([1,${JSON.stringify(row)}])</script>`,{headers:{'Content-Type':'text/html'}});}
+  return new Response('<section id="view-home">Home</section><section id="view-inside">Profile</section><section id="view-dreams">Private</section>',{headers:{'Content-Type':'text/html'}});
+ };
+ const f=fixture(undefined,sourceFetch);try{
+  const opened=await f.data(f.req('/cases','POST',{...f.input,isMuseAgent:true,homeURL}),201),resolution=opened.case.sourceResolution;
+  assert.equal(resolution.errorCode,'native_public_data_required');assert.equal(resolution.nextStep,'repair-home-data');
+  assert.equal(resolution.diagnostic.stage,'home-data');assert.equal(resolution.diagnostic.path,'script#musecondo-home');
+  assert.match(resolution.diagnostic.guide,/raw.githubusercontent.com/);
+  assert.match(opened.case.nextAction,/public home was read/);assert.doesNotMatch(opened.case.nextAction,/restoring access|Guardian/);
+  assert.deepEqual(opened.case.missingFields,[]);assert.equal(resolution.state,'needs-info');
+  assert.equal((await f.data(f.req('/cases/'+opened.case.id))).case.sourceResolution.diagnostic.path,'script#musecondo-home');
+ }finally{f.db.close();}
+});

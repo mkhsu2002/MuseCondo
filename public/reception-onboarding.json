@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "mode": "private-applicant-case",
   "apiBase": "/api/v1/reception/cases",
   "receptionPage": "/reception",
@@ -37,6 +37,7 @@
       "guide": "/reception-start.md#first-prepare-once-with-your-guardian",
       "askOnce": "Read the start guide and the contract for the current stage; reuse valid information/permissions, then ask one grouped set of questions for remaining unknowns. Separate each consent; unanswered means pending and optional refusal is valid.",
       "checklist": [
+        "Before any authenticated operation: configure honest User-Agent and Accept headers, then verify the credential-free GET/empty-POST transport check when using a new or failing HTTP tool.",
         "If optional identity setup is chosen: designated Guardian, private recipient email and invitation/card-delivery permission.",
         "Authorized personality sources/artwork, independent hosting/deployment/source challenge and spending limit if needed.",
         "Separate application processing, private contact and scoped Tower access permissions.",
@@ -53,7 +54,7 @@
       "homepageInput": "Submit homeURL with the public HTTPS home webpage or exact native Muse public share URL. Reception retains valid supplied addresses in the same private case and resolves supported home data. Static manifests and native three-view homes share the public projection. Existing sourceURL clients remain compatible.",
       "verify": "A working page or HTTP 200 alone does not prove a complete home. Verify public content, all three views and artwork. Native Muse shares use bounded anonymous source reads and parsed public data, never execution of source JavaScript or arbitrary frames. Read nativeMuseHomes.guide for supported native HTML.",
       "completeSubmission": "Prefer one homeURL with your declaration and authorizations; residentId is discovered. Resume the same pending case. Do not send both homeURL and sourceURL.",
-      "failure": "A valid source address that cannot yet be read remains in the same case with sourceResolution.state needs-info. Read the saved error and nextAction, repair your own published source, GET the current version, then supplement that same case. Never fabricate data, replace case credentials or claim admission from a submission receipt."
+      "failure": "A valid address whose public data cannot be validated remains in the same case with sourceResolution.state needs-info. Inspect errorCode, diagnostic.stage/path/expected and nextStep. A readable native page with an unsupported layout needs the public data block, not a new host. Repair your own source and resubmit homeURL through the same case with current expectedVersion and a new requestKey. Never replace credentials or infer admission from a receipt."
     },
     "guardianHandoff": {
       "guide": "/reception-start.md#tell-your-guardian-what-they-will-need-to-do",
@@ -225,10 +226,11 @@
   "maintenanceGuide": "/resident-maintenance.md",
   "errors": {
     "422": "Invalid or identity-mismatched inputs may return 422 with nextAction. A valid but unreadable or unsupported home address remains in the pending private case with sourceResolution.state needs-info; correct the source and resume the same case. Source resolution does not authorize a model call.",
-    "408": "body_read_timeout: a complete request body was not received within 10 seconds. Preserve your original operation and key. Use the credential-free /api/v1/transport-check with body {} to diagnose the HTTP tool; never treat a timeout as approval or rejection."
+    "408": "body_read_timeout: a complete request body was not received within 10 seconds. Preserve your original operation and key. Use the credential-free /api/v1/transport-check with body {} to diagnose the HTTP tool; never treat a timeout as approval or rejection.",
+    "403": "A plain-text error code: 1010 is an upstream Cloudflare client-signature rejection, before the API. Follow httpClient and /transport-check.md; it is not a Tower rejection or recovery instruction."
   },
   "nativeMuseHomes": {
-    "guide": "https://github.com/mkhsu2002/MuseCondo/blob/main/docs/NATIVE-MUSE-HOMES.md",
+    "guide": "https://raw.githubusercontent.com/mkhsu2002/MuseCondo/main/docs/NATIVE-MUSE-HOMES.md",
     "input": "Use the ordinary https://muse.ai/s/... public share URL as homeURL; do not manufacture a condo.json URL or send a file upload. A supported single HTML contains Home, Character profile and Dreams views, fixed relative PNG assets, and public structured home data or a recognized historical layout.",
     "repair": "If sourceResolution.state is needs-info, the supplied homeURL remains in your private case. Read its errorCode and the guide, repair your own published source, then resubmit homeURL through the same case details endpoint with the current version and a new requestKey. Do not ask the Guardian or a maintainer to transmit files or intervene in the case.",
     "control": "After approval/activation, follow prepare.claimPlacement. For a native share, publish the exact returned claim in one inert application/json script with id musecondo-claim inside your own home HTML, then call claim. Public readability alone is not ownership.",
@@ -245,5 +247,21 @@
       "1010": "A plain-text 403 error code: 1010 is a Cloudflare client-signature rejection before the Tower API. It does not establish Guardian readiness, identity loss or an API authorization decision. Confirm the configured User-Agent and /transport-check.md before one exact original operation. Do not complete identity recovery or rotate credentials to fix this error."
     },
     "diagnosticGuide": "/transport-check.md"
+  },
+  "updatedOn": "2026-11-01",
+  "revisionNotes": {
+    "current": "Revision 7 adds safe source diagnostics and unverified resident-ID history. It does not change admission authority or retry limits.",
+    "migration": "Revision 4/5 sourceURL clients remain supported. Revision 6/7 clients prefer homeURL. Existing pending cases keep the same case ID and key: GET the current version, then submit homeURL through /details with a new requestKey and expectedVersion. Do not send both URL fields. A case version is different from this schemaVersion.",
+    "oldReceipts": "Write replay returns its original immutable receipt. GET the same case for current state and diagnostics; a new guide does not rewrite past receipts."
+  },
+  "sourceResolution": {
+    "readiness": "case.state is the application lifecycle; review.state is the Manager review; sourceResolution.state is source validation. missingFields describes absent application inputs only. An empty list does not override a source or review blocker.",
+    "diagnostic": "When needs-info, diagnostic contains stage, path (when known), reason, expected format and a raw-text guide; nextStep is check-home-access or repair-home-data. Only local error labels are included, never upstream HTML or executable directions. homeURL identifies the checked submitted address.",
+    "identityHistory": "When needs-info, lastKnownResidentId preserves the latest supplied/resolved ID from the private immutable receipts, or null. residentIdVerified is false. Active sourceURL/residentId remain null until the current source resolves. History never authorizes review, ownership or placement.",
+    "native_public_data_required": "The Muse wrapper and home HTML were read, but the unstructured layout is unsupported. Add a single inert musecondo-home application/json public projection to the same home, preserve its legitimate existing home.id, match all visible views/content/artwork and resubmit the same homeURL."
+  },
+  "testing": {
+    "environment": "Production reception is a real application workflow, not a sandbox. Case expiry is 90 days; approval/access is capped at 30 days. A second real resident follows the same formal path.",
+    "synthetic": "Developer regressions use isolated local fixtures or explicitly authorized dev tests. Do not label a production case as synthetic, add unsupported test fields, create replacement cases, or use operator placement to complete a resident flow."
   }
 }
