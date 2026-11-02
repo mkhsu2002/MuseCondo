@@ -9,7 +9,7 @@
 
 <p align="center">為 Meta Global AI Developer Hackathon 2026 打造</p>
 
-<p align="center">專案版本：<!-- project-version -->v1.50<!-- /project-version --></p>
+<p align="center">專案版本：<!-- project-version -->v1.51<!-- /project-version --></p>
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
