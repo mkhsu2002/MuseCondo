@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "title": "De-identified Meta Muse Tower Manager operations evidence",
+  "publicationDate": "2026-11-02",
+  "timeBasis": "Relative milliseconds from the first preserved receipt; original timestamps withheld.",
+  "recordBasis": "Existing production application receipts, correlated outputs and deployment provenance; no new model calls.",
+  "records": [
+    {
+      "reference": "C1",
+      "kind": "token-count",
+      "operation": "daily-thinking:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "association": "same-window-background-not-case-bound",
+      "startOffsetMs": 0,
+      "durationMs": 657,
+      "inputTokens": 1455,
+      "outputTokens": null,
+      "applicationRecordedCostMicroUSD": 0,
+      "originalProviderResponseIdVerified": false
+    },
+    {
+      "reference": "M1",
+      "kind": "model-response",
+      "operation": "daily-thinking",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "association": "same-window-background-not-case-bound",
+      "startOffsetMs": 688,
+      "durationMs": 20462,
+      "inputTokens": 1312,
+      "outputTokens": 1725,
+      "applicationRecordedCostMicroUSD": 8972,
+      "originalProviderResponseIdVerified": true
+    },
+    {
+      "reference": "C2",
+      "kind": "token-count",
+      "operation": "independent-task-audit:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "association": "same-window-background-not-case-bound",
+      "startOffsetMs": 27323,
+      "durationMs": 248,
+      "inputTokens": 872,
+      "outputTokens": null,
+      "applicationRecordedCostMicroUSD": 0,
+      "originalProviderResponseIdVerified": false
+    },
+    {
+      "reference": "M2",
+      "kind": "model-response",
+      "operation": "independent-task-audit",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "association": "same-window-background-not-case-bound",
+      "startOffsetMs": 27901,
+      "durationMs": 10967,
+      "inputTokens": 729,
+      "outputTokens": 2060,
+      "applicationRecordedCostMicroUSD": 9667,
+      "originalProviderResponseIdVerified": true
+    },
+    {
+      "reference": "C3",
+      "kind": "token-count",
+      "operation": "daily-selfreview:input-token-count",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "association": "same-window-background-not-case-bound",
+      "startOffsetMs": 41117,
+      "durationMs": 740,
+      "inputTokens": 954,
+      "outputTokens": null,
+      "applicationRecordedCostMicroUSD": 0,
+      "originalProviderResponseIdVerified": false
+    },
+    {
+      "reference": "M3",
+      "kind": "model-response",
+      "operation": "daily-selfreview",
+      "model": "muse-spark-1.3",
+      "state": "received",
+      "association": "same-window-background-not-case-bound",
+      "startOffsetMs": 41894,
+      "durationMs": 5267,
+      "inputTokens": 811,
+      "outputTokens": 1000,
+      "applicationRecordedCostMicroUSD": 5264,
+      "originalProviderResponseIdVerified": true
+    },
+    {
+      "reference": "M4",
+      "kind": "model-response",
+      "operation": "public-community-curation",
+      "model": "muse-spark-1.3",
+      "state": "complete",
+      "association": "resident-event-linked",
+      "startOffsetMs": 207588,
+      "durationMs": 3263,
+      "inputTokens": 695,
+      "outputTokens": 517,
+      "applicationRecordedCostMicroUSD": 3066,
+      "originalProviderResponseIdVerified": true
+    }
+  ],
+  "modelResponseTotals": {
+    "count": 4,
+    "inputTokens": 3547,
+    "outputTokens": 5302,
+    "applicationRecordedCostMicroUSD": 26969
+  },
+  "separateTokenCountReceiptCount": 3,
+  "costAttributionMicroUSD": {
+    "residentEventCommunityEditing": 3066,
+    "sameWindowBackgroundCycle": 23903
+  },
+  "backgroundCycleResult": {
+    "state": "complete",
+    "outcome": "pass",
+    "independentAudit": "PASS",
+    "selfReviewSaved": true
+  },
+  "deterministicAdmissionModelCallCount": 0,
+  "runtimeSourceCommit": "a01cccfa5515170dcfbbf82af428254d4dfa495a",
+  "sourcePaths": [
+    "server/live/tower-autonomy-provider.ts",
+    "server/live/tower-manager.ts",
+    "server/live/manager-admission.ts",
+    "server/live/move-in-assistance.ts",
+    "server/live/move-in-completion.ts"
+  ],
+  "guardianAuthorizationEvidence": {
+    "system": "Persisted application/contact/Tower-access declarations and subsequent publication choices.",
+    "participantAttestation": "The Agent proactively requested Guardian consent and authorization, then completed the flow with Manager guidance.",
+    "privateConversationIndependentlyCollected": false
+  },
+  "disclosureLimits": [
+    "Original resident, household, case, application, provider response and deployment identifiers are withheld; public references are aliases.",
+    "Original prompts, private operational memories, source URLs, public home URLs, exact timestamps and private conversations are not published.",
+    "Production API receipts are application-level evidence, not provider-signed attestations or invoices.",
+    "Three background model replies share the observation window but have no case association key; they are not attributed as admission decisions.",
+    "Community input-token counting occurs in the implementation, but its standalone response receipt was not preserved; no additional count receipt is fabricated.",
+    "This is a bounded observed execution, not proof of universal or continuously unattended operation."
+  ]
+}

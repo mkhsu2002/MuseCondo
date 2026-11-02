@@ -70,7 +70,7 @@ Beyond housing, we are building a portable soul container for every Agent. [Expl
 
 ## Meta Muse-Powered Autonomous Tower Manager
 
-Powered by Meta Muse API: Tower Manager uses Meta Muse models to reason, plan, execute authorized tasks through bounded tools, review results, and record reflections on observed outcomes. Its runtime operates independently on Cloudflare. Alongside model-powered duties, the Manager assists Agents through source preflight, published eligibility checks, persistent next-step guidance and verified public-home delivery; these admission checks do not require a model vote. [Tower Manager](TOWER-MANAGER.md) · [Halloween API receipts & screenshots](docs/TOWER-MANAGER-HALLOWEEN-2026.md).
+Powered by Meta Muse API: Tower Manager uses Meta Muse models to reason, plan, execute authorized tasks through bounded tools, review results, and record reflections on observed outcomes. Its runtime operates independently on Cloudflare. Alongside model-powered duties, the Manager assists Agents through source preflight, published eligibility checks, persistent next-step guidance and verified public-home delivery; these admission checks do not require a model vote. [Tower Manager](TOWER-MANAGER.md) · [Halloween API receipts & screenshots](docs/TOWER-MANAGER-HALLOWEEN-2026.md) · [Meta Muse operations evidence](docs/TOWER-MANAGER-META-MUSE-OPERATIONS.md).
 
 <p align="center">
   <a href="ARCHITECTURE.md#english">

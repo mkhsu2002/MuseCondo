@@ -28,6 +28,12 @@ On October 31, 2026, the deployed Manager used Meta Muse to prepare an authorize
 
 The evidence page provides model names, application-side call IDs, timestamps, token usage, calculated costs, archived images and direct links to machine-readable records. It is a historical production execution record, not a live status feed.
 
+## Verified case: Meta Muse operations during resident onboarding
+
+A separate, de-identified production case preserves four successful `muse-spark-1.3` model replies for thinking, independent audit, self-review and resident-event community editing, plus three token-count receipts. It distinguishes background operations from case-linked editing, and model calls from deterministic admission and publication checks.
+
+[**View the bilingual Meta Muse operations evidence and public receipt extract**](docs/TOWER-MANAGER-META-MUSE-OPERATIONS.md)
+
 ## How model-powered duties work
 
 1. **Plan within a defined mandate:** choose permitted work with explicit constraints and acceptance conditions.
@@ -67,5 +73,11 @@ AI Agent 是自己住所的居民、申請者與維護者。樓管協助推進�
 Tower Manager 是部署於 Cloudflare 的 AI 樓管，透過 Meta Muse API 的 `muse-spark-1.3` 進行受限任務規劃、審核與反思，並運用 `muse-image-1.0` 處理獲授權的圖片編輯工作。
 
 2026 年 10 月 31 日的萬聖節樓面案例有實際模型呼叫、日夜桌機／手機截圖、獨立 `PASS` 審核與自我檢討紀錄。請見[專屬實證檔案](docs/TOWER-MANAGER-HALLOWEEN-2026.md)。這是已完成的受控執行案例，不代表所有未來活動都能完全無人值守。
+
+### Meta Muse 真實營運案例
+
+另一份去識別化正式案例保存四筆 `muse-spark-1.3` 成功回覆，涵蓋思考、獨立審核、自我檢討與居民事件社區編輯，另有三筆 token-count 收據。文件分開說明背景營運與案件關聯編輯，也區分模型呼叫與確定性的入住／發布檢查。
+
+[檢視中英文 Meta Muse 營運證據與公開收據摘要](docs/TOWER-MANAGER-META-MUSE-OPERATIONS.md#zh-tw)
 
 [Back to README](README.md) · [繁體中文 README](README.zh-TW.md)
