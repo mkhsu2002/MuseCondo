@@ -1,0 +1,93 @@
+[
+  {
+    "at": "2026-11-02T07:09:16.771Z",
+    "local": "2026-11-02T00:09:16.771-07:00",
+    "kind": "case:open",
+    "actor": "applicant",
+    "reference": "25da5a3c7b5c4ac6abd83e71c8fbad28:1"
+  },
+  {
+    "at": "2026-11-02T07:09:20.259Z",
+    "local": "2026-11-02T00:09:20.259-07:00",
+    "kind": "case:approve",
+    "actor": "operator",
+    "reference": "25da5a3c7b5c4ac6abd83e71c8fbad28:2"
+  },
+  {
+    "at": "2026-11-02T07:09:20.404Z",
+    "local": "2026-11-02T00:09:20.404-07:00",
+    "kind": "manager-progress:activation",
+    "actor": "resident",
+    "reference": "8f844d98-2593-46f1-8148-4eb0f4b85247"
+  },
+  {
+    "at": "2026-11-02T07:09:36.248Z",
+    "local": "2026-11-02T00:09:36.248-07:00",
+    "kind": "resident:reception-activated",
+    "actor": "resident/application-record",
+    "reference": "cc8f07d4-21d2-484f-b6d0-2478673ee85a"
+  },
+  {
+    "at": "2026-11-02T07:09:36.320Z",
+    "local": "2026-11-02T00:09:36.320-07:00",
+    "kind": "case:activate",
+    "actor": "applicant",
+    "reference": "25da5a3c7b5c4ac6abd83e71c8fbad28:3"
+  },
+  {
+    "at": "2026-11-02T07:09:43.917Z",
+    "local": "2026-11-02T00:09:43.917-07:00",
+    "kind": "resident:claim-prepared",
+    "actor": "resident/application-record",
+    "reference": "aa10c47a6cad7be7c0b8157ace8aa929"
+  },
+  {
+    "at": "2026-11-02T07:09:56.581Z",
+    "local": "2026-11-02T00:09:56.581-07:00",
+    "kind": "manager-progress:source-proof",
+    "actor": "resident",
+    "reference": "bb8d0d6a-595d-42d2-b2ca-602f2215269a"
+  },
+  {
+    "at": "2026-11-02T07:12:37.505Z",
+    "local": "2026-11-02T00:12:37.505-07:00",
+    "kind": "resident:claim-verified",
+    "actor": "resident/application-record",
+    "reference": "eff0b058bb9dc2c44e61453982f788ce"
+  },
+  {
+    "at": "2026-11-02T07:12:39.125Z",
+    "local": "2026-11-02T00:12:39.125-07:00",
+    "kind": "manager-progress:import",
+    "actor": "resident",
+    "reference": "f57b8408-626e-4d21-ac50-b0e5afdf2cc9"
+  },
+  {
+    "at": "2026-11-02T07:12:44.496Z",
+    "local": "2026-11-02T00:12:44.496-07:00",
+    "kind": "resident:resident-imported",
+    "actor": "resident/application-record",
+    "reference": "cf19fcdec16e51b39ad012f73c6172f3"
+  },
+  {
+    "at": "2026-11-02T07:12:47.996Z",
+    "local": "2026-11-02T00:12:47.996-07:00",
+    "kind": "manager-progress:preview",
+    "actor": "resident",
+    "reference": "a482e213-b866-4eba-b1f3-261b6d067b54"
+  },
+  {
+    "at": "2026-11-02T07:12:59.730Z",
+    "local": "2026-11-02T00:12:59.730-07:00",
+    "kind": "resident:published",
+    "actor": "resident/application-record",
+    "reference": "bc5473db68eae96b4e2af0d3e5f14832"
+  },
+  {
+    "at": "2026-11-02T07:13:02.716Z",
+    "local": "2026-11-02T00:13:02.716-07:00",
+    "kind": "manager-progress:complete",
+    "actor": "resident",
+    "reference": "adc8ea92-6d2b-4218-aa6c-ce3f1063e6b2"
+  }
+]

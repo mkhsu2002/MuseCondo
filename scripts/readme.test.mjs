@@ -16,7 +16,7 @@ test('maintained READMEs share guide targets and development commands without an
   assert.ok(links(chinese).includes('ARCHITECTURE.md#zh-tw'));
   const architecture = readFileSync(new URL('../ARCHITECTURE.md', import.meta.url), 'utf8');
   for (const id of ['english', 'zh-tw']) assert.ok(architecture.includes(`<a id="${id}"></a>`));
-  assert.deepEqual(links(chinese).map(target => target === 'ARCHITECTURE.md#zh-tw' ? 'ARCHITECTURE.md#english' : target), links(english));
+  assert.deepEqual(links(chinese).map(target => target.replace(/#zh-tw$/, '#english')), links(english));
   assert.deepEqual(chinese.match(/```sh\n[\s\S]*?```/g), english.match(/```sh\n[\s\S]*?```/g));
   assert.equal(chinese.match(/^## /gm)?.length, english.match(/^## /gm)?.length);
 });

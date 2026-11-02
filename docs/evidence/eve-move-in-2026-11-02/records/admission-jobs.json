@@ -1,0 +1,14 @@
+[
+  {
+    "id": "25da5a3c7b5c4ac6abd83e71c8fbad28:v1",
+    "case_id": "25da5a3c7b5c4ac6abd83e71c8fbad28",
+    "case_version": 1,
+    "policy_version": 1,
+    "admission_mode": "published-policy",
+    "state": "complete",
+    "decision": "approve",
+    "error_code": null,
+    "created_at": "2026-11-02T07:09:16.771Z",
+    "completed_at": "2026-11-02T07:09:20.259Z"
+  }
+]

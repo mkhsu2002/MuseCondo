@@ -1,0 +1,188 @@
+[
+  {
+    "record": "case",
+    "sql": "SELECT id,name,state,version,request_kind,is_muse_agent,account_id,resident_id,authorization_json,sharing_json,visit_plan_json,created_at,updated_at FROM tower_reception_cases WHERE id=?",
+    "params": [
+      "25da5a3c7b5c4ac6abd83e71c8fbad28"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "residency",
+    "sql": "SELECT room_id,account_id,resident_id,proof_method,revision,public_revision,directory_consent,snapshot_consent,announcement_consent,dream_consent,publication_epoch,created_at,updated_at,published_at FROM tower_residencies WHERE account_id=?",
+    "params": [
+      "064b94d1c1894cc6b29629530635ad13"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "admission-jobs",
+    "sql": "SELECT id,case_id,case_version,policy_version,admission_mode,state,decision,error_code,created_at,completed_at FROM manager_admission_jobs WHERE case_id=? ORDER BY created_at",
+    "params": [
+      "25da5a3c7b5c4ac6abd83e71c8fbad28"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "admission-api-receipts",
+    "sql": "SELECT * FROM manager_admission_calls WHERE case_id=? ORDER BY created_at",
+    "params": [
+      "25da5a3c7b5c4ac6abd83e71c8fbad28"
+    ],
+    "rows": 0
+  },
+  {
+    "record": "published-policy-results",
+    "sql": "SELECT * FROM manager_admission_policy_results WHERE case_id=?",
+    "params": [
+      "25da5a3c7b5c4ac6abd83e71c8fbad28"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "admission-audit",
+    "sql": "SELECT * FROM manager_admission_audit WHERE case_id=? ORDER BY created_at",
+    "params": [
+      "25da5a3c7b5c4ac6abd83e71c8fbad28"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "qualification-source-proof",
+    "sql": "SELECT * FROM manager_admission_home_proofs WHERE job_id IN (SELECT id FROM manager_admission_jobs WHERE case_id=?)",
+    "params": [
+      "25da5a3c7b5c4ac6abd83e71c8fbad28"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "case-events",
+    "sql": "SELECT case_id,sequence,actor,kind,created_at FROM tower_reception_events WHERE case_id=? ORDER BY sequence",
+    "params": [
+      "25da5a3c7b5c4ac6abd83e71c8fbad28"
+    ],
+    "rows": 3
+  },
+  {
+    "record": "case-request-receipts",
+    "sql": "SELECT case_id,request_key,operation,input_hash,response_status,created_at FROM tower_reception_requests WHERE case_id=? ORDER BY created_at",
+    "params": [
+      "25da5a3c7b5c4ac6abd83e71c8fbad28"
+    ],
+    "rows": 2
+  },
+  {
+    "record": "move-in-progress",
+    "sql": "SELECT * FROM manager_move_in_progress WHERE case_id=?",
+    "params": [
+      "25da5a3c7b5c4ac6abd83e71c8fbad28"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "move-in-events",
+    "sql": "SELECT * FROM manager_move_in_events WHERE case_id=? ORDER BY created_at",
+    "params": [
+      "25da5a3c7b5c4ac6abd83e71c8fbad28"
+    ],
+    "rows": 5
+  },
+  {
+    "record": "resident-operation-audit",
+    "sql": "SELECT id,account_id,room_id,action,revision,created_at FROM tower_audit WHERE account_id=? ORDER BY created_at",
+    "params": [
+      "064b94d1c1894cc6b29629530635ad13"
+    ],
+    "rows": 5
+  },
+  {
+    "record": "resident-request-receipts",
+    "sql": "SELECT account_id,request_key,operation,input_hash,created_at FROM tower_requests WHERE account_id=? ORDER BY created_at",
+    "params": [
+      "064b94d1c1894cc6b29629530635ad13"
+    ],
+    "rows": 2
+  },
+  {
+    "record": "source-claim-proof",
+    "sql": "SELECT id,account_id,resident_id,verified,created_at,expires_at FROM tower_claims WHERE account_id=? ORDER BY created_at",
+    "params": [
+      "064b94d1c1894cc6b29629530635ad13"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "snapshot-digests",
+    "sql": "SELECT room_id,revision,content_digest,created_at FROM tower_snapshots WHERE room_id=? ORDER BY revision",
+    "params": [
+      "d0e4167aba9b3e75"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "scoped-access-metadata",
+    "sql": "SELECT id,account_id,scopes,expires_at,revoked,created_at FROM tower_tokens WHERE account_id=? ORDER BY created_at",
+    "params": [
+      "064b94d1c1894cc6b29629530635ad13"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "associated-community-editions",
+    "sql": "SELECT id,events_json,edition_json,created_at FROM community_editions WHERE EXISTS(SELECT 1 FROM json_each(events_json,'$.events') WHERE json_extract(value,'$.residentId')=?) ORDER BY created_at",
+    "params": [
+      "d0e4167aba9b3e75"
+    ],
+    "rows": 2
+  },
+  {
+    "record": "community-api-job-0",
+    "sql": "SELECT * FROM manager_jobs WHERE source_digest=? ORDER BY created_at",
+    "params": [
+      "f6a2176441c4f6bc5144d0cea59830ab3f7de9b1c933c64efc6ce16b89eda0f0"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "same-window-autonomy-api-receipts",
+    "sql": "SELECT * FROM tower_autonomy_calls WHERE created_at>=? AND created_at<=? ORDER BY created_at",
+    "params": [
+      "2026-11-02T07:09:16.771Z",
+      "2026-11-02T07:23:02.716000Z"
+    ],
+    "rows": 6
+  },
+  {
+    "record": "background-cycle-0",
+    "sql": "SELECT * FROM tower_autonomy_cycles WHERE id=?",
+    "params": [
+      "manager-2026-11-02"
+    ],
+    "rows": 1
+  },
+  {
+    "record": "background-cycle-events-0",
+    "sql": "SELECT * FROM tower_autonomy_events WHERE cycle_id=? ORDER BY created_at",
+    "params": [
+      "manager-2026-11-02"
+    ],
+    "rows": 15
+  },
+  {
+    "record": "background-cycle-all-receipts-0",
+    "sql": "SELECT * FROM tower_autonomy_calls WHERE cycle_id=? ORDER BY created_at",
+    "params": [
+      "manager-2026-11-02"
+    ],
+    "rows": 6
+  },
+  {
+    "record": "other-provider-dispatches-in-window",
+    "sql": "SELECT id,stage,model,state,started_at,finished_at,provider_request_id FROM provider_requests WHERE started_at>=? AND started_at<=? ORDER BY started_at",
+    "params": [
+      "2026-11-02T07:09:16.771Z",
+      "2026-11-02T07:23:02.716000Z"
+    ],
+    "rows": 0
+  }
+]

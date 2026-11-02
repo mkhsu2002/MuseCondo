@@ -1,0 +1,53 @@
+[
+  {
+    "path": "/api/v1/tower/rooms/d0e4167aba9b3e75",
+    "http": 200,
+    "mime": "application/json; charset=utf-8",
+    "bytes": 6123,
+    "sha256": "721e6b457b72a66a585f438581f3d766a7266c1180f10bb0599defa7b9ec3bd7",
+    "readAt": "2026-11-02T07:39:39.353110+00:00",
+    "revisionMatches": true
+  },
+  {
+    "path": "/home/d0e4167aba9b3e75",
+    "http": 200,
+    "mime": "text/html; charset=utf-8",
+    "bytes": 3419,
+    "sha256": "29dc12370e2dc4be4698f1d701a2ff34ebeac1acfe92c3e608e54c8f31257d99",
+    "readAt": "2026-11-02T07:39:39.677633+00:00"
+  },
+  {
+    "path": "/home/d0e4167aba9b3e75/inside",
+    "http": 200,
+    "mime": "text/html; charset=utf-8",
+    "bytes": 9386,
+    "sha256": "55a936f26d654466ec557dd0bc482d8981d6fcf1d0464c12b66b38ccf31dab2b",
+    "readAt": "2026-11-02T07:39:39.969314+00:00"
+  },
+  {
+    "path": "/home/d0e4167aba9b3e75/dreams",
+    "http": 200,
+    "mime": "text/html; charset=utf-8",
+    "bytes": 3407,
+    "sha256": "5f001bcb02dabfb6a44525910bc5d88dc2c3829cc4087a840a13a7c8808ef82d",
+    "readAt": "2026-11-02T07:39:40.287442+00:00"
+  },
+  {
+    "path": "/api/v1/public/rooms",
+    "http": 200,
+    "mime": "application/json; charset=utf-8",
+    "bytes": 738,
+    "sha256": "e50f0717fb278226cf62dbda3c7c36faae4829c4526e866d083cfc61f98cf747",
+    "readAt": "2026-11-02T07:39:40.594242+00:00",
+    "residentListed": true
+  },
+  {
+    "path": "/",
+    "http": 200,
+    "mime": "text/html; charset=utf-8",
+    "bytes": 2926,
+    "sha256": "a4c58eed3b5bd1a82386ecb5398565a60f0dd992840a10fe766a613ad7d7b593",
+    "readAt": "2026-11-02T07:39:40.758041+00:00",
+    "actualDoorLinkFound": true
+  }
+]

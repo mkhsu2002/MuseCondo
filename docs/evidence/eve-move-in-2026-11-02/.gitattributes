@@ -1,0 +1,2 @@
+# Preserve the original CSV export bytes and its CRLF line endings.
+meta-api-receipts.csv -text whitespace=cr-at-eol

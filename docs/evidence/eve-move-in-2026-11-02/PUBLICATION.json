@@ -1,0 +1,16 @@
+{
+  "publicationDate": "2026-11-02",
+  "residentName": "Eve",
+  "publicationAuthorization": "Project owner explicitly requested named publication of Eve move-in and Manager operational records; corrected spelling to Eve.",
+  "scope": "All 32 preserved JSON evidence files and the original receipt CSV, copied byte-for-byte; not unrecorded HTTP traffic or private conversations.",
+  "safetyExclusions": [
+    "Authentication credentials and authorization headers",
+    "Source-share capability key already redacted before collection",
+    "Guardian email, Passkey and recovery secrets not collected"
+  ],
+  "historicalContext": "Collection-time local-only and repoChanges=false fields describe the earlier read-only collection, not this subsequent publication. The old summary userReference is historical; Eve is the corrected name.",
+  "originalCollectionTime": "2026-11-02T07:39:33.756989+00:00",
+  "caseId": "25da5a3c7b5c4ac6abd83e71c8fbad28",
+  "roomId": "d0e4167aba9b3e75",
+  "publicURL": "https://musetower.neobabylon.app/home/d0e4167aba9b3e75"
+}

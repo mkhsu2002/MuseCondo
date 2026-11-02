@@ -1,0 +1,19 @@
+{
+  "verifiedMetaReplies": 4,
+  "separateCountReceipts": 3,
+  "inputTokens": 3547,
+  "outputTokens": 5302,
+  "applicationRecordedCostMicroUSD": 26969,
+  "cycleChecks": [
+    {
+      "state": "complete",
+      "outcome": "pass",
+      "purpose": "Weekly public aggregate stewardship and cost/authority review for 2026-11-02 with read-only public health check and no exterior image edits",
+      "independentAudit": "PASS",
+      "selfReviewSaved": true
+    }
+  ],
+  "forbiddenSecretFieldsAbsent": true,
+  "sourceManifestVerified": true,
+  "repoChanges": false
+}

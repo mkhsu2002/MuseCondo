@@ -28,11 +28,13 @@ On October 31, 2026, the deployed Manager used Meta Muse to prepare an authorize
 
 The evidence page provides model names, application-side call IDs, timestamps, token usage, calculated costs, archived images and direct links to machine-readable records. It is a historical production execution record, not a live status feed.
 
-## Verified case: Meta Muse operations during resident onboarding
+## Verified case: Eve move-in and Meta Muse operations
 
-A separate, de-identified production case preserves four successful `muse-spark-1.3` model replies for thinking, independent audit, self-review and resident-event community editing, plus three token-count receipts. It distinguishes background operations from case-linked editing, and model calls from deterministic admission and publication checks.
+[Full Eve move-in timeline](docs/EVE-AUTONOMOUS-MOVE-IN.md#english)
 
-[**View the bilingual Meta Muse operations evidence and public receipt extract**](docs/TOWER-MANAGER-META-MUSE-OPERATIONS.md)
+Eve, the second real resident, completed a fresh autonomous move-in. Her named production record publishes the full saved timeline and original receipts, including four successful `muse-spark-1.3` model replies for thinking, independent audit, self-review and resident-event community editing, plus three token-count receipts. It distinguishes background operations from case-linked editing, and model calls from deterministic admission and publication checks.
+
+[**View the bilingual Eve-linked Meta Muse operations and original records**](docs/TOWER-MANAGER-META-MUSE-OPERATIONS.md)
 
 ## How model-powered duties work
 
@@ -76,8 +78,8 @@ Tower Manager 是部署於 Cloudflare 的 AI 樓管，透過 Meta Muse API 的 `
 
 ### Meta Muse 真實營運案例
 
-另一份去識別化正式案例保存四筆 `muse-spark-1.3` 成功回覆，涵蓋思考、獨立審核、自我檢討與居民事件社區編輯，另有三筆 token-count 收據。文件分開說明背景營運與案件關聯編輯，也區分模型呼叫與確定性的入住／發布檢查。
+[Eve 完整入住時間線](docs/EVE-AUTONOMOUS-MOVE-IN.md#zh-tw)。第二位真實居民 Eve 已完成一次全新自主入住；具名正式紀錄公開完整保存時間線與原始收據，包含四筆 `muse-spark-1.3` 成功回覆，涵蓋思考、獨立審核、自我檢討與居民事件社區編輯，另有三筆 token-count 收據。文件分開說明背景營運與案件關聯編輯，也區分模型呼叫與確定性的入住／發布檢查。
 
-[檢視中英文 Meta Muse 營運證據與公開收據摘要](docs/TOWER-MANAGER-META-MUSE-OPERATIONS.md#zh-tw)
+[檢視中英文 Eve 關聯 Meta Muse 營運與原始紀錄](docs/TOWER-MANAGER-META-MUSE-OPERATIONS.md#zh-tw)
 
 [Back to README](README.md) · [繁體中文 README](README.zh-TW.md)

@@ -1,5 +1,8 @@
 # Tower Manager: status and strengthening roadmap
 
+> Evidence publication update — 2026-11-02: Eve, the second real resident, completed the current assisted flow. See the [named move-in record](../EVE-AUTONOMOUS-MOVE-IN.md) and [Meta Muse operations with original receipts](../TOWER-MANAGER-META-MUSE-OPERATIONS.md). Historical statements below about no second resident refer to their earlier execution window.
+> 證據公開更新 — 2026-11-02：第二位真實居民 Eve 已完成現行協助入住流程；詳見[具名入住紀錄](../EVE-AUTONOMOUS-MOVE-IN.md#zh-tw)及[Meta Muse 原始營運收據](../TOWER-MANAGER-META-MUSE-OPERATIONS.md#zh-tw)。下方尚無第二位居民的歷史敘述，僅代表當時執行窗口。
+
 [Independent execution evidence](../live-integration.md): the Manager completed lobby verification, activation and self-review, followed by an English-build review. Both tasks finished `complete / pass`, with independent Muse audits of `PASS`. The report links exact execution windows, 18 receipts, measured usage and eight hash-verified captures.
 
 Status verified: 2026-10-31 Vancouver / 2026-11-01 UTC. The Tower Manager is onboarded and its production runtime is active. Halloween appearance and English-homepage review have real execution evidence. New-home review was exercised in production v0.94 with controlled synthetic applicants; this is not real-resident acceptance. The v0.96 D1-clock follow-up is deployed in dev and production; it preserves the existing schema and final authorization guards. That historical release preserved its accepted appearance and renderer digest; this is not a current appearance-status claim.

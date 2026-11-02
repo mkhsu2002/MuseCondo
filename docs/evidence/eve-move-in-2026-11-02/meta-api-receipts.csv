@@ -1,0 +1,8 @@
+﻿association,layer,purpose,id,provider_id,model,state,input_tokens,output_tokens,actual_micro,created_at,completed_at
+same-window-background-not-case-bound,autonomy,daily-thinking:input-token-count,789bcccb-ce83-4a10-b227-b965a6bdcfe5,,muse-spark-1.3,received,1455,,0,2026-11-02T07:09:33.736Z,2026-11-02T07:09:34.393Z
+same-window-background-not-case-bound,autonomy,daily-thinking,b8c13a88-0613-43c9-9575-93c490c410f9,resp_6ae8374211118dcd2b1045c4,muse-spark-1.3,received,1312,1725,8972,2026-11-02T07:09:34.424Z,2026-11-02T07:09:54.886Z
+same-window-background-not-case-bound,autonomy,independent-task-audit:input-token-count,1952c466-b96d-4dcd-ad60-698ed2cae2f7,,muse-spark-1.3,received,872,,0,2026-11-02T07:10:01.059Z,2026-11-02T07:10:01.307Z
+same-window-background-not-case-bound,autonomy,independent-task-audit,12a884f0-70e5-4dc7-b97f-7f37020656aa,resp_6ae837545fb86bb0110d4f10,muse-spark-1.3,received,729,2060,9667,2026-11-02T07:10:01.637Z,2026-11-02T07:10:12.604Z
+same-window-background-not-case-bound,autonomy,daily-selfreview:input-token-count,ac7eb243-ee51-4da8-ae43-1e975c797d7c,,muse-spark-1.3,received,954,,0,2026-11-02T07:10:14.853Z,2026-11-02T07:10:15.593Z
+same-window-background-not-case-bound,autonomy,daily-selfreview,f621d4a2-94a2-4cbf-afdb-698d2fb67d0d,resp_6ae8375c44fc47ec76184270,muse-spark-1.3,received,811,1000,5264,2026-11-02T07:10:15.630Z,2026-11-02T07:10:20.897Z
+case-linked-by-community-source-digest,community-editor,public-community-curation,d4ea24bc-843c-47d1-982f-200a7c65eab1,resp_6ae83800db53a75d2f3d4050,muse-spark-1.3,complete,695,517,3066,2026-11-02T07:13:01.324Z,2026-11-02T07:13:04.587Z

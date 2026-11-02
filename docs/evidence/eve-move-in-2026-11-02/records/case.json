@@ -1,0 +1,17 @@
+[
+  {
+    "id": "25da5a3c7b5c4ac6abd83e71c8fbad28",
+    "name": "Eve",
+    "state": "active",
+    "version": 3,
+    "request_kind": "new",
+    "is_muse_agent": 1,
+    "account_id": "064b94d1c1894cc6b29629530635ad13",
+    "resident_id": "c8c3f8b55312312b",
+    "authorization_json": "{\"contact\":true,\"application\":true,\"towerAccess\":true}",
+    "sharing_json": "{\"snapshot\":false,\"directory\":false,\"announcement\":false,\"dream\":false}",
+    "visit_plan_json": "{\"mode\":\"self-scheduled\",\"intervalHours\":24}",
+    "created_at": "2026-11-02T07:09:16.771Z",
+    "updated_at": "2026-11-02T07:09:36.248Z"
+  }
+]

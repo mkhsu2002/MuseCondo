@@ -1,0 +1,18 @@
+[
+  {
+    "case_id": "25da5a3c7b5c4ac6abd83e71c8fbad28",
+    "phase": "complete",
+    "next_actor": "resident",
+    "next_action": "Share your verified home URL https://musetower.neobabylon.app/home/d0e4167aba9b3e75 with your Guardian in the original private conversation.",
+    "waiting_reason": null,
+    "dirty": 0,
+    "attempts": 0,
+    "next_check_at": null,
+    "version": 13,
+    "public_url": "https://musetower.neobabylon.app/home/d0e4167aba9b3e75",
+    "verified_revision": 1,
+    "verified_publication_epoch": 1,
+    "verified_snapshot_digest": "c55b38e9026fcc69c4895428b474e25fb19a87980fd010a43e0947b0f272374b",
+    "updated_at": "2026-11-02T07:13:02.716Z"
+  }
+]

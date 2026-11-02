@@ -1,0 +1,107 @@
+[
+  {
+    "id": "4e35040c-9816-44cb-aeed-f2ce7d9b8456",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "provider-response-contract",
+    "detail_json": "{\"call\":\"b8c13a88-0613-43c9-9575-93c490c410f9\",\"purpose\":\"daily-thinking\",\"model\":\"muse-spark-1.3\",\"status\":\"completed\",\"incompleteReason\":null,\"requestedMaxOutputTokens\":8192,\"responseMaxOutputTokens\":8192,\"inputTokens\":1312,\"outputTokens\":1725,\"reasoningTokens\":1497}",
+    "created_at": "2026-11-02T07:09:54.911Z"
+  },
+  {
+    "id": "de0f1554-8c86-45af-a642-84fc1d8e6c85",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "provider-received",
+    "detail_json": "{\"call\":\"b8c13a88-0613-43c9-9575-93c490c410f9\",\"purpose\":\"daily-thinking\",\"actualMicro\":8972}",
+    "created_at": "2026-11-02T07:09:54.940Z"
+  },
+  {
+    "id": "f45e3ae4-d914-4dc2-95df-b4ba3ea751d8",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "action-authorized",
+    "detail_json": "{\"kind\":\"health\",\"day\":\"2026-11-02\",\"policy\":\"bc-pct-2026-10-30\",\"grantedSeq\":1,\"budgetMicro\":600000}",
+    "created_at": "2026-11-02T07:09:54.969Z"
+  },
+  {
+    "id": "f1ff37ef-0332-47dd-abda-209237fdd852",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "state-transition",
+    "detail_json": "{\"from\":\"thinking\",\"to\":\"verify\"}",
+    "created_at": "2026-11-02T07:09:54.969Z"
+  },
+  {
+    "id": "92e0cad3-7f1f-44ac-a790-1b53744ece93",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "weekly-review",
+    "detail_json": "{\"week\":\"2026-11-02\",\"decision\":\"obligations.due and globalDue are empty on 2026-11-02 with season ordinary and no blockers, so no Halloween or other appearance duty is due; weeklyDue is true requiring public aggregate stewardship and cost/authority review, so health check is required rather than no-op; publicProjection available and appearanceStorage true with no private access needed, preserve both references unedited\"}",
+    "created_at": "2026-11-02T07:09:54.969Z"
+  },
+  {
+    "id": "cd8372e2-f6b0-43de-8a7b-577c039141db",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "deterministic-verification",
+    "detail_json": "{\"verified\":true,\"kind\":\"health\",\"generation\":null,\"assets\":[],\"health\":{\"publicProjection\":\"available\",\"appearanceStorage\":true,\"privateResidentDataRead\":false},\"checks\":[\"public-projection-readback\",\"no-mutation\"],\"verifiedAt\":\"2026-11-02T07:09:58.576Z\",\"obligations\":{\"calendarPolicy\":\"bc-pct-2026-10-30\",\"taskDay\":\"2026-11-02\",\"currentDay\":\"2026-11-02\",\"asOf\":\"2026-11-02T07:09:58.620Z\",\"currentPublicAppearance\":null,\"due\":[],\"globalDue\":[],\"blockers\":[]}}",
+    "created_at": "2026-11-02T07:09:58.620Z"
+  },
+  {
+    "id": "0dde1cd3-2532-4acd-8a13-d2028d96e468",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "state-transition",
+    "detail_json": "{\"from\":\"verify\",\"to\":\"audit\"}",
+    "created_at": "2026-11-02T07:09:58.649Z"
+  },
+  {
+    "id": "8ed9dc7c-2f52-4b6b-a009-0ea06a76391b",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "provider-response-contract",
+    "detail_json": "{\"call\":\"12a884f0-70e5-4dc7-b97f-7f37020656aa\",\"purpose\":\"independent-task-audit\",\"model\":\"muse-spark-1.3\",\"status\":\"completed\",\"incompleteReason\":null,\"requestedMaxOutputTokens\":8192,\"responseMaxOutputTokens\":8192,\"inputTokens\":729,\"outputTokens\":2060,\"reasoningTokens\":1970}",
+    "created_at": "2026-11-02T07:10:12.638Z"
+  },
+  {
+    "id": "0d0e0f15-83bd-4c74-b84b-a1c85df5a945",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "provider-received",
+    "detail_json": "{\"call\":\"12a884f0-70e5-4dc7-b97f-7f37020656aa\",\"purpose\":\"independent-task-audit\",\"actualMicro\":9667}",
+    "created_at": "2026-11-02T07:10:12.679Z"
+  },
+  {
+    "id": "663f95f3-8ae5-4955-a4ce-573ec78f90f0",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "task-audit",
+    "detail_json": "{\"verdict\":\"PASS\",\"reason\":\"Health-only stewardship is appropriate on 2026-11-02: obligations.due and globalDue are empty, blockers empty, season ordinary with no Halloween duty due. Evidence shows read-only publicProjection available, appearanceStorage true, privateResidentDataRead false, no-mutation with generation null/assets empty preserving unedited references, within $10 cap.\",\"callId\":\"12a884f0-70e5-4dc7-b97f-7f37020656aa\"}",
+    "created_at": "2026-11-02T07:10:12.725Z"
+  },
+  {
+    "id": "e765ae08-63a1-43d7-9d23-3d1ec50f5980",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "state-transition",
+    "detail_json": "{\"from\":\"audit\",\"to\":\"selfreview\"}",
+    "created_at": "2026-11-02T07:10:12.760Z"
+  },
+  {
+    "id": "25704b45-28ac-4681-9dd9-4bf5c136ea1b",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "provider-response-contract",
+    "detail_json": "{\"call\":\"f621d4a2-94a2-4cbf-afdb-698d2fb67d0d\",\"purpose\":\"daily-selfreview\",\"model\":\"muse-spark-1.3\",\"status\":\"completed\",\"incompleteReason\":null,\"requestedMaxOutputTokens\":8192,\"responseMaxOutputTokens\":8192,\"inputTokens\":811,\"outputTokens\":1000,\"reasoningTokens\":865}",
+    "created_at": "2026-11-02T07:10:20.930Z"
+  },
+  {
+    "id": "202205c7-7b63-4022-95a1-ccd32934ed22",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "provider-received",
+    "detail_json": "{\"call\":\"f621d4a2-94a2-4cbf-afdb-698d2fb67d0d\",\"purpose\":\"daily-selfreview\",\"actualMicro\":5264}",
+    "created_at": "2026-11-02T07:10:20.971Z"
+  },
+  {
+    "id": "08858c96-4312-4f1e-8653-01831da37db0",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "daily-private-memory",
+    "detail_json": "{\"memory\":\"2026-11-02 weekly health stewardship pending completion: no appearance duty due, blockers empty. Read-only public check verified projection available, storage true, no private read, no mutation with both exterior references preserved unedited. Independent audit PASS within USD10 cap with cost 18639 micro. Outcome remains pending, not claimed complete.\",\"nextTasks\":[\"Follow up pending 2026-11-02 outcome to confirmed close with no new mutations\",\"Preserve existing day and night exterior references unedited as isolated tower with original framing and lighting\",\"Continue weekly read-only public aggregate stewardship and cost authority review\"]}",
+    "created_at": "2026-11-02T07:10:21.001Z"
+  },
+  {
+    "id": "0bc70272-1bdf-4fb6-81fa-7895b381cb04",
+    "cycle_id": "manager-2026-11-02",
+    "kind": "state-transition",
+    "detail_json": "{\"from\":\"selfreview\",\"to\":\"complete\"}",
+    "created_at": "2026-11-02T07:10:21.080Z"
+  }
+]

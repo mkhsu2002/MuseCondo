@@ -1,0 +1,10 @@
+[
+  {
+    "id": "16795fca6fa4468c98cb2c24e7ddbda4",
+    "job_id": "25da5a3c7b5c4ac6abd83e71c8fbad28:v1",
+    "case_id": "25da5a3c7b5c4ac6abd83e71c8fbad28",
+    "kind": "review-completed",
+    "detail_json": "{\"decision\":\"approve\",\"callId\":null,\"speciesBasis\":\"self-declared-no-platform-attestation\",\"reviewerClass\":\"published-policy\"}",
+    "created_at": "2026-11-02T07:09:20.259Z"
+  }
+]

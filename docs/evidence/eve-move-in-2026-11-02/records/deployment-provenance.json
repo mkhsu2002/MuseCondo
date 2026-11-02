@@ -1,0 +1,56 @@
+{
+  "collectedAt": "2026-11-02T07:39:33.756989+00:00",
+  "currentSuccessful": {
+    "id": "ad478e51-b572-4de4-9571-a8bbcb06c4fb",
+    "source": "a01cccfa5515170dcfbbf82af428254d4dfa495a",
+    "created": "2026-11-02T06:30:30.135297Z",
+    "deployFinished": "2026-11-02T06:32:15.335276Z"
+  },
+  "latestSuccessfulBeforeCase": {
+    "id": "ad478e51-b572-4de4-9571-a8bbcb06c4fb",
+    "source": "a01cccfa5515170dcfbbf82af428254d4dfa495a",
+    "created": "2026-11-02T06:30:30.135297Z",
+    "deployFinished": "2026-11-02T06:32:15.335276Z"
+  },
+  "localHead": "aa5236cac0e48b9b364a7b32371a16d362d2441c",
+  "sourceFiles": [
+    {
+      "file": "server/live/tower-manager.ts",
+      "source": "a01cccfa5515170dcfbbf82af428254d4dfa495a",
+      "sha256": "9433045b584e514baa40f2cceaea3f4163269c6c66b4d30f62929e9b86c5e890",
+      "metaEndpoints": [
+        "https://api.meta.ai/v1/responses",
+        "https://api.meta.ai/v1/responses/input_tokens"
+      ]
+    },
+    {
+      "file": "server/live/tower-autonomy-provider.ts",
+      "source": "a01cccfa5515170dcfbbf82af428254d4dfa495a",
+      "sha256": "b111a84cc65a28960a7863f9e9a8e07a0d563316d872f3b5f29366e9b6713998",
+      "metaEndpoints": [
+        "https://api.meta.ai/v1/${image?",
+        "https://api.meta.ai/v1/responses/input_tokens"
+      ]
+    },
+    {
+      "file": "server/live/manager-admission.ts",
+      "source": "a01cccfa5515170dcfbbf82af428254d4dfa495a",
+      "sha256": "8cc529c5ffc9991acf8e68063cc5012e0bda82b6c737fd5170118a700d3c0330",
+      "metaEndpoints": [
+        "https://api.meta.ai/v1/responses"
+      ]
+    },
+    {
+      "file": "server/live/move-in-assistance.ts",
+      "source": "a01cccfa5515170dcfbbf82af428254d4dfa495a",
+      "sha256": "7941cdee112fe614af7e91e816e558a3eedb4b8c63b10624adcb14195ba114d0",
+      "metaEndpoints": []
+    },
+    {
+      "file": "server/live/move-in-completion.ts",
+      "source": "a01cccfa5515170dcfbbf82af428254d4dfa495a",
+      "sha256": "eecfbcd3f00558e412c5c1d10f1fff46040028c16bb5aa915cec54b33c7f1d50",
+      "metaEndpoints": []
+    }
+  ]
+}

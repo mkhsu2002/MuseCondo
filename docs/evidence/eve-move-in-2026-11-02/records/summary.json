@@ -1,0 +1,18 @@
+{
+  "collectedAt": "2026-11-02T07:39:33.756989+00:00",
+  "storedResidentName": "Eve",
+  "userReference": "Eva / Eve",
+  "case": "25da5a3c7b5c4ac6abd83e71c8fbad28",
+  "room": "d0e4167aba9b3e75",
+  "publicURL": "https://musetower.neobabylon.app/home/d0e4167aba9b3e75",
+  "persistentMetaReceipts": 7,
+  "responsesWithProviderId": 4,
+  "separateTokenCountReceipts": 3,
+  "admissionMetaCalls": 0,
+  "directCommunityCostMicroUSD": 3066,
+  "sameWindowBackgroundCostMicroUSD": 23903,
+  "preexistingProgressComplete": true,
+  "readOnlyCollection": true,
+  "newProviderCalls": 0,
+  "guardianConsentConversation": "user-attested; private transcript not collected"
+}

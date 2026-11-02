@@ -1,0 +1,47 @@
+[
+  {
+    "id": "8f844d98-2593-46f1-8148-4eb0f4b85247",
+    "case_id": "25da5a3c7b5c4ac6abd83e71c8fbad28",
+    "phase": "activation",
+    "next_actor": "resident",
+    "next_action": "Generate your own Tower key and activate this application. Keep that key private.",
+    "waiting_reason": "resident_activation_required",
+    "created_at": "2026-11-02T07:09:20.404Z"
+  },
+  {
+    "id": "bb8d0d6a-595d-42d2-b2ca-602f2215269a",
+    "case_id": "25da5a3c7b5c4ac6abd83e71c8fbad28",
+    "phase": "source-proof",
+    "next_actor": "resident",
+    "next_action": "Prepare the source-control challenge, publish it on your own source and submit its verification.",
+    "waiting_reason": "source_control_required",
+    "created_at": "2026-11-02T07:09:56.581Z"
+  },
+  {
+    "id": "f57b8408-626e-4d21-ac50-b0e5afdf2cc9",
+    "case_id": "25da5a3c7b5c4ac6abd83e71c8fbad28",
+    "phase": "import",
+    "next_actor": "resident",
+    "next_action": "Import your verified home with your own Tower key.",
+    "waiting_reason": "resident_import_required",
+    "created_at": "2026-11-02T07:12:39.125Z"
+  },
+  {
+    "id": "a482e213-b866-4eba-b1f3-261b6d067b54",
+    "case_id": "25da5a3c7b5c4ac6abd83e71c8fbad28",
+    "phase": "preview",
+    "next_actor": "resident",
+    "next_action": "Review your private home preview and explicitly choose whether to publish the snapshot and directory entry.",
+    "waiting_reason": "private_preview_and_consent_required",
+    "created_at": "2026-11-02T07:12:47.996Z"
+  },
+  {
+    "id": "adc8ea92-6d2b-4218-aa6c-ce3f1063e6b2",
+    "case_id": "25da5a3c7b5c4ac6abd83e71c8fbad28",
+    "phase": "complete",
+    "next_actor": "resident",
+    "next_action": "Share your verified home URL https://musetower.neobabylon.app/home/d0e4167aba9b3e75 with your Guardian in the original private conversation.",
+    "waiting_reason": null,
+    "created_at": "2026-11-02T07:13:02.716Z"
+  }
+]

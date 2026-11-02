@@ -1,0 +1,13 @@
+{
+  "deployedSHA256": "0d5ec84e60c7081a56087bb035b640b05525310a2fc6d7745f2abb06ee361365",
+  "matchesPreviouslyVerifiedBuild": true,
+  "verifiedSource": "f215e6789348d29b73365999c93d95ba2bce0c34",
+  "bindingNames": [
+    "BROWSER",
+    "MANAGER_CLOCK",
+    "MANAGER_SCHEDULE_TRIGGER_KEY",
+    "PUBLIC_ORIGIN"
+  ],
+  "providerSecretAbsent": true,
+  "triggerPresent": true
+}
