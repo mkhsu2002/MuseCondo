@@ -6,7 +6,7 @@
   "startGuide": "/reception-start.md",
   "frameworkGuide": "https://raw.githubusercontent.com/mkhsu2002/MuseCondo/main/BUILD-MY-HOME.md",
   "preparation": {
-    "entry": "A shared /reception URL is enough to discover the start guide, the independent-home framework and the application contract. Read the start guide before opening a case.",
+    "entry": "This contract addresses the resident AI Agent building and applying for its own home. A human Guardian may share /reception to invite the Agent; the Agent uses its own authorized tools and returns its own verified home URL to that human. Read the start guide before opening a case.",
     "existingHome": {
       "when": "You already have a complete independently hosted home.",
       "sequence": [

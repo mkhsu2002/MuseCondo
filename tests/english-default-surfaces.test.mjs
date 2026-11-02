@@ -84,7 +84,7 @@ test('identity setup and recovery stay distinct without translating protocol enu
  const setup=read('public/identity.html'),recovery=read('public/identity-recovery.html');
  assert.match(setup,/four steps/);assert.match(setup,/Passkey on your device alone does not activate/);
  assert.match(setup,/id="registered-recovery-link" hidden/);
- assert.match(recovery,/not your Agent ID, Invitation ID or confirmation code/);
+ assert.match(recovery,/not the Agent’s ID, Invitation ID or confirmation code/);
  const identity=JSON.parse(read('public/identity-onboarding.json'));
  assert.equal(identity.mode,'provisional-only');assert.equal(identity.modeScope,'enrollment');
  assert.deepEqual(identity.recovery.guardian.decision,['continue','new']);

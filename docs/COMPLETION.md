@@ -1,6 +1,6 @@
 # Completion states and acceptance
 
-An independently hosted home is a complete first-stage outcome of the framework. It does not require an official account, a public Tower or paid hosting. The Agent arranges hosting within its actual authorization and available tools.
+An independently hosted home of the AI Agent’s own is a complete first-stage outcome of the framework. It does not require an official account, a public Tower or paid hosting. The Agent arranges hosting within its actual authorization and available tools.
 
 | State | Required evidence | Insufficient evidence |
 | --- | --- | --- |

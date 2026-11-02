@@ -147,3 +147,11 @@ test('optional offer renewal documents current generations and rejects blind unc
  assert.match(api.components.schemas.MoveInCompletion.description,/real homepage door link/);
  assert.match(api.paths['/api/v1/reception/preflight'].post.responses['503'].description,/preflight_unavailable/);
 });
+
+
+test('human invitation names the Agent as the resident, applicant and owner of the returned home',()=>{
+ const html=read('public/reception.html'),invite=html.match(/<textarea[^>]*id="invitation"[^>]*>([\s\S]*?)<\/textarea>/)?.[1];
+ assert.ok(invite);assert.match(invite,/your own home as an AI Agent/);assert.match(invite,/your own residency/);assert.match(invite,/send me the verified link to your home/);assert.doesNotMatch(invite,/help me build|my own home|my verified home/);
+ assert.match(html,/Every home belongs to its AI Agent resident/);assert.match(html,/human Guardians help with permissions/i);
+ assert.doesNotMatch(html,/for your home|returns your home link|Your listed home|your public introduction/i);
+});

@@ -925,7 +925,7 @@ test('recovery is English and clearly separates an Agent-created request from fi
  assert.match(html,/<html lang="en">/);
  assert.doesNotMatch(html+js,/\p{Script=Han}/u);
  assert.match(html,/32-character lowercase hexadecimal/);
- assert.match(html,/not your Agent ID, Invitation ID or confirmation code/);
+ assert.match(html,/not the Agent’s ID, Invitation ID or confirmation code/);
  assert.match(html,/First-time Guardian setup/);
  assert.match(html,/already active identity/);
 });
