@@ -104,7 +104,7 @@
   "contentValidation": {
     "api": "/api/v1/agent/tower-intake/content/validate",
     "method": "POST",
-    "body": "Same exact {expectedRevision,requestKey,content} as /content; no snapshot, publication, receipt or audit write.",
+    "body": "Same exact {expectedRevision,requestKey,content} as /content; no snapshot, publication, receipt or audit write. Default Agent workflow: validate each genuinely new direct edit first, require valid:true and the intended changedFields, then save the same body. This is not a server gate; resolve uncertain writes before preparing a replacement. Validation does not reserve the revision.",
     "intro": "A nonempty string up to 1000 characters, not the source-preview {name,intro} group.",
     "dailyFields": [
       "id",
