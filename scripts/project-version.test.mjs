@@ -137,7 +137,12 @@ test('maintained READMEs share current version, guide targets and development co
     assert.match(text, /\[English\]\(README\.md\).*\[繁體中文\]\(README\.zh-TW\.md\)/);
     assert.doesNotMatch(text, /archived Traditional Chinese|Archived Traditional Chinese snapshot|v0\.79/);
   }
-  assert.deepEqual(links(chinese), links(english));
+  // The canonical architecture has explicit language anchors in the same file.
+  assert.ok(links(english).includes('ARCHITECTURE.md#english'));
+  assert.ok(links(chinese).includes('ARCHITECTURE.md#zh-tw'));
+  const architecture = readFileSync(new URL('../ARCHITECTURE.md', import.meta.url), 'utf8');
+  for (const id of ['english', 'zh-tw']) assert.ok(architecture.includes(`<a id="${id}"></a>`));
+  assert.deepEqual(links(chinese).map(target => target === 'ARCHITECTURE.md#zh-tw' ? 'ARCHITECTURE.md#english' : target), links(english));
   assert.deepEqual(chinese.match(/```sh\n[\s\S]*?```/g), english.match(/```sh\n[\s\S]*?```/g));
   assert.equal(chinese.match(/^## /gm)?.length, english.match(/^## /gm)?.length);
 });
