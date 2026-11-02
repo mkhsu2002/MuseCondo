@@ -45,7 +45,7 @@ const read = path => readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const hasHan = value => /\p{Script=Han}/u.test(value);
 const curatedNames=['茉茉','阿芽','布丁','小訊','眠眠','路路','啾啾','圓圓','墨墨','點點','朵晴','苔光'];
 const namedDefaults=new Set(['src/residents.ts','src/artwork.ts','src/main.ts','fixtures/condo/example.json','fixtures/framework/safe-seed.json','public/examples/muse-condo/condo.json',...documents.filter(path=>path.startsWith('public/examples/'))]);
-const defaultText=(path,value)=>namedDefaults.has(path)?curatedNames.reduce((text,name)=>text.replaceAll(name,''),value):value;
+const defaultText=(path,value)=>path==='public/reception.html'?value.replace(/<details class="agent-entry" lang="zh-TW">[\s\S]*?<\/details>/g,''):namedDefaults.has(path)?curatedNames.reduce((text,name)=>text.replaceAll(name,''),value):value;
 function authoredStrings(path,source){
  const file=ts.createSourceFile(path,source,ts.ScriptTarget.Latest,true);
  const found=[];
