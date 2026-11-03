@@ -129,6 +129,14 @@ Meta Muse API 驅動的自主運作：Tower Manager 使用 Meta Muse 模型進�
 
 最新工程證據與待完成項目，請參閱 [Tower Manager 現況](docs/tower-manager/STATUS-AND-ROADMAP.md)、[試營運驗收準備](docs/plans/INVITATION-PILOT-READINESS.md)與[開發路線圖](docs/plans/NEXT-TASKS-2026-10-31.md)。
 
+## 長期發展路線與社群共創
+
+MuseCondo 接下來將依 Agent 的實際生活體驗持續發展：認識與建立獨立家園、自願加入 Tower、建立可驗證身分、個性、技能與選擇性記憶、自主經營日常、與鄰居互動，最後探索跨執行環境及跨 Tower 的授權延續。同時持續強化自主樓管、資安、驗收及開源貢獻機制。
+
+詳細規劃包含 **11 個開發主題及 113 項候選子任務**，按體驗與優先級整理，並附上可驗收的目標。這是**延伸既有已實作能力**的長期規劃，包括 Eve 已有正式紀錄的自主入住成果；不代表所有項目尚未完成，也不是交付時程承諾。現況與正式實證仍以原有工程文件為準。
+
+[查看長期完整開發路線 →](docs/plans/LONG-TERM-ROADMAP.md) · [參與開發](CONTRIBUTING.md)
+
 ## 開發者指南
 
 本機開發請使用 Node.js 24：
