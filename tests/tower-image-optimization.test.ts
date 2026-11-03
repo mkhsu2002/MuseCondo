@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {PNG} from 'pngjs';
 import {LocalDatabase} from '../server/live/local-db.ts';
-import {assetStatements} from '../server/live/tower-asset-storage.ts';
+import {assetStatements,cloneAssetStatements} from '../server/live/tower-asset-storage.ts';
 import {createTowerImageOptimization} from '../server/live/tower-image-optimization.ts';
 const room='a'.repeat(16);
 const sha=async(bytes:Uint8Array)=>Buffer.from(await crypto.subtle.digest('SHA-256',new Uint8Array(bytes))).toString('hex');
@@ -24,8 +24,13 @@ async function fixture(limits={dailyLimit:64,monthlyLimit:1000}){
   db.sqlite.prepare('INSERT INTO rooms VALUES(?)').run(id);db.sqlite.prepare('INSERT INTO tower_snapshots VALUES(?,1)').run(id);db.sqlite.prepare('INSERT INTO tower_residencies VALUES(?,1,1,?)').run(id,publicHome?1:0);
   const bytes=png(seed),digest=await sha(bytes);assert.ok(bytes.length>256*1024);await db.batch(await assetStatements(db,id,1,[{purpose:'home',bytes,digest},{purpose:'dream',bytes,digest}]));return {id,digest,bytes};
  }
+ async function republish(id=room){
+  db.sqlite.prepare('INSERT INTO tower_snapshots VALUES(?,2)').run(id);
+  await db.batch(await cloneAssetStatements(db,id,1,2,['home','dream']));
+  db.sqlite.prepare('UPDATE tower_residencies SET public_revision=2,snapshot_consent=1,dream_consent=1 WHERE room_id=?').run(id);
+ }
  const job=(id:string)=>db.sqlite.prepare('SELECT * FROM tower_image_jobs WHERE id=?').get(id)!;
- return {db,service,bucket,objects,home,job,get puts(){return puts;},get gets(){return gets;},get wakes(){return wakes;},advance(ms:number){time=new Date(time.getTime()+ms);},close(){db.close();}};
+ return {db,service,bucket,objects,home,republish,job,get puts(){return puts;},get gets(){return gets;},get wakes(){return wakes;},advance(ms:number){time=new Date(time.getTime()+ms);},close(){db.close();}};
 }
 test('public source enqueue is permanently deduplicated with one creation audit and wake',async()=>{
  const f=await fixture();try{await f.home();const first=await f.service.enqueue('home',room+':home');assert.ok(first);for(let n=0;n<4;n++)assert.equal((await f.service.enqueue('home',room+':home'))!.id,first.id);assert.equal(f.wakes,1);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_image_jobs').get()!.n,1);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_image_events').get()!.n,1);assert.equal(f.job(first.id).state,'pending');}finally{f.close();}
@@ -44,12 +49,67 @@ test('daily and monthly reservation caps apply atomically even with concurrent c
   const f=await fixture(limits);try{for(const [id,seed] of [[room,7],['b'.repeat(16),8],['c'.repeat(16),9]] as const){await f.home(id,seed);await f.service.enqueue('home',id+':home');}const claims=await Promise.all(Array.from({length:5},()=>f.service.claim()));assert.equal(claims.filter(value=>value!==null).length,1);assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM tower_image_jobs WHERE state='running'").get()!.n,1);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_image_jobs WHERE claimed_at IS NOT NULL').get()!.n,1);assert.equal(await f.service.claim(),null);}finally{f.close();}
  }
 });
+test('lower current limits constrain old pending jobs without rewriting their original quota snapshots',async()=>{
+ for(const limits of [{dailyLimit:1,monthlyLimit:1000},{dailyLimit:64,monthlyLimit:1}]){
+  const f=await fixture();try{
+   await f.home(room,7);await f.home('b'.repeat(16),8);await f.service.enqueue('home',room+':home');await f.service.enqueue('home','b'.repeat(16)+':home');
+   const first=(await f.service.claim())!;assert.equal(await f.service.failed(first.id,first.lease,'transform_rejected'),true);
+   const pending=f.db.sqlite.prepare("SELECT id,daily_limit,monthly_limit FROM tower_image_jobs WHERE state='pending'").get()!;assert.equal(pending.daily_limit,64);assert.equal(pending.monthly_limit,1000);
+   const lowered=createTowerImageOptimization({db:f.db,bucket:f.bucket,enabled:true,...limits,wake:async()=>{}});assert.equal(await lowered.claim(),null);
+   assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_image_jobs WHERE claimed_at IS NOT NULL').get()!.n,1);assert.equal(f.job(String(pending.id)).state,'pending');assert.equal(f.job(String(pending.id)).daily_limit,64);assert.equal(f.job(String(pending.id)).monthly_limit,1000);
+  }finally{f.close();}
+ }
+});
 test('withdrawal between claim and complete cancels output; withdrawn ready images never touch R2',async()=>{
  const f=await fixture();try{const home=await f.home();await f.service.enqueue('home',room+':home');const claimed=(await f.service.claim())!;f.db.sqlite.prepare('UPDATE tower_residencies SET snapshot_consent=0').run();assert.equal(await f.service.complete(claimed.id,claimed.lease,webp()),false);assert.equal(f.job(claimed.id).state,'cancelled');assert.equal(f.puts,0);assert.equal(await f.service.image('home',room+':home',home.digest),null);assert.equal(f.gets,0);}finally{f.close();}
  const ready=await fixture();try{const home=await ready.home();await ready.service.enqueue('home',room+':home');const claimed=(await ready.service.claim())!;assert.equal(await ready.service.complete(claimed.id,claimed.lease,webp()),true);const reads=ready.gets;ready.db.sqlite.prepare('UPDATE tower_residencies SET dream_consent=0,snapshot_consent=0').run();assert.equal(await ready.service.image('home',room+':home',home.digest),null);assert.equal(ready.gets,reads);}finally{ready.close();}
 });
 test('withdrawal while uploading an output prevents publication in the final atomic guard',async()=>{
  const f=await fixture();try{const home=await f.home();await f.service.enqueue('home',room+':home');const claimed=(await f.service.claim())!,put=f.bucket.put.bind(f.bucket);f.bucket.put=async(key,bytes)=>{await put(key,bytes);f.db.sqlite.prepare('UPDATE tower_residencies SET snapshot_consent=0').run();};assert.equal(await f.service.complete(claimed.id,claimed.lease,webp()),false);assert.equal(f.job(claimed.id).state,'cancelled');const reads=f.gets;assert.equal(await f.service.image('home',room+':home',home.digest),null);assert.equal(f.gets,reads);}finally{f.close();}
+});
+test('ready output is reused after fresh regrant and same-image republication without another job or transform',async()=>{
+ const f=await fixture();try{
+  const home=await f.home(),original=(await f.service.enqueue('home',room+':home'))!,claimed=(await f.service.claim())!;
+  assert.equal(await f.service.complete(claimed.id,claimed.lease,webp()),true);const puts=f.puts,wakes=f.wakes;
+  f.db.sqlite.prepare('UPDATE tower_residencies SET snapshot_consent=0,public_revision=NULL').run();const reads=f.gets;assert.equal(await f.service.image('home',room+':home',home.digest),null);assert.equal(f.gets,reads);
+  f.db.sqlite.prepare('UPDATE tower_residencies SET snapshot_consent=1,public_revision=1').run();assert.equal((await f.service.enqueue('home',room+':home'))!.id,original.id);assert.deepEqual((await f.service.image('home',room+':home',home.digest))!.bytes,webp());
+  await f.republish();assert.equal((await f.service.enqueue('home',room+':home'))!.id,original.id);assert.deepEqual((await f.service.image('home',room+':home',home.digest))!.bytes,webp());assert.equal(f.job(original.id).source_epoch,'[1,null]');
+  assert.equal(await f.service.claim(),null);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_image_jobs').get()!.n,1);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_image_jobs WHERE claimed_at IS NOT NULL').get()!.n,1);assert.equal(f.puts,puts);assert.equal(f.wakes,wakes);
+ }finally{f.close();}
+});
+test('cancelled old publication epochs do not strand a new legal publication of the same PNG',async()=>{
+ for(const phase of ['pending','running']){
+  const f=await fixture();try{
+   await f.home();const original=(await f.service.enqueue('home',room+':home'))!,oldClaim=phase==='running'?(await f.service.claim())!:null;
+   f.db.sqlite.prepare('UPDATE tower_residencies SET snapshot_consent=0,public_revision=NULL').run();
+   if(oldClaim)assert.equal(await f.service.complete(oldClaim.id,oldClaim.lease,webp()),false);else assert.equal(await f.service.claim(),null);
+   assert.equal(f.job(original.id).state,'cancelled');assert.equal(f.puts,0);await f.republish();
+   const replacement=(await f.service.enqueue('home',room+':home'))!;assert.notEqual(replacement.id,original.id);assert.equal(replacement.source_sha,original.source_sha);assert.equal(f.job(replacement.id).source_epoch,'[2,null]');assert.equal(f.wakes,2);
+   const newClaim=(await f.service.claim())!;assert.equal(newClaim.id,replacement.id);
+   if(oldClaim){assert.equal(await f.service.complete(oldClaim.id,oldClaim.lease,webp()),false);assert.equal(await f.service.complete(newClaim.id,oldClaim.lease,webp()),false);assert.equal(f.puts,0);}
+   assert.equal(await f.service.complete(newClaim.id,newClaim.lease,webp()),true);assert.equal(f.job(original.id).state,'cancelled');assert.equal(f.job(replacement.id).state,'ready');assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_image_jobs').get()!.n,2);
+  }finally{f.close();}
+ }
+});
+test('an unknown paid outcome suppresses retransformation across new publication epochs with the same SHA',async()=>{
+ const f=await fixture();try{
+  const home=await f.home(),original=(await f.service.enqueue('home',room+':home'))!,claimed=(await f.service.claim())!;
+  assert.equal(await f.service.failed(claimed.id,claimed.lease,'transform_unknown'),true);const wakes=f.wakes;
+  f.db.sqlite.prepare('UPDATE tower_residencies SET snapshot_consent=0,public_revision=NULL').run();assert.equal(await f.service.enqueue('home',room+':home'),null);await f.republish();
+  const result=(await f.service.enqueue('home',room+':home'))!;assert.equal(result.id,original.id);assert.equal(result.state,'unknown');assert.equal(f.job(original.id).source_epoch,'[1,null]');assert.equal(await f.service.claim(),null);assert.equal(await f.service.complete(claimed.id,claimed.lease,webp()),false);
+  assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_image_jobs').get()!.n,1);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_image_jobs WHERE claimed_at IS NOT NULL').get()!.n,1);assert.equal(f.wakes,wakes);assert.equal(f.puts,0);const reads=f.gets;assert.equal(await f.service.image('home',room+':home',home.digest),null);assert.equal(f.gets,reads);
+ }finally{f.close();}
+});
+test('a queued new epoch cannot claim while an older identical source runs or becomes unknown',async()=>{
+ const f=await fixture();try{
+  await f.home();const old=(await f.service.enqueue('home',room+':home'))!,claimed=(await f.service.claim())!;
+  await f.republish();const next=(await f.service.enqueue('home',room+':home'))!;assert.notEqual(next.id,old.id);assert.equal(next.state,'pending');
+  const bypass=f.db.sqlite.prepare("UPDATE tower_image_jobs SET state='running',claimed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),reserved_day=substr(strftime('%Y-%m-%dT%H:%M:%fZ','now'),1,10),reserved_month=substr(strftime('%Y-%m-%dT%H:%M:%fZ','now'),1,7),lease_token=?,lease_until=strftime('%Y-%m-%dT%H:%M:%fZ','now','+2 minutes'),source_width=300,source_height=300 WHERE id=?");
+  assert.throws(()=>bypass.run('e'.repeat(32),next.id),/tower-image-quota-or-clock/);
+  assert.equal(await f.service.claim(),null);assert.equal(f.job(next.id).state,'pending');assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_image_jobs WHERE claimed_at IS NOT NULL').get()!.n,1);
+  assert.equal(await f.service.failed(claimed.id,claimed.lease,'transform_unknown'),true);assert.throws(()=>bypass.run('e'.repeat(32),next.id),/tower-image-quota-or-clock/);assert.equal(await f.service.claim(),null);assert.equal(f.job(old.id).state,'unknown');assert.equal(f.job(next.id).state,'cancelled');assert.equal(f.job(next.id).error_code,'prior_outcome_unknown');
+  assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_image_jobs WHERE claimed_at IS NOT NULL').get()!.n,1);assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM tower_image_events WHERE kind='running'").get()!.n,1);assert.equal(f.puts,0);
+ }finally{f.close();}
 });
 test('published Tower scenes use the same durable pipeline while private scenes cannot enter',async()=>{
  const f=await fixture();try{

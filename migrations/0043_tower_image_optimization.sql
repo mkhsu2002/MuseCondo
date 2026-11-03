@@ -34,6 +34,7 @@ CREATE TRIGGER tower_image_job_transition BEFORE UPDATE ON tower_image_jobs BEGI
  SELECT CASE WHEN OLD.claimed_at IS NOT NULL AND (NEW.claimed_at IS NOT OLD.claimed_at OR NEW.reserved_day IS NOT OLD.reserved_day OR NEW.reserved_month IS NOT OLD.reserved_month OR NEW.lease_token IS NOT OLD.lease_token OR NEW.lease_until IS NOT OLD.lease_until OR NEW.source_width IS NOT OLD.source_width OR NEW.source_height IS NOT OLD.source_height) THEN RAISE(ABORT,'tower-image-reservation-immutable') END;
  SELECT CASE WHEN OLD.state='pending' AND NEW.state='running' AND (
    NEW.claimed_at!=strftime('%Y-%m-%dT%H:%M:%fZ','now') OR NEW.lease_until<=strftime('%Y-%m-%dT%H:%M:%fZ','now') OR NEW.lease_until>strftime('%Y-%m-%dT%H:%M:%fZ','now','+2 minutes') OR NEW.source_width IS NULL OR NEW.source_height IS NULL OR NEW.source_width NOT BETWEEN 1 AND 8192 OR NEW.source_height NOT BETWEEN 1 AND 8192 OR
+   EXISTS(SELECT 1 FROM tower_image_jobs blocked WHERE blocked.id!=NEW.id AND blocked.source_kind=NEW.source_kind AND blocked.source_id=NEW.source_id AND blocked.source_sha=NEW.source_sha AND blocked.profile=NEW.profile AND blocked.state IN ('running','unknown')) OR
    (SELECT COUNT(*) FROM tower_image_jobs WHERE reserved_day=substr(strftime('%Y-%m-%dT%H:%M:%fZ','now'),1,10))>=NEW.daily_limit OR
    (SELECT COUNT(*) FROM tower_image_jobs WHERE reserved_month=substr(strftime('%Y-%m-%dT%H:%M:%fZ','now'),1,7))>=NEW.monthly_limit
  ) THEN RAISE(ABORT,'tower-image-quota-or-clock') END;

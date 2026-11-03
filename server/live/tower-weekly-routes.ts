@@ -106,15 +106,17 @@ export function createTowerWeeklyRoutes(options:{origin:string;services:ReturnTy
      const metadata=await options.services.scenes.assetMetadata(sceneAsset[1]);if(!metadata)return json({error:'not_found'},404);
      let optimized=null;try{optimized=await options.services.imageOptimization.image('scene',sceneAsset[1],metadata.sha256);}catch{/* Optional delivery must not hide a published original. */}
      if(optimized){
-      const etag='"scene-webp-'+optimized.digest+'"',headers={'Content-Type':'image/webp','Cache-Control':'public, max-age=3600, immutable','Vary':'Accept','ETag':etag,'X-Content-Type-Options':'nosniff'};
+      const etag='"scene-webp-'+optimized.digest+'"',headers={'Content-Type':'image/webp','Cache-Control':'private, no-cache, must-revalidate','Vary':'Accept','ETag':etag,'X-Content-Type-Options':'nosniff'};
       if(request.headers.get('If-None-Match')===etag)return new Response(null,{status:304,headers});
       return new Response(request.method==='HEAD'?null:optimized.bytes,{headers:{...headers,'Content-Length':String(optimized.size)}});
      }
      try{await options.services.imageOptimization.enqueue('scene',sceneAsset[1]);}catch{/* Keep published originals available. */}
     }
     const image=preview?await options.services.scenes.previewAsset(preview[1]):await options.services.scenes.asset(sceneAsset![1]);if(!image)return json({error:'not_found'},404);
-    const headers={'Content-Type':'image/png','Cache-Control':preview?'no-store':'public, max-age=3600, immutable','Vary':'Accept','X-Content-Type-Options':'nosniff',...(preview?{'X-Robots-Tag':'noindex, nofollow'}:{})};
-    return new Response(request.method==='HEAD'?null:await image.arrayBuffer(),{headers});
+    const bytes=await image.arrayBuffer(),etag='"scene-png-'+image.sha256+'"';
+    const headers={'Content-Type':'image/png','ETag':etag,'Cache-Control':preview?'no-store':'private, no-cache, must-revalidate','Vary':'Accept','X-Content-Type-Options':'nosniff',...(preview?{'X-Robots-Tag':'noindex, nofollow'}:{})};
+    if(!preview&&request.headers.get('If-None-Match')===etag)return new Response(null,{status:304,headers});
+    return new Response(request.method==='HEAD'?null:bytes,{headers:{...headers,'Content-Length':String(bytes.byteLength)}});
    }
    if(sceneAdmin&&request.method==='GET'){const rows=(await options.services.scenes.list());return json({scenes:rows,jobs:await options.services.sceneStatus()});}
    if(publicMatch){const issue=publicMatch[1]?await options.services.weekly.get(publicMatch[1]):null;const response=publicMatch[1]?(issue?json({issue}):json({error:'not_found'},404)):json(await options.services.weekly.page(weeklyArchiveBefore(url.searchParams),url.searchParams.get('latest')==='1'));return request.method==='HEAD'?new Response(null,{status:response.status,headers:response.headers}):response;}

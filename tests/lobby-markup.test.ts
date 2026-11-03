@@ -4,17 +4,35 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {renderLobbyPreview} from '../src/shared/lobby-preview.ts';
 import {renderTowerLobby,renderLiveShell,renderLobbyFeed} from '../src/shared/lobby-markup.ts';
-import {LOBBY_BASE_CSS,LOBBY_BASE_CSS_HASH,LOBBY_RENDERER_BUILD_HASH,LOBBY_RENDERER_SOURCES,LOBBY_CSS_SOURCES,LOBBY_LOGO_DATA_URL} from '../src/shared/lobby-base-css.ts';
+import {LOBBY_BASE_CSS,LOBBY_BASE_CSS_HASH,LOBBY_RENDERER_BUILD_HASH,LOBBY_RENDERER_SOURCES,LOBBY_CSS_SOURCES,LOBBY_LOGO_DATA_URL,LOBBY_VIDEO_POSTER_DATA_URL} from '../src/shared/lobby-base-css.ts';
+
+function scanablePreview(markup:string){
+ const poster=readFileSync(new URL('../public/media/musecondo-introduction-qb-fyaymkFg.webp',import.meta.url));
+ assert.equal(createHash('sha256').update(poster).digest('hex'),'7083b77baf18b79bf6b1fce366441a7c37f3ac0d54c550f15cfd6023c0b70a07');
+ assert.equal(LOBBY_VIDEO_POSTER_DATA_URL,'data:image/webp;base64,'+poster.toString('base64'));
+ // Exclude only this exact reviewed, hash-pinned binary. Other inputs stay visible.
+ return markup.replaceAll(LOBBY_VIDEO_POSTER_DATA_URL,'data:image/approved-video-poster');
+}
 
 test('private render and live homepage share the full shell, welcome, feed, covenant and footer',()=>{
  const preview=renderLobbyPreview({scene:'night',imageSource:'data:image/png;base64,aW1hZ2U='});
  assert.match(preview,/data-tower-lobby/);assert.match(preview,/data-preview-fixture="masked-feed"/);
  for(const marker of ['class="live-header"','class="live-main live-lobby"','class="live-footer"','id="resident-guide"','id="community-covenant"','class="live-card live-feed-card"','class="live-feed-empty"','data-scene="night"'])assert.ok(preview.includes(marker),marker);
- assert.ok(preview.includes(LOBBY_LOGO_DATA_URL));assert.doesNotMatch(preview,/fang|fangdorami|mksaid2025|provider|apiKey|<script/i);
+ assert.ok(preview.includes(LOBBY_LOGO_DATA_URL));
+ // Approved binary image encodings can coincidentally contain a short name.
+ // Keep checking all visible copy, alt text, links and markup for private data.
+ const publicMarkup=scanablePreview(preview);
+ assert.doesNotMatch(publicMarkup,/fang|fangdorami|mksaid2025|provider|apiKey|<script/i);
  const live=renderTowerLobby({base:'',content:'<p>live feed</p>',scene:'day'});
  assert.match(live,/data-tower-lobby/);assert.doesNotMatch(live,/data-preview-fixture/);assert.match(live,/live feed/);
  assert.doesNotMatch(renderLiveShell('','<p>account</p>'),/data-tower-lobby/);
  assert.equal(typeof renderLobbyFeed,'function');
+});
+test('privacy scan excludes only the exact approved poster, retaining new binary inputs and public attributes',()=>{
+ assert.match(LOBBY_VIDEO_POSTER_DATA_URL,/fang/i); // Accidental four-letter token in the reviewed binary.
+ assert.doesNotMatch(scanablePreview(LOBBY_VIDEO_POSTER_DATA_URL),/fang/i);
+ for(const value of ['data:image/png;base64,FANG','data:image/webp;base64,FANG','data:image/svg+xml,FANG','aria-label="Fang"','alt="Fang"','<meta name="description" content="Fang">'])assert.match(scanablePreview(value),/fang/i);
+ assert.match(scanablePreview('<script>private</script>'),/<script/i);
 });
 test('private preview never accepts arbitrary URLs, markup or other MIME types',()=>{
  for(const imageSource of ['https://evil.example/image.png','data:image/svg+xml,<svg onload=alert(1)>','data:image/png;base64,aW1hZ2U=" onerror="evil','/api/v1/tower/appearance/assets/other/day.png'])assert.throws(()=>renderLobbyPreview({scene:'day',imageSource}));

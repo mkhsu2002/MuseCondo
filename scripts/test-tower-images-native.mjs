@@ -80,3 +80,34 @@ async function scenario(mode){
  }finally{await mf.dispose();}
 }
 await scenario('complete');await scenario('unknown');
+
+async function codecSmokeScenario(){
+ const dev='https://framework-v001.musecondo.pages.dev',sourceSHA='5d3983dd12622dd7fb83eb1785f5d3f242a6394d52f688af5423a1773a8e68e1';
+ const transparent='UklGRpYAAABXRUJQVlA4WAoAAAAQAAAAAgAAAgAAQUxQSAoAAAAA/4AA/0D///+AVlA4IGYAAACwAgCdASoDAAMAAQAcJbACdEyAf0CpAPIvBr/hx+QA4lF96Tf5Ff/5Ffy+TT77DlD/9XP3f1JtCed51vySc1H6//fvKFf7Y6f1c/ubIqfwM/+9i9CYp39fmKDX9d1/u7BU/oAAAAA=';
+ // No D1, household, R2, provider secret or real Images binding is configured here.
+ const script=await compile(`import real,{ManagerClock as ActualClock} from './workers/tower-manager/worker.ts';
+function platform(){return {input(stream){return {transform(options){if(JSON.stringify(options)!==JSON.stringify({width:1920,height:1920,fit:'scale-down'}))throw Error('synthetic-smoke-options');return {async output(options){if(JSON.stringify(options)!==JSON.stringify({format:'image/webp',quality:85,anim:false}))throw Error('synthetic-smoke-output');const bytes=new Uint8Array(await new Response(stream).arrayBuffer()),digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(v=>v.toString(16).padStart(2,'0')).join('');if(digest!=='${sourceSHA}')throw Error('synthetic-smoke-source');await fetch('https://synthetic-codec-counter.internal/dispatch',{method:'POST'});return {response(){return new Response(Uint8Array.from(atob('${transparent}'),v=>v.charCodeAt(0)),{headers:{'Content-Type':'image/webp'}});}};}};}};}};}
+export class ManagerClock extends ActualClock {constructor(state,env){super(state,{...env,IMAGES:platform()});}}
+export default {...real,fetch(request,env,context){return real.fetch(request,{...env,IMAGES:platform()},context);}};`);
+ let transforms=0,external=0;const outbound=request=>{if(request.url==='https://synthetic-codec-counter.internal/dispatch'&&request.method==='POST'){transforms++;return Response.json({synthetic:true});}external++;throw Error('Real network forbidden in codec smoke harness');};
+ const config={workers:[
+  {name:'smoke-clock',modules:true,script,compatibilityDate:'2026-10-30',durableObjects:{MANAGER_CLOCK:{className:'ManagerClock',useSQLite:true}},bindings:{PUBLIC_ORIGIN:dev,MANAGER_SCHEDULE_TRIGGER_KEY:trigger},outboundService:outbound},
+  {name:'production-smoke-clock',modules:true,script,compatibilityDate:'2026-10-30',durableObjects:{MANAGER_CLOCK:{className:'ManagerClock',useSQLite:true}},bindings:{PUBLIC_ORIGIN:'https://musetower.neobabylon.app',MANAGER_SCHEDULE_TRIGGER_KEY:trigger},outboundService:outbound},
+  // Build the hostile Origin inside a native service call: Miniflare's external
+  // HTTP proxy would otherwise reject that header before product code executes.
+  {name:'production-probe',modules:true,script:`export default {fetch(request,env){return env.TARGET.fetch(new Request('https://manager.internal/images/smoke',{method:'POST',headers:{'X-Manager-Schedule-Key':'${trigger}',Origin:'${dev}'}}));}};`,compatibilityDate:'2026-10-30',serviceBindings:{TARGET:'production-smoke-clock'},outboundService:outbound},
+ ]};
+ const mf=new Miniflare(convertV4MiniflareOptions?convertV4MiniflareOptions(config):config);
+ try{
+  const worker=await mf.getWorker('smoke-clock'),request=(allowed=true)=>worker.fetch('https://manager.internal/images/smoke',{method:'POST',headers:allowed?{'X-Manager-Schedule-Key':trigger}:{}});
+  assert.equal((await request(false)).status,401);assert.equal(transforms,0);
+  const responses=await Promise.all([request(),request(),request()]);for(const response of responses){assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'no-store');}
+  const receipts=await Promise.all(responses.map(response=>response.json()));assert.ok(receipts.every(receipt=>['complete','unknown'].includes(receipt.state)));const completed=receipts.find(receipt=>receipt.state==='complete');assert.ok(completed);assert.equal(transforms,1);
+  assert.equal(completed.profile,'cf-webp-1920-q85-v1');assert.equal(completed.sourceSHA,sourceSHA);assert.equal(completed.grossMicroUsd,500);assert.equal(completed.width,3);assert.equal(completed.height,3);assert.equal(completed.alpha,true);assert.equal(completed.metadataStripped,true);
+  const bytes=new Uint8Array(Buffer.from(completed.outputBase64,'base64'));assert.deepEqual(bytes,new Uint8Array(Buffer.from(transparent,'base64')));assert.equal(completed.bytes,bytes.length);assert.ok(bytes.length<=16384);assert.equal(completed.outputSHA,await hash(bytes));
+  for(let n=0;n<3;n++){assert.deepEqual(await(await request()).json(),completed);assert.equal(transforms,1,'A permanent native SQLite DO receipt suppresses replay conversion');}
+  const production=await mf.getWorker('production-probe'),rejected=await production.fetch('https://native-probe.internal/',{method:'POST'});assert.equal(rejected.status,404);assert.equal(transforms,1);assert.equal(external,0);
+  console.log('PASS native dev codec smoke: actual Worker auth + SQLite DO atomic permanent receipt; concurrent/replayed calls dispatch one synthetic transparent codec only; production forged Origin denied; no household/D1/R2 or real network');
+ }finally{await mf.dispose();}
+}
+await codecSmokeScenario();

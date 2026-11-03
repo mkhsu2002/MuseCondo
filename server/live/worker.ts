@@ -66,6 +66,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
  const lord=await towerLordRoute(request,env);if(lord)return lord;
  const url=new URL(request.url),api=url.pathname==='/api'||url.pathname.startsWith('/api/'),home=/^\/home\/[a-f0-9]{16}(\/(inside|dreams))?\/?$/.test(url.pathname);
  if(url.pathname.startsWith(IDENTITY_MAIL_INTERNAL_PREFIX))return json({error:'not_found'},404);
+ if(url.pathname==='/api/v1/operator/images/smoke'&&env.PUBLIC_ORIGIN!=='https://framework-v001.musecondo.pages.dev')return json({error:'not_found'},404);
  if(api||(home&&env.DB)){
   if(!validOrigin(env.PUBLIC_ORIGIN))return json({available:false,error:'public_origin_not_configured'},503);
   if(url.origin!==env.PUBLIC_ORIGIN)return json({available:false,error:'host_rejected'},403);
@@ -104,7 +105,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const weeklyResponse=await createTowerWeeklyRoutes({origin:env.PUBLIC_ORIGIN!,services:publications,operator,scheduled:async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&request.headers.get('X-Manager-Schedule-Key')===env.MANAGER_SCHEDULE_TRIGGER_KEY})(request);if(weeklyResponse)return weeklyResponse;
   const mailControlResponse=await createIdentityMailControl({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request);if(mailControlResponse)return mailControlResponse;
   const scheduled=async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!request.headers.get('X-Manager-Schedule-Key')&&await digest(request.headers.get('X-Manager-Schedule-Key')!)===await digest(env.MANAGER_SCHEDULE_TRIGGER_KEY);
-  const images=imageServices(env);const imageResponse=await createTowerImageRoutes({service:images,origin:env.PUBLIC_ORIGIN!,authorized:scheduled,operator})(request);if(imageResponse)return imageResponse;
+  const images=imageServices(env);const imageResponse=await createTowerImageRoutes({service:images,origin:env.PUBLIC_ORIGIN!,authorized:scheduled,operator,smoke:env.MANAGER_RUNTIME&&env.MANAGER_SCHEDULE_TRIGGER_KEY?async()=>env.MANAGER_RUNTIME!.fetch(new Request('https://manager.internal/images/smoke',{method:'POST',headers:{'X-Manager-Schedule-Key':env.MANAGER_SCHEDULE_TRIGGER_KEY!}})):undefined})(request);if(imageResponse)return imageResponse;
   const autonomyRoute=await createAutonomyRoutes({db,imageOptimization:images,origin:env.PUBLIC_ORIGIN!,operator,scheduled,bucket:env.MANAGER_ASSETS,runtime:env.MANAGER_RUNTIME,trigger:env.MANAGER_SCHEDULE_TRIGGER_KEY,apiKey:env.meta_muse_api,assets:env.ASSETS,verifyCompletion:completion.verify}).fetch(request);if(autonomyRoute)return autonomyRoute;
   const managerRoute=await createManagerRoutes({db,bucket:env.MANAGER_ASSETS,origin:env.PUBLIC_ORIGIN!,operator,onDue:at=>publications.schedule(at),scheduleAuthorized:async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!request.headers.get('X-Manager-Schedule-Key')&&await digest(request.headers.get('X-Manager-Schedule-Key')!)===await digest(env.MANAGER_SCHEDULE_TRIGGER_KEY)}).fetch(request);if(managerRoute)return managerRoute;
   if(url.pathname==='/api/v1/operator/identity/mail-readiness')return (await createIdentityMailReadiness({db,origin:env.PUBLIC_ORIGIN!,from:env.IDENTITY_MAIL_FROM,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request))!;

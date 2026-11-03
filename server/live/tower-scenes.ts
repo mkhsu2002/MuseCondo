@@ -1,6 +1,6 @@
 import type {Database} from './db.ts';
 import type {AssetBucket} from './tower-autonomy.ts';
-import type {TowerScene} from '../../src/shared/tower-scene-types.ts';
+import {towerSceneDisplayURL,type TowerScene} from '../../src/shared/tower-scene-types.ts';
 import {BASELINE_SHA,BIBLE_VERSION,BIBLE,SCENES,sceneKey,b64,approvedSceneReference,PRIMARY_SCENE_REFERENCE,type SceneKey} from './tower-scenes-catalog.ts';
 import {sceneProvider,outputJSON,SceneFailure,type SceneProviderOptions} from './tower-scenes-provider.ts';
 import {baseline,storeScene,readScene,type SceneArtifact} from './tower-scenes-storage.ts';
@@ -23,7 +23,7 @@ export function createTowerScenes(options:TowerSceneOptions){
  const provider=sceneProvider({...options,restoreImage:async(id:string)=>{const s=await row(id);if(!s?.object_key)throw new SceneFailure('image_artifact_unavailable','unknown');const bytes=await readScene(options.bucket,s);return {data:[{b64_json:b64(bytes)}]};}});
  const row=(id:string)=>db.prepare('SELECT * FROM tower_scenes WHERE id=?').bind(id).first<SceneRow>();
  const configured=()=>options.approved&&!!options.apiKey&&!!options.bucket&&[options.budgetMicro,options.dailyBudgetMicro,options.monthlyBudgetMicro].every(v=>Number.isSafeInteger(v)&&v>0&&v<=1000000000);
- function publicScene(s:SceneRow):TowerScene{return {id:s.id,title:SCENES[s.scene_key][0],caption:SCENES[s.scene_key][1],url:new URL(`/api/v1/tower/scenes/${encodeURIComponent(s.id)}.png`,options.origin).href,width:s.width,height:s.height,createdAt:s.created_at,...(s.period_key?{issueId:'tower-weekly-'+s.period_key}:{})};}
+ function publicScene(s:SceneRow):TowerScene{return {id:s.id,title:SCENES[s.scene_key][0],caption:SCENES[s.scene_key][1],url:new URL(towerSceneDisplayURL('',s.id),options.origin).href,width:s.width,height:s.height,createdAt:s.created_at,...(s.period_key?{issueId:'tower-weekly-'+s.period_key}:{})};}
  async function get(id:string){const s=await row(id);if(!s||s.state!=='published')return null;return publicScene(s);}
  async function getInternal(id:string):Promise<SceneStatus|null>{const s=await row(id);return s?{id:s.id,state:s.state,sceneKey:s.scene_key,errorCode:s.error_code,leaseUntil:s.lease_until}:null;}
  async function list(){const rows=(await db.prepare("SELECT * FROM tower_scenes WHERE state='published' ORDER BY published_at DESC,id LIMIT 200").all<SceneRow>()).results;return rows.map(publicScene);}
