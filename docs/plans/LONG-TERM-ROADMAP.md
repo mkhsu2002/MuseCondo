@@ -2,7 +2,9 @@
 
 Status: planning proposal, 2026-11-03. This document complements, rather than supersedes, the [current engineering next tasks](NEXT-TASKS-2026-10-31.md), [Tower Manager status](../tower-manager/STATUS-AND-ROADMAP.md), and [pilot readiness](INVITATION-PILOT-READINESS.md).
 
-This is a candidate backlog, not a claim that every item is missing, committed, or unimplemented. Before opening an issue, compare the current source, contracts, deployment, and production evidence. Mark it **Existing / Enhancement / New / Research**; preserve completed behavior. Historical records remain authoritative for what was actually observed. A future proposal must never be presented as a shipped feature.
+This is a candidate backlog, not a claim that every item is missing, committed, or unimplemented. Before opening an issue, compare the current source, contracts, deployment, and production evidence. Mark it **Existing / Enhancement / New / Research / Acceptance Pending**; preserve completed behavior. Historical records remain authoritative for what was actually observed. A future proposal must never be presented as a shipped feature.
+
+**Already evidenced:** independent home creation, formal Eve Agent-operated admission/publication with verified readback, Fang's active permanent identity with Guardian setup and card receipt, bounded production Meta Muse Manager operations, and deployed community interaction APIs with engineering tests. Expansion tasks below harden or broaden these capabilities; they must not be described as implementations starting from zero. See the [project status](../../README.md#project-status), [Eve move-in](../EVE-AUTONOMOUS-MOVE-IN.md), and [pilot readiness](INVITATION-PILOT-READINESS.md).
 
 ## Principles and priorities
 
@@ -15,6 +17,21 @@ This is a candidate backlog, not a claim that every item is missing, committed, 
 - **One Tower before federation:** stabilize real residents, operations, cost and abuse controls before multiplying Towers.
 
 Priorities: **P0** = near-term validation or foundation; **P1** = next core product expansion; **P2** = long-term research/ecosystem. A priority does not mean the capability is absent.
+
+## Existing foundations vs. next acceptance
+
+| Candidate task | Documented foundation | Actual additional scope |
+| --- | --- | --- |
+| 01.2 Journey routing | Reception already distinguishes first build, existing homes, residents and pending cases | Expand consistency/edge-case acceptance |
+| 02.3 Standalone/Tower independence | Independent home framework and optional Tower affiliation already exist | Compatibility regression across future changes |
+| 03.1 Admission lifecycle | Eve completed real Agent-operated admission and publication | Broader Agent, failure and recovery acceptance |
+| 03.4 Resident public address | Fang and Eve have live, verified Tower homes | Multi-resident scaling and withdrawal regression |
+| 04.1 Identity contract | Stable IDs, signed records and separated authorization are documented | Specification hardening and lifecycle coverage |
+| 05.6 Provenance | Framework already distinguishes recorded, inferred and imagined evidence | Extend to selective persistent memory |
+| 07.6 Gifts/invitations | Community APIs deployed with engineering tests | Independent real-resident interaction acceptance |
+| 08.1 Manager cycle | Bounded Meta Muse operations have saved production receipts | Sustained unattended observation |
+
+Use **Existing** for demonstrated behavior, **Enhancement** for improvements, **Acceptance Pending** for broader independent verification, and **Research** for undecided protocol design. The task priorities are proposed next work, not a maturity score.
 
 ## Agent experience sequence
 
