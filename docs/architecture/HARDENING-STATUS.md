@@ -249,3 +249,13 @@ A real release configuration update treated Cloudflare API secret readback `null
 This check covers only configured nonempty strings required by present identity-card/manager runtime bindings, enabled mail delivery and approved paid calls. It does not validate key formats, provider authorization, actual mail delivery or platform binding IDs. Manager approval alone does not require a paid provider. Private Worker checks remain separate. Final deployment and development/production readback acceptance for this guard remain pending.
 
 Final configured-readiness verification (2026-11-03): both independent specification and quality reviews approved the guard. Node 24.22.1 `npm run verify` passed types, lint, build and **120 files / 1,354 tests / 1,354 passes / zero failures or skips** (167.50 seconds). Current-source native edge/ASSETS checks passed, including the new boolean on an actual workerd authenticated release response, matching protected bytes, tamper/missing-binding failure and pre-auth zero-D1 boundaries. This introduces no migration or paid/mail operation; final exact-source development and production deployment acceptance remains pending.
+
+
+## Deterministic delayed identity replay verification (2026-11-03)
+
+Candidate v1.62 GitHub Quality run 41673223546 reached its 20-minute job timeout after the identity enrollment capacity/onboarding tests, without a failing assertion. The next delayed-replay test assumed cryptographic digests completed in request-call order. If the request named `first` reached the second rate batch, the test awaited its own promise. A temporary focused reproduction delayed that request by 50 ms and reliably hit a 2-second test deadline.
+
+The test now waits explicitly until the first request has entered its uncommitted identity-insert batch before starting the second request. The second rate batch releases the first commit and waits for its permanent receipt. Both 201 responses, identical response bodies, exactly one identity/receipt, and account/global rate counters of one remain required. A 5-second test deadline bounds future regressions. The same forced-delay reproduction passes with the barrier. No production request handling changed, and no assertion or verification gate was removed. Full local and hosted follow-up acceptance is recorded after it actually completes.
+
+
+Delayed-replay follow-up local acceptance: independent specification and quality reviews approved the synchronization change. Node 24.22.1 `npm run verify` passed application/Functions types, lint, fresh build, and **120 files / 1,354 tests / 1,354 passes / zero failures, cancellations or skips** (154.75 seconds). Hosted development and production acceptance still require the corrected-source deployment.

@@ -156,11 +156,12 @@ test('machine onboarding makes the provisional boundary explicit and never solic
  assert.deepEqual(Object.keys(machine.enrollExample).sort(),['expectedResidencyRevision','recoveryConsent','requestKey','residentId']);
  assert(!JSON.stringify(machine).includes(String.fromCodePoint(0x4e3b,0x4eba)));
 });
-test('an identical replay delayed behind the first commit still returns the permanent receipt',async()=>{
+test('an identical replay delayed behind the first commit still returns the permanent receipt',{timeout:5000},async()=>{
  const f=await fixture();try{
-  let charges=0;let release!:()=>void;const secondReady=new Promise<void>(resolve=>{release=resolve;});
-  const batch=f.db.batch.bind(f.db);f.db.batch=async statements=>{const sql=statements.map(s=>(s as unknown as {sql:string}).sql);if(sql.some(s=>s.startsWith('INSERT INTO agent_identities')))await secondReady;if(sql.some(s=>s.startsWith('INSERT INTO rate_limits'))&&++charges===2){release();await first;}return batch(statements);};
-  const first:Promise<Response|null>=f.req('/enroll','POST',f.input);const second=f.req('/enroll','POST',f.input);const results=await Promise.all([first,second]);assert.deepEqual(results.map(r=>r!.status),[201,201]);assert.deepEqual(await results[0]!.json(),await results[1]!.json());assert.equal(f.count('agent_identities'),1);assert.equal(f.count('identity_requests'),1);
+  let charges=0;let release!:()=>void,atCommit!:()=>void;const secondReady=new Promise<void>(resolve=>{release=resolve;}),firstAtCommit=new Promise<void>(resolve=>{atCommit=resolve;});
+  const batch=f.db.batch.bind(f.db);f.db.batch=async statements=>{const sql=statements.map(s=>(s as unknown as {sql:string}).sql);if(sql.some(s=>s.startsWith('INSERT INTO agent_identities'))){atCommit();await secondReady;}if(sql.some(s=>s.startsWith('INSERT INTO rate_limits'))&&++charges===2){release();await first;}return batch(statements);};
+  // Establish the intended order explicitly: crypto completion is not FIFO across requests.
+  const first:Promise<Response|null>=f.req('/enroll','POST',f.input);await firstAtCommit;const second=f.req('/enroll','POST',f.input);const results=await Promise.all([first,second]);assert.deepEqual(results.map(r=>r!.status),[201,201]);assert.deepEqual(await results[0]!.json(),await results[1]!.json());assert.equal(f.count('agent_identities'),1);assert.equal(f.count('identity_requests'),1);
   assert.equal(f.db.sqlite.prepare('SELECT count FROM rate_limits WHERE key=?').get('identity:account:'+'a'.repeat(16))!.count,1);
   assert.equal(f.db.sqlite.prepare('SELECT count FROM rate_limits WHERE key=?').get('identity:global')!.count,1);
  }finally{f.db.close();}
