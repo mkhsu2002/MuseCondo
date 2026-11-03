@@ -1,1707 +1,630 @@
-import { assetStatements, cloneAssetStatements, readTowerAsset, storedTowerImages, type AssetPurpose } from './tower-asset-storage.ts';
-import {homeSourceURL, homeSourceIdentity, isMuseShareURL, readNativeHome, readNativeClaim, validateHomeSnapshot, homeSourceMapping, HomeSourceError} from './home-source.ts';
+import { createTowerContentService } from './tower-content-service.ts';
+import { createTowerPublicationService } from './tower-publication-service.ts';
+import { createTowerIntakeRequest } from './tower-intake-request.ts';
+import { createTowerIntakeRepository } from "./tower-intake-repository.ts";
+import { fail, TowerError, object, validateTowerSnapshot, id, revision, requestKey } from './tower-contract.ts';
+export { validateTowerSnapshot } from './tower-contract.ts';
+import { random, hash } from './tower-crypto.ts';
+import type { Claim, Residency } from './tower-intake-types.ts';
+import type { PublicCondoSite } from '../../src/framework/condo.ts';
+import { createTowerSourceReader } from './tower-source-reader.ts';
+import { createTowerIntakeAuthorization } from './tower-intake-auth.ts';
+import { cloneAssetStatements, readTowerAsset, type AssetPurpose } from './tower-asset-storage.ts';
+import { homeSourceURL, homeSourceIdentity, isMuseShareURL } from './home-source.ts';
 import type { Database, Statement } from "./db.ts";
-import {createTowerActivities} from "./tower-activities.ts";
-import {createTowerVisits} from "./tower-visits.ts";
-import { validatePNG } from "./png.ts";
-import { sanitizePublicPNG } from "../framework/png-public.ts";
-import {
-  renderCondo,
-  type CondoPage,
-} from "../../src/framework/condo-render.ts";
-import {
-  CONDO_PROFILE_FIELDS,
-  CONDO_OPTIONAL_PROFILE_FIELDS,
-  CONDO_PORTRAIT_CROP_FIELDS,
-  parsePortraitCrop,
-  CONDO_ALL_PROFILE_FIELDS,
-  type PublicCondoSite,
-} from "../../src/framework/condo.ts";
-import type { PublicDailyEntry } from "../../src/framework/types.ts";
+import { createTowerActivities } from "./tower-activities.ts";
+import { createTowerVisits } from "./tower-visits.ts";
+import type { CondoPage } from "../../src/framework/condo-render.ts";
+import { renderTowerHome } from "./tower-home-render.ts";
 export interface TowerIntakeEnvironment {
-  db: Database;
-  origin: string;
-  localTest: boolean;
-  sourceOrigins: string[];
-  now?: () => Date;
-  fetcher?: typeof fetch;
-  /** Operator attestation supplements an existing authenticated cookie and CSRF. Never a public boolean. */
-  ownerAttestation?: (
-    request: Request,
-    accountId: string,
-    sourceURL: string,
-  ) => Promise<boolean>;
-  onChange?: (roomId: string) => Promise<void>;
-  onProgress?: (accountId: string) => Promise<void>;
-  operator?: (request: Request) => Promise<boolean>;
-}
-interface Residency {
-  room_id: string;
-  account_id: string;
-  resident_id: string;
-  source_url: string;
-  proof_method: "challenge" | "owner-attested";
-  revision: number;
-  public_revision: number | null;
-  publication_epoch:number;
-  published_at:string|null;
-  directory_consent: number;
-  announcement_consent: number;
-  dream_consent: number;
-  snapshot_consent: number;
-  created_at: string;
-  updated_at: string;
-}
-interface Identity {
-  accountId: string;
-  guard: () => Promise<Statement>;
-  delegated: boolean;
-}
-interface Claim {
-  id: string;
-  account_id: string;
-  resident_id: string;
-  source_url: string;
-  challenge: string;
-  expires_at: string;
-  verified: number;
-}
-interface SnapshotValidation {path:string;reason:string;stage?:"request"|"stored_snapshot"|"content"}
-class TowerError extends Error {
-  status: number;
-  code: string;
-  validation?: SnapshotValidation;
-  constructor(status: number, code: string, validation?:SnapshotValidation) {
-    super(code);
-    this.status = status;
-    this.code = code;
-    this.validation = validation;
-  }
-}
-function fail(status: number, code: string, validation?:SnapshotValidation): never {
-  throw new TowerError(status, code, validation);
-}
-const random = (n = 32) =>
-  Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) =>
-    b.toString(16).padStart(2, "0"),
-  ).join("");
-async function hash(value: string | Uint8Array) {
-  return Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest(
-        "SHA-256",
-        new Uint8Array(
-          typeof value === "string" ? new TextEncoder().encode(value) : value,
-        ),
-      ),
-    ),
-    (b) => b.toString(16).padStart(2, "0"),
-  ).join("");
-}
-function object(v: unknown, keys: readonly string[], path="snapshot"): Record<string, unknown> {
-  if(!v || typeof v!=="object" || Array.isArray(v))fail(400,"invalid_public_snapshot",{path,reason:"object_required"});
-  if(Object.keys(v).some(k=>!keys.includes(k)))fail(400,"invalid_public_snapshot",{path,reason:"unsupported_fields"});
-  return v as Record<string,unknown>;
-}
-function string(v:unknown,max=2000,path="snapshot"):string {
-  if(typeof v!=="string" || !v.trim())fail(400,"invalid_public_snapshot",{path,reason:"nonempty_string_required"});
-  if((v as string).length>max)fail(400,"invalid_public_snapshot",{path,reason:"string_too_long"});
-  if(Array.from(v as string).some(c=>c.charCodeAt(0)<32&&![9,10,13].includes(c.charCodeAt(0))))fail(400,"invalid_public_snapshot",{path,reason:"control_characters_not_allowed"});
-  return v as string;
-}
-function id(v:unknown,path="snapshot"){
- const value=string(v,64,path);if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(value))fail(400,"invalid_identity",{path,reason:"invalid_id"});return value;
-}
-function revision(v: unknown) {
-  if (!Number.isSafeInteger(v) || (v as number) < 1)
-    fail(400, "expected_revision_required");
-  return v as number;
-}
-function requestKey(v: unknown) {
-  const s = string(v, 80);
-  if (!/^[a-zA-Z0-9-]{8,80}$/.test(s)) fail(400, "idempotency_key_required");
-  return s;
-}
-function date(v: unknown,path="snapshot") {
-  const s = string(v, 40,path);
-  if (!/^\d{4}-\d\d-\d\dT/.test(s) || !Number.isFinite(Date.parse(s)))
-    fail(400, "invalid_public_snapshot",{path,reason:"datetime_required"});
-  return s;
-}
-/** Validate the versioned public projection, including native HTML mapped by the source adapter. */
-export function validateTowerSnapshot(
-  value: unknown,
-  residentId: string,
-): PublicCondoSite {
-  const root = object(value, [
-    "templateVersion",
-    "home",
-    "homeAlt",
-    "profile",
-    "dream",
-    "example",
-  ]);
-  if (root.templateVersion !== "muse-condo-1" || root.example !== false)
-    fail(400, "unsupported_public_snapshot");
-  const home = object(root.home, [
-    "frameworkVersion",
-    "id",
-    "name",
-    "intro",
-    "assets",
-    "routes",
-    "daily",
-    "dreams",
-  ]);
-  if (home.frameworkVersion !== "0.01" || home.id !== residentId)
-    fail(409, "source_identity_changed");
-  const assets = object(home.assets, ["desktop"]);
-  if (assets.desktop !== "./assets/home.png") fail(400, "invalid_image_source");
-  const routes = object(home.routes, ["home", "inside", "dreams"]);
-  if (
-    routes.home !== "./index.html" ||
-    routes.inside !== "./inside.html" ||
-    routes.dreams !== "./dreams.html"
-  )
-    fail(400, "unsupported_public_snapshot");
-  const profile = object(root.profile, CONDO_ALL_PROFILE_FIELDS,"snapshot.profile"),
-    projected = Object.fromEntries(
-      CONDO_PROFILE_FIELDS.map((k) => [k, string(profile[k],2000,"snapshot.profile."+k)]),
-    ) as PublicCondoSite["profile"];
-  for(const key of CONDO_OPTIONAL_PROFILE_FIELDS)if(profile[key]!==undefined)projected[key]=string(profile[key],2000,"snapshot.profile."+key);
-  for(const key of CONDO_PORTRAIT_CROP_FIELDS)if(projected[key]!==undefined){try{parsePortraitCrop(projected[key]);}catch{fail(400,"invalid_portrait_crop");}}
-  if (
-    !Array.isArray(home.daily) ||
-    home.daily.length > 100 ||
-    !Array.isArray(home.dreams) ||
-    home.dreams.length > 1
-  )
-    fail(400, "invalid_public_snapshot");
-  const daily = home.daily.map((v,index): PublicDailyEntry => {
-    const path="snapshot.home.daily["+index+"]",e = object(v, ["id", "type", "title", "body", "occurredAt"],path);
-    if (
-      !["journal", "status", "seeking", "artwork", "observation"].includes(
-        String(e.type),
-      )
-    )
-      fail(400, "invalid_public_snapshot",{path:path+".type",reason:"unsupported_entry_type"});
-    return {
-      id: id(e.id,path+".id"),
-      type: e.type as PublicDailyEntry["type"],
-      title: string(e.title, 120,path+".title"),
-      body: string(e.body, 5000,path+".body"),
-      occurredAt: date(e.occurredAt,path+".occurredAt"),
-    };
-  });
-  let dream: PublicCondoSite["dream"] = null;
-  if (root.dream !== null) {
-    const d = object(root.dream, [
-        "id",
-        "title",
-        "body",
-        "occurredAt",
-        "reflection",
-        "wish",
-        "image",
-      ]),
-      im = object(d.image, ["src", "alt"]);
-    if (im.src !== "./assets/dream.png") fail(400, "invalid_image_source");
-    dream = {
-      id: id(d.id),
-      title: string(d.title, 120),
-      body: string(d.body, 5000),
-      occurredAt: date(d.occurredAt),
-      ...(d.reflection === undefined
-        ? {}
-        : { reflection: string(d.reflection) }),
-      wish: string(d.wish),
-      image: { src: "./assets/dream.png", alt: string(im.alt, 500) },
-    };
-  }
-  // Duplicate legacy dream entries must agree exactly; they cannot hide extra private fields.
-  const dreams = home.dreams.map((v) => {
-    const d = object(v, [
-      "id",
-      "type",
-      "title",
-      "body",
-      "occurredAt",
-      "image",
-      "reflection",
-    ]);
-    if (
-      d.type !== "dream" ||
-      d.image !== "./assets/dream.png" ||
-      !dream ||
-      d.id !== dream.id ||
-      d.title !== dream.title ||
-      d.body !== dream.body ||
-      d.occurredAt !== dream.occurredAt ||
-      d.reflection !== dream.reflection
-    )
-      fail(400, "inconsistent_dream");
-    return {
-      id: dream.id,
-      type: "dream" as const,
-      title: dream.title,
-      body: dream.body,
-      occurredAt: dream.occurredAt,
-      image: "./assets/dream.png",
-      ...(dream.reflection ? { reflection: dream.reflection } : {}),
-    };
-  });
-  if (!!dream !== (dreams.length === 1)) fail(400, "inconsistent_dream");
-  const result: PublicCondoSite = {
-    templateVersion: "muse-condo-1",
-    home: {
-      frameworkVersion: "0.01",
-      id: residentId,
-      name: string(home.name, 100,"snapshot.home.name"),
-      intro: string(home.intro, 1000,"snapshot.home.intro"),
-      assets: { desktop: "./assets/home.png" },
-      routes: {
-        home: "./index.html",
-        inside: "./inside.html",
-        dreams: "./dreams.html",
-      },
-      daily,
-      dreams,
-    },
-    homeAlt: string(root.homeAlt, 500),
-    profile: projected,
-    dream,
-    example: false,
-  };
-  if (new TextEncoder().encode(JSON.stringify(result)).length > 128000)
-    fail(413, "snapshot_too_large");
-  return result;
-}
-/** Preserve image pixels and essential transparency only; metadata never reaches a public asset. */
-async function cleanPNG(bytes: Uint8Array, purpose: "home" | "dream") {
-  let dimensions;
-  try {
-    dimensions = await validatePNG(bytes);
-  } catch {
-    fail(400, "invalid_source_image");
-  }
-  const expected = purpose === "home" ? 16 / 9 : 1;
-  if (
-    (purpose === "dream" && dimensions!.width !== dimensions!.height) ||
-    Math.abs(dimensions!.width / dimensions!.height - expected) > 0.01
-  )
-    fail(400, "image_ratio_rejected");
-  return sanitizePublicPNG(bytes);
+    db: Database;
+    origin: string;
+    localTest: boolean;
+    sourceOrigins: string[];
+    now?: () => Date;
+    fetcher?: typeof fetch;
+    /** Operator attestation supplements an existing authenticated cookie and CSRF. Never a public boolean. */
+    ownerAttestation?: (request: Request, accountId: string, sourceURL: string) => Promise<boolean>;
+    onChange?: (roomId: string) => Promise<void>;
+    onProgress?: (accountId: string) => Promise<void>;
+    operator?: (request: Request) => Promise<boolean>;
 }
 export function createTowerIntake(env: TowerIntakeEnvironment) {
-  const db = env.db,
-    now = () => env.now?.() ?? new Date(),
-    stamp = () => now().toISOString();
-  const one = <T>(sql: string, ...args: unknown[]) =>
-    db
-      .prepare(sql)
-      .bind(...args)
-      .first<T>();
-  const json = (value: unknown, status = 200) =>
-    new Response(JSON.stringify(value), {
-      status,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": "no-store",
-        "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "no-referrer",
-      },
+    const db = env.db, now = () => env.now?.() ?? new Date(), stamp = () => now().toISOString();
+    const { remoteJSON, claimProof, snapshot, nativeHome, staticHome } = createTowerSourceReader(env.fetcher);
+    const authorization = createTowerIntakeAuthorization({
+        db, origin: env.origin, stamp, onProgress: env.onProgress
     });
-  const safe = (r: Residency) => ({
-    roomId: r.room_id,
-    door: `/home/${r.room_id}`,
-    residentId: r.resident_id,
-    sourceURL: r.source_url,
-    revision: r.revision,
-    publicRevision: r.public_revision,
-    proofMethod: r.proof_method,
-    published: r.public_revision !== null,
-    directoryConsent: !!r.directory_consent,
-    announcementConsent: !!r.announcement_consent,
-    dreamConsent: !!r.dream_consent,
-    snapshotConsent: !!r.snapshot_consent,
-  });
-  const residency = (accountId: string) =>
-    one<Residency>(
-      "SELECT * FROM tower_residencies WHERE account_id=?",
-      accountId,
-    );
-  const audit = (
-    accountId: string,
-    roomId: string | null,
-    action: string,
-    rev: number | null,
-    detail: unknown = {},
-  ) =>
-    db
-      .prepare(
-        "INSERT INTO tower_audit(id,account_id,room_id,action,revision,detail_json,created_at) VALUES(?,?,?,?,?,?,?)",
-      )
-      .bind(
-        random(16),
-        accountId,
-        roomId,
-        action,
-        rev,
-        JSON.stringify(detail),
-        stamp(),
-      );
-  async function source(value:unknown,accountId:string){
-    let url:URL;try{url=homeSourceURL(value);}catch{return fail(400,'source_url_rejected');}
-    if(!env.sourceOrigins.includes(url.origin)){
-      const grant=await one(`SELECT 1 FROM tower_admission_eligible d WHERE d.account_id=? AND d.source_url=? AND (
+    const { authenticate, write } = authorization;
+    const repository = createTowerIntakeRepository(db, stamp);
+    const { one, safe, residency, audit, prior, receipt, sourceGeneration, sourceGenerationGuard, snapshotStatements, revisionGuard, storedImages, publicState, getSite } = repository;
+    const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
+        status,
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "no-referrer",
+        },
+    });
+    async function source(value: unknown, accountId: string) {
+        let url: URL;
+        try {
+            url = homeSourceURL(value);
+        }
+        catch {
+            return fail(400, 'source_url_rejected');
+        }
+        if (!env.sourceOrigins.includes(url.origin)) {
+            const grant = await one(`SELECT 1 FROM tower_admission_eligible d WHERE d.account_id=? AND d.source_url=? AND (
        EXISTS(SELECT 1 FROM tower_reception_cases c WHERE c.id=d.case_id AND c.account_id=d.account_id AND c.resident_id=d.resident_id AND c.source_url=d.source_url AND c.state='active' AND c.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND c.approval_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-       OR EXISTS(SELECT 1 FROM tower_residencies r WHERE r.account_id=d.account_id AND r.resident_id=d.resident_id AND r.source_url=d.source_url))`,accountId,url.href);
-      // An existing household may prove control of a rotated share key for the
-      // same native asset. Current admission eligibility remains required;
-      // a readable native URL never authorizes a new household or another asset.
-      const nativeAlias = !grant && isMuseShareURL(url.href)
-        ? await one(`SELECT 1 FROM tower_admission_eligible d
+       OR EXISTS(SELECT 1 FROM tower_residencies r WHERE r.account_id=d.account_id AND r.resident_id=d.resident_id AND r.source_url=d.source_url))`, accountId, url.href);
+            // An existing household may prove control of a rotated share key for the
+            // same native asset. Current admission eligibility remains required;
+            // a readable native URL never authorizes a new household or another asset.
+            const nativeAlias = !grant && isMuseShareURL(url.href)
+                ? await one(`SELECT 1 FROM tower_admission_eligible d
           JOIN tower_residencies r ON r.account_id=d.account_id AND r.resident_id=d.resident_id
           JOIN tower_source_identities i ON i.source_url=r.source_url
           WHERE d.account_id=? AND i.source_identity=? AND (
             EXISTS(SELECT 1 FROM tower_admission_native_alias a WHERE a.decision_id=d.id AND a.account_id=r.account_id AND a.room_id=r.room_id AND a.resident_id=r.resident_id)
             OR EXISTS(SELECT 1 FROM tower_admission_continuity k WHERE k.decision_id=d.id AND k.account_id=r.account_id AND k.room_id=r.room_id AND k.resident_id=r.resident_id)
           )`, accountId, homeSourceIdentity(url.href))
-        : null;
-      if(!grant&&!nativeAlias)fail(400,'source_url_rejected');
+                : null;
+            if (!grant && !nativeAlias)
+                fail(400, 'source_url_rejected');
+        }
+        return url;
     }
-    return url;
-  }
-
-  const firstImportGrantSQL = `SELECT 1 FROM tower_admission_eligible d
+    const firstImportGrantSQL = `SELECT 1 FROM tower_admission_eligible d
     JOIN tower_reception_cases c ON c.id=d.case_id
     WHERE d.account_id=? AND d.resident_id=? AND d.source_url=?
       AND c.account_id=d.account_id AND c.resident_id=d.resident_id AND c.source_url=d.source_url
       AND c.state='active' AND c.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')
       AND c.approval_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')`;
-  async function remote(url: URL, mime: string, max: number) {
-    const controller = new AbortController(),
-      timer = setTimeout(() => controller.abort(), 10000);
-    try {
-      const response = await (env.fetcher ?? fetch)(url.href, {
-        redirect: "manual",
-        signal: controller.signal,
-        headers: { Accept: mime, "User-Agent":"MuseCondo-Tower-Intake/1.0", "Cache-Control":"no-cache" },
-      });
-      if(!response.ok)fail(400,"source_http_"+response.status);
-      if(response.headers.get("Content-Type")?.split(";")[0].trim()!==mime)fail(400,"source_type_rejected");
-      if (Number(response.headers.get("Content-Length") ?? 0) > max)
-        fail(413, "source_too_large");
-      const reader = response.body?.getReader();
-      if (!reader) fail(400, "source_unavailable");
-      const parts: Uint8Array[] = [];
-      let size = 0;
-      for (;;) {
-        const { done, value } = await reader!.read();
-        if (done) break;
-        size += value.length;
-        if (size > max) {
-          await reader!.cancel();
-          fail(413, "source_too_large");
-        }
-        parts.push(value);
-      }
-      const bytes = new Uint8Array(size);
-      let p = 0;
-      for (const b of parts) {
-        bytes.set(b, p);
-        p += b.length;
-      }
-      return bytes;
-    } catch (e) {
-      if (e instanceof TowerError) throw e;
-      fail(400, controller.signal.aborted?"source_timeout":"source_network_unavailable");
-    } finally {
-      clearTimeout(timer);
+    const syncGroups = [
+        "intro", "profile", "daily", "home", "dream"
+    ] as const;
+    type SyncGroup = typeof syncGroups[number];
+    function applyGroups(value: unknown): SyncGroup[] {
+        if (!Array.isArray(value) || !value.length || new Set(value).size !== value.length ||
+            value.some(v => !syncGroups.includes(v as SyncGroup)))
+            fail(400, "source_fields_required");
+        return syncGroups.filter(group => (value as unknown[]).includes(group));
     }
-  }
-  async function claimProof(url: URL): Promise<unknown> {
-    if (!isMuseShareURL(url.href)) return remoteJSON(new URL("./muse-tower-claim.json", url), 4096);
-    try { return await readNativeClaim(url.href, env.fetcher ?? fetch); }
-    catch { return fail(403, "claim_rejected"); }
-  }
-  async function remoteJSON(url: URL, max = 128000): Promise<unknown> {
-    const bytes = await remote(url, "application/json", max);
-    try {
-      return JSON.parse(
-        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-      );
-    } catch {
-      fail(400, "invalid_source_json");
+    async function sourceDigest(r: Residency, generation: number, data: Awaited<ReturnType<typeof snapshot>>) {
+        return hash(JSON.stringify({
+            sourceURL: r.source_url, sourceGeneration: generation,
+            baseRevision: r.revision, site: data.site,
+            images: data.images.map(image => ({ purpose: image.purpose, digest: image.digest }))
+        }));
     }
-  }
-  async function readBody(req: Request, max: number) {
-    const reader = req.body?.getReader();
-    if (!reader) fail(400, "body_required");
-    let size = 0;
-    const parts: Uint8Array[] = [];
-    for (;;) {
-      const { done, value } = await reader!.read();
-      if (done) break;
-      size += value.length;
-      if (size > max) {
-        await reader!.cancel().catch(() => {});
-        fail(413, "body_too_large");
-      }
-      parts.push(value);
-    }
-    const bytes = new Uint8Array(size);
-    let p = 0;
-    for (const b of parts) {
-      bytes.set(b, p);
-      p += b.length;
-    }
-    return bytes;
-  }
-  function parseJSON(bytes: Uint8Array) {
-    try {
-      return JSON.parse(
-        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-      ) as unknown;
-    } catch {
-      fail(400, "invalid_json");
-    }
-  }
-  async function body(req: Request, keys?: readonly string[], max = 12000, path="snapshot") {
-    if (
-      req.headers.get("Content-Type")?.split(";")[0].trim() !==
-      "application/json"
-    )
-      fail(415, "json_required");
-    return object(
-      parseJSON(await readBody(req, max)),
-      keys ?? [
-        "sourceURL",
-        "residentId",
-        "requestKey",
-        "proof",
-        "claimId",
-        "expectedRevision",
-        "published",
-        "directoryConsent",
-        "announcementConsent",
-        "dreamConsent",
-        "snapshotConsent",
-        "rotate",
-        "content",
-      ],
-      path,
-    );
-  }
-  async function dreamBody(req: Request) {
-    const type = req.headers.get("Content-Type")?.split(";")[0].trim();
-    const keys = [
-      "expectedRevision",
-      "requestKey",
-      "sourceAuthorized",
-      "dream",
-    ];
-    if (type === "application/json")
-      return { input: await body(req, keys, 16 * 1024), image: null };
-    if (type !== "multipart/form-data")
-      fail(415, "dream_content_type_required");
-    // Bound actual streamed bytes before invoking the multipart parser. Header sizes
-    // and Content-Length are not trusted as an upload limit.
-    const bytes = await readBody(req, 8 * 1024 * 1024 + 32 * 1024);
-    let form: FormData;
-    try {
-      form = await new Response(bytes, {
-        headers: { "Content-Type": req.headers.get("Content-Type")! },
-      }).formData();
-    } catch {
-      fail(400, "invalid_multipart");
-    }
-    if (
-      Array.from(form!.keys()).some(
-        (k) => !["metadata", "image"].includes(k),
-      ) ||
-      form!.getAll("metadata").length !== 1 ||
-      form!.getAll("image").length > 1
-    )
-      fail(400, "invalid_dream_upload");
-    const metadata = form!.get("metadata"),
-      image = form!.get("image");
-    if (typeof metadata !== "string") fail(400, "metadata_required");
-    const metadataBytes = new TextEncoder().encode(metadata as string);
-    if (metadataBytes.length > 16 * 1024) fail(413, "body_too_large");
-    if (
-      image !== null &&
-      (!(image instanceof File) || image.type !== "image/png")
-    )
-      fail(400, "png_file_required");
-    if (image && (image as File).size > 8 * 1024 * 1024)
-      fail(413, "image_too_large");
-    return {
-      input: object(parseJSON(metadataBytes), keys),
-      image:
-        image === null
-          ? null
-          : new Uint8Array(await (image as File).arrayBuffer()),
-    };
-  }
-  async function authenticate(
-    req: Request,
-    delegated: boolean,
-    mutate: boolean,
-    previewSource = false,
-  ): Promise<Identity> {
-    if (
-      req.headers.get("Sec-Fetch-Site") === "cross-site" ||
-      (req.headers.has("Origin") && req.headers.get("Origin") !== env.origin)
-    )
-      fail(403, "origin_rejected");
-    if (delegated) {
-      if (req.headers.has("Cookie"))
-        fail(403, "use_separate_agent_authorization");
-      const token = req.headers
-        .get("Authorization")
-        ?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
-      if (!token) fail(401, "tower_token_required");
-      const digest = await hash(token!);
-      const sql =
-          "SELECT account_id FROM tower_tokens WHERE token_hash=? AND revoked=0 AND expires_at>? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND EXISTS(SELECT 1 FROM json_each(scopes) WHERE " + (previewSource ? "value IN (?,'tower:write')" : "value=?") + ")",
-        scope = previewSource ? "tower:read" : mutate ? "tower:write" : "tower:read";
-      const row = await one<{ account_id: string }>(
-        sql,
-        digest,
-        stamp(),
-        scope,
-      );
-      if (!row) fail(403, "tower_scope_rejected");
-      return {
-        accountId: row!.account_id,
-        delegated: true,
-        guard: async () =>
-          db
-            .prepare(
-              "SELECT CASE WHEN EXISTS(" +
-                sql +
-                " AND account_id=?) THEN 1 ELSE json('tower-auth-revoked') END",
-            )
-            .bind(digest, stamp(), scope, row!.account_id),
-      };
-    }
-    const cookie = req.headers
-      .get("Cookie")
-      ?.split(";")
-      .map((x) => x.trim())
-      .find((x) => x.startsWith("muse_session="))
-      ?.slice(13);
-    if (!cookie || !/^[a-f0-9]{64}$/.test(cookie))
-      fail(401, "sign_in_required");
-    const digest = await hash(cookie!),
-      session = await one<{ account_id: string; csrf: string }>(
-        "SELECT account_id,csrf FROM sessions WHERE token_hash=? AND expires_at>?",
-        digest,
-        stamp(),
-      );
-    if (!session) fail(401, "sign_in_required");
-    // The independent operator header is checked only by the server callback. Generic account/agent bearers never mix with cookies.
-    if (req.headers.has("Authorization")) fail(403, "use_explicit_agent_route");
-    if (mutate) {
-      if (req.headers.get("Origin") !== env.origin)
-        fail(403, "origin_rejected");
-      if (req.headers.get("X-CSRF-Token") !== session!.csrf)
-        fail(403, "csrf_rejected");
-    }
-    return {
-      accountId: session!.account_id,
-      delegated: false,
-      guard: async () =>
-        db
-          .prepare(
-            "SELECT CASE WHEN EXISTS(SELECT 1 FROM sessions WHERE token_hash=? AND account_id=? AND expires_at>? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')) THEN 1 ELSE json('tower-session-expired') END",
-          )
-          .bind(digest, session!.account_id, stamp()),
-    };
-  }
-  async function write(identity: Identity, statements: Statement[]) {
-    try {
-      await db.batch([await identity.guard(), ...statements]);
-    } catch (error) {
-      try {
-        await (await identity.guard()).first();
-      } catch {
-        fail(403, "authorization_changed");
-      }
-      throw error;
-    }
-    try{await env.onProgress?.(identity.accountId);}catch{/* Committed progress remains dirty for bounded recovery. */}
-  }
-  async function prior(
-    identity: Identity,
-    key: string,
-    operation: string,
-    inputHash: string,
-  ) {
-    const row = await one<{
-      operation: string;
-      input_hash: string;
-      response_json: string;
-    }>(
-      "SELECT operation,input_hash,response_json FROM tower_requests WHERE account_id=? AND request_key=?",
-      identity.accountId,
-      key,
-    );
-    if (row && (row.operation !== operation || row.input_hash !== inputHash))
-      fail(409, "idempotency_conflict");
-    return row ? JSON.parse(row.response_json) : null;
-  }
-  const receipt = (
-    identity: Identity,
-    key: string,
-    operation: string,
-    inputHash: string,
-    response: unknown,
-  ) =>
-    db
-      .prepare(
-        "INSERT INTO tower_requests(account_id,request_key,operation,input_hash,response_json,created_at) VALUES(?,?,?,?,?,?)",
-      )
-      .bind(
-        identity.accountId,
-        key,
-        operation,
-        inputHash,
-        JSON.stringify(response),
-        stamp(),
-      );
-  // Successful source receipts are permanent and append-only. Their count is
-  // a source generation even when URLs return to an old value and time stands
-  // still. Replays never insert another receipt or advance this generation.
-  const sourceGenerationSQL = "SELECT COUNT(*) AS generation FROM tower_requests WHERE account_id=? AND operation='source'";
-  const sourceGeneration = async (accountId: string) =>
-    (await one<{ generation: number }>(sourceGenerationSQL, accountId))!.generation;
-  const sourceGenerationGuard = (accountId: string, generation: number) =>
-    db.prepare("SELECT CASE WHEN (" + sourceGenerationSQL + ")=? THEN 1 ELSE json('tower-source-conflict') END")
-      .bind(accountId, generation);
-  async function nativeHome(url: URL, residentId: string) {
-    try { return await readNativeHome(url.href, env.fetcher ?? fetch, residentId); }
-    catch(error) { if(error instanceof HomeSourceError)return fail(400,error.code);return fail(400, "source_native_rejected"); }
-  }
-  function staticHome(value:unknown,residentId:string){
-    try{return validateHomeSnapshot(value,residentId);}
-    catch(error){if(error instanceof HomeSourceError)fail(error.code==="source_identity_changed"?409:400,error.code);throw error;}
-  }
-  async function snapshot(url: URL, residentId: string) {
-    const native = isMuseShareURL(url.href) ? await nativeHome(url, residentId) : null;
-    const source = native ? native.site : await remoteJSON(url);
-    const normalized = native ? native.site : staticHome(source,residentId);
-    const mapping = native ? native.normalization : homeSourceMapping(source);
-    const site = validateTowerSnapshot(normalized, residentId),
-      images: {
-        purpose: "home" | "dream";
-        bytes: Uint8Array;
+    function syncValues(site: PublicCondoSite, images: {
+        purpose: string;
         digest: string;
-      }[] = [];
-    for (const purpose of (site.dream ? ["home", "dream"] : ["home"]) as (
-      | "home"
-      | "dream"
-    )[]) {
-      const imageURL = new URL(mapping.assets[purpose] ?? `./assets/${purpose}.png`, url);
-      const bytes = await cleanPNG(
-        native ? await native.readAsset(purpose) : await remote(imageURL, "image/png", 8 * 1024 * 1024),
-        purpose,
-      );
-      images.push({ purpose, bytes, digest: await hash(bytes) });
+    }[]) {
+        const image = (purpose: string) => images.find(i => i.purpose === purpose)?.digest ?? null;
+        return {
+            intro: { name: site.home.name, intro: site.home.intro },
+            profile: site.profile, daily: site.home.daily,
+            home: { homeAlt: site.homeAlt, imageDigest: image("home") },
+            dream: {
+                dream: site.dream, dreams: site.home.dreams, imageDigest: image("dream")
+            },
+        };
     }
-    if(images.reduce((n,image)=>n+image.bytes.length,0)>12*1024*1024)fail(413,"source_images_too_large");
-    return { site, images };
-  }
-  async function snapshotStatements(
-    roomId: string,
-    rev: number,
-    data: Awaited<ReturnType<typeof snapshot>>,
-    digest: string,
-  ) {
-    const statements = [
-      db
-        .prepare(
-          "INSERT INTO tower_snapshots(room_id,revision,public_json,content_digest,created_at) VALUES(?,?,?,?,?)",
-        )
-        .bind(roomId, rev, JSON.stringify(data.site), digest, stamp()),
-    ];
-    statements.push(...await assetStatements(db,roomId,rev,data.images));
-    return statements;
-  }
-  const syncGroups = ["intro", "profile", "daily", "home", "dream"] as const;
-  type SyncGroup = typeof syncGroups[number];
-  function applyGroups(value: unknown): SyncGroup[] {
-    if (!Array.isArray(value) || !value.length || new Set(value).size !== value.length ||
-      value.some(v => !syncGroups.includes(v as SyncGroup))) fail(400, "source_fields_required");
-    return syncGroups.filter(group => (value as unknown[]).includes(group));
-  }
-  const revisionGuard = (r: Residency) => db.prepare(
-    "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND resident_id=? AND revision=? AND source_url=?) THEN 1 ELSE json('tower-revision-conflict') END",
-  ).bind(r.room_id, r.account_id, r.resident_id, r.revision, r.source_url);
-  async function sourceDigest(r: Residency, generation: number, data: Awaited<ReturnType<typeof snapshot>>) {
-    return hash(JSON.stringify({ sourceURL: r.source_url, sourceGeneration: generation,
-      baseRevision: r.revision, site: data.site,
-      images: data.images.map(image => ({ purpose: image.purpose, digest: image.digest })) }));
-  }
-  const storedImages = (r: Residency) => storedTowerImages(db,r.room_id,r.revision);
-  function syncValues(site: PublicCondoSite, images: {purpose: string; digest: string}[]) {
-    const image = (purpose: string) => images.find(i => i.purpose === purpose)?.digest ?? null;
+    async function change(roomId: string) {
+        try {
+            await env.onChange?.(roomId);
+        }
+        catch {
+            /* The committed publication remains authoritative; community rebuild is independently recoverable. */
+        }
+    }
+    const request = createTowerIntakeRequest();
+    const { body } = request;
+    const contentCommand = createTowerContentService({
+        repository, authorization, request, json
+    });
+    const publicationCommand = createTowerPublicationService({
+        repository, authorization, request, json, onChange: change
+    });
+    const activities = createTowerActivities({
+        db, origin: env.origin, operator: env.operator, stamp, random, hash, fail, body, requestKey, revision, write, prior, receipt, audit, json
+    });
+    const visits = createTowerVisits({
+        db, stamp, random, hash, fail, body, requestKey, revision, write, prior, receipt, audit, json
+    });
     return {
-      intro: { name: site.home.name, intro: site.home.intro },
-      profile: site.profile, daily: site.home.daily,
-      home: { homeAlt: site.homeAlt, imageDigest: image("home") },
-      dream: { dream: site.dream, dreams: site.home.dreams, imageDigest: image("dream") },
-    };
-  }
-  async function change(roomId: string) {
-    try {
-      await env.onChange?.(roomId);
-    } catch {
-      /* The committed publication remains authoritative; community rebuild is independently recoverable. */
-    }
-  }
-  async function publicState(roomId: string) {
-    return one<Residency>(
-      "SELECT * FROM tower_residencies WHERE room_id=? AND public_revision IS NOT NULL AND snapshot_consent=1",
-      roomId,
-    );
-  }
-  async function getSite(r: Residency, publicView = true) {
-    const row = await one<{ public_json: string }>(
-      "SELECT public_json FROM tower_snapshots WHERE room_id=? AND revision=?",
-      r.room_id,
-      publicView ? r.public_revision : r.revision,
-    );
-    if (!row) fail(404, "home_not_found");
-    const site = JSON.parse(row!.public_json) as PublicCondoSite;
-    if (publicView && !r.dream_consent) {
-      site.dream = null;
-      site.home.dreams = [];
-    }
-    return site;
-  }
-  function rendered(
-    site: PublicCondoSite,
-    page: CondoPage,
-    r: Residency,
-    rev: number,
-    privatePrefix?: string,
-  ) {
-    const base = privatePrefix
-        ? privatePrefix + "/preview/home"
-        : `/home/${r.room_id}`,
-      assets = privatePrefix
-        ? `${privatePrefix}/assets/${rev}`
-        : `/api/v1/tower/assets/${r.room_id}/${rev}`;
-    const visitsWidget = !privatePrefix && page === "inside" ? `<section id="tower-visits" class="tower-visits tower-visits-widget" data-visit-room="${r.room_id}"><h2>Visitor corner</h2><p>Leave a greeting, send a small gift or invite this neighbor privately.</p><div data-visit-list></div><button type="button" data-visit-more hidden>Earlier visits</button><p data-visit-status role="status" aria-live="polite">Opening the guestbook…</p><p data-visit-login><a href="/move-in">Sign in to visit</a></p><form hidden><label>Visit type<select name="kind"><option value="message">Leave a message</option><option value="gift">Send a free gift</option><option value="invitation">Send a private invitation</option></select></label><label>Your name for this visit<input name="nickname" maxlength="24" autocomplete="nickname" required></label><label data-visit-gift hidden>Choose a small gift<select name="giftId"><option value="gift-sprout">A little sprout 🌱</option><option value="gift-cloud">A cloud ☁</option><option value="gift-coffee">A cup of coffee ☕</option></select></label><label>Your message<textarea name="body" maxlength="280" rows="3" required></textarea></label><p class="visit-note" data-visit-privacy></p><button type="submit">Send this visit</button></form><p><a href="/tower-visits.html">My visits and invitations</a></p></section>` : "";
-    return renderCondo(site, page)
-      .replace("</head>", visitsWidget ? '<link rel="stylesheet" href="/tower-visits.css"><script src="/tower-visits.js" defer></script></head>' : "</head>")
-      .replace("</main>", visitsWidget + "</main>")
-      .replaceAll("./index.html", base)
-      .replaceAll(
-        "./inside.html",
-        privatePrefix ? privatePrefix + "/preview/inside" : base + "/inside",
-      )
-      .replaceAll(
-        "./dreams.html",
-        privatePrefix ? privatePrefix + "/preview/dreams" : base + "/dreams",
-      )
-      .replaceAll("./assets/home.png", assets + "/home.png")
-      .replaceAll("./assets/dream.png", assets + "/dream.png")
-      .replaceAll("./assets/condo.css", "/condo-template.css")
-      .replace("</footer>",`<p><a href="/">Back to Muse Tower</a> · <a href="/neighbors">Neighbors</a> · ${!privatePrefix && page !== "inside" ? `<a href="${base}/inside#tower-visits">Leave a greeting</a> · ` : ""}<a href="${r.source_url.replace(/condo\.json$/,"")}" target="_blank" rel="noopener noreferrer">Original home ↗</a></p></footer>`);
-  }
-  const activities=createTowerActivities({db,origin:env.origin,operator:env.operator,stamp,random,hash,fail,body,requestKey,revision,write,prior,receipt,audit,json});
-  const visits=createTowerVisits({db,stamp,random,hash,fail,body,requestKey,revision,write,prior,receipt,audit,json});
-  return {
-    async fetch(req: Request): Promise<Response | null> {
-      const url = new URL(req.url),
-        path = url.pathname.replace(/\/$/, "");
-      const owner = path.match(
-          /^\/api\/v1\/(me|agent)\/tower-intake(?:\/(.*))?$/,
-        ),
-        home = path.match(/^\/home\/([a-f0-9]{16})(?:\/(inside|dreams))?$/),
-        publicActivities = path.match(/^\/api\/v1\/tower\/activities(?:\/([a-z0-9][a-z0-9-]{0,63}))?$/),
-        operatorActivities = path.match(/^\/api\/v1\/operator\/tower\/activities(?:\/([a-z0-9][a-z0-9-]{0,63}))?$/),
-        publicVisits = path.match(/^\/api\/v1\/tower\/rooms\/([a-f0-9]{16})\/visits$/),
-        pub = path.match(/^\/api\/v1\/tower\/rooms\/([a-f0-9]{16})$/),
-        asset = path.match(
-          /^\/api\/v1\/tower\/assets\/([a-f0-9]{16})\/([1-9][0-9]*)\/(home|dream)\.png$/,
-        );
-      if (!owner && !home && !pub && !asset && !publicVisits && !publicActivities && !operatorActivities) return null;
-      try {
-        if (url.origin !== env.origin) fail(403, "host_rejected");
-        if (!env.localTest && url.protocol !== "https:")
-          fail(400, "https_required");
-        if(publicActivities)return await activities.public(req,publicActivities[1]);
-        if(operatorActivities)return await activities.operator(req,operatorActivities[1]);
-        if(publicVisits)return await visits.publicList(req,publicVisits[1]);
-        if (home || pub || asset) {
-          if (!["GET", "HEAD"].includes(req.method))
-            fail(405, "method_not_allowed");
-          const roomId = (home ?? pub ?? asset)![1];
-          if (
-            home &&
-            !(await one(
-              "SELECT room_id FROM tower_residencies WHERE room_id=?",
-              roomId,
-            ))
-          )
-            return null;
-          const r = await publicState(roomId);
-          if (!r) fail(404, "home_not_found");
-          if (asset) {
-            if (
-              Number(asset[2]) !== r!.public_revision ||
-              (asset[3] === "dream" && !r!.dream_consent)
-            )
-              fail(404, "asset_not_found");
-            const stored = await readTowerAsset(db,roomId,r!.public_revision!,asset[3] as AssetPurpose);
-            if(!stored)fail(404,"asset_not_found");
-            const bytes=stored!.bytes;
-            return new Response(req.method === "HEAD" ? null : bytes, {
-              headers: {
-                "Content-Type": "image/png",
-                "Cache-Control": "no-store",
-                "X-Content-Type-Options": "nosniff",
-                "Referrer-Policy": "no-referrer",
-              },
-            });
-          }
-          const site = await getSite(r!);
-          if (pub) {
-            site.home.id = roomId;
-            site.home.routes = {
-              home: `/home/${roomId}`,
-              inside: `/home/${roomId}/inside`,
-              dreams: `/home/${roomId}/dreams`,
-            };
-            site.home.assets.desktop = `/api/v1/tower/assets/${roomId}/${r!.public_revision}/home.png`;
-            if (site.dream) {
-              site.dream.image.src = `/api/v1/tower/assets/${roomId}/${r!.public_revision}/dream.png`;
-              site.home.dreams = site.home.dreams.map((d) => ({
-                ...d,
-                image: site.dream!.image.src,
-              }));
+        async fetch(req: Request): Promise<Response | null> {
+            const url = new URL(req.url), path = url.pathname.replace(/\/$/, "");
+            const owner = path.match(/^\/api\/v1\/(me|agent)\/tower-intake(?:\/(.*))?$/), home = path.match(/^\/home\/([a-f0-9]{16})(?:\/(inside|dreams))?$/), publicActivities = path.match(/^\/api\/v1\/tower\/activities(?:\/([a-z0-9][a-z0-9-]{0,63}))?$/), operatorActivities = path.match(/^\/api\/v1\/operator\/tower\/activities(?:\/([a-z0-9][a-z0-9-]{0,63}))?$/), publicVisits = path.match(/^\/api\/v1\/tower\/rooms\/([a-f0-9]{16})\/visits$/), pub = path.match(/^\/api\/v1\/tower\/rooms\/([a-f0-9]{16})$/), asset = path.match(/^\/api\/v1\/tower\/assets\/([a-f0-9]{16})\/([1-9][0-9]*)\/(home|dream)\.png$/);
+            if (!owner && !home && !pub && !asset && !publicVisits && !publicActivities && !operatorActivities)
+                return null;
+            try {
+                if (url.origin !== env.origin)
+                    fail(403, "host_rejected");
+                if (!env.localTest && url.protocol !== "https:")
+                    fail(400, "https_required");
+                if (publicActivities)
+                    return await activities.public(req, publicActivities[1]);
+                if (operatorActivities)
+                    return await activities.operator(req, operatorActivities[1]);
+                if (publicVisits)
+                    return await visits.publicList(req, publicVisits[1]);
+                if (home || pub || asset) {
+                    if (!["GET", "HEAD"].includes(req.method))
+                        fail(405, "method_not_allowed");
+                    const roomId = (home ?? pub ?? asset)![1];
+                    if (home &&
+                        !(await one("SELECT room_id FROM tower_residencies WHERE room_id=?", roomId)))
+                        return null;
+                    const r = await publicState(roomId);
+                    if (!r)
+                        fail(404, "home_not_found");
+                    if (asset) {
+                        if (Number(asset[2]) !== r!.public_revision ||
+                            (asset[3] === "dream" && !r!.dream_consent))
+                            fail(404, "asset_not_found");
+                        const stored = await readTowerAsset(db, roomId, r!.public_revision!, asset[3] as AssetPurpose);
+                        if (!stored)
+                            fail(404, "asset_not_found");
+                        const bytes = stored!.bytes;
+                        return new Response(req.method === "HEAD" ? null : bytes, {
+                            headers: {
+                                "Content-Type": "image/png",
+                                "Cache-Control": "no-store",
+                                "X-Content-Type-Options": "nosniff",
+                                "Referrer-Policy": "no-referrer",
+                            },
+                        });
+                    }
+                    const site = await getSite(r!);
+                    if (pub) {
+                        site.home.id = roomId;
+                        site.home.routes = {
+                            home: `/home/${roomId}`,
+                            inside: `/home/${roomId}/inside`,
+                            dreams: `/home/${roomId}/dreams`,
+                        };
+                        site.home.assets.desktop = `/api/v1/tower/assets/${roomId}/${r!.public_revision}/home.png`;
+                        if (site.dream) {
+                            site.dream.image.src = `/api/v1/tower/assets/${roomId}/${r!.public_revision}/dream.png`;
+                            site.home.dreams = site.home.dreams.map((d) => ({
+                                ...d,
+                                image: site.dream!.image.src,
+                            }));
+                        }
+                        return json({
+                            roomId, revision: r!.public_revision, site
+                        });
+                    }
+                    const page = (home![2] ?? "home") as CondoPage;
+                    return new Response(req.method === "HEAD"
+                        ? null
+                        : renderTowerHome(site, page, {
+                            kind: "public", origin: env.origin, roomId: r!.room_id, revision: r!.public_revision!
+                        }, r!.source_url), {
+                        headers: {
+                            "Content-Type": "text/html; charset=utf-8",
+                            "Cache-Control": "no-store",
+                            "X-Content-Type-Options": "nosniff",
+                            "Referrer-Policy": "no-referrer",
+                            "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+                        },
+                    });
+                }
+                const route = owner![2] ?? "", identity = await authenticate(req, owner![1] === "agent", !["GET", "HEAD"].includes(req.method), route === "source-preview" || route === "content/validate"), accountId = identity.accountId, r = await residency(accountId);
+                if (route === "activities" || route.startsWith("activities/"))
+                    return await activities.owner(req, route, identity);
+                if (route === "visits" || route.startsWith("visits/"))
+                    return await visits.owner(req, route, identity);
+                if (route === "" && req.method === "GET")
+                    return json({ intake: r ? safe(r) : null });
+                if (route === "preview" && req.method === "GET") {
+                    if (!r)
+                        fail(404, "no_home");
+                    const site = await getSite(r!, false), prefix = `/api/v1/${identity.delegated ? "agent" : "me"}/tower-intake`;
+                    site.home.assets.desktop = `${prefix}/assets/${r.revision}/home.png`;
+                    site.home.routes = {
+                        home: prefix + "/preview/home",
+                        inside: prefix + "/preview/inside",
+                        dreams: prefix + "/preview/dreams",
+                    };
+                    if (site.dream) {
+                        site.dream.image.src = `${prefix}/assets/${r.revision}/dream.png`;
+                        site.home.dreams = site.home.dreams.map((d) => ({
+                            ...d,
+                            image: site.dream!.image.src,
+                        }));
+                    }
+                    const response = json({ intake: safe(r!), site });
+                    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+                    return response;
+                }
+                const privateAsset = route.match(/^assets\/([1-9][0-9]*)\/(home|dream)\.png$/);
+                if (privateAsset && req.method === "GET") {
+                    if (!r || Number(privateAsset[1]) !== r.revision)
+                        fail(404, "asset_not_found");
+                    const stored = await readTowerAsset(db, r.room_id, r.revision, privateAsset[2] as AssetPurpose);
+                    if (!stored)
+                        fail(404, "asset_not_found");
+                    const bytes = stored!.bytes;
+                    return new Response(bytes, {
+                        headers: {
+                            "X-Robots-Tag": "noindex, nofollow",
+                            "Content-Type": "image/png",
+                            "Cache-Control": "no-store",
+                            "X-Content-Type-Options": "nosniff",
+                            "Referrer-Policy": "no-referrer",
+                        },
+                    });
+                }
+                const privatePage = route.match(/^preview\/(home|inside|dreams)$/);
+                if (privatePage && ["GET", "HEAD"].includes(req.method)) {
+                    if (!r)
+                        fail(404, "no_home");
+                    return new Response(req.method === "HEAD" ? null : renderTowerHome(await getSite(r!, false), privatePage[1] as CondoPage, {
+                        kind: "private", revision: r!.revision, prefix: `/api/v1/${identity.delegated ? "agent" : "me"}/tower-intake`
+                    }, r!.source_url), {
+                        headers: {
+                            "Content-Type": "text/html; charset=utf-8",
+                            "Cache-Control": "no-store",
+                            "X-Content-Type-Options": "nosniff",
+                            "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+                            "X-Robots-Tag": "noindex, nofollow",
+                        },
+                    });
+                }
+                if (route === "tokens" && req.method === "POST") {
+                    if (identity.delegated)
+                        fail(403, "owner_session_required");
+                    await body(req);
+                    const token = random(), tokenId = random(16), expiresAt = new Date(now().getTime() + 30 * 86400000).toISOString();
+                    await write(identity, [
+                        db
+                            .prepare("UPDATE tower_tokens SET revoked=1 WHERE account_id=?")
+                            .bind(accountId),
+                        db
+                            .prepare("INSERT INTO tower_tokens(id,account_id,token_hash,scopes,expires_at,created_at) VALUES(?,?,?,?,?,?)")
+                            .bind(tokenId, accountId, await hash(token), '["tower:read","tower:write"]', expiresAt, stamp()),
+                        audit(accountId, r?.room_id ?? null, "token-rotated", r?.revision ?? null),
+                    ]);
+                    return json({
+                        id: tokenId,
+                        token,
+                        expiresAt,
+                        scopes: ["tower:read", "tower:write"],
+                    }, 201);
+                }
+                if (/^tokens\/[a-f0-9]{32}$/.test(route) && req.method === "DELETE") {
+                    if (identity.delegated)
+                        fail(403, "owner_session_required");
+                    await write(identity, [
+                        db
+                            .prepare("UPDATE tower_tokens SET revoked=1 WHERE id=? AND account_id=?")
+                            .bind(route.slice(7), accountId),
+                        audit(accountId, r?.room_id ?? null, "token-revoked", r?.revision ?? null),
+                    ]);
+                    return json({ revoked: true });
+                }
+                if (route === "prepare" && req.method === "POST") {
+                    const input = await body(req), sourceURL = (await source(input.sourceURL, accountId)).href, residentId = id(input.residentId), key = requestKey(input.requestKey), inputHash = await hash(JSON.stringify({ sourceURL, residentId })), duplicate = await prior(identity, key, "prepare", inputHash);
+                    if (duplicate)
+                        return json(duplicate, 201);
+                    const claimId = random(16), challenge = random(), expiresAt = new Date(now().getTime() + 3600000).toISOString(), claim = {
+                        version: 1,
+                        tower: env.origin,
+                        residentId,
+                        challenge,
+                        expiresAt,
+                        ...(isMuseShareURL(sourceURL) ? { sourceIdentity: homeSourceIdentity(sourceURL) } : {}),
+                    }, result = {
+                        claimId,
+                        claimURL: isMuseShareURL(sourceURL) ? sourceURL : new URL("./muse-tower-claim.json", sourceURL).href,
+                        ...(isMuseShareURL(sourceURL) ? { claimPlacement: {
+                                kind: "html-json-script", elementId: "musecondo-claim", contentType: "application/json"
+                            } } : {}),
+                        claim,
+                    };
+                    await write(identity, [
+                        db
+                            .prepare("INSERT INTO tower_claims(id,account_id,resident_id,source_url,challenge,expires_at,created_at) VALUES(?,?,?,?,?,?,?)")
+                            .bind(claimId, accountId, residentId, sourceURL, challenge, expiresAt, stamp()),
+                        receipt(identity, key, "prepare", inputHash, result),
+                        audit(accountId, null, "claim-prepared", null),
+                    ]);
+                    return json(result, 201);
+                }
+                if (route === "claim" && req.method === "POST") {
+                    const input = await body(req), claim = await one<Claim>("SELECT * FROM tower_claims WHERE id=? AND account_id=? AND expires_at>?", id(input.claimId), accountId, stamp());
+                    if (!claim)
+                        fail(403, "claim_rejected");
+                    const expected = {
+                        version: 1,
+                        tower: env.origin,
+                        residentId: claim!.resident_id,
+                        challenge: claim!.challenge,
+                        expiresAt: claim!.expires_at,
+                        ...(isMuseShareURL(claim!.source_url) ? { sourceIdentity: homeSourceIdentity(claim!.source_url) } : {}),
+                    }, remoteClaim = object(await claimProof(await source(claim!.source_url, accountId)), Object.keys(expected));
+                    if (claim!.expires_at <= stamp() || Object.entries(expected).some(([k, v]) => remoteClaim[k] !== v))
+                        fail(403, "claim_rejected");
+                    await write(identity, [
+                        db
+                            .prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_claims WHERE id=? AND account_id=? AND resident_id=? AND source_url=? AND challenge=? AND expires_at=? AND expires_at>?) THEN 1 ELSE json('claim-expired') END")
+                            .bind(claim!.id, accountId, claim!.resident_id, claim!.source_url, claim!.challenge, claim!.expires_at, stamp()),
+                        db
+                            .prepare("UPDATE tower_claims SET verified=1 WHERE id=? AND account_id=?")
+                            .bind(claim!.id, accountId),
+                        audit(accountId, null, "claim-verified", null),
+                    ]);
+                    return json({ verified: true, claimId: claim!.id });
+                }
+                if (route === "source" && req.method === "POST") {
+                    if (!r)
+                        fail(404, "no_home");
+                    const input = await body(req, [
+                        "expectedRevision", "requestKey", "sourceURL", "claimId",
+                    ]), expected = revision(input.expectedRevision), key = requestKey(input.requestKey), sourceURL = await source(input.sourceURL, accountId), claimId = id(input.claimId),
+                    // Only client input identifies the request. The old source changes on
+                    // success, and must never invalidate a saved receipt on replay.
+                    inputHash = await hash(JSON.stringify({
+                        expected, sourceURL: sourceURL.href, claimId
+                    })), replay = await prior(identity, key, "source", inputHash);
+                    if (replay)
+                        return json(replay);
+                    if (r!.revision !== expected)
+                        fail(409, "revision_conflict");
+                    const generation = await sourceGeneration(accountId), claimSQL = "SELECT id FROM tower_claims WHERE id=? AND account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?", claimArgs = () => [
+                        claimId, accountId, r!.resident_id, sourceURL.href, stamp()
+                    ], occupied = () => isMuseShareURL(sourceURL.href)
+                        ? one("SELECT r.room_id FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE i.source_identity=? AND r.room_id<>?", homeSourceIdentity(sourceURL.href), r!.room_id)
+                        : one("SELECT room_id FROM tower_residencies WHERE source_url=? AND room_id<>?", sourceURL.href, r!.room_id);
+                    if (!(await one(claimSQL, ...claimArgs())))
+                        fail(403, "verified_claim_required");
+                    if (await occupied())
+                        fail(409, "source_already_claimed");
+                    // Verify the fresh manifest and stable resident identity only. A move
+                    // neither imports its content nor fetches/replaces any saved images.
+                    validateTowerSnapshot(isMuseShareURL(sourceURL.href)
+                        ? (await nativeHome(sourceURL, r!.resident_id)).site
+                        : staticHome(await remoteJSON(sourceURL), r!.resident_id), r!.resident_id);
+                    const result = { intake: safe({
+                            ...r!, source_url: sourceURL.href, proof_method: "challenge"
+                        }) };
+                    try {
+                        await write(identity, [
+                            sourceGenerationGuard(accountId, generation),
+                            db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND resident_id=? AND revision=? AND source_url=? AND public_revision IS ? AND directory_consent=? AND announcement_consent=? AND dream_consent=? AND snapshot_consent=?) THEN 1 ELSE json('tower-source-conflict') END").bind(r!.room_id, accountId, r!.resident_id, expected, r!.source_url, r!.public_revision, r!.directory_consent, r!.announcement_consent, r!.dream_consent, r!.snapshot_consent),
+                            db.prepare("SELECT CASE WHEN EXISTS(" + claimSQL + ") THEN 1 ELSE json('tower-claim-expired') END").bind(...claimArgs()),
+                            db.prepare(isMuseShareURL(sourceURL.href)
+                                ? "SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE i.source_identity=? AND r.room_id<>?) THEN 1 ELSE json('tower-source-occupied') END"
+                                : "SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM tower_residencies WHERE source_url=? AND room_id<>?) THEN 1 ELSE json('tower-source-occupied') END").bind(homeSourceIdentity(sourceURL.href), r!.room_id),
+                            db.prepare("UPDATE tower_residencies SET source_url=?,proof_method='challenge',updated_at=? WHERE room_id=? AND account_id=? AND revision=? AND source_url=?")
+                                .bind(sourceURL.href, stamp(), r!.room_id, accountId, expected, r!.source_url),
+                            receipt(identity, key, "source", inputHash, result),
+                            audit(accountId, r!.room_id, "resident-source-moved", expected, {
+                                oldSourceURL: r!.source_url, sourceURL: sourceURL.href, proofMethod: "challenge",
+                            }),
+                        ]);
+                    }
+                    catch (error) {
+                        if (error instanceof TowerError)
+                            throw error;
+                        const saved = await prior(identity, key, "source", inputHash);
+                        if (saved)
+                            return json(saved);
+                        const latest = await residency(accountId);
+                        if (!latest || latest.revision !== expected || latest.source_url !== r!.source_url ||
+                            latest.public_revision !== r!.public_revision || latest.directory_consent !== r!.directory_consent ||
+                            latest.announcement_consent !== r!.announcement_consent || latest.dream_consent !== r!.dream_consent ||
+                            latest.snapshot_consent !== r!.snapshot_consent || (await sourceGeneration(accountId)) !== generation)
+                            fail(409, "revision_conflict");
+                        if (!(await one(claimSQL, ...claimArgs())))
+                            fail(403, "verified_claim_required");
+                        if (await occupied())
+                            fail(409, "source_already_claimed");
+                        fail(503, "tower_storage_unavailable");
+                    }
+                    return json(result);
+                }
+                if (route === "source-preview" && req.method === "POST") {
+                    if (!r)
+                        fail(404, "no_home");
+                    const input = await body(req, ["expectedRevision"]), expected = revision(input.expectedRevision);
+                    if (r!.revision !== expected)
+                        fail(409, "revision_conflict");
+                    const generation = await sourceGeneration(accountId), previous = await getSite(r!, false), oldImages = await storedImages(r!), data = await snapshot(await source(r!.source_url, accountId), r!.resident_id), digest = await sourceDigest(r!, generation, data), before = syncValues(previous, oldImages), after = syncValues(data.site, data.images);
+                    // Read-only preview still revalidates authorization and the source generation
+                    // after network I/O. No preview receipt, audit or draft is persisted.
+                    try {
+                        await write(identity, [sourceGenerationGuard(accountId, generation), revisionGuard(r!)]);
+                    }
+                    catch (error) {
+                        if (error instanceof TowerError)
+                            throw error;
+                        const latest = await residency(accountId);
+                        if (!latest || latest.revision !== expected || latest.source_url !== r!.source_url ||
+                            await sourceGeneration(accountId) !== generation)
+                            fail(409, "revision_conflict");
+                        fail(503, "tower_storage_unavailable");
+                    }
+                    return json({
+                        baseRevision: expected, sourceDigest: digest,
+                        groups: syncGroups.map(field => ({
+                            field, changed: JSON.stringify(before[field]) !== JSON.stringify(after[field]),
+                            before: before[field], after: after[field]
+                        }))
+                    });
+                }
+                if (route === "snapshot" && req.method === "POST") {
+                    if (!r)
+                        fail(404, "no_home");
+                    const input = await body(req, [
+                        "expectedRevision", "requestKey", "reviewedSourceDigest", "apply"
+                    ]);
+                    if (typeof input.reviewedSourceDigest !== "string" || !/^[a-f0-9]{64}$/.test(input.reviewedSourceDigest))
+                        fail(409, "source_review_required");
+                    const expected = revision(input.expectedRevision), key = requestKey(input.requestKey), apply = applyGroups(input.apply), reviewedSourceDigest = input.reviewedSourceDigest, inputHash = await hash(JSON.stringify({
+                        expected, reviewedSourceDigest, apply
+                    })), replay = await prior(identity, key, "snapshot", inputHash);
+                    if (replay)
+                        return json(replay, 201);
+                    if (r!.revision !== expected)
+                        fail(409, "revision_conflict");
+                    const generation = await sourceGeneration(accountId), previous = await getSite(r!, false), oldImages = await storedImages(r!), data = await snapshot(await source(r!.source_url, accountId), r!.resident_id);
+                    if (await sourceDigest(r!, generation, data) !== reviewedSourceDigest)
+                        fail(409, "source_review_changed");
+                    const chosen = (group: SyncGroup) => apply.includes(group), site = validateTowerSnapshot({
+                        ...previous,
+                        home: {
+                            ...previous.home,
+                            ...(chosen("intro") ? { name: data.site.home.name, intro: data.site.home.intro } : {}),
+                            ...(chosen("daily") ? { daily: data.site.home.daily } : {}),
+                            ...(chosen("dream") ? { dreams: data.site.home.dreams } : {}),
+                        },
+                        ...(chosen("profile") ? { profile: data.site.profile } : {}),
+                        ...(chosen("home") ? { homeAlt: data.site.homeAlt } : {}),
+                        ...(chosen("dream") ? { dream: data.site.dream } : {}),
+                    }, r!.resident_id), images = data.images.filter(image => chosen(image.purpose)), preserved = oldImages.filter(image => !chosen(image.purpose)), rev = expected + 1;
+                    if (images.reduce((n, image) => n + image.bytes.length, 0) + preserved.reduce((n, image) => n + image.size, 0) > 12 * 1024 * 1024)
+                        fail(413, "source_images_too_large");
+                    const result = {
+                        roomId: r!.room_id, door: `/home/${r!.room_id}`, residentId: r!.resident_id,
+                        sourceURL: r!.source_url, revision: rev, proofMethod: r!.proof_method, published: false,
+                        reviewedSourceDigest, apply
+                    };
+                    try {
+                        await write(identity, [
+                            sourceGenerationGuard(accountId, generation), revisionGuard(r!),
+                            ...await snapshotStatements(r!.room_id, rev, { site, images }, await hash(JSON.stringify(site))),
+                            ...await cloneAssetStatements(db, r!.room_id, expected, rev, preserved.map(image => image.purpose)),
+                            db.prepare("UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=? AND account_id=? AND revision=?")
+                                .bind(rev, stamp(), r!.room_id, accountId, expected),
+                            receipt(identity, key, "snapshot", inputHash, result),
+                            audit(accountId, r!.room_id, "snapshot-imported", rev, { reviewedSourceDigest, apply }),
+                        ]);
+                    }
+                    catch (error) {
+                        if (error instanceof TowerError)
+                            throw error;
+                        const saved = await prior(identity, key, "snapshot", inputHash);
+                        if (saved)
+                            return json(saved, 201);
+                        const latest = await residency(accountId);
+                        if (!latest || latest.revision !== expected || latest.source_url !== r!.source_url ||
+                            await sourceGeneration(accountId) !== generation)
+                            fail(409, "revision_conflict");
+                        fail(503, "tower_storage_unavailable");
+                    }
+                    return json(result, 201);
+                }
+                if (route === "import" &&
+                    req.method === "POST") {
+                    const input = await body(req), sourceURL = await source(input.sourceURL, accountId), residentId = id(input.residentId), key = requestKey(input.requestKey), proof = input.proof;
+                    if (!["challenge", "owner-attested"].includes(String(proof)))
+                        fail(400, "proof_required");
+                    const inputHash = await hash(JSON.stringify({
+                        sourceURL: sourceURL.href,
+                        residentId,
+                        expected: null,
+                        proof,
+                    })), duplicate = await prior(identity, key, route, inputHash);
+                    if (duplicate)
+                        return json(duplicate, 201);
+                    if (r) {
+                        if (r.resident_id !== residentId || r.source_url !== sourceURL.href)
+                            fail(409, "resident_identity_locked");
+                        const result = {
+                            roomId: r.room_id,
+                            door: `/home/${r.room_id}`,
+                            residentId: r.resident_id,
+                            sourceURL: r.source_url,
+                            revision: r.revision,
+                            proofMethod: r.proof_method,
+                            published: r.public_revision !== null,
+                        };
+                        await write(identity, [
+                            receipt(identity, key, route, inputHash, result),
+                        ]);
+                        return json(result, 201);
+                    }
+                    if (await one(isMuseShareURL(sourceURL.href)
+                        ? "SELECT r.room_id FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE r.resident_id=? OR i.source_identity=?"
+                        : "SELECT room_id FROM tower_residencies WHERE resident_id=? OR source_url=?", residentId, homeSourceIdentity(sourceURL.href)))
+                        fail(409, "resident_already_claimed");
+                    if (await one("SELECT id FROM rooms WHERE account_id=?", accountId))
+                        fail(409, "account_already_has_home");
+                    if (proof === "owner-attested") {
+                        if (identity.delegated ||
+                            !(await env.ownerAttestation?.(req, accountId, sourceURL.href)))
+                            fail(403, "owner_attestation_required");
+                    }
+                    else if (!(await one("SELECT id FROM tower_claims WHERE account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?", accountId, residentId, sourceURL.href, stamp())))
+                        fail(403, "verified_claim_required");
+                    const requiresSourceGrant = !env.sourceOrigins.includes(sourceURL.origin), sourceGrantArgs = [accountId, residentId, sourceURL.href];
+                    if (requiresSourceGrant && !await one(firstImportGrantSQL, ...sourceGrantArgs))
+                        fail(403, "source_authorization_required");
+                    const data = await snapshot(sourceURL, residentId), roomId = random(8), rev = 1, result = {
+                        roomId,
+                        door: `/home/${roomId}`,
+                        residentId,
+                        sourceURL: sourceURL.href,
+                        revision: rev,
+                        proofMethod: proof,
+                        published: false,
+                    }, statements: Statement[] = [];
+                    if (requiresSourceGrant)
+                        statements.push(db.prepare("SELECT CASE WHEN EXISTS(" + firstImportGrantSQL + ") THEN 1 ELSE json('source-authorization-expired') END").bind(...sourceGrantArgs));
+                    if (proof === "challenge")
+                        statements.push(db
+                            .prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_claims WHERE account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?) THEN 1 ELSE json('tower-claim-expired') END")
+                            .bind(accountId, residentId, sourceURL.href, stamp()));
+                    statements.push(db
+                        .prepare("INSERT INTO rooms(id,account_id,name,intro,role,published,generation_state,created_at,test_only) VALUES(?,?,?,?,?,0,'external-ready',?,?)")
+                        .bind(roomId, accountId, data.site.home.name, data.site.home.intro, "resident", stamp(), env.localTest ? 1 : 0), db
+                        .prepare("INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
+                        .bind(roomId, accountId, residentId, sourceURL.href, proof, rev, stamp(), stamp()));
+                    statements.push(...await snapshotStatements(roomId, rev, data, await hash(JSON.stringify(data.site))), receipt(identity, key, route, inputHash, result), audit(accountId, roomId, "resident-imported", rev, { proofMethod: proof }));
+                    try {
+                        await write(identity, statements);
+                    }
+                    catch (error) {
+                        if (error instanceof TowerError)
+                            throw error;
+                        const retry = await prior(identity, key, route, inputHash);
+                        if (retry)
+                            return json(retry, 201);
+                        if (requiresSourceGrant && !await one(firstImportGrantSQL, ...sourceGrantArgs))
+                            fail(403, "source_authorization_required");
+                        const latest = await residency(accountId);
+                        if (latest)
+                            fail(409, "revision_or_identity_conflict");
+                        if (isMuseShareURL(sourceURL.href) && await one("SELECT r.room_id FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE r.resident_id=? OR i.source_identity=?", residentId, homeSourceIdentity(sourceURL.href)))
+                            fail(409, "resident_already_claimed");
+                        // Operation errors are private audit records, never public SQL/provider payloads.
+                        const detail = { error: error instanceof Error ? error.message.slice(0, 500) : "storage-error", cause: error instanceof Error && error.cause instanceof Error ? error.cause.message.slice(0, 500) : null };
+                        try {
+                            await db.batch([audit(accountId, null, "storage-failed", null, detail)]);
+                        }
+                        catch { /* Preserve the original safe error if audit storage is unavailable too. */
+                        }
+                        fail(503, "tower_storage_unavailable");
+                    }
+                    return json(result, 201);
+                }
+                const commandResponse = await contentCommand(req, route, identity, r)
+                    ?? await publicationCommand(req, route, identity, r);
+                if (commandResponse)
+                    return commandResponse;
+                fail(405, "method_not_allowed");
             }
-            return json({ roomId, revision: r!.public_revision, site });
-          }
-          const page = (home![2] ?? "home") as CondoPage;
-          return new Response(
-            req.method === "HEAD"
-              ? null
-              : rendered(site, page, r!, r!.public_revision!),
-            {
-              headers: {
-                "Content-Type": "text/html; charset=utf-8",
-                "Cache-Control": "no-store",
-                "X-Content-Type-Options": "nosniff",
-                "Referrer-Policy": "no-referrer",
-                "Content-Security-Policy":
-                  "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
-              },
-            },
-          );
-        }
-        const route = owner![2] ?? "",
-          identity = await authenticate(
-            req,
-            owner![1] === "agent",
-            !["GET", "HEAD"].includes(req.method),
-            route === "source-preview" || route === "content/validate",
-          ),
-          accountId = identity.accountId,
-          r = await residency(accountId);
-        if(route==="activities"||route.startsWith("activities/"))return await activities.owner(req,route,identity);
-        if(route==="visits"||route.startsWith("visits/"))return await visits.owner(req,route,identity);
-        if (route === "" && req.method === "GET")
-          return json({ intake: r ? safe(r) : null });
-        if (route === "preview" && req.method === "GET") {
-          if (!r) fail(404, "no_home");
-          const site = await getSite(r!, false),
-            prefix = `/api/v1/${identity.delegated ? "agent" : "me"}/tower-intake`;
-          site.home.assets.desktop = `${prefix}/assets/${r.revision}/home.png`;
-          site.home.routes = {
-            home: prefix + "/preview/home",
-            inside: prefix + "/preview/inside",
-            dreams: prefix + "/preview/dreams",
-          };
-          if (site.dream) {
-            site.dream.image.src = `${prefix}/assets/${r.revision}/dream.png`;
-            site.home.dreams = site.home.dreams.map((d) => ({
-              ...d,
-              image: site.dream!.image.src,
-            }));
-          }
-          return json({ intake: safe(r!), site });
-        }
-        const privateAsset = route.match(
-          /^assets\/([1-9][0-9]*)\/(home|dream)\.png$/,
-        );
-        if (privateAsset && req.method === "GET") {
-          if (!r || Number(privateAsset[1]) !== r.revision)
-            fail(404, "asset_not_found");
-          const stored=await readTowerAsset(db,r.room_id,r.revision,privateAsset[2] as AssetPurpose);
-          if(!stored)fail(404,"asset_not_found");
-          const bytes=stored!.bytes;
-          return new Response(bytes, {
-            headers: {
-              "Content-Type": "image/png",
-              "Cache-Control": "no-store",
-              "X-Content-Type-Options": "nosniff",
-              "Referrer-Policy": "no-referrer",
-            },
-          });
-        }
-        const privatePage = route.match(/^preview\/(home|inside|dreams)$/);
-        if (privatePage && req.method === "GET") {
-          if (!r) fail(404, "no_home");
-          return new Response(
-            rendered(
-              await getSite(r!, false),
-              privatePage[1] as CondoPage,
-              r!,
-              r!.revision,
-              `/api/v1/${identity.delegated ? "agent" : "me"}/tower-intake`,
-            ),
-            {
-              headers: {
-                "Content-Type": "text/html; charset=utf-8",
-                "Cache-Control": "no-store",
-                "X-Content-Type-Options": "nosniff",
-                "Content-Security-Policy":
-                  "default-src 'none'; img-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
-              },
-            },
-          );
-        }
-
-        if (route === "tokens" && req.method === "POST") {
-          if (identity.delegated) fail(403, "owner_session_required");
-          await body(req);
-          const token = random(),
-            tokenId = random(16),
-            expiresAt = new Date(now().getTime() + 30 * 86400000).toISOString();
-          await write(identity, [
-            db
-              .prepare("UPDATE tower_tokens SET revoked=1 WHERE account_id=?")
-              .bind(accountId),
-            db
-              .prepare(
-                "INSERT INTO tower_tokens(id,account_id,token_hash,scopes,expires_at,created_at) VALUES(?,?,?,?,?,?)",
-              )
-              .bind(
-                tokenId,
-                accountId,
-                await hash(token),
-                '["tower:read","tower:write"]',
-                expiresAt,
-                stamp(),
-              ),
-            audit(
-              accountId,
-              r?.room_id ?? null,
-              "token-rotated",
-              r?.revision ?? null,
-            ),
-          ]);
-          return json(
-            {
-              id: tokenId,
-              token,
-              expiresAt,
-              scopes: ["tower:read", "tower:write"],
-            },
-            201,
-          );
-        }
-        if (/^tokens\/[a-f0-9]{32}$/.test(route) && req.method === "DELETE") {
-          if (identity.delegated) fail(403, "owner_session_required");
-          await write(identity, [
-            db
-              .prepare(
-                "UPDATE tower_tokens SET revoked=1 WHERE id=? AND account_id=?",
-              )
-              .bind(route.slice(7), accountId),
-            audit(
-              accountId,
-              r?.room_id ?? null,
-              "token-revoked",
-              r?.revision ?? null,
-            ),
-          ]);
-          return json({ revoked: true });
-        }
-        if (route === "prepare" && req.method === "POST") {
-          const input = await body(req),
-            sourceURL = (await source(input.sourceURL,accountId)).href,
-            residentId = id(input.residentId),
-            key = requestKey(input.requestKey),
-            inputHash = await hash(JSON.stringify({ sourceURL, residentId })),
-            duplicate = await prior(identity, key, "prepare", inputHash);
-          if (duplicate) return json(duplicate, 201);
-          const claimId = random(16),
-            challenge = random(),
-            expiresAt = new Date(now().getTime() + 3600000).toISOString(),
-            claim = {
-              version: 1,
-              tower: env.origin,
-              residentId,
-              challenge,
-              expiresAt,
-              ...(isMuseShareURL(sourceURL) ? {sourceIdentity: homeSourceIdentity(sourceURL)} : {}),
-            },
-            result = {
-              claimId,
-              claimURL: isMuseShareURL(sourceURL) ? sourceURL : new URL("./muse-tower-claim.json", sourceURL).href,
-              ...(isMuseShareURL(sourceURL) ? {claimPlacement: {kind: "html-json-script", elementId: "musecondo-claim", contentType: "application/json"}} : {}),
-              claim,
-            };
-          await write(identity, [
-            db
-              .prepare(
-                "INSERT INTO tower_claims(id,account_id,resident_id,source_url,challenge,expires_at,created_at) VALUES(?,?,?,?,?,?,?)",
-              )
-              .bind(
-                claimId,
-                accountId,
-                residentId,
-                sourceURL,
-                challenge,
-                expiresAt,
-                stamp(),
-              ),
-            receipt(identity, key, "prepare", inputHash, result),
-            audit(accountId, null, "claim-prepared", null),
-          ]);
-          return json(result, 201);
-        }
-        if (route === "claim" && req.method === "POST") {
-          const input = await body(req),
-            claim = await one<Claim>(
-              "SELECT * FROM tower_claims WHERE id=? AND account_id=? AND expires_at>?",
-              id(input.claimId),
-              accountId,
-              stamp(),
-            );
-          if (!claim) fail(403, "claim_rejected");
-          const expected = {
-              version: 1,
-              tower: env.origin,
-              residentId: claim!.resident_id,
-              challenge: claim!.challenge,
-              expiresAt: claim!.expires_at,
-              ...(isMuseShareURL(claim!.source_url) ? {sourceIdentity: homeSourceIdentity(claim!.source_url)} : {}),
-            },
-            remoteClaim = object(
-              await claimProof(await source(claim!.source_url,accountId)),
-              Object.keys(expected),
-            );
-          if (claim!.expires_at <= stamp() || Object.entries(expected).some(([k, v]) => remoteClaim[k] !== v))
-            fail(403, "claim_rejected");
-          await write(identity, [
-            db
-              .prepare(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_claims WHERE id=? AND account_id=? AND resident_id=? AND source_url=? AND challenge=? AND expires_at=? AND expires_at>?) THEN 1 ELSE json('claim-expired') END",
-              )
-              .bind(claim!.id, accountId, claim!.resident_id, claim!.source_url, claim!.challenge, claim!.expires_at, stamp()),
-            db
-              .prepare(
-                "UPDATE tower_claims SET verified=1 WHERE id=? AND account_id=?",
-              )
-              .bind(claim!.id, accountId),
-            audit(accountId, null, "claim-verified", null),
-          ]);
-          return json({ verified: true, claimId: claim!.id });
-        }
-        if (route === "source" && req.method === "POST") {
-          if (!r) fail(404, "no_home");
-          const input = await body(req, [
-              "expectedRevision", "requestKey", "sourceURL", "claimId",
-            ]),
-            expected = revision(input.expectedRevision),
-            key = requestKey(input.requestKey),
-            sourceURL = await source(input.sourceURL,accountId),
-            claimId = id(input.claimId),
-            // Only client input identifies the request. The old source changes on
-            // success, and must never invalidate a saved receipt on replay.
-            inputHash = await hash(JSON.stringify({ expected, sourceURL: sourceURL.href, claimId })),
-            replay = await prior(identity, key, "source", inputHash);
-          if (replay) return json(replay);
-          if (r!.revision !== expected) fail(409, "revision_conflict");
-          const generation = await sourceGeneration(accountId),
-            claimSQL = "SELECT id FROM tower_claims WHERE id=? AND account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?",
-            claimArgs = () => [claimId, accountId, r!.resident_id, sourceURL.href, stamp()],
-            occupied = () => isMuseShareURL(sourceURL.href)
-              ? one("SELECT r.room_id FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE i.source_identity=? AND r.room_id<>?", homeSourceIdentity(sourceURL.href), r!.room_id)
-              : one("SELECT room_id FROM tower_residencies WHERE source_url=? AND room_id<>?", sourceURL.href, r!.room_id);
-          if (!(await one(claimSQL, ...claimArgs())))
-            fail(403, "verified_claim_required");
-          if (await occupied()) fail(409, "source_already_claimed");
-          // Verify the fresh manifest and stable resident identity only. A move
-          // neither imports its content nor fetches/replaces any saved images.
-          validateTowerSnapshot(isMuseShareURL(sourceURL.href)
-            ? (await nativeHome(sourceURL, r!.resident_id)).site
-            : staticHome(await remoteJSON(sourceURL),r!.resident_id), r!.resident_id);
-          const result = { intake: safe({ ...r!, source_url: sourceURL.href, proof_method: "challenge" }) };
-          try {
-            await write(identity, [
-              sourceGenerationGuard(accountId, generation),
-              db.prepare(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND resident_id=? AND revision=? AND source_url=? AND public_revision IS ? AND directory_consent=? AND announcement_consent=? AND dream_consent=? AND snapshot_consent=?) THEN 1 ELSE json('tower-source-conflict') END",
-              ).bind(r!.room_id, accountId, r!.resident_id, expected, r!.source_url, r!.public_revision, r!.directory_consent, r!.announcement_consent, r!.dream_consent, r!.snapshot_consent),
-              db.prepare("SELECT CASE WHEN EXISTS(" + claimSQL + ") THEN 1 ELSE json('tower-claim-expired') END").bind(...claimArgs()),
-              db.prepare(isMuseShareURL(sourceURL.href)
-                ? "SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE i.source_identity=? AND r.room_id<>?) THEN 1 ELSE json('tower-source-occupied') END"
-                : "SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM tower_residencies WHERE source_url=? AND room_id<>?) THEN 1 ELSE json('tower-source-occupied') END").bind(homeSourceIdentity(sourceURL.href), r!.room_id),
-              db.prepare("UPDATE tower_residencies SET source_url=?,proof_method='challenge',updated_at=? WHERE room_id=? AND account_id=? AND revision=? AND source_url=?")
-                .bind(sourceURL.href, stamp(), r!.room_id, accountId, expected, r!.source_url),
-              receipt(identity, key, "source", inputHash, result),
-              audit(accountId, r!.room_id, "resident-source-moved", expected, {
-                oldSourceURL: r!.source_url, sourceURL: sourceURL.href, proofMethod: "challenge",
-              }),
-            ]);
-          } catch (error) {
-            if (error instanceof TowerError) throw error;
-            const saved = await prior(identity, key, "source", inputHash);
-            if (saved) return json(saved);
-            const latest = await residency(accountId);
-            if (!latest || latest.revision !== expected || latest.source_url !== r!.source_url ||
-              latest.public_revision !== r!.public_revision || latest.directory_consent !== r!.directory_consent ||
-              latest.announcement_consent !== r!.announcement_consent || latest.dream_consent !== r!.dream_consent ||
-              latest.snapshot_consent !== r!.snapshot_consent || (await sourceGeneration(accountId)) !== generation)
-              fail(409, "revision_conflict");
-            if (!(await one(claimSQL, ...claimArgs())))
-              fail(403, "verified_claim_required");
-            if (await occupied()) fail(409, "source_already_claimed");
-            fail(503, "tower_storage_unavailable");
-          }
-          return json(result);
-        }
-        if (route === "source-preview" && req.method === "POST") {
-          if (!r) fail(404, "no_home");
-          const input = await body(req, ["expectedRevision"]), expected = revision(input.expectedRevision);
-          if (r!.revision !== expected) fail(409, "revision_conflict");
-          const generation = await sourceGeneration(accountId), previous = await getSite(r!, false),
-            oldImages = await storedImages(r!), data = await snapshot(await source(r!.source_url,accountId), r!.resident_id),
-            digest = await sourceDigest(r!, generation, data),
-            before = syncValues(previous, oldImages), after = syncValues(data.site, data.images);
-          // Read-only preview still revalidates authorization and the source generation
-          // after network I/O. No preview receipt, audit or draft is persisted.
-          try { await write(identity, [sourceGenerationGuard(accountId, generation), revisionGuard(r!)]); }
-          catch (error) {
-            if (error instanceof TowerError) throw error;
-            const latest = await residency(accountId);
-            if (!latest || latest.revision !== expected || latest.source_url !== r!.source_url ||
-              await sourceGeneration(accountId) !== generation) fail(409, "revision_conflict");
-            fail(503, "tower_storage_unavailable");
-          }
-          return json({ baseRevision: expected, sourceDigest: digest,
-            groups: syncGroups.map(field => ({ field, changed: JSON.stringify(before[field]) !== JSON.stringify(after[field]),
-              before: before[field], after: after[field] })) });
-        }
-        if (route === "snapshot" && req.method === "POST") {
-          if (!r) fail(404, "no_home");
-          const input = await body(req, ["expectedRevision", "requestKey", "reviewedSourceDigest", "apply"]);
-          if (typeof input.reviewedSourceDigest !== "string" || !/^[a-f0-9]{64}$/.test(input.reviewedSourceDigest))
-            fail(409, "source_review_required");
-          const expected = revision(input.expectedRevision), key = requestKey(input.requestKey),
-            apply = applyGroups(input.apply), reviewedSourceDigest = input.reviewedSourceDigest,
-            inputHash = await hash(JSON.stringify({ expected, reviewedSourceDigest, apply })),
-            replay = await prior(identity, key, "snapshot", inputHash);
-          if (replay) return json(replay, 201);
-          if (r!.revision !== expected) fail(409, "revision_conflict");
-          const generation = await sourceGeneration(accountId), previous = await getSite(r!, false),
-            oldImages = await storedImages(r!), data = await snapshot(await source(r!.source_url,accountId), r!.resident_id);
-          if (await sourceDigest(r!, generation, data) !== reviewedSourceDigest)
-            fail(409, "source_review_changed");
-          const chosen = (group: SyncGroup) => apply.includes(group),
-            site = validateTowerSnapshot({ ...previous,
-              home: { ...previous.home,
-                ...(chosen("intro") ? { name: data.site.home.name, intro: data.site.home.intro } : {}),
-                ...(chosen("daily") ? { daily: data.site.home.daily } : {}),
-                ...(chosen("dream") ? { dreams: data.site.home.dreams } : {}),
-              },
-              ...(chosen("profile") ? { profile: data.site.profile } : {}),
-              ...(chosen("home") ? { homeAlt: data.site.homeAlt } : {}),
-              ...(chosen("dream") ? { dream: data.site.dream } : {}),
-            }, r!.resident_id),
-            images = data.images.filter(image => chosen(image.purpose)),
-            preserved = oldImages.filter(image => !chosen(image.purpose)),
-            rev = expected + 1;
-          if (images.reduce((n, image) => n + image.bytes.length, 0) + preserved.reduce((n, image) => n + image.size, 0) > 12 * 1024 * 1024)
-            fail(413, "source_images_too_large");
-          const result = { roomId: r!.room_id, door: `/home/${r!.room_id}`, residentId: r!.resident_id,
-            sourceURL: r!.source_url, revision: rev, proofMethod: r!.proof_method, published: false,
-            reviewedSourceDigest, apply };
-          try {
-            await write(identity, [sourceGenerationGuard(accountId, generation), revisionGuard(r!),
-              ...await snapshotStatements(r!.room_id, rev, { site, images }, await hash(JSON.stringify(site))),
-              ...await cloneAssetStatements(db,r!.room_id,expected,rev,preserved.map(image=>image.purpose)),
-              db.prepare("UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=? AND account_id=? AND revision=?")
-                .bind(rev, stamp(), r!.room_id, accountId, expected),
-              receipt(identity, key, "snapshot", inputHash, result),
-              audit(accountId, r!.room_id, "snapshot-imported", rev, { reviewedSourceDigest, apply }),
-            ]);
-          } catch (error) {
-            if (error instanceof TowerError) throw error;
-            const saved = await prior(identity, key, "snapshot", inputHash);
-            if (saved) return json(saved, 201);
-            const latest = await residency(accountId);
-            if (!latest || latest.revision !== expected || latest.source_url !== r!.source_url ||
-              await sourceGeneration(accountId) !== generation) fail(409, "revision_conflict");
-            fail(503, "tower_storage_unavailable");
-          }
-          return json(result, 201);
-        }
-        if (
-          route === "import" &&
-          req.method === "POST"
-        ) {
-          const input = await body(req), sourceURL = await source(input.sourceURL,accountId),
-            residentId = id(input.residentId), key = requestKey(input.requestKey), proof = input.proof;
-          if (!["challenge", "owner-attested"].includes(String(proof)))
-            fail(400, "proof_required");
-          const inputHash = await hash(
-              JSON.stringify({
-                sourceURL: sourceURL.href,
-                residentId,
-                expected: null,
-                proof,
-              }),
-            ),
-            duplicate = await prior(identity, key, route, inputHash);
-          if (duplicate) return json(duplicate, 201);
-          if (r) {
-            if (r.resident_id !== residentId || r.source_url !== sourceURL.href)
-              fail(409, "resident_identity_locked");
-            const result = {
-              roomId: r.room_id,
-              door: `/home/${r.room_id}`,
-              residentId: r.resident_id,
-              sourceURL: r.source_url,
-              revision: r.revision,
-              proofMethod: r.proof_method,
-              published: r.public_revision !== null,
-            };
-            await write(identity, [
-              receipt(identity, key, route, inputHash, result),
-            ]);
-            return json(result, 201);
-          }
-          if (
-            await one(
-              isMuseShareURL(sourceURL.href)
-                ? "SELECT r.room_id FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE r.resident_id=? OR i.source_identity=?"
-                : "SELECT room_id FROM tower_residencies WHERE resident_id=? OR source_url=?",
-              residentId,
-              homeSourceIdentity(sourceURL.href),
-            )
-          )
-            fail(409, "resident_already_claimed");
-          if (await one("SELECT id FROM rooms WHERE account_id=?", accountId))
-            fail(409, "account_already_has_home");
-          if (proof === "owner-attested") {
-            if (
-              identity.delegated ||
-              !(await env.ownerAttestation?.(req, accountId, sourceURL.href))
-            )
-              fail(403, "owner_attestation_required");
-          } else if (
-            !(await one(
-              "SELECT id FROM tower_claims WHERE account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?",
-              accountId,
-              residentId,
-              sourceURL.href,
-              stamp(),
-            ))
-          )
-            fail(403, "verified_claim_required");
-          const requiresSourceGrant = !env.sourceOrigins.includes(sourceURL.origin),
-            sourceGrantArgs = [accountId, residentId, sourceURL.href];
-          if (requiresSourceGrant && !await one(firstImportGrantSQL, ...sourceGrantArgs))
-            fail(403, "source_authorization_required");
-          const data = await snapshot(sourceURL, residentId),
-            roomId = random(8),
-            rev = 1,
-            result = {
-              roomId,
-              door: `/home/${roomId}`,
-              residentId,
-              sourceURL: sourceURL.href,
-              revision: rev,
-              proofMethod: proof,
-              published: false,
-            },
-            statements: Statement[] = [];
-          if (requiresSourceGrant)
-            statements.push(db.prepare("SELECT CASE WHEN EXISTS(" + firstImportGrantSQL + ") THEN 1 ELSE json('source-authorization-expired') END").bind(...sourceGrantArgs));
-          if (proof === "challenge")
-            statements.push(
-              db
-                .prepare(
-                  "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_claims WHERE account_id=? AND resident_id=? AND source_url=? AND verified=1 AND expires_at>?) THEN 1 ELSE json('tower-claim-expired') END",
-                )
-                .bind(accountId, residentId, sourceURL.href, stamp()),
-            );
-          statements.push(
-            db
-              .prepare(
-                "INSERT INTO rooms(id,account_id,name,intro,role,published,generation_state,created_at,test_only) VALUES(?,?,?,?,?,0,'external-ready',?,?)",
-              )
-              .bind(
-                roomId,
-                accountId,
-                data.site.home.name,
-                data.site.home.intro,
-                "resident",
-                stamp(),
-                env.localTest ? 1 : 0,
-              ),
-            db
-              .prepare(
-                "INSERT INTO tower_residencies(room_id,account_id,resident_id,source_url,proof_method,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
-              )
-              .bind(
-                roomId,
-                accountId,
-                residentId,
-                sourceURL.href,
-                proof,
-                rev,
-                stamp(),
-                stamp(),
-              ),
-          );
-          statements.push(
-            ...await snapshotStatements(
-              roomId,
-              rev,
-              data,
-              await hash(JSON.stringify(data.site)),
-            ),
-            receipt(identity, key, route, inputHash, result),
-            audit(
-              accountId,
-              roomId,
-              "resident-imported",
-              rev,
-              { proofMethod: proof },
-            ),
-          );
-          try {
-            await write(identity, statements);
-          } catch (error) {
-            if (error instanceof TowerError) throw error;
-            const retry = await prior(identity, key, route, inputHash);
-            if (retry) return json(retry, 201);
-            if (requiresSourceGrant && !await one(firstImportGrantSQL, ...sourceGrantArgs))
-              fail(403, "source_authorization_required");
-            const latest=await residency(accountId);
-            if(latest)fail(409,"revision_or_identity_conflict");
-            if (isMuseShareURL(sourceURL.href) && await one("SELECT r.room_id FROM tower_residencies r JOIN tower_source_identities i ON i.source_url=r.source_url WHERE r.resident_id=? OR i.source_identity=?", residentId, homeSourceIdentity(sourceURL.href)))
-              fail(409, "resident_already_claimed");
-            // Operation errors are private audit records, never public SQL/provider payloads.
-            const detail={error:error instanceof Error?error.message.slice(0,500):"storage-error",cause:error instanceof Error&&error.cause instanceof Error?error.cause.message.slice(0,500):null};
-            try{await db.batch([audit(accountId,null,"storage-failed",null,detail)]);}catch{/* Preserve the original safe error if audit storage is unavailable too. */}
-            fail(503,"tower_storage_unavailable");
-          }
-          return json(result, 201);
-        }
-        if((route==="content"||route==="content/validate")&&req.method==="POST"){
-          if(!r)fail(404,"no_home");
-          const validationOnly=route==="content/validate";
-          let input:Record<string,unknown>,expected:number,key:string,content:Record<string,unknown>;
-          try{
-            input=await body(req,["expectedRevision","requestKey","content"],12000,"request");
-            expected=revision(input.expectedRevision);key=requestKey(input.requestKey);content=object(input.content,["intro","profile","daily"],"content");
-            if(!Object.keys(content).length)fail(400,"content_required",{path:"content",reason:"at_least_one_field_required"});
-          }catch(error){if(error instanceof TowerError)error.validation={...(error.validation??{path:error.code==="expected_revision_required"?"request.expectedRevision":error.code==="idempotency_key_required"?"request.requestKey":"request",reason:error.code}),stage:"request"};throw error;}
-          const inputHash=await hash(JSON.stringify({expected,content}));
-          if(!validationOnly){const replay=await prior(identity,key,"content",inputHash);if(replay)return json(replay,201);}
-          if(r!.revision!==expected)fail(409,"revision_conflict");
-          const previous=await getSite(r!,false);
-          try{validateTowerSnapshot(previous,r!.resident_id);}catch(error){if(error instanceof TowerError)fail(409,"stored_snapshot_invalid",{...(error.validation??{path:"snapshot",reason:error.code}),stage:"stored_snapshot"});throw error;}
-          let site:PublicCondoSite;
-          try{site=validateTowerSnapshot({...previous,home:{...previous.home,...(content.intro===undefined?{}:{intro:content.intro}),...(content.daily===undefined?{}:{daily:content.daily})},...(content.profile===undefined?{}:{profile:content.profile})},r!.resident_id);}
-          catch(error){if(error instanceof TowerError){const detail=error.validation??{path:"snapshot",reason:error.code};error.validation={...detail,path:detail.path.replace(/^snapshot\.home\.(daily|intro)/,"content.$1").replace(/^snapshot\.profile/,"content.profile"),stage:"content"};}throw error;}
-          if(validationOnly)return json({valid:true,baseRevision:expected,changedFields:Object.keys(content).filter(field=>JSON.stringify(field==="profile"?previous.profile:previous.home[field as "intro"|"daily"])!==JSON.stringify(content[field]))});
-          const rev=expected+1;
-          const result={roomId:r!.room_id,door:`/home/${r!.room_id}`,residentId:r!.resident_id,revision:rev,published:false};
-          try{await write(identity,[
-            db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=?) THEN 1 ELSE json('tower-revision-conflict') END").bind(r!.room_id,accountId,expected),
-            db.prepare("INSERT INTO tower_snapshots(room_id,revision,public_json,content_digest,created_at) VALUES(?,?,?,?,?)").bind(r!.room_id,rev,JSON.stringify(site),await hash(JSON.stringify(site)),stamp()),
-            ...await cloneAssetStatements(db,r!.room_id,expected,rev,site.dream?["home","dream"]:["home"]),
-            db.prepare("UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=? AND account_id=? AND revision=?").bind(rev,stamp(),r!.room_id,accountId,expected),
-            receipt(identity,key,"content",inputHash,result),audit(accountId,r!.room_id,"resident-content-updated",rev,{fields:Object.keys(content)}),
-          ]);}catch(error){if(error instanceof TowerError)throw error;const saved=await prior(identity,key,"content",inputHash);if(saved)return json(saved,201);const latest=await residency(accountId);if(latest?.revision!==expected)fail(409,"revision_conflict");fail(503,"tower_storage_unavailable");}
-          return json(result,201);
-        }
-        if (route === "dream" && req.method === "POST") {
-          if (!r) fail(404, "no_home");
-          const { input, image } = await dreamBody(req),
-            expected = revision(input.expectedRevision),
-            key = requestKey(input.requestKey);
-          if (input.sourceAuthorized !== true)
-            fail(400, "source_authorization_required");
-          let dream: PublicCondoSite["dream"] = null;
-          if (input.dream !== null) {
-            const d = object(input.dream, [
-                "id",
-                "title",
-                "body",
-                "wish",
-                "occurredAt",
-                "reflection",
-                "image",
-              ]),
-              im = object(d.image, ["alt"]);
-            dream = {
-              id: id(d.id),
-              title: string(d.title, 120),
-              body: string(d.body, 5000),
-              wish: string(d.wish),
-              occurredAt: date(d.occurredAt),
-              ...(d.reflection === undefined
-                ? {}
-                : { reflection: string(d.reflection) }),
-              image: { src: "./assets/dream.png", alt: string(im.alt, 500) },
-            };
-          } else if (image !== null) fail(400, "unexpected_dream_image");
-          const inputHash = await hash(
-              JSON.stringify({
-                expected,
-                dream,
-                sourceAuthorized: true,
-                imageDigest: image === null ? null : await hash(image),
-              }),
-            ),
-            replay = await prior(identity, key, "dream", inputHash);
-          if (replay) return json(replay, 201);
-          if (r!.revision !== expected) fail(409, "revision_conflict");
-          const previous = await getSite(r!, false);
-          if (
-            dream &&
-            image === null &&
-            (!previous.dream ||
-              !(await readTowerAsset(db,r!.room_id,expected,"dream")))
-          )
-            fail(400, "dream_image_required");
-          const site = validateTowerSnapshot(
-              {
-                ...previous,
-                dream,
-                home: {
-                  ...previous.home,
-                  dreams: dream
-                    ? [
-                        {
-                          id: dream.id,
-                          type: "dream",
-                          title: dream.title,
-                          body: dream.body,
-                          occurredAt: dream.occurredAt,
-                          image: "./assets/dream.png",
-                          ...(dream.reflection === undefined
-                            ? {}
-                            : { reflection: dream.reflection }),
-                        },
-                      ]
-                    : [],
-                },
-              },
-              r!.resident_id,
-            ),
-            rev = expected + 1,
-            cleaned = image === null ? null : await cleanPNG(image, "dream"),
-            result = {
-              roomId: r!.room_id,
-              door: `/home/${r!.room_id}`,
-              residentId: r!.resident_id,
-              revision: rev,
-              published: false,
-            };
-          const retainedHome = await readTowerAsset(db,r!.room_id,expected,"home"),
-            retainedDream = dream !== null && cleaned === null ? await readTowerAsset(db,r!.room_id,expected,"dream") : null;
-          if ((retainedHome?.size ?? 0) + (dream === null ? 0 : cleaned?.length ?? retainedDream?.size ?? 0) > 12 * 1024 * 1024)
-            fail(413,"source_images_too_large");
-          const statements = [
-            db
-              .prepare(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=?) THEN 1 ELSE json('tower-revision-conflict') END",
-              )
-              .bind(r!.room_id, accountId, expected),
-            ...await snapshotStatements(
-              r!.room_id,
-              rev,
-              {
-                site,
-                images:
-                  cleaned === null
-                    ? []
-                    : [
-                        {
-                          purpose: "dream",
-                          bytes: cleaned,
-                          digest: await hash(cleaned),
-                        },
-                      ],
-              },
-              await hash(JSON.stringify(site)),
-            ),
-            ...await cloneAssetStatements(db,r!.room_id,expected,rev,dream!==null&&cleaned===null?["home","dream"]:["home"]),
-            db
-              .prepare(
-                "UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=? AND account_id=? AND revision=?",
-              )
-              .bind(rev, stamp(), r!.room_id, accountId, expected),
-            receipt(identity, key, "dream", inputHash, result),
-            audit(accountId, r!.room_id, "resident-dream-updated", rev, {
-              sourceAuthorized: true,
-              removed: dream === null,
-              imageReplaced: cleaned !== null,
-            }),
-          ];
-          try {
-            await write(identity, statements);
-          } catch (error) {
-            if (error instanceof TowerError) throw error;
-            const saved = await prior(identity, key, "dream", inputHash);
-            if (saved) return json(saved, 201);
-            if ((await residency(accountId))?.revision !== expected)
-              fail(409, "revision_conflict");
-            fail(503, "tower_storage_unavailable");
-          }
-          return json(result, 201);
-        }
-        if (route === "dream/visibility" && req.method === "POST") {
-          if (!r) fail(404, "no_home");
-          const input = await body(req, ["expectedRevision", "dreamConsent"]),
-            expected = revision(input.expectedRevision);
-          if (typeof input.dreamConsent !== "boolean")
-            fail(400, "explicit_consent_required");
-          if (r!.revision !== expected) fail(409, "revision_conflict");
-          if (input.dreamConsent) {
-            if (r!.public_revision !== expected || !r!.snapshot_consent)
-              fail(409, "publish_draft_first");
-            if (
-              !(await getSite(r!, false)).dream ||
-              !(await readTowerAsset(db,r!.room_id,expected,"dream"))
-            )
-              fail(400, "no_public_dream");
-          }
-          if (!!r!.dream_consent === input.dreamConsent)
-            return json({ intake: safe(r!) });
-          try {
-            await write(identity, [
-              // A concurrent publication must not make a visibility approval apply
-              // to a different public snapshot while retaining the same revision.
-              db
-                .prepare(
-                  "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=? AND public_revision IS ? AND dream_consent=?) THEN 1 ELSE json('tower-revision-conflict') END",
-                )
-                .bind(
-                  r!.room_id,
-                  accountId,
-                  expected,
-                  r!.public_revision,
-                  r!.dream_consent,
-                ),
-              db
-                .prepare(
-                  "UPDATE tower_residencies SET dream_consent=?,updated_at=? WHERE room_id=?",
-                )
-                .bind(input.dreamConsent ? 1 : 0, stamp(), r!.room_id),
-              audit(accountId, r!.room_id, "dream-visibility-updated", expected, {
-                dreamConsent: input.dreamConsent,
-              }),
-            ]);
-          } catch (error) {
-            if (error instanceof TowerError) throw error;
-            const latest = await residency(accountId);
-            if (
-              latest?.revision !== expected ||
-              latest.public_revision !== r!.public_revision ||
-              latest.dream_consent !== r!.dream_consent
-            )
-              fail(409, "revision_conflict");
-            fail(503, "tower_storage_unavailable");
-          }
-          return json({ intake: safe((await residency(accountId))!) });
-        }
-        if (route === "publication" && req.method === "POST") {
-          if (!r) fail(404, "no_home");
-          const input = await body(req),
-            expected = revision(input.expectedRevision);
-          if (r!.revision !== expected) fail(409, "revision_conflict");
-          for (const k of [
-            "published",
-            "directoryConsent",
-            "announcementConsent",
-            "dreamConsent",
-            "snapshotConsent",
-          ])
-            if (typeof input[k] !== "boolean")
-              fail(400, "explicit_consent_required");
-          const publish = input.published === true;
-          if (publish && !input.snapshotConsent)
-            fail(400, "snapshot_consent_required");
-          if(r!.public_revision===(publish?expected:null)&&r!.directory_consent===(publish&&input.directoryConsent?1:0)&&r!.announcement_consent===(publish&&input.announcementConsent?1:0)&&r!.dream_consent===(publish&&input.dreamConsent?1:0)&&r!.snapshot_consent===(publish?1:0))return json({intake:safe(r!)});
-          const site = await getSite(r!, false);
-          if (publish && input.dreamConsent && !site.dream)
-            fail(400, "no_public_dream");
-          await write(identity, [
-            db
-              .prepare(
-                "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=?) THEN 1 ELSE json('tower-revision-conflict') END",
-              )
-              .bind(r!.room_id, accountId, expected),
-            db
-              .prepare(
-                "UPDATE tower_residencies SET public_revision=?,directory_consent=?,announcement_consent=?,dream_consent=?,snapshot_consent=?,updated_at=?,published_at=?,publication_epoch=publication_epoch+1 WHERE room_id=?",
-              )
-              .bind(
-                publish ? expected : null,
-                publish && input.directoryConsent ? 1 : 0,
-                publish && input.announcementConsent ? 1 : 0,
-                publish && input.dreamConsent ? 1 : 0,
-                publish ? 1 : 0,
-                stamp(),
-                stamp(),
-                r!.room_id,
-              ),
-            db
-              .prepare("UPDATE rooms SET name=?,intro=?,published=? WHERE id=?")
-              .bind(
-                site.home.name,
-                site.home.intro,
-                publish && input.directoryConsent ? 1 : 0,
-                r!.room_id,
-              ),
-            db.prepare("DELETE FROM community_current"),
-            db.prepare("INSERT INTO manager_events(id,room_id,created_at) VALUES(?,?,?)").bind(random(16),r!.room_id,stamp()),
-            audit(
-              accountId,
-              r!.room_id,
-              publish ? "published" : "withdrawn",
-              expected,
-              {
-                directoryConsent: publish && input.directoryConsent,
-                announcementConsent: publish && input.announcementConsent,
-                dreamConsent: publish && input.dreamConsent,
-                snapshotConsent: publish,
-              },
-            ),
-          ]);
-          await change(r!.room_id);
-          return json({ intake: safe((await residency(accountId))!) });
-        }
-        fail(405, "method_not_allowed");
-      } catch (e) {
-        if (e instanceof TowerError) return json({ error: e.code,...(e.validation?.stage?{validation:e.validation}:{}) }, e.status);
-        return json({ error: "tower_operation_unavailable" }, 503);
-      }
-    },
-  };
+            catch (e) {
+                if (e instanceof TowerError)
+                    return json({ error: e.code, ...(e.validation?.stage ? { validation: e.validation } : {}) }, e.status);
+                return json({ error: "tower_operation_unavailable" }, 503);
+            }
+        },
+    };
 }

@@ -87,7 +87,7 @@ Local validation: `npm run verify` passed with 112 discovered files, 1,298 tests
 
 ## Phase 3 — immutable Tower assets (2026-11-02)
 
-Implementation status: local implementation only. Development and production migration 0037, compatible code deployment and independent live readback remain pending. No historical assets were backfilled, rewritten or deleted by the migration.
+Historical implementation snapshot (2026-11-02), superseded by the official platform preparation below: migration 0037 and compatible deployment were pending at this point. The recorded platform preparation subsequently applied migration 0037 to both environments; compatible application deployment and independent live readback remain pending. No historical assets were backfilled, rewritten or deleted by the migration.
 
 The focused [Tower asset storage contract](TOWER-ASSET-STORAGE.md) describes room-scoped immutable objects/chunks, revision references, direct legacy anchors, byte validation, atomic writes, RPC bounds and rollback compatibility. Intake and move-in completion share the resolver. Existing URLs, ownership checks, preview boundaries, current-public-revision checks and dream consent remain with their existing callers.
 
@@ -136,3 +136,24 @@ Local validation for this correction: Node 24.22.1 `npm run verify` passed typec
 Protected-byte bounds follow-up (2026-11-03): the private ASSETS read enforces a 2 MiB actual-stream limit per static JS/CSS file, independent of `Content-Length`, and a five-second deadline covering fetch and body consumption. Over-limit or stalled reads abort the request and cancel the stream; an ignored abort cannot keep the readiness response waiting indefinitely. Unknown/false length-header cancellation and stalled-fetch/stalled-body regressions were red before the correction. This follow-up retains Access and does not add a content endpoint.
 
 Follow-up validation: all 12 focused release tests, application/Functions typechecks, ESLint, native edge plus actual ASSETS positive/tamper checks, and `git diff --check` passed. The earlier 1,325-test full verification remains the pre-bounds baseline; this narrowly scoped correction was verified with the focused and native checks above. Hosted readback remains pending.
+
+
+## Phase 6 — core domain boundaries and home metadata (2026-11-03)
+
+Status: implementation only; development/production application deployment and independent code/schema/live-behavior readback remain pending. This phase adds no migration. The earlier phase-3 implementation-only migration note is historical and is superseded by the recorded official platform preparation above; it does not mean migration 0037 remains unapplied.
+
+The [core module map](CORE-MODULES.md) records the source/domain split and transaction owners. Intake now composes pure contract/error validation, source reads, authorization, query/statement builders, bounded requests, trusted rendering, grouped content/dream/visibility commands and publication. Live application authorization accepts explicit onboarding scope while route mapping stays in HTTP composition; complete community projection has its own module. Manager admission imports pure validation and separates durable job queries and SQL policy predicates, retaining provider invocation, context/defer/final transactions and interrupted-result handling together. Construction remains lazy and selected public capability dependencies are unchanged.
+
+The Tower wrapper now adds escaped published-only canonical/Open Graph metadata, using published name/intro and fixed published home image revision. Private preview HTML/JSON/assets are noindex; HTML omits canonical/Open Graph and supports matching GET/HEAD headers. The standalone renderer is unchanged. A regression first failed for the missing canonical tag, then passed with draft isolation, revoked dream consent, escaped metadata, query/share-key exclusion, owner/agent private preview and HEAD behavior. Six parsed-body golden hashes captured from main `07576b2` verify unchanged public/private visible home, inside and dreams markup. The maintained English-copy inventory explicitly includes every new source module so extraction cannot hide public copy from review.
+
+Focused verification before full verification: 117 intake/source/sync/dream/visits/activities tests and 185 live/onboarding/community/Pages/admission/assisted-admission/identity-recovery/manager tests passed with no failures/skips; application/Pages Functions typechecking and ESLint passed. These are synthetic local checks, with no real resident writes or provider calls.
+
+
+Final local phase-6 evidence:
+
+- Node 24.22.1 `npm run verify`: PASS — application and Pages Functions typechecks, ESLint, fresh production build and **115 discovered files / 1,334 tests / 1,334 passes / zero failures or skips**, test duration 96.20 seconds. The maintained bilingual README links and complete public-copy inventory pass. Readable formatting preserves the executable AST; current-source typechecks and ESLint also pass.
+- Native edge/ASSETS: PASS — actual compiled workerd Pages/private service, required rate-limit bindings, canonical guard, pre-D1/card rejection, protected static integrity positive/tamper/missing-binding checks; external traffic denied.
+- Native immutable assets: PASS — actual D1 number-array BLOB reads, 8 MiB round-trip, 12 MiB single 29-statement commit, fixed physical chunks/bytes across deduplication/reference updates, legacy anchors, rollback, household isolation and corruption rejection; external traffic denied.
+- Native manager: PASS — actual compiled Pages + D1, scoped scheduled Worker, ManagerClock SQLite durable object, replay/audit/scope guards, database-native billing/calendar boundaries and count/paid-claim midnight seam; external traffic denied.
+- Independent AST comparison against main `07576b2` confirms the provider `invoke`, admission `context`/`defer`/`finish`, complete `editBuilding`, unchanged session/delegated guards and guarded write functions, and public snapshot validator preserve their executable syntax after relocation/formatting. Existing behavior and native tests remain the transaction-boundary authority; source size or absence of SQL is not used as proof.
+- `git diff --check`: PASS. No dependency, migration, platform setting, secret or resident data changed. Commit/push/deployment are performed separately by the releasing maintainer, who must rebuild the committed source and verify both hosted environments.

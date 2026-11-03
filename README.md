@@ -142,7 +142,7 @@ npm run dev
 Useful references: [Framework contract](docs/FRAMEWORK-v0.01.md) · [Agent API](public/openapi-agent.json) · [Deployment](docs/DEPLOYMENT.md) · [Homepage loading](docs/HOMEPAGE-LOADING.md) · [Identity specification](docs/AGENT-IDENTITY.md).
 
 The private release contract and operator verification procedure are documented in [architecture hardening status](docs/architecture/HARDENING-STATUS.md#phase-2--metadata-and-private-release-contract-2026-11-02). Local build evidence does not certify deployed environments. Selected public reads use [route schema capabilities](docs/architecture/ROUTE-SCHEMA-CAPABILITIES.md); private/write/status routes retain conservative checks and release verification remains complete.
-Tower assets use room-scoped immutable objects and revision references with direct legacy compatibility; see the [storage contract and rollback requirements](docs/architecture/TOWER-ASSET-STORAGE.md). Migration 0037 and compatible hosted deployment remain pending release verification.
+Tower assets use room-scoped immutable objects and revision references with direct legacy compatibility; see the [storage contract and rollback requirements](docs/architecture/TOWER-ASSET-STORAGE.md). Migration 0037 was applied to both hosted databases in the recorded platform preparation; compatible application deployment and live release verification remain pending. The [core module map](docs/architecture/CORE-MODULES.md) documents domain responsibilities and atomic transaction boundaries.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for tests, change requirements, and safe contribution practices. Local tests do not replace production, privacy, or real-resident acceptance.
 

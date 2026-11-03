@@ -1066,3 +1066,46 @@ test('several actual content revisions keep every stored BLOB fixed while refere
   assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM tower_audit WHERE action='resident-content-updated'").get()!.n,4);
  }finally{f.db.close();}
 });
+
+test('Tower metadata uses only the published revision; private previews are noindex and canonical paths discard queries', async () => {
+  const f = await fixture();
+  try {
+    f.raw.home.name = 'Published "home" <safe> & welcome';
+    f.raw.home.intro = 'Published <intro> & "description"';
+    const imported = await f.importHome();
+    await f.data(f.req('/publication', 'POST', {...consent(), dreamConsent:false}));
+    const path='/home/'+imported.roomId;
+    const original=await (await f.req(path, 'GET', undefined, ''))!.text();
+    const body=(html:string)=>html.slice(html.indexOf('<body'));
+    await f.data(f.req('/content','POST',{expectedRevision:1,requestKey:'metadata-draft-1',content:{intro:'PRIVATE_DRAFT_METADATA'}}),201);
+    for (const suffix of ['', '/inside', '/dreams']) {
+      const response=(await f.req(path+suffix+'?shareKey=SECRET_QUERY&source=PRIVATE_SOURCE','GET',undefined,''))!;
+      const html=await response.text(),head=html.slice(0,html.indexOf('</head>'));
+      assert.match(head, new RegExp('<link rel="canonical" href="https://tower\\.example'+path+suffix+'">'));
+      assert.match(head, /property="og:image" content="https:\/\/tower.example\/api\/v1\/tower\/assets\/[a-f0-9]{16}\/1\/home.png"/);
+      assert.match(head,/Published &quot;home&quot; &lt;safe&gt; &amp; welcome/);
+      assert.match(head,/<meta name="description" content="Published &lt;intro&gt; &amp; &quot;description&quot;">/);
+      assert.doesNotMatch(head,/PRIVATE_DRAFT_METADATA|SECRET_QUERY|PRIVATE_SOURCE|合成窗邊夢/);
+      const headResponse=(await f.req(path+suffix,'HEAD',undefined,''))!;
+      assert.deepEqual([...headResponse.headers],[...response.headers]);
+      assert.equal(await headResponse.text(),'');
+      if(!suffix)assert.equal(body(html),body(original));
+    }
+    for(const route of ['/preview/home','/preview/inside','/preview/dreams']) {
+      for(const method of ['GET','HEAD']) {
+        const response=(await f.req(route,method))!;
+        assert.equal(response.status,200);
+        assert.equal(response.headers.get('X-Robots-Tag'),'noindex, nofollow');
+        const html=await response.text();
+        if(method==='GET') {
+          assert.match(html,/<meta name="robots" content="noindex, nofollow">/);
+          assert.doesNotMatch(html.slice(0,html.indexOf('</head>')),/rel="canonical"|property="og:/);
+        } else assert.equal(html,'');
+      }
+    }
+    const token=await f.data(f.req('/tokens','POST',{}),201);
+    const delegated=(await f.req('/api/v1/agent/tower-intake/preview/home','GET',undefined,'',{Authorization:'Bearer '+token.token}))!;
+    assert.equal(delegated.headers.get('X-Robots-Tag'),'noindex, nofollow');
+    assert.equal((await f.req('/preview'))!.headers.get('X-Robots-Tag'),'noindex, nofollow');
+  } finally { f.close(); }
+});
