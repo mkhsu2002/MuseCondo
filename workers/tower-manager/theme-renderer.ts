@@ -1,5 +1,5 @@
 import {validateLobbyTheme,lobbyThemeCSS,LOBBY_RENDERER_VERSION} from '../../src/shared/lobby-theme.ts';
-import {renderLobbyPreview} from '../../src/shared/lobby-markup.ts';
+import {renderLobbyPreview} from '../../src/shared/lobby-preview.ts';
 import {LOBBY_BASE_CSS,LOBBY_RENDERER_BUILD_HASH} from '../../src/shared/lobby-base-css.ts';
 import {validatePNG} from '../../server/live/png.ts';
 export interface BrowserBinding {limits():Promise<unknown>;quickAction(action:'screenshot',options:Record<string,unknown>):Promise<Response>}

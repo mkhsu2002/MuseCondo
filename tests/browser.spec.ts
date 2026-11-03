@@ -1,6 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/canonical-browser.ts';
+import {lobbyMessages} from '../src/shared/lobby-messages.ts';
 import { residents } from '../src/residents';
 import { homeArtwork, characterArtwork, prototypeArtPath } from '../src/artwork';
+
+const m=lobbyMessages();
 
 test('tower and all 20 flat routes preserve prototype provenance and responsive artwork', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
@@ -241,16 +244,15 @@ test('public activity -> persisted edition -> refresh updates the bulletin and t
     await writeFile(input,JSON.stringify([...events,updated,{...updated,id:'hidden-private',visibility:'private',body:'TEST-PRIVATE'},{...updated,id:'hidden-local',origin:'browser-local',summary:'LOCAL-ONLY-EVENT'}]));
     const after=run('2026-10-29T23:59:59.000Z');
     expect(after.sourceDigest).not.toBe(before.sourceDigest);
-    await page.getByRole('button',{name:'更新佈告'}).click();
+    await page.getByRole('button',{name:m.demo.refresh}).click();
     const first=page.locator('.feed-highlights [data-event-id]').first();
     await expect(first).toHaveAttribute('data-event-id',updated.id);
     await expect(first).toContainText(updated.title);
     await expect(first).toContainText('2026-10-29 14:00 UTC');
     await expect(page.locator('main')).not.toContainText('TEST-PRIVATE');
     await expect(page.locator('main')).not.toContainText('LOCAL-ONLY-EVENT');
-    await first.locator('details').evaluate((e:HTMLDetailsElement)=>e.open=true);
-    await expect(first).toContainText(updated.id);
-    await first.getByRole('link',{name:'讀原始公開內容'}).click();
+    await expect(first.getByRole('link',{name:m.demo.read})).toHaveAttribute('href',`/t7e3qs/inside#event-${updated.id}`);
+    await first.getByRole('link',{name:m.demo.read}).click();
     await expect(page).toHaveURL(new RegExp(`/t7e3qs/inside#event-${updated.id}$`));
     await expect(page.locator(`#event-${updated.id}`)).toContainText(updated.body);
     await page.getByRole('button',{name:'Write a greeting'}).click();
@@ -269,14 +271,14 @@ test('unavailable or corrupt public snapshots fail closed and permit retry, pres
     if(corrupt)await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({schemaVersion:1,editionId:'invalid',eventsFile:'../private.json',editionFile:'invalid'})});
     else await route.continue();
   });
-  await page.goto('/');await expect(page.getByRole('status')).toContainText('驗證失敗');
+  await page.goto('/');await expect(page.locator('.community-load-status')).toContainText(m.demo.error);
   await expect(page.locator('[data-event-id]')).toHaveCount(0);
-  corrupt=false;await page.getByRole('button',{name:'更新佈告'}).click();await expect(page.locator('[data-resident-card]')).toHaveCount(10);
+  corrupt=false;await page.getByRole('button',{name:m.demo.refresh}).click();await expect(page.locator('[data-resident-card]')).toHaveCount(10);
   await page.route('**/community/edition-*.json',async route=>{
     const response=await route.fetch();const data=await response.json();data.sections.highlights[0].sourceEventIds=['invented-event'];
     await route.fulfill({response,json:data});
   });
-  await page.getByRole('button',{name:'更新佈告'}).click();
-  await expect(page.getByRole('status')).toContainText('保留上一份已驗證選輯');
+  await page.getByRole('button',{name:m.demo.refresh}).click();
+  await expect(page.locator('.community-load-status')).toContainText(m.demo.error);
   await expect(page.locator('[data-resident-card]')).toHaveCount(10);
 });

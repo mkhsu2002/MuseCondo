@@ -59,7 +59,7 @@ test('private owner forms escape imported content and avoid embedding secrets or
  assert.equal(markup.includes('<script>'),false); assert.equal(markup.includes('<img src=x'),false);assert.match(markup,/&lt;script&gt;/);
 });
 test('public UI source uses shared renderer and keeps production strategy out of visible copy', async()=>{
- const [live,legacy]=await Promise.all([readFile(new URL('../src/live.ts',import.meta.url),'utf8'),readFile(new URL('../src/main.ts',import.meta.url),'utf8')]);
+ const [live,legacy]=await Promise.all([readFile(new URL('../src/live.ts',import.meta.url),'utf8'),readFile(new URL('../src/demo.ts',import.meta.url),'utf8')]);
  assert.match(live,/renderHome\(towerHome/); assert.match(live,/public\/rooms\/\$\{id\}\/dreams/);
  for(const source of [live,legacy])assert.doesNotMatch(source,/Codex 暫用|Codex 原型|Meta API 選輯|規則型示範選輯|尚非 Meta AI|編輯版本：|選入理由：|來源 SHA-256|模型資訊/);
  assert.match(live,/X-Request-Key/);assert.match(live,/Content-Type':'image\/png/);assert.match(live,/data-post-edit/);assert.match(live,/data-dream-edit/);

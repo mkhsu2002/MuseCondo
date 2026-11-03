@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "node scripts/generate-lobby-css.mjs --write && node scripts/release-manifest.mjs && tsc --noEmit && vite build && node scripts/social-preview.mjs && node scripts/routes.mjs && node scripts/sanitize-public.mjs && node scripts/check-build.mjs && node scripts/release-manifest.mjs --complete",
+    "build": "npm run build:tower",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit && tsc --project tsconfig.functions.json --noEmit",
     "lint": "eslint .",
@@ -41,7 +41,10 @@
     "pretest:native:edge": "node scripts/release-manifest.mjs --ensure",
     "pretest:native:mail": "node scripts/release-manifest.mjs --ensure",
     "test:native:assets": "node scripts/test-tower-assets-native.mjs",
-    "pretest:native:assets": "node scripts/release-manifest.mjs --ensure"
+    "pretest:native:assets": "node scripts/release-manifest.mjs --ensure",
+    "build:tower": "node scripts/generate-lobby-css.mjs --write && node scripts/release-manifest.mjs && tsc --noEmit && vite build && node scripts/social-preview.mjs && node scripts/routes.mjs && node scripts/sanitize-public.mjs && node scripts/check-build.mjs && node scripts/release-manifest.mjs --complete",
+    "build:demo": "VITE_MUSE_DEMO=1 vite build && MUSE_OUTPUT_DIR=dist-demo node scripts/routes.mjs && node scripts/sanitize-public.mjs dist-demo && node scripts/check-build.mjs dist-demo",
+    "preview:demo": "vite preview --outDir dist-demo --host 127.0.0.1 --port 4173"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

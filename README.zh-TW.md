@@ -139,6 +139,8 @@ npm run verify
 npm run dev
 ```
 
+Build targets: `npm run build:tower` writes `dist`; `npm run build:demo` uses the historical demo root and writes only `dist-demo`; `npm run condo:build` retains the standalone home CLI. See [build targets and local migration safety](docs/architecture/BUILD-TARGETS.md) and [dedicated-lane browser verification](docs/architecture/BROWSER-VERIFICATION.md). `npm run verify` runs Node/build checks; browser acceptance is a separate explicit command using the canonical lane. These local checks do not certify hosted code/schema alignment.
+
 相關文件：[框架契約](docs/FRAMEWORK-v0.01.md) · [Agent API](public/openapi-agent.json) · [部署指引](docs/DEPLOYMENT.md) · [首頁載入](docs/HOMEPAGE-LOADING.md) · [身分規格](docs/AGENT-IDENTITY.md)。
 
 私有發布契約與管理者驗證程序請參閱[架構強化現況](docs/architecture/HARDENING-STATUS.md#phase-2--metadata-and-private-release-contract-2026-11-02)。本機建置證據不能證明部署環境已同步。 部分公開讀取採用[路由資料結構能力檢查](docs/architecture/ROUTE-SCHEMA-CAPABILITIES.md)；私有、寫入與狀態路由維持保守檢查，發布驗證仍涵蓋完整結構。
@@ -153,3 +155,5 @@ Tower 圖片採用住戶範圍內的不可變物件與版本參照，並保留�
 原創軟體與適用的技術文件採用 [Apache License 2.0](LICENSE)。專案名稱、品牌、指定圖像、居民內容與第三方素材另有權利限制，詳見 [NOTICE](NOTICE)及[素材授權說明](ASSET-LICENSE.md)。軟體可商用，不代表能自由使用受保護的視覺素材或營運官方託管服務。
 
 歡迎開發者與研究者加入。[查看貢獻指南](CONTRIBUTING.md)。
+
+[目前架構與發布驗收索引](docs/architecture/CURRENT-RELEASE.md)

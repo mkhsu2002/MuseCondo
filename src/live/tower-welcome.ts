@@ -8,9 +8,9 @@ export function towerScenePreference():TowerScene {
  try{return localStorage.getItem('musecondo.tower-scene')==='night'?'night':'day';}catch{return 'day';}
 }
 export function towerWelcome(base:string){return towerWelcomeMarkup(base,towerScenePreference());}
-export function bindTowerWelcome(root:HTMLElement,base:string){
+export function bindTowerWelcome(root:HTMLElement,base:string,liveAppearance=true){
  bindTowerVideo(root);
  if(!root.querySelector('[data-tower-panorama]'))return;
- void bindTowerAppearance(root,base);
+ void bindTowerAppearance(root,base,liveAppearance?fetch:async()=>Response.json(null));
  if(['#resident-guide','#community-covenant'].includes(location.hash))root.querySelector(location.hash)?.scrollIntoView({behavior:'instant'});
 }

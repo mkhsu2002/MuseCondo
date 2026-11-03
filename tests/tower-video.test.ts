@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {renderTowerLobby,renderLobbyPreview} from '../src/shared/lobby-markup.ts';
+import {renderTowerLobby} from '../src/shared/lobby-markup.ts';
+import {renderLobbyPreview} from '../src/shared/lobby-preview.ts';
 import {bindTowerVideo} from '../src/shared/tower-video.ts';
 
 test('introduction sits between the tower and community, with no initial third-party player',()=>{

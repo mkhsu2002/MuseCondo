@@ -12,7 +12,7 @@ import ts from 'typescript';
 // deliberately outside this inventory; it must never become the default renderer.
 // The two original main.ts route identifiers are compatibility tokens, not copy.
 const sources = [
- 'src/main.ts','src/live.ts','src/artwork.ts','src/residents.ts','src/interactions.ts',
+ 'src/main.ts','src/demo.ts','src/route-policy.ts','src/shared/lobby-preview.ts','src/live.ts','src/artwork.ts','src/residents.ts','src/interactions.ts',
  'src/community/client.ts','src/community/rules.ts',
  'src/live/framework-ui.ts','src/live/onboarding-grants.ts','src/live/tower-panel.ts',
  'src/shared/lobby-messages.ts','src/shared/lobby-markup.ts','src/shared/tower-scenes.ts',
@@ -62,14 +62,14 @@ const contracts = [
 const read = path => readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const hasHan = value => /\p{Script=Han}/u.test(value);
 const curatedNames=['茉茉','阿芽','布丁','小訊','眠眠','路路','啾啾','圓圓','墨墨','點點','朵晴','苔光'];
-const namedDefaults=new Set(['src/residents.ts','src/artwork.ts','src/main.ts','fixtures/condo/example.json','fixtures/framework/safe-seed.json','public/examples/muse-condo/condo.json',...documents.filter(path=>path.startsWith('public/examples/'))]);
+const namedDefaults=new Set(['src/residents.ts','src/artwork.ts','src/main.ts','src/demo.ts','fixtures/condo/example.json','fixtures/framework/safe-seed.json','public/examples/muse-condo/condo.json',...documents.filter(path=>path.startsWith('public/examples/'))]);
 const defaultText=(path,value)=>path==='public/reception.html'?value.replace(/<details class="agent-entry" lang="zh-TW">[\s\S]*?<\/details>/g,''):namedDefaults.has(path)?curatedNames.reduce((text,name)=>text.replaceAll(name,''),value):value;
 function authoredStrings(path,source){
  const file=ts.createSourceFile(path,source,ts.ScriptTarget.Latest,true);
  const found=[];
  function visit(node){
   if(ts.isStringLiteralLike(node)||ts.isTemplateHead(node)||ts.isTemplateMiddle(node)||ts.isTemplateTail(node)){
-   if(path==='src/main.ts'&&['入住','選輯紀錄'].includes(node.text))return;
+   if(['src/main.ts','src/demo.ts'].includes(path)&&['入住','選輯紀錄'].includes(node.text))return;
    if(hasHan(defaultText(path,node.text)))found.push({line:file.getLineAndCharacterOfPosition(node.getStart(file)).line+1,text:node.text.slice(0,100)});
   }
   ts.forEachChild(node,visit);

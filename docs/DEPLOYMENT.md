@@ -1,4 +1,6 @@
-# Public demo deployment
+# Archived public demo deployment (prototype history)
+
+> Archived 2026-11-03: this entire guide preserves prototype history, including old output/license/hosting claims. Current demo uses `npm run build:demo` → `dist-demo`; official Tower uses Pages Functions and `npm run verify` → `dist`. Use [current release acceptance](architecture/CURRENT-RELEASE.md) and [build targets](architecture/BUILD-TARGETS.md).
 
 > Historical Tower prototype deployment guide. The current framework scope is defined in [README.md](../README.md), covering standalone homes and Towers. The official Tower uses `https://musetower.neobabylon.app`; current source is `main`. Old branch and expired-login notes below describe the original demo release, not current infrastructure. For the developing API deployment use [PAGES-RUNTIME.md](PAGES-RUNTIME.md).
 

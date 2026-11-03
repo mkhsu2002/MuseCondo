@@ -2,7 +2,6 @@ import {towerVideoMarkup} from './tower-video.ts';
 import type {Community,Section} from '../community/schema.ts';
 import notices from '../community/notices.ts';
 import {towerScenes as scenes,towerSceneImage,towerSceneDimensions,appearanceControls,type TowerScene} from './tower-scenes.ts';
-import {LOBBY_LOGO_DATA_URL,LOBBY_VIDEO_POSTER_DATA_URL} from './lobby-base-css.ts';
 import {lobbyMessages,formatLobbyDate} from './lobby-messages.ts';
 
 const source='https://github.com/mkhsu2002/MuseCondo';
@@ -41,14 +40,4 @@ export function lobbyServiceMarkup(state:'loading'|'offline'|'unavailable',base:
  if(state==='loading')return `<p role="status">${m.service.loading}</p>`;
  if(state==='offline')return `<h2>${m.service.offlineTitle}</h2><p role="status">${m.service.offlineBody}</p><button type="button" id="live-status-retry">${m.service.retryConnection}</button>`;
  return `<h2>${m.service.unavailableTitle}</h2><p role="status">${m.service.unavailableBody}</p><button id="live-tower-retry" type="button">${m.service.retryFeed}</button> <a href="${base}/move-in">${m.nav.home}</a>`;
-}
-/** Same production markup with masked static feed data, never real resident data. */
-export function renderLobbyPreview({scene,imageSource}:{scene:TowerScene;imageSource:string}){
- if(!['day','night'].includes(scene)||!/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(imageSource)||imageSource.length>20000000)throw Error('lobby_preview_image_invalid');
- const at='2026-10-31T00:00:00.000Z';
- const rooms:LobbyResident[]=[{id:'0000000000000000',name:'Resident',role:'A neighbor'}];
- const events=([['journal','A shared moment'],['status','A quiet afternoon'],['seeking','A conversation']] as const).map(([type,title],i)=>({id:`masked-${i}`,residentId:rooms[0].id,type,title,summary:'A resident-authored excerpt appears here.',body:'A resident-authored excerpt appears here.',occurredAt:at,publishedAt:at,visibility:'public' as const,publicationConsent:true as const,origin:'fictional-fixture' as const,isFixture:true}));
- const pick=(i:number)=>({residentId:rooms[0].id,sourceEventIds:[events[i].id],summary:events[i].summary,reason:'masked layout fixture'});
- const community:Community={events,edition:{schemaVersion:1,id:'masked-layout',sourceDigest:'0'.repeat(64),asOf:at,editedAt:at,editor:{kind:'rules',version:'masked-preview',model:null},isFixture:true,sections:{highlights:[pick(0)],windows:[pick(1)],seeking:[pick(2)],arrivals:[]}}};
- return renderTowerLobby({base:'',content:renderLobbyFeed('',community,rooms,{admission:{status:'unavailable'},mode:'live'}),scene,imageSource,brandSource:LOBBY_LOGO_DATA_URL,videoPosterSource:LOBBY_VIDEO_POSTER_DATA_URL}).replace('<div data-tower-lobby>','<div data-tower-lobby data-preview-fixture="masked-feed">');
 }

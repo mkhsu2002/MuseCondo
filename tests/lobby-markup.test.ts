@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {renderLobbyPreview,renderTowerLobby,renderLiveShell,renderLobbyFeed} from '../src/shared/lobby-markup.ts';
+import {renderLobbyPreview} from '../src/shared/lobby-preview.ts';
+import {renderTowerLobby,renderLiveShell,renderLobbyFeed} from '../src/shared/lobby-markup.ts';
 import {LOBBY_BASE_CSS,LOBBY_BASE_CSS_HASH,LOBBY_RENDERER_BUILD_HASH,LOBBY_RENDERER_SOURCES,LOBBY_CSS_SOURCES,LOBBY_LOGO_DATA_URL} from '../src/shared/lobby-base-css.ts';
 
 test('private render and live homepage share the full shell, welcome, feed, covenant and footer',()=>{

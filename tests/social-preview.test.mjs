@@ -6,7 +6,7 @@ test('isolated emitted public HTML has previews and private identity pages remai
   mkdirSync(join(directory,'dist'));writeFileSync(join(directory,'dist/index.html'),readFileSync(new URL('../index.html',import.meta.url),'utf8'));
   for(const path of ['public','src','LICENSES','LICENSE','NOTICE','ASSET-LICENSE.md'])symlinkSync(fileURLToPath(new URL('../'+path,import.meta.url)),join(directory,path));
   // Execute the maintained build's real HTML postprocessors in its declared order.
-  const build=JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8')).scripts.build;
+  const build=JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8')).scripts['build:tower'];
   for(const match of build.matchAll(/node (scripts\/(?:social-preview|routes)\.mjs)/g))execFileSync(process.execPath,[fileURLToPath(new URL('../'+match[1],import.meta.url))],{cwd:directory,stdio:'pipe'});
  for(const route of ['','about/','neighbors/','move-in/','m7k2px/']){
   const html=readFileSync(join(directory,'dist',route,'index.html'),'utf8');

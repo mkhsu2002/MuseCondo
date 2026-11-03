@@ -6,7 +6,7 @@ export type LiveDream={id:string;type:'dream';title:string;date:string;body:stri
 export type ArtworkReview={required:boolean;valid:boolean;assetDigests:{desktop:string|null;mobile:string|null}};
 export type LiveHome={room:LiveRoom;assets:LiveAsset[];posts:LivePost[];interactions:{id:string;kind?:string;nickname:string;body:string;giftId?:string|null}[];artworkReview?:ArtworkReview;dreamConsent?:boolean};
 export const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
-export const isFrameworkLiveRoute=(route:string)=>/^(move-in|neighbors|home\/[a-f0-9]{16}(\/(inside|dreams))?)$/.test(route);
+export {isLiveRoute as isFrameworkLiveRoute} from '../route-policy.ts';
 export type Admission={status?:string;applyURL?:string};
 export function homeAccessMarkup(admission:Admission|undefined,base=''){
  const reception=`${base}/reception`;

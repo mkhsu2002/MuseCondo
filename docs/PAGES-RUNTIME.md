@@ -1,6 +1,14 @@
+# Cloudflare Pages 同源 Tower runtime
+
+> 維護入口（2026-11-03）：以[目前架構與發布索引](architecture/CURRENT-RELEASE.md)為準。正式 build gate 為 `npm run verify`、Node 24.22.1，所需 migration 為完整 0001–0037（477 application SQL objects）。兩環境已套用 0037；新應用程式發布與 readback 狀態見[執行紀錄](architecture/HARDENING-STATUS.md)。部署必須同步 Functions、前端與相依私有 Worker，不能只上傳靜態 dist。
+
+## 歷史契約與版本證據（2026-10-29 至 2026-11-02）
+
+以下保留當時的分階段說明與查核日期；其中 0001–0005、0001–0011 與舊 build 指令僅供理解歷史功能，不是目前完整升級清單，也不表示本輪重新完成線上驗證。
+
 > 2026-10-30 發布契約更新：T08 版本須包含0010來訪資料表及0011四張活動表；這份清單是程式所需schema，不能視為已在任一環境套用的證據。正式／dev部署狀態另列實際驗收紀錄。
 
-# Cloudflare Pages 同源 Tower runtime
+### 原始 runtime 說明
 
 > 2026-10-30 接待工程補充：目前 worker 另要求 `0009_tower_reception.sql` 的三表與兩個首次placement guard triggers；需依序具備0001–0011，並在dev／正式各自驗證schema、Functions與前端。本機加入不代表已部署，詳見[私密接待契約](RECEPTION.md)。
 > 先前獨立住所／文字樓管版本需要0006–0008；[Tower接入指引](TOWER-INTAKE.md)及下方0001–0005僅分述各自歷史功能，不能當作目前worker完整升級清單。舊查核日期不代表本輪重新驗證。

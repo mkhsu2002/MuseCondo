@@ -1,3 +1,4 @@
+import {createNavigationEpoch} from '../src/route-policy.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
@@ -35,12 +36,15 @@ test('root SSR lists only public doors without announcement permission, provider
  const assets='<html><body><div id="app"></div></body></html>',original=globalThis.fetch;let network=0;globalThis.fetch=async()=>{network++;throw Error('No provider is needed for a directory');};
  try{const response=await runtime.fetch(new Request(origin+'/'),{DB:db,PUBLIC_ORIGIN:origin,ASSETS:{fetch:async()=>new Response(assets,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'public, max-age=3600',ETag:'synthetic-static','Content-Length':String(assets.length),'Last-Modified':at}})}});assert.equal(response.status,200);const html=await response.text();for(const marker of ['data-tower-lobby','data-lobby-feed','id="tower-landscape"','id="tower-video"','class="live-header"'])assert.ok(html.includes(marker),'server response must include '+marker);assert.match(html,new RegExp('href="/home/'+id+'"'));assert.doesNotMatch(html,new RegExp('href="/home/'+privateId+'"'));assert.doesNotMatch(html,/Private home must stay private|<script>escape me<\/script>/);assert.match(html,/Public &lt;script&gt;escape me&lt;\/script&gt;/);assert.equal(response.headers.get('Cache-Control'),'no-store');for(const name of ['ETag','Content-Length','Last-Modified'])assert.equal(response.headers.get(name),null);assert.equal(network,0);assert.equal(db.sqlite.prepare('SELECT announcement_consent FROM tower_residencies WHERE room_id=?').get(id)!.announcement_consent,0);const app=createLiveApp({db,origin,localTest:true,registrationEnabled:false,towerEnabled:true});assert.equal((await app.editBuilding(false)).events.length,0);}finally{globalThis.fetch=original;db.close();}
 });
-test('the real homepage router preserves SSR doors before starting asynchronous live rendering',()=>{
- const source=readFileSync(new URL('../src/main.ts',import.meta.url),'utf8'),file=ts.createSourceFile('main.ts',source,ts.ScriptTarget.Latest,true);let branch:ts.IfStatement|undefined;
- const visit=(node:ts.Node)=>{if(ts.isIfStatement(node)&&node.expression.getText(file)==='!pathname')branch=node;ts.forEachChild(node,visit);};visit(file);assert.ok(branch,'exercise the maintained homepage entry branch');
- const code=ts.transpileModule(branch!.getText(file),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText;
- const root={innerHTML:renderHomeDirectory('',[{id,name:'SSR door before network'}]),querySelector(selector:string){return selector==='[data-public-home-directory]'&&this.innerHTML.includes('data-public-home-directory')?{}:null;}};let captured='';
- runInNewContext(code,{root,pathname:'',m:{service:{loading:'Loading'},meta:{title:'Tower'}},document:{title:''},renderLiveTower:(target:typeof root)=>{captured=target.innerHTML;}});
+test('the lazy homepage router preserves SSR doors while its live import is pending',async()=>{
+ const source=readFileSync(new URL('../src/main.ts',import.meta.url),'utf8'),file=ts.createSourceFile('main.ts',source,ts.ScriptTarget.Latest,true);
+ const fn=file.statements.find((node):node is ts.FunctionDeclaration=>ts.isFunctionDeclaration(node)&&node.name?.text==='navigate');assert.ok(fn);
+ const loader=deferred<unknown>(),root={innerHTML:renderHomeDirectory('',[{id,name:'SSR door before network'}])};let captured='';
+ const code=ts.transpileModule(fn!.getText(file).replace('export ','').replace("import('./live')",'loadLive()').replace("import('./demo')",'loadDemo()').replace('import.meta.env.VITE_MUSE_DEMO','false'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText;
+ const context={navigation:createNavigationEpoch(),live:undefined,demo:undefined,root,base:'',location:{pathname:'/'},isLiveRoute:()=>false,loadLive:()=>loader.promise,finish:()=>{},pending:undefined as Promise<void>|undefined};
+ runInNewContext(code+';globalThis.pending=navigate();',context);
+ assert.match(root.innerHTML,/SSR door before network/);
+ loader.resolve({renderLiveTower:async(target:typeof root)=>{captured=target.innerHTML;}});await context.pending;
  assert.match(captured,/SSR door before network/);assert.match(captured,/data-public-home-directory/);
 });
 

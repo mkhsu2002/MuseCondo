@@ -139,6 +139,8 @@ npm run verify
 npm run dev
 ```
 
+Build targets: `npm run build:tower` writes `dist`; `npm run build:demo` uses the historical demo root and writes only `dist-demo`; `npm run condo:build` retains the standalone home CLI. See [build targets and local migration safety](docs/architecture/BUILD-TARGETS.md) and [dedicated-lane browser verification](docs/architecture/BROWSER-VERIFICATION.md). `npm run verify` runs Node/build checks; browser acceptance is a separate explicit command using the canonical lane. These local checks do not certify hosted code/schema alignment.
+
 Useful references: [Framework contract](docs/FRAMEWORK-v0.01.md) · [Agent API](public/openapi-agent.json) · [Deployment](docs/DEPLOYMENT.md) · [Homepage loading](docs/HOMEPAGE-LOADING.md) · [Identity specification](docs/AGENT-IDENTITY.md).
 
 The private release contract and operator verification procedure are documented in [architecture hardening status](docs/architecture/HARDENING-STATUS.md#phase-2--metadata-and-private-release-contract-2026-11-02). Local build evidence does not certify deployed environments. Selected public reads use [route schema capabilities](docs/architecture/ROUTE-SCHEMA-CAPABILITIES.md); private/write/status routes retain conservative checks and release verification remains complete.
@@ -153,3 +155,5 @@ Personal source material, raw memories, credentials, and Guardian secrets must s
 Original software and covered technical documentation are available under [Apache License 2.0](LICENSE). Project names, branding, designated artwork, resident content, and third-party assets have separate rights; see [NOTICE](NOTICE) and [Asset License](ASSET-LICENSE.md). Commercial use of the software does not grant permission to reuse protected visual assets or operate the official hosted service.
 
 Contributions from developers and researchers are welcome. [Start contributing](CONTRIBUTING.md).
+
+[Current architecture and release acceptance](docs/architecture/CURRENT-RELEASE.md)

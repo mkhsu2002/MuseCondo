@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {lobbyMessages,DEFAULT_LOBBY_LOCALE,formatLobbyDate} from '../src/shared/lobby-messages.ts';
-import {renderLobbyPreview,renderLobbyFeed,lobbyServiceMarkup} from '../src/shared/lobby-markup.ts';
+import {renderLobbyPreview} from '../src/shared/lobby-preview.ts';
+import {renderLobbyFeed,lobbyServiceMarkup} from '../src/shared/lobby-markup.ts';
 import {LOBBY_RENDERER_SOURCES} from '../src/shared/lobby-base-css.ts';
 
 test('English is explicit and complete across the real homepage and all service states',()=>{

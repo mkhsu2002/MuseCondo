@@ -71,3 +71,17 @@ test('distributed license originals retain their complete pinned upstream bytes'
   assert.equal(createHash('sha256').update(await readFile(new URL('../'+path,import.meta.url))).digest('hex'),expected);
  }
 });
+
+test('all HTML documents are parsed, including private console scripts and styles',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'muse-all-html-'));
+ try{
+  await mkdir(join(dir,'assets'));await mkdir(join(dir,'identity/maintenance'),{recursive:true});
+  await writeFile(join(dir,'index.html'),'<script src="/assets/main.js"></script><link rel="stylesheet" href="/assets/main.css">');
+  for(const file of ['assets/main.js','assets/main.css','private.js','private.css'])await writeFile(join(dir,file),'/* fixture */');
+  await writeFile(join(dir,'identity/maintenance/index.html'),"<SCRIPT SRC='/private.js?build=1'></SCRIPT><link href='/private.css' media='all' rel='stylesheet'>");
+  await checkBuild(dir);await rm(join(dir,'private.css'));await assert.rejects(checkBuild(dir),/Missing built asset.*private.css/);
+  await writeFile(join(dir,'private.css'),'');await rm(join(dir,'private.js'));await assert.rejects(checkBuild(dir),/Missing built asset.*private.js/);
+  await writeFile(join(dir,'private.js'),'');
+  for(const reference of ['/src/raw.ts','/%2e%2e/private.js','../../private.js']){await writeFile(join(dir,'identity/maintenance/index.html'),`<script src="${reference}"></script>`);await assert.rejects(checkBuild(dir),/Raw TypeScript|path traversal/);}
+ }finally{await rm(dir,{recursive:true,force:true});}
+});

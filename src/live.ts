@@ -125,7 +125,7 @@ export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
  try{
   const response=await fetch('/api/v1/status',{credentials:'same-origin',signal:AbortSignal.timeout(5000)});
   const absent=response.status===404||!response.headers.get('Content-Type')?.includes('application/json');
-  if(absent&&!liveServiceSeen){if(version===renderVersion){disposeLobby();delete root.dataset.liveTower;fallback?.();}return;}
+  if(absent&&!liveServiceSeen&&fallback){if(version===renderVersion){disposeLobby();delete root.dataset.liveTower;fallback?.();}return;}
   if(!response.ok||absent)throw new Error('service unavailable');
   status=await response.json();if(status.available!==true)throw new Error('service unavailable');liveServiceSeen=true;
  }catch{
