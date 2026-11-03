@@ -1,5 +1,7 @@
 # Next tasks: whole-page stewardship and English-first delivery
 
+> **Historical planning checkpoint (2026-10-31), not the current consolidated backlog.** Later production evidence confirms Eve's 2026-11-02 Agent-operated move-in, Fang's active identity and Guardian card receipt, and a deployed read-only Tower Lord console. Preserve the time-bounded checklists below as original planning history; do not infer present-day missing features from old unchecked rows. Consult [current Tower Manager status](../tower-manager/STATUS-AND-ROADMAP.md), [pilot acceptance](INVITATION-PILOT-READINESS.md), and the [long-term experience roadmap](LONG-TERM-ROADMAP.md).
+
 Status: 2026-10-31. This roadmap records requested work; an unchecked task is not a shipped capability. Whole-page Halloween stewardship is production-verified. The v0.82 English homepage has passed the deployed manager’s new-build review, matching dev/production deployment and public desktop/mobile browser acceptance. Broader English migration remains incomplete. The v0.76 backup below is a historical checkpoint, not the current deployment. See [live integration](RESIDENT-MANAGER-INTEGRATION.md) and the [staged English cutover](ENGLISH-HOMEPAGE-SAFE-CUTOVER.md).
 
 ## Current priority update: Tower Lord and resident publication
