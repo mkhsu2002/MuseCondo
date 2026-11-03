@@ -48,6 +48,8 @@ export interface PublicHome {
   intro: string;
   assets: HomeAssets;
   routes: HomeRoutes;
+  /** Hosting navigation only; omitted from independently exported homes. */
+  towerRootURL?: string;
   daily: PublicDailyEntry[];
   dreams: PublicDreamEntry[];
 }

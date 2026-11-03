@@ -25,7 +25,7 @@ const migrations=[];
 for(const name of (await readdir('migrations')).filter(n=>n.endsWith('.sql')).sort()){
  const statements=JSON.parse(execFileSync('python3',['-c',"import sys,sqlite3,json\ns='';r=[]\nfor c in sys.stdin.read():\n s+=c\n if c==';' and sqlite3.complete_statement(s):r.append(s);s=''\nif s.strip() and not s.strip().startswith('--'):raise ValueError('Incomplete SQL')\nprint(json.dumps(r))"],{input:await readFile('migrations/'+name,'utf8'),encoding:'utf8'}));migrations.push(...statements);
 }
-async function scenario(unknownImage,brokenReference){
+async function scenario(unknownImage,brokenReference,repairMode=false){
  let mf,db,images=0,paidText=0,counts=0,steps=0,mailPosts=0,mailReads=0,probes=0,weeklyText=0,lastMail;
  const mailEnabled=!unknownImage&&!brokenReference,contactKey='a'.repeat(64),from='MuseCondo <identity@example.com>',recipient='lord@example.com';
  const outbound=async request=>{
@@ -46,7 +46,7 @@ async function scenario(unknownImage,brokenReference){
   assert.equal(url.origin,'https://api.meta.ai','External networking is forbidden; only the synthetic Meta handler exists');
   assert.equal(request.headers.get('Authorization'),'Bearer synthetic-pages-only-provider');
   const body=await request.json();
-  if(url.pathname==='/v1/responses/input_tokens'){counts++;return Response.json({input_tokens:100});}
+  if(url.pathname==='/v1/responses/input_tokens'){counts++;if(repairMode&&body.instructions?.includes('independent visual reviewer')){const active=await db.prepare("SELECT id FROM tower_scenes WHERE id='seed-v1-04' AND state='running' AND NOT EXISTS(SELECT 1 FROM tower_scene_repair_events)").first();if(active)return new Response('private diagnostic must never be stored',{status:400});}return Response.json({input_tokens:100});}
   if(typeof body.input==='string'){
    assert.ok(mailEnabled);assert.equal(url.pathname,'/v1/responses');assert.equal(body.model,'muse-spark-1.3');const input=JSON.parse(body.input);assert.equal(input.inaugural,true);assert.equal(input.residentCount,0);assert.deepEqual(input.events,[]);const claim=await db.prepare("SELECT j.state,j.actual_micro,w.lease_until FROM manager_jobs j JOIN tower_weekly_jobs w ON w.id=j.id WHERE w.period_key='inaugural'").first();assert.equal(claim.state,'running');assert.equal(claim.actual_micro,null);assert.ok(claim.lease_until>new Date().toISOString());paidText++;weeklyText++;return Response.json({id:'synthetic-weekly-1',model:'muse-spark-1.3',status:'completed',usage:{input_tokens:100,output_tokens:100},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({messageVariant:'inaugural-welcome',selectedEventIds:[]})}]}]});
   }
@@ -59,7 +59,7 @@ async function scenario(unknownImage,brokenReference){
    return Response.json({created:Math.floor(Date.now()/1000),usage:{input_tokens:321,output_tokens:45},data:[{b64_json:image}]});
   }
   assert.equal(url.pathname,'/v1/responses');assert.equal(body.model,'muse-spark-1.3');assert.ok(Array.isArray(body.input));assert.ok(body.input[0].content.some(c=>c.type==='input_image'));const approved=await db.prepare("SELECT 1 FROM tower_scene_style_approval WHERE id=1").first();const refs=body.input[0].content.filter(c=>c.type==='input_image');assert.equal(refs[0].image_url,referenceURL);assert.equal(refs.length,(purpose==='review'?2:1)+(approved?1:0));paidText++;
-  const value=purpose==='review'?{pass:true,description:'Synthetic empty stepped ivory Tower test fixture.'}:{sceneKey:JSON.parse(body.input[0].content.find(c=>c.type==='input_text').text).sceneKey,prompt:'Synthetic same-Tower empty corner for native runtime proof.'};
+  const value=purpose==='review'?{pass:!(repairMode&&claim.source_digest==='scene:seed-v1-03:review'),description:'Synthetic empty stepped ivory Tower test fixture.'}:{sceneKey:JSON.parse(body.input[0].content.find(c=>c.type==='input_text').text).sceneKey,prompt:'Synthetic same-Tower empty corner for native runtime proof.'};
   return Response.json({id:'synthetic-spark-'+paidText,model:'muse-spark-1.3',status:'completed',usage:{input_tokens:100,output_tokens:100},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]});
  };
  const config={workers:[
@@ -84,7 +84,7 @@ async function scenario(unknownImage,brokenReference){
   if(unknownImage){
    assert.equal(rows.find(r=>r.id==='seed-v1-01').state,'unknown');assert.equal(rows.filter(r=>r.state==='reviewed').length,2);
    const receipt=await db.prepare("SELECT * FROM manager_jobs WHERE id='scene:seed-v1-01:image'").first();assert.equal(receipt.state,'unknown');assert.equal(receipt.actual_micro,null);assert.equal(receipt.reserved_micro,10000);
-   const snapshot={images,paidText,counts};assert.equal((await post(step,{id:'seed-v1-01',kind:'scene',sceneKey:'arrival-court',batchId:'initial-v1-1'},trigger,true)).status,200);
+   assert.equal((await post(sceneAdmin,{repair:{id:'unknown-denied',mode:'resume',sourceId:'seed-v1-01'}})).status,503);const snapshot={images,paidText,counts};assert.equal((await post(step,{id:'seed-v1-01',kind:'scene',sceneKey:'arrival-court',batchId:'initial-v1-1'},trigger,true)).status,200);
    assert.equal((await post(sceneAdmin,{preview:true})).status,202);await new Promise(done=>setTimeout(done,1500));assert.deepEqual({images,paidText,counts},snapshot,'Unknown dispatch and durable DO completion never retry paid generation');
    assert.equal((await post(sceneAdmin,{style:'approved'})).status,503);assert.deepEqual((await list()).scenes,[]);
    console.log('PASS native unknown image keeps its reservation, never re-POSTs through direct step or DO requeue, and cannot pass style approval');return;
@@ -104,14 +104,7 @@ async function scenario(unknownImage,brokenReference){
   console.log('PASS native D1/R2/ASSETS + actual DO: three reviewed previews are operator-only; style gate prevents additional generation and all publication');
   assert.equal((await post(sceneAdmin,{style:'approved'})).status,200);
   if(brokenReference){const r2=await mf.getR2Bucket('MANAGER_ASSETS','pages');for(const id of ['seed-v1-01','seed-v1-02']){if(brokenReference==='missing')await r2.delete('tower-scenes/'+id+'.png');else await r2.put('tower-scenes/'+id+'.png',new Uint8Array([1,2,3]));}const before={images,paidText,counts};assert.equal((await post(sceneAdmin,{batch:1})).status,202);const blocked=await waitJobs(5);assert.ok(blocked.filter(r=>['seed-v1-03','seed-v1-04'].includes(r.id)).every(r=>r.state==='invalid'||r.state==='blocked'));assert.deepEqual({images,paidText,counts},before);console.log('PASS native '+brokenReference+' approved R2 references block all paid calls');return;}
-  assert.equal((await post(sceneAdmin,{batch:1})).status,202);assert.ok((await waitJobs(5)).every(r=>r.state==='reviewed'));assert.equal(images,5);
-  assert.equal((await post(sceneAdmin,{batch:2})).status,503);assert.equal((await post(sceneAdmin,{approve:1})).status,200);assert.equal((await list()).scenes.length,5);
-  const publicImage=await mf.dispatchFetch(origin+'/api/v1/tower/scenes/seed-v1-01.png');assert.equal(publicImage.status,200);assert.equal(publicImage.headers.get('Content-Type'),'image/png');assert.equal(PNG.sync.read(Buffer.from(await publicImage.arrayBuffer())).width,1536);
-  assert.doesNotMatch(JSON.stringify(await list()),/synthetic-pages-only-provider|prompt|request_sha|owner_lease/);
-  console.log('PASS native explicit style approval unlocks only remaining first-batch scenes; manual batch approval publishes five immutable images');
-  assert.equal((await post(sceneAdmin,{batch:2})).status,202);assert.ok((await waitJobs(10)).every(r=>['reviewed','published'].includes(r.state)));assert.equal(images,10);assert.equal((await post(sceneAdmin,{approve:2})).status,200);assert.equal((await list()).scenes.length,10);
-  const bound=(await db.prepare("SELECT plan_json FROM tower_scenes WHERE id NOT IN('seed-v1-01','seed-v1-02','seed-v1-05')").all()).results.map(r=>JSON.parse(r.plan_json).references[1].id);assert.deepEqual([...new Set(bound)].sort(),['seed-v1-01','seed-v1-02','seed-v1-05']);
-  console.log('PASS native all ten scenes preserve the primary and only the three approved immutable secondary references');
+  assert.equal((await post(sceneAdmin,{approvedPreviews:true})).status,200);assert.equal((await list()).scenes.length,3);
   const beforeWeekly={images,paidText,counts,steps};
   const inaugural=await post('/api/v1/operator/tower-weekly',{action:'inaugural'});assert.equal(inaugural.status,202,await inaugural.clone().text());
   const end=Date.now()+60000;let notice;
@@ -126,7 +119,35 @@ async function scenario(unknownImage,brokenReference){
   for(const table of ['tower_weekly_issues','tower_weekly_outbox','tower_weekly_mail_dispatches'])assert.equal((await db.prepare('SELECT count(*) n FROM '+table).first()).n,1,table+' remains unique');
   assert.equal((await db.prepare('SELECT state FROM tower_weekly_outbox WHERE id=?').bind(notice.id).first()).state,'delivered');
   console.log('PASS native actual Manager inaugural atomically saves issue/outbox, immediately sends exactly one notice through signed own-handler proof, verifies provider delivery, and replays without paid requests or duplicates');
+  console.log('PASS inaugural publication and its one notice do not wait for the remaining seven images');
+  assert.equal((await post(sceneAdmin,{batch:1})).status,202);const firstFive=await waitJobs(5);assert.equal(images,5);
+  if(repairMode){
+   assert.equal(firstFive.find(r=>r.id==='seed-v1-03').state,'invalid');assert.equal(firstFive.find(r=>r.id==='seed-v1-04').state,'blocked');
+   const before03=await db.prepare("SELECT * FROM tower_scenes WHERE id='seed-v1-03'").first(),before04=await db.prepare("SELECT * FROM tower_scenes WHERE id='seed-v1-04'").first();const receiptsBefore=(await db.prepare('SELECT * FROM manager_jobs ORDER BY id').all()).results;
+   const r2=await mf.getR2Bucket('MANAGER_ASSETS','pages'),bytes04=Buffer.from(await(await r2.get(before04.object_key)).arrayBuffer());
+   const countBefore=counts,paidBeforeRepair=paidText;
+   assert.equal((await post(sceneAdmin,{repair:{id:'resume-04',mode:'resume',sourceId:'seed-v1-04'}},'wrong')).status,401);
+   assert.equal((await post(sceneAdmin,{repair:{id:'reject-ref',mode:'replace',sourceId:'seed-v1-01',replacementId:'seed-v1-01-r1',batchId:'repair-reject-ref'}})).status,503);
+   const resume={id:'resume-04',mode:'resume',sourceId:'seed-v1-04'};
+   assert.equal((await post(sceneAdmin,{repair:resume})).status,202);{const deadline=Date.now()+60000;while(Date.now()<deadline&&(await db.prepare("SELECT state FROM tower_scenes WHERE id='seed-v1-04'").first()).state!=='reviewed')await new Promise(done=>setTimeout(done,100));}assert.equal((await db.prepare("SELECT state FROM tower_scenes WHERE id='seed-v1-04'").first()).state,'reviewed',JSON.stringify({jobs:await jobs(),events:(await db.prepare('SELECT * FROM tower_scene_repair_events').all()).results,repairs:(await db.prepare('SELECT * FROM tower_scene_repairs').all()).results,status:await db.prepare("SELECT error_code,lease_until FROM tower_scenes WHERE id='seed-v1-04'").first(),steps}));assert.equal(images,5,'Resume must never generate a replacement image');assert.equal(paidText,paidBeforeRepair+1,'Resume pays only the missing independent review');assert.equal(counts,countBefore+1);assert.deepEqual(Buffer.from(await(await r2.get(before04.object_key)).arrayBuffer()),bytes04);
+   const replace={id:'replace-03',mode:'replace',sourceId:'seed-v1-03',replacementId:'seed-v1-03-r1',batchId:'repair-replace-03'};
+   assert.equal((await post(sceneAdmin,{repair:replace})).status,202);await waitJobs(6);assert.equal(images,6);assert.equal((await db.prepare("SELECT state FROM tower_scenes WHERE id='seed-v1-03-r1'").first()).state,'reviewed');assert.deepEqual(await db.prepare("SELECT * FROM tower_scenes WHERE id='seed-v1-03'").first(),before03);
+   const oldIds=receiptsBefore.map(r=>r.id);assert.deepEqual((await db.prepare('SELECT * FROM manager_jobs ORDER BY id').all()).results.filter(r=>oldIds.includes(r.id)),receiptsBefore,'Every original paid receipt remains byte-for-byte unchanged');
+   assert.equal((await db.prepare("SELECT count(*) n FROM tower_scene_canonical WHERE root_batch='initial-v1-1'").first()).n,5);
+   const snapshot={images,paidText,counts};assert.equal((await post(sceneAdmin,{repair:resume})).status,202);assert.equal((await post(sceneAdmin,{repair:replace})).status,202);await new Promise(done=>setTimeout(done,1500));assert.deepEqual({images,paidText,counts},snapshot,'Exact repair replay does not redispatch through durable DO completion');
+   assert.equal((await post(sceneAdmin,{repair:{...replace,replacementId:'seed-v1-03-r2'}})).status,503);
+   assert.equal((await post(step,{id:'scene-repair-resume-04',kind:'repair',repairId:'resume-04'},trigger,true)).status,200);assert.deepEqual({images,paidText,counts},snapshot);
+   console.log('PASS native explicit repair keeps all original rows/receipts, reuses exact 04 R2 bytes for review only, replaces rejected 03 in its logical slot, and duplicate operator/DO/direct replay never pays again');
+  }else assert.ok(firstFive.every(r=>['reviewed','published'].includes(r.state)));
+  assert.equal((await post(sceneAdmin,{batch:2})).status,503);assert.equal((await post(sceneAdmin,{approve:1})).status,200);assert.equal((await list()).scenes.length,5);
+  const publicImage=await mf.dispatchFetch(origin+'/api/v1/tower/scenes/seed-v1-01.png');assert.equal(publicImage.status,200);assert.equal(publicImage.headers.get('Content-Type'),'image/png');assert.equal(PNG.sync.read(Buffer.from(await publicImage.arrayBuffer())).width,1536);
+  assert.doesNotMatch(JSON.stringify(await list()),/synthetic-pages-only-provider|prompt|request_sha|owner_lease/);
+  console.log('PASS native explicit style approval unlocks only remaining first-batch scenes; manual batch approval publishes five immutable images');
+  assert.equal((await post(sceneAdmin,{batch:2})).status,202);assert.ok((await waitJobs(repairMode?11:10)).every(r=>['reviewed','published'].includes(r.state)||(repairMode&&r.id==='seed-v1-03'&&r.state==='invalid')));assert.equal(images,repairMode?11:10);assert.equal((await post(sceneAdmin,{approve:2})).status,200);assert.equal((await list()).scenes.length,10);
+  const bound=(await db.prepare("SELECT plan_json FROM tower_scenes WHERE id NOT IN('seed-v1-01','seed-v1-02','seed-v1-05')").all()).results.map(r=>JSON.parse(r.plan_json).references[1].id);assert.deepEqual([...new Set(bound)].sort(),['seed-v1-01','seed-v1-02','seed-v1-05']);
+  assert.equal((await db.prepare("SELECT count(DISTINCT logical_slot) n FROM tower_scene_canonical WHERE state='published' AND batch_id IS NOT NULL").first()).n,10);
+  console.log('PASS native all ten scenes preserve the primary and only the three approved immutable secondary references');
  }finally{await mf.dispose();}
 }
-await scenario(false);await scenario(true);await scenario(false,'missing');await scenario(false,'tampered');
+await scenario(false,undefined,true);await scenario(false);await scenario(true);await scenario(false,'missing');await scenario(false,'tampered');
 console.log('PASS Tower publications native runtime; no provider credentials, no external networking, trigger-only DO and synthetic paid responses');

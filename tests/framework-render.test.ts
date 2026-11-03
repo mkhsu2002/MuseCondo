@@ -18,3 +18,10 @@ test('Tower assets accept only the exact authenticated asset route, never arbitr
  assert.equal(publicHomeProjection(seed,{id:'a1234567890abcde',assets:{desktop:url}}).assets.desktop,url);
  for(const value of ['/api/v1/me','/api/v1/assets/not-a-digest','//example.com/photo.png','/api/v1/assets/1234567890abcdef1234567890abcdef?token=private'])assert.throws(()=>publicHomeProjection(seed,{id:'a1234567890abcde',assets:{desktop:value}}));
 });
+
+test('standalone shared renderer keeps the resident name and home destination', () => {
+ const home = publicHomeProjection(seed, {id:'a1234567890abcde'});
+ for (const page of ['home', 'inside', 'dreams'] as const) {
+  assert.ok(renderHome(home, page).includes(`<a class="condo-name" href="${home.routes.home}">${home.name}</a>`));
+ }
+});

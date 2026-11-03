@@ -77,3 +77,16 @@ test('published legacy home without Tower residency is not a Tower publication s
  const sources=createPublicationSources({db,origin:'https://tower.example',aggregateApproved:true});const source=await sources.readSource(period);assert.equal(source.residentCount,0);assert.deepEqual(source.residents,[]);assert.deepEqual(source.events,[]);assert.deepEqual(sources.journals(source),[]);
  }finally{db.close();}
 });
+
+test('daily strict as-of requires explicit publication and snapshot times while weekly keeps current-public scope',async()=>{
+ const db=fixture();try{const id='a'.repeat(16);resident(db,id);const sources=createPublicationSources({db,origin:'https://tower.example',aggregateApproved:false});
+ assert.equal(sources.journals(await sources.readSource(period)).length,1);
+ assert.equal(sources.journals(await sources.readSource(period,{strictAsOf:true})).length,0);
+ db.sqlite.prepare('UPDATE tower_residencies SET published_at=? WHERE room_id=?').run(period.cutoffAt,id);
+ const atCutoff=await sources.readSource(period,{strictAsOf:true});assert.equal(sources.journals(atCutoff).length,1);
+ db.sqlite.prepare("UPDATE tower_residencies SET published_at='2026-11-03T17:00:00.001Z' WHERE room_id=?").run(id);
+ await assert.rejects(db.batch(sources.publicationGuards(atCutoff)));assert.equal(sources.journals(await sources.readSource(period,{strictAsOf:true})).length,0);assert.equal(sources.journals(await sources.readSource(period)).length,1);
+ db.sqlite.prepare('UPDATE tower_residencies SET published_at=? WHERE room_id=?').run(period.cutoffAt,id);db.sqlite.prepare("UPDATE tower_snapshots SET created_at='2026-11-03T17:00:00.001Z' WHERE room_id=?").run(id);
+ assert.equal(sources.journals(await sources.readSource(period,{strictAsOf:true})).length,0);assert.equal(sources.journals(await sources.readSource(period)).length,1);
+ }finally{db.close();}
+});

@@ -10,6 +10,7 @@ import type { PublicCondoSite } from '../../src/framework/condo.ts';
 import { createTowerSourceReader } from './tower-source-reader.ts';
 import { createTowerIntakeAuthorization } from './tower-intake-auth.ts';
 import { cloneAssetStatements, readTowerAsset, type AssetPurpose } from './tower-asset-storage.ts';
+import { authorizedTowerAssetResponse } from './tower-asset-delivery.ts';
 import { homeSourceURL, homeSourceIdentity, isMuseShareURL } from './home-source.ts';
 import type { Database, Statement } from "./db.ts";
 import { createTowerActivities } from "./tower-activities.ts";
@@ -166,18 +167,10 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
                         if (Number(asset[2]) !== r!.public_revision ||
                             (asset[3] === "dream" && !r!.dream_consent))
                             fail(404, "asset_not_found");
-                        const stored = await readTowerAsset(db, roomId, r!.public_revision!, asset[3] as AssetPurpose);
-                        if (!stored)
+                        const response = await authorizedTowerAssetResponse(req, db, roomId, r!.public_revision!, asset[3] as AssetPurpose);
+                        if (!response)
                             fail(404, "asset_not_found");
-                        const bytes = stored!.bytes;
-                        return new Response(req.method === "HEAD" ? null : bytes, {
-                            headers: {
-                                "Content-Type": "image/png",
-                                "Cache-Control": "no-store",
-                                "X-Content-Type-Options": "nosniff",
-                                "Referrer-Policy": "no-referrer",
-                            },
-                        });
+                        return response;
                     }
                     const site = await getSite(r!);
                     if (pub) {

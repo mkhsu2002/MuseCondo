@@ -82,3 +82,5 @@ jobs:
         run: npm run test:native:assets -- "$RUNNER_TEMP/muse-native/node_modules"
       - name: Verify native Tower publications, protected scene previews and durable style gate
         run: npm run test:native:publications -- "$RUNNER_TEMP/muse-native/node_modules"
+      - name: Verify native daily journals, private Manager alarms, current grants and zero provider calls
+        run: npm run test:native:journals -- "$RUNNER_TEMP/muse-native/node_modules"

@@ -1,0 +1,7 @@
+import type {TowerJournalEdition} from './tower-journals.ts';
+const e=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+const safeHome=(href:string)=>{try{const url=new URL(href);return url.protocol==='https:'&&/^\/home\/[a-f0-9]{16}\/inside$/.test(url.pathname)&&!url.search&&!url.hash&&!url.username&&!url.password?url.pathname:null;}catch{return null;}};
+export function renderTowerJournals(edition:TowerJournalEdition|null){
+ const cards=(edition?.items??[]).flatMap(item=>{const href=safeHome(item.href),at=new Date(item.originalAt);if(!href||!Number.isFinite(at.getTime()))return [];return [`<article class="live-card"><p>${e(item.author)}</p><h3><a href="${e(href)}">${e(item.title)}</a></h3><time datetime="${e(item.originalAt)}">${e(new Intl.DateTimeFormat('en',{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'}).format(at))}</time><p>${e(item.excerpt)}</p><a href="${e(href)}">Visit this neighbor ↗</a></article>`];});
+ return `<section data-tower-journals class="live-feed-section" aria-labelledby="tower-journals-title"><div class="live-section-head"><h2 id="tower-journals-title">From our neighbors’ journals</h2><p>Stories and moments our neighbors have chosen to share.</p></div>${cards.length?`<div class="live-feed-grid">${cards.join('')}</div>`:'<article class="live-card"><p>No journal entries to share just yet.</p></article>'}</section>`;
+}

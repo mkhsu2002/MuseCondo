@@ -1,3 +1,5 @@
+import {renderTowerJournals} from './shared/tower-journals-markup.ts';
+import type {TowerJournalEdition} from './shared/tower-journals.ts';
 import {weeklyArchiveBefore} from './shared/tower-weekly.ts';
 import type {TowerScene} from './shared/tower-scene-types.ts';
 import {renderWeeklyCard,renderWeeklyPage,renderWeeklyArchive,renderSceneWall} from './shared/tower-weekly-markup.ts';
@@ -38,7 +40,8 @@ function bindForm(root:HTMLElement,id:string,fn:(data:FormData,form:HTMLFormElem
 function art(home:Home){const desktop=home.assets.find(a=>a.purpose==='home-desktop'),mobile=home.assets.find(a=>a.purpose==='home-mobile');const valid=(u:string)=>/^\/api\/v1\/assets\/[a-f0-9]{32}$/.test(u);return desktop&&valid(desktop.url)?`<figure class="live-art"><picture>${mobile&&valid(mobile.url)?`<source media="(max-width:700px)" srcset="${e(mobile.url)}">`:''}<img src="${e(desktop.url)}" alt="${e(home.room.name)}'s home"></picture></figure>`:`<div class="live-art-pending"><span>⌂</span><p>${e(stateLabel[home.room.generationState]??'Home artwork is not ready yet')}</p></div>`;}
 
 let lobbyRoot:HTMLElement|null=null;
-function disposeLobby(){if(lobbyRoot){disposeTowerAppearance(lobbyRoot);lobbyRoot=null;}}
+let journalCleanup:(()=>void)|null=null;
+function disposeLobby(){journalCleanup?.();journalCleanup=null;if(lobbyRoot){disposeTowerAppearance(lobbyRoot);lobbyRoot=null;}}
 export function cancelLiveRender(){renderVersion++;disposeLobby();}
 export const isLiveRoute=isFrameworkLiveRoute;
 export async function renderLive(root:HTMLElement,route:string){
@@ -119,8 +122,9 @@ function bindOwnerContent(root:HTMLElement,route:string){
 }
 
 let weeklyMarkup='';
+let journalsMarkup='';
 function showTowerLobby(root:HTMLElement,content:string){
- content='<div data-weekly-slot>'+weeklyMarkup+'</div>'+content;
+ content='<div data-weekly-slot>'+weeklyMarkup+'</div><div data-journals-slot>'+journalsMarkup+'</div>'+content;
  const feed=root.querySelector<HTMLElement>('[data-lobby-feed]');
  if(feed)feed.innerHTML=content;
  else{disposeLobby();root.innerHTML=renderTowerLobby({base,content,scene:towerScenePreference()});}
@@ -130,10 +134,20 @@ function showTowerLobby(root:HTMLElement,content:string){
 export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
  document.documentElement.lang='en';document.title=lobbyMessages().meta.title;
  const version=++renderVersion;
+ journalCleanup?.();journalCleanup=null;
+ journalsMarkup=root.querySelector('[data-tower-journals]')?.outerHTML??renderTowerJournals(null);
  weeklyMarkup=root.querySelector('[data-tower-weekly]')?.outerHTML??renderWeeklyCard(base,null);
  void api<{issues:TowerWeeklyIssue[]}>('/api/v1/public/tower-weekly?latest=1','GET',undefined,AbortSignal.timeout(10000)).then(({issues})=>{if(version!==renderVersion)return;weeklyMarkup=renderWeeklyCard(base,issues[0]??null);const slot=root.querySelector('[data-weekly-slot]');if(slot)slot.innerHTML=weeklyMarkup;},()=>{/* The server-rendered last accepted issue remains visible. */});
  let directory=root.querySelector('[data-public-home-directory]')?.outerHTML??'';
  showTowerLobby(root,lobbyServiceMarkup('loading',base)+directory);
+ let active=true,requestVersion=0,controller:AbortController|undefined;
+ const refreshJournals=()=>{const ticket=++requestVersion;controller?.abort();controller=new AbortController();
+  const update=(edition:TowerJournalEdition|null,available:boolean)=>{if(!active||version!==renderVersion||ticket!==requestVersion)return;journalsMarkup=available?renderTowerJournals(edition):'';const slot=root.querySelector('[data-journals-slot]');if(slot)slot.innerHTML=journalsMarkup;};
+  void api<{edition:TowerJournalEdition|null}>('/api/v1/public/tower-journals','GET',undefined,AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])).then(({edition})=>update(edition,true),()=>update(null,false));
+ };
+ const visible=()=>{if(document.visibilityState==='visible')refreshJournals();},restored=(event:PageTransitionEvent)=>{if(event.persisted)refreshJournals();};
+ document.addEventListener('visibilitychange',visible);window.addEventListener('pageshow',restored);
+ journalCleanup=()=>{active=false;controller?.abort();document.removeEventListener('visibilitychange',visible);window.removeEventListener('pageshow',restored);};refreshJournals();
  root.dataset.liveTower='1';
  let status:{available:boolean;admission?:import('./live/framework-ui.ts').Admission;mode:string};
  try{

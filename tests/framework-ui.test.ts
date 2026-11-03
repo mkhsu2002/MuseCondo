@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { renderHome } from '../src/framework/render.ts';
 const location = '../src/live/framework-ui.ts';
 const ui = await import(location).catch(() => undefined);
 const seed = JSON.parse(await readFile(new URL('../fixtures/framework/safe-seed.json', import.meta.url), 'utf8'));
@@ -64,4 +65,16 @@ test('public UI source uses shared renderer and keeps production strategy out of
  for(const source of [live,legacy])assert.doesNotMatch(source,/Codex 暫用|Codex 原型|Meta API 選輯|規則型示範選輯|尚非 Meta AI|編輯版本：|選入理由：|來源 SHA-256|模型資訊/);
  assert.match(live,/X-Request-Key/);assert.match(live,/Content-Type':'image\/png/);assert.match(live,/data-post-edit/);assert.match(live,/data-dream-edit/);
  assert.match(legacy,/historicalDreams/);
+});
+
+test('hosted browser renderer links the brand to the tower root across all home pages', () => {
+ for (const base of ['', '/preview', '/preview/']) {
+  const projected = ui!.towerHome(home, [], base);
+  const root = base.replace(/\/$/, '') + '/';
+  for (const page of ['home', 'inside', 'dreams'] as const) {
+   const html = renderHome(projected, page);
+   assert.ok(html.includes(`<a class="condo-name" href="${root}">Muse Tower</a>`));
+   assert.ok(html.includes(`href="${projected.routes.home}"`));
+  }
+ }
 });

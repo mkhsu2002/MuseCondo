@@ -41,7 +41,7 @@ The maintainer prioritizes two observable results ahead of the previously sugges
 | --- | --- | --- | --- |
 | 07.12 / 07.13 | Weekly issue, inaugural milestone, verified resident/newcomer news, homepage/archive and one Lord email per issue | Implementation in progress; not yet live accepted | [N1](NEXT.md#n1--tower-weekly-on-homepage-with-one-lord-email-per-issue) |
 | 07.14 | Daily fixed-time latest-journal selection and homepage cards | Planned enhancement of existing public projections; not yet fixed-time journal acceptance | [N2](NEXT.md#n2--latest-journals-at-a-fixed-daily-time) |
-| 07.16 | Fixed-reference weekly scene, ten initial views and accumulating artwork wall | Three actual cloud previews private and inspected; maintainer style confirmation pending; remaining seven/public wall held | N1-08–10 |
+| 07.16 | Fixed-reference weekly scene, ten initial views and accumulating artwork wall | Three maintainer-approved cloud scenes publicly displayed; remaining seven and bounded repair proceed independently | N1-08–10 |
 | 07.15 | Guardian subscription and unsubscribe | Future backlog; no automatic enrollment | Separate later batch |
 
 Existing `weekly-recap-draft` saves a private DB-only draft summary; it does not publish a weekly issue or send mail. Existing community highlights mix journal/status events; they do not prove a daily journal-only snapshot, and imported Tower snapshot journals must be reconciled with legacy posts. Preserve existing consents and distinguish implemented functionality from these new acceptance gates.
@@ -211,7 +211,7 @@ These are continuous enablers, not a separate resident journey step.
 
 ## Suggested delivery waves (overlap where dependencies allow)
 
-The maintainer's 2026-11-03 Tower-publications priority supersedes the ordering below: execute N1 (weekly + Lord notice), then N2 (daily journals), then reconcile the broader waves. These two visible outcomes reuse foundations rather than waiting for all of Epic 04/11 or fourteen observation days.
+The maintainer's 2026-11-03 Tower-publications priority supersedes the ordering below: execute weekly + Lord notice and daily journals in parallel, with image generation as an independent track, then reconcile the broader waves. These two visible outcomes reuse foundations rather than waiting for all of Epic 04/11 or fourteen observation days.
 
 | Wave | Experience outcome | Focus |
 | --- | --- | --- |

@@ -15,7 +15,7 @@ export class ManagerClock {
  constructor(state:DurableState,env:ScheduleBindings){this.state=state;this.env=env;}
  async fetch(request:Request){if(new URL(request.url).pathname==='/publications/queue'&&request.method==='POST'){const value=JSON.parse(new TextDecoder().decode(await readRequestBody(request,4096))) as {tasks:PublicationTask[]};return Response.json(await this.state.blockConcurrencyWhile(()=>enqueuePublications(this.state.storage,value.tasks)));}if(request.method!=='POST'||!['/wake','/theme/ready','/theme/render'].includes(new URL(request.url).pathname))return new Response('Not found',{status:404});await this.state.blockConcurrencyWhile(async()=>{await this.state.storage.put('recoveryAttempts',0);await this.state.storage.setAlarm(Date.now()+100);});return Response.json({queued:true});}
  async alarm(){
-  if(await this.state.storage.get<boolean>('publicationsMode')){await publicationAlarm(this.state.storage,task=>dispatch(this.env,'/api/v1/manager/publications/step',task,300000));return;}
+  if(await this.state.storage.get<boolean>('publicationsMode')){await publicationAlarm(this.state.storage,task=>dispatch(this.env,'/api/v1/manager/publications/step',task,450000));return;}
   // Write recovery wake before dispatch; a host interruption must not strand an owned lease.
   await this.state.storage.setAlarm(Date.now()+6*60000);
   try{const response=await dispatch(this.env,'/api/v1/manager/autonomy/step',{});const result=await response.json() as {pending?:boolean;wakeAfterMs?:number};await this.state.storage.put('recoveryAttempts',0);if(result.pending)await this.state.storage.setAlarm(Date.now()+Math.max(1000,Math.min(60000,Number.isFinite(result.wakeAfterMs)?result.wakeAfterMs!:1000)));else await this.state.storage.deleteAlarm();}
@@ -28,7 +28,14 @@ export default {
   const provided=request.headers.get('X-Manager-Schedule-Key');if(!provided||!env.MANAGER_SCHEDULE_TRIGGER_KEY)return new Response('Unauthorized',{status:401});
   const hash=async(v:string)=>new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)));const [a,b]=await Promise.all([hash(provided),hash(env.MANAGER_SCHEDULE_TRIGGER_KEY)]);let mismatch=0;for(let i=0;i<a.length;i++)mismatch|=a[i]^b[i];if(mismatch)return new Response('Unauthorized',{status:401});
   if(request.headers.has('Cookie')||request.headers.get('Sec-Fetch-Site')==='cross-site'||request.headers.has('Origin')&&request.headers.get('Origin')!==env.PUBLIC_ORIGIN)return new Response('Unauthorized',{status:401});
-  if(new URL(request.url).pathname==='/publications/wake'){if(!env.MANAGER_CLOCK)return new Response('Unavailable',{status:503});const value=await readRequestBody(request,4096);return env.MANAGER_CLOCK.get(env.MANAGER_CLOCK.idFromName('tower-publications')).fetch(new Request('https://clock.internal/publications/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:value as Uint8Array<ArrayBuffer>}));}
+  if(new URL(request.url).pathname==='/publications/wake'){
+   if(!env.MANAGER_CLOCK)return new Response('Unavailable',{status:503});
+   const value=JSON.parse(new TextDecoder().decode(await readRequestBody(request,4096))) as {tasks:PublicationTask[]};
+   if(!Array.isArray(value.tasks)||value.tasks.length<1||value.tasks.length>6||value.tasks.some(t=>!t||!['scene','repair','inaugural','due'].includes(t.kind)))return new Response('Invalid tasks',{status:400});
+   const groups=[{name:'tower-scenes',tasks:value.tasks.filter(t=>t.kind==='scene'||t.kind==='repair')},{name:'tower-publications',tasks:value.tasks.filter(t=>t.kind!=='scene'&&t.kind!=='repair')}].filter(g=>g.tasks.length);
+   const responses=await Promise.all(groups.map(g=>env.MANAGER_CLOCK!.get(env.MANAGER_CLOCK!.idFromName(g.name)).fetch(new Request('https://clock.internal/publications/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tasks:g.tasks})}))));
+   const accepted=responses.every(r=>r.ok);await Promise.all(responses.map(r=>r.body?.cancel()));return Response.json({queued:accepted},{status:accepted?200:503});
+  }
   if(new URL(request.url).pathname==='/theme/diagnose')return themeDiagnosticRoute(request,id=>fetch(new URL('/api/v1/manager/autonomy/theme-render-claim',configuration(env)),{method:'POST',redirect:'manual',headers:{'Content-Type':'application/json','X-Manager-Schedule-Key':env.MANAGER_SCHEDULE_TRIGGER_KEY},body:JSON.stringify({receiptId:id,diagnostic:true}),signal:AbortSignal.timeout(30000)}));
   if(new URL(request.url).pathname.startsWith('/theme/'))return themeRendererRoute(request,env,id=>dispatch(env,'/api/v1/manager/autonomy/theme-render-claim',{receiptId:id}));
   if(!env.MANAGER_CLOCK)return new Response('Unavailable',{status:503});return env.MANAGER_CLOCK.get(env.MANAGER_CLOCK.idFromName('manager-daily')).fetch(new Request('https://clock.internal/wake',{method:'POST'}));

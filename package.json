@@ -46,7 +46,9 @@
     "build:demo": "VITE_MUSE_DEMO=1 vite build && MUSE_OUTPUT_DIR=dist-demo node scripts/routes.mjs && node scripts/sanitize-public.mjs dist-demo && node scripts/check-build.mjs dist-demo",
     "preview:demo": "vite preview --outDir dist-demo --host 127.0.0.1 --port 4173",
     "test:native:publications": "node scripts/test-tower-publications-native.mjs",
-    "pretest:native:publications": "node scripts/release-manifest.mjs --ensure"
+    "pretest:native:publications": "node scripts/release-manifest.mjs --ensure",
+    "test:native:journals": "node scripts/test-tower-journals-native.mjs",
+    "pretest:native:journals": "node scripts/release-manifest.mjs --ensure"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

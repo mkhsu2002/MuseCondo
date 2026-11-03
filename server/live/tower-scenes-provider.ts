@@ -20,7 +20,17 @@ export function sceneProvider(options:SceneProviderOptions){
    throw new SceneFailure('scene_call_already_claimed','unknown');
   }
   const headers={Authorization:`Bearer ${options.apiKey}`,'Content-Type':'application/json'},image=purpose==='image';let reserve=10000;
-  if(!image){try{const response=await fetcher('https://api.meta.ai/v1/responses/input_tokens',{method:'POST',headers,body:JSON.stringify(payload),signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error('count_rejected');const result=await limitedJSON(response);if(!integer(result.input_tokens,120000))throw Error('count_invalid');reserve=price(result.input_tokens,8192);}catch{throw new SceneFailure('token_count_unavailable','blocked');}}
+  if(!image){
+   for(let attempt=0;attempt<3;attempt++){
+    let code='token_count_network',transient=false;
+    try{
+     const response=await fetcher('https://api.meta.ai/v1/responses/input_tokens',{method:'POST',headers,body:JSON.stringify(payload),signal:AbortSignal.timeout(20000)});
+     if(!response.ok){code=`token_count_http_${response.status}`;transient=response.status===429||response.status>=500;}
+     else{try{const result=await limitedJSON(response);if(!integer(result.input_tokens,120000))throw Error('invalid');reserve=price(result.input_tokens,8192);break;}catch(error){const timeout=error instanceof Error&&['TimeoutError','AbortError'].includes(error.name);code=timeout?'token_count_timeout':'token_count_invalid';transient=timeout;}}
+    }catch(error){code=error instanceof Error&&['TimeoutError','AbortError'].includes(error.name)?'token_count_timeout':'token_count_network';transient=code==='token_count_timeout';}
+    if(!transient||attempt===2)throw new SceneFailure(code,'blocked');
+   }
+  }
   const at=now().toISOString(),requestSHA=await sha(new TextEncoder().encode(JSON.stringify(payload)));
   let result;try{result=await db.batch([
    db.prepare(`INSERT INTO manager_jobs(id,source_digest,state,reserved_micro,created_at,started_at) SELECT ?,?,'running',?,?,? WHERE NOT EXISTS(SELECT 1 FROM manager_jobs WHERE id=?)

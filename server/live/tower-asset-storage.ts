@@ -93,6 +93,33 @@ async function readObject(db: Database, room: string, digest: string) {
     const chunks = (await db.prepare('SELECT sequence,' + (object.size > 3 * 1024 * 1024 ? 'hex(data) data_hex' : 'data') + ' FROM tower_asset_object_chunks WHERE room_id=? AND digest=? ORDER BY sequence').bind(room, digest).all<Chunk>()).results;
     return { bytes: await reconstruct(chunks, digest, object.size, object.chunk_count), ...object };
 }
+/** Immutable metadata only, for an already authorized browser revalidation.
+ * Full responses still reconstruct and hash every byte before sending it.
+ */
+export async function readTowerAssetMetadata(db: Database, room: string, revision: number, purpose: AssetPurpose): Promise<{digest:string;size:number}|null> {
+    const ref = await db.prepare('SELECT object_digest,legacy_revision,digest,size FROM tower_asset_refs WHERE room_id=? AND revision=? AND purpose=?').bind(room, revision, purpose).first<AssetRef>();
+    if (ref && (!validDigest(ref.digest) || !Number.isInteger(ref.size) || ref.size < 1 || ref.size > MAX_SIZE)) return corrupt();
+    let chunks: {sequence:number;size:number;digest:string}[];
+    if (ref?.object_digest !== null && ref?.object_digest !== undefined) {
+        if (ref.legacy_revision !== null || ref.object_digest !== ref.digest) return corrupt();
+        const object = await db.prepare('SELECT size,chunk_count FROM tower_asset_objects WHERE room_id=? AND digest=?').bind(room,ref.object_digest).first<AssetObject>();
+        if (!object || object.size !== ref.size || object.chunk_count !== Math.ceil(object.size/CHUNK_SIZE)) return corrupt();
+        chunks = (await db.prepare('SELECT sequence,length(data) size,digest FROM tower_asset_object_chunks WHERE room_id=? AND digest=? ORDER BY sequence').bind(room,ref.object_digest).all<{sequence:number;size:number;digest:string}>()).results;
+    } else {
+        if (ref && (!Number.isInteger(ref.legacy_revision) || ref.legacy_revision! < 1 || ref.legacy_revision! >= revision)) return corrupt();
+        chunks = (await db.prepare('SELECT sequence,length(data) size,digest FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose=? ORDER BY sequence').bind(room,ref?.legacy_revision ?? revision,purpose).all<{sequence:number;size:number;digest:string}>()).results;
+    }
+    if (!chunks.length) return ref ? corrupt() : null;
+    const digest = ref?.digest ?? chunks[0].digest;
+    if (!validDigest(digest) || chunks.length > MAX_SIZE/CHUNK_SIZE) return corrupt();
+    let size = 0;
+    for (const [index,chunk] of chunks.entries()) {
+        if (chunk.sequence !== index || chunk.digest !== digest || !Number.isInteger(chunk.size) || chunk.size < 1 || chunk.size > CHUNK_SIZE || (index < chunks.length-1 && chunk.size !== CHUNK_SIZE)) return corrupt();
+        size += chunk.size;
+    }
+    if (size > MAX_SIZE || (ref && ref.size !== size)) return corrupt();
+    return {digest,size};
+}
 export async function readTowerAsset(db: Database, room: string, revision: number, purpose: AssetPurpose): Promise<StoredTowerAsset | null> {
     const ref = await db.prepare('SELECT object_digest,legacy_revision,digest,size FROM tower_asset_refs WHERE room_id=? AND revision=? AND purpose=?').bind(room, revision, purpose).first<AssetRef>();
     if (ref) {

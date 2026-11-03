@@ -1,3 +1,4 @@
+import {renderTowerJournals} from '../../src/shared/tower-journals-markup.ts';
 import {weeklyArchiveBefore} from '../../src/shared/tower-weekly.ts';
 import {createTowerWeeklyServices,createTowerWeeklyRoutes,type TowerPublicationBindings} from './tower-weekly-routes.ts';
 import {renderWeeklyCard,renderWeeklyPage,renderWeeklyArchive,renderSceneWall} from '../../src/shared/tower-weekly-markup.ts';
@@ -216,11 +217,10 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const response=await env.ASSETS.fetch(request);
   if(!response.ok||!response.headers.get('Content-Type')?.startsWith('text/html'))return response;
   try{
-   const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));
-   if(!directory.ok)return response;
-   const {rooms}=await directory.json() as {rooms:{id:string;name:string}[]};
+   let rooms:{id:string;name:string}[]=[];try{const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));if(directory.ok)rooms=((await directory.json()) as {rooms:{id:string;name:string}[]}).rooms;}catch{/* Other public sections remain independent of the directory. */}
+   let journals='';try{journals=renderTowerJournals(await publicationServices(env,context).daily.getLatest());}catch{/* Current unverified journals remain hidden. */}
    let weekly='';try{const issues=await publicationServices(env,context).weekly.list({limit:1});weekly=renderWeeklyCard('',issues[0]??null);}catch{/* The existing resident directory remains available. */}
-   const markup=renderTowerLobby({base:'',scene:'day',content:'<div data-weekly-slot>'+weekly+'</div>'+lobbyServiceMarkup('loading','')+renderHomeDirectory('',rooms)});
+   const markup=renderTowerLobby({base:'',scene:'day',content:'<div data-weekly-slot>'+weekly+'</div><div data-journals-slot>'+journals+'</div>'+lobbyServiceMarkup('loading','')+renderHomeDirectory('',rooms)});
    const html=(await response.clone().text()).replace('<div id="app"></div>',`<div id="app">${markup}</div>`);
    const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');for(const key of ['ETag','Content-Length','Content-Encoding','Last-Modified'])headers.delete(key);
    return new Response(html,{status:response.status,headers});

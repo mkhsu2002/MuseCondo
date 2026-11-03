@@ -325,6 +325,11 @@ test("three trusted pages publish atomic owned assets; dream has separate consen
     const asset = "/api/v1/tower/assets/" + a.roomId + "/1/home.png";
     const image = (await f.req(asset, "GET", undefined, ""))!;
     assert.equal(image.status, 200);
+    const validator = image.headers.get('ETag')!;
+    assert.ok(validator);
+    assert.equal((await f.req(asset, 'GET', undefined, '', {'If-None-Match':validator}))!.status,304);
+    const dreamAsset=asset.replace('home.png','dream.png');
+    const dreamValidator=(await f.req(dreamAsset,'GET',undefined,''))!.headers.get('ETag')!;
     assert.doesNotMatch(
       Buffer.from(await image.arrayBuffer()).toString(),
       /PRIVATE_PNG_METADATA/,
@@ -332,6 +337,7 @@ test("three trusted pages publish atomic owned assets; dream has separate consen
     await f.data(
       f.req("/publication", "POST", { ...consent(), dreamConsent: false }),
     );
+    assert.equal((await f.req(dreamAsset,'GET',undefined,'',{'If-None-Match':dreamValidator}))!.status,404);
     const blankDream = (await f.req(
       "/home/" + a.roomId + "/dreams",
       "GET",
@@ -354,6 +360,7 @@ test("three trusted pages publish atomic owned assets; dream has separate consen
       404,
     );
     await f.data(f.req("/publication", "POST", consent(1, false)));
+    assert.equal((await f.req(asset,'GET',undefined,'',{'If-None-Match':validator}))!.status,404);
     assert.equal((await f.req(asset, "GET", undefined, ""))?.status, 404);
     assert.equal(
       (await f.req("/home/" + a.roomId, "GET", undefined, ""))?.status,

@@ -1,3 +1,4 @@
+import {createTowerDailyJournals} from './tower-daily-journals.ts';
 import {weeklyArchiveBefore} from '../../src/shared/tower-weekly.ts';
 import {createTowerScenes} from './tower-scenes.ts';
 import {BASELINE_SHA,SCENES} from './tower-scenes-catalog.ts';
@@ -11,14 +12,15 @@ import {calendarPeriods} from './tower-manager-schedule.ts';
 import {MANAGER_CALENDAR_POLICY,managerLocalDay} from './tower-calendar.ts';
 import {readRequestBody,RequestBodyError} from './request-body.ts';
 export interface TowerPublicationBindings {
- TOWER_SCENES_ENABLED?:string;TOWER_WEEKLY_ENABLED?:string;TOWER_PUBLICATION_MAIL_ENABLED?:string;TOWER_PUBLICATION_AGGREGATE_APPROVED?:string;TOWER_PUBLICATION_LORD_RECIPIENT?:string;
+ TOWER_DAILY_JOURNALS_ENABLED?:string;TOWER_SCENES_ENABLED?:string;TOWER_WEEKLY_ENABLED?:string;TOWER_PUBLICATION_MAIL_ENABLED?:string;TOWER_PUBLICATION_AGGREGATE_APPROVED?:string;TOWER_PUBLICATION_LORD_RECIPIENT?:string;
 }
 interface Environment extends TowerPublicationBindings {bucket?:AssetBucket;assets?:{fetch(request:Request):Promise<Response>};runtime?:ManagerRuntimeBinding;trigger?:string;db:Database;origin:string;apiKey?:string;contactKey?:string;mailKey?:string;from?:string;approved?:boolean;budgetMicro?:number;dailyBudgetMicro?:number;monthlyBudgetMicro?:number;waitUntil?:(p:Promise<unknown>)=>void;now?:()=>Date;fetcher?:typeof fetch}
-export type PublicationTask={id:string;kind:'scene';sceneKey:string;batchId:string}|{id:string;kind:'inaugural'}|{id:string;kind:'due';scheduledTime:string};
+export type PublicationTask={id:string;kind:'repair';repairId:string}|{id:string;kind:'scene';sceneKey:string;batchId:string}|{id:string;kind:'inaugural'}|{id:string;kind:'due';scheduledTime:string};
 class PublicationWaiting extends Error {wakeAfterMs:number;constructor(lease:string){super('publication_waiting');this.wakeAfterMs=Math.max(1000,Date.parse(lease)-Date.now()+1000);}}
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 export function createTowerWeeklyServices(env:Environment){
  const now=env.now??(()=>new Date()),db=env.db;
+ const daily=createTowerDailyJournals({db,origin:env.origin,enabled:env.TOWER_DAILY_JOURNALS_ENABLED==='true',now});
  const scenes=createTowerScenes({db,origin:env.origin,approved:env.TOWER_SCENES_ENABLED==='true'&&env.approved===true,apiKey:env.apiKey,budgetMicro:env.budgetMicro??0,dailyBudgetMicro:env.dailyBudgetMicro??0,monthlyBudgetMicro:env.monthlyBudgetMicro??0,bucket:env.bucket,assets:env.assets,now,fetcher:env.fetcher});
  const sources=createPublicationSources({db,origin:env.origin,aggregateApproved:env.TOWER_PUBLICATION_AGGREGATE_APPROVED==='true'});
  const weekly=createTowerWeekly({db,...sources,publicationGuards:(source,period)=>[...sources.publicationGuards(source),db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_scene_periods p JOIN tower_scenes s ON s.id=p.scene_id WHERE p.period_key=? AND s.state='published' AND s.baseline_sha=?) THEN 1 ELSE json('weekly_scene_not_ready') END").bind(period.periodKey,BASELINE_SHA)],apiKey:env.apiKey,approved:env.approved===true&&env.TOWER_WEEKLY_ENABLED==='true',budgetMicro:env.budgetMicro??0,dailyBudgetMicro:env.dailyBudgetMicro??0,monthlyBudgetMicro:env.monthlyBudgetMicro??0,now,fetcher:env.fetcher});
@@ -35,7 +37,7 @@ export function createTowerWeeklyServices(env:Environment){
   const periodStart=last?.cutoffAt??new Date(Date.parse(cutoffAt)-7*86400000).toISOString();
   if(last&&inaugural)return readIssue('tower-weekly-inaugural');
   if(periodStart>=cutoffAt)return null;
-  if(inaugural&&(await db.prepare("SELECT count(*) n FROM tower_scenes WHERE batch_id IS NOT NULL AND state='published'").first<{n:number}>())?.n!==10)return null;
+  if(inaugural&&await scenes.canonicalPublished()<1)return null;
   if(!await scenes.ensureWeekly(periodKey,inaugural))return null;
   await weekly.enqueue({periodKey,periodStart,cutoffAt,recipientHash:await mail.recipientHash(),inaugural});await weekly.processOne(periodKey);
   const issue=await weekly.get('tower-weekly-'+periodKey);
@@ -47,25 +49,31 @@ export function createTowerWeeklyServices(env:Environment){
  async function page(before?:number,latest=false){const issues=await list({limit:latest?1:21,before});const nextBefore=!latest&&issues.length>20?issues[19].number:null;return {issues:issues.slice(0,latest?1:20),nextBefore};}
  async function runDue(at:Date){
   if(!Number.isFinite(at.getTime())||Math.abs(now().getTime()-at.getTime())>36*3600000)throw Error('invalid_schedule_time');
-  if(env.TOWER_WEEKLY_ENABLED!=='true')return {weekly:'disabled'};
+  let dailyError:unknown;let dailyResult:{state:string;day?:string}={state:'disabled'};try{dailyResult=await daily.runDue();}catch(error){dailyError=error;dailyResult={state:'unavailable'};}
+  if(env.TOWER_WEEKLY_ENABLED!=='true'){if(dailyError)throw dailyError;return {weekly:'disabled',daily:dailyResult,state:'complete'};}
   const day=managerLocalDay(at),isMonday=new Date(day+'T12:00:00.000Z').getUTCDay()===1;
   // Existing canonical policy is versioned; UTC cron remains a deployment setting.
   const localHour=(at.getUTCHours()+MANAGER_CALENDAR_POLICY.offsetHours+24)%24;
   const existing=await db.prepare('SELECT id FROM tower_weekly_issues LIMIT 1').first();let issue=null;const attempted=!!existing&&isMonday&&localHour>=9;
   if(existing&&isMonday&&localHour>=9)issue=await publish('week-'+calendarPeriods(at).week,at.toISOString(),false);
   const recovery=mail.recover();if(env.waitUntil)env.waitUntil(recovery.then(()=>{}));else await recovery;
-  return {weekly:issue?'published':attempted?'blocked':'not-due',state:issue?'published':attempted?'blocked':'complete',issueId:issue?.id??null};
+  if(dailyError)throw dailyError;
+  return {daily:dailyResult,weekly:issue?'published':attempted?'blocked':'not-due',state:issue?'published':attempted?'blocked':'complete',issueId:issue?.id??null};
  }
  async function sceneStatus(){return (await db.prepare('SELECT id,scene_key,state,error_code,lease_until FROM tower_scenes ORDER BY created_at,id LIMIT 100').all()).results;}
  async function inspect(){const jobs=(await db.prepare('SELECT w.period_key,j.state,j.actual_micro,j.error_code FROM tower_weekly_jobs w JOIN manager_jobs j ON j.id=w.id ORDER BY w.created_at DESC LIMIT 10').all()).results;const notices=(await db.prepare('SELECT id,state,error_code FROM tower_weekly_outbox ORDER BY created_at DESC LIMIT 10').all()).results;return {enabled:env.TOWER_WEEKLY_ENABLED==='true',configured:weekly.configured(),recipientConfigured:!!env.TOWER_PUBLICATION_LORD_RECIPIENT,mailEnabled:env.TOWER_PUBLICATION_MAIL_ENABLED==='true',jobs,notices};}
  async function queue(tasks:PublicationTask[]){if(!env.runtime||!env.trigger)throw Error('publication_runtime_unavailable');const response=await env.runtime.fetch(new Request('https://manager.internal/publications/wake',{method:'POST',headers:{'Content-Type':'application/json','X-Manager-Schedule-Key':env.trigger},body:JSON.stringify({tasks})}));if(!response.ok)throw Error('publication_wake_failed');return {queued:true,tasks:tasks.map(t=>t.id)};}
- async function seedBatch(batch:number){if(!await db.prepare('SELECT id FROM tower_scene_style_approval WHERE id=1').first())throw Error('scene_style_approval_required');if(![1,2].includes(batch)||env.TOWER_SCENES_ENABLED!=='true')throw Error('invalid_seed_batch');if(batch===2){const first=await db.prepare("SELECT count(*) n FROM tower_scenes WHERE batch_id='initial-v1-1' AND state='published'").first<{n:number}>();if(first?.n!==5)throw Error('previous_batch_not_published');}return queue(Object.keys(SCENES).slice((batch-1)*5,batch*5).map((sceneKey,index)=>({id:'seed-v1-'+String((batch-1)*5+index+1).padStart(2,'0'),kind:'scene' as const,sceneKey,batchId:'initial-v1-'+batch})));}
+ async function seedBatch(batch:number){if(!await db.prepare('SELECT id FROM tower_scene_style_approval WHERE id=1').first())throw Error('scene_style_approval_required');if(![1,2].includes(batch)||env.TOWER_SCENES_ENABLED!=='true')throw Error('invalid_seed_batch');if(batch===2){const first=await scenes.canonicalPublished('initial-v1-1');if(first!==5)throw Error('previous_batch_not_published');}return queue(Object.keys(SCENES).slice((batch-1)*5,batch*5).map((sceneKey,index)=>({id:'seed-v1-'+String((batch-1)*5+index+1).padStart(2,'0'),kind:'scene' as const,sceneKey,batchId:'initial-v1-'+batch})));}
+ async function repairScene(input:Parameters<typeof scenes.requestRepair>[0]){const intent=await scenes.requestRepair(input);return queue([{id:'scene-repair-'+intent.id,kind:'repair',repairId:intent.id}]);}
+ async function approveBatch(batch:number){if(![1,2].includes(batch))throw Error('invalid_batch');const ids=await scenes.canonicalIds('initial-v1-'+batch);if(ids.length!==5)throw Error('scene_batch_incomplete');await scenes.approve(ids);return {approved:true};}
  async function step(task:PublicationTask){try{
+  if(task.kind==='repair'){if(task.id!=='scene-repair-'+task.repairId)throw Error('invalid_scene_repair_task');const state=await scenes.executeRepair(task.repairId);if(state?.state==='running'&&state.leaseUntil)throw new PublicationWaiting(state.leaseUntil);return {pending:false,state:state?.state??'missing'};}
+
   if(task.kind==='scene'){
    const match=task.id.match(/^seed-v1-(0[1-9]|10)$/),index=match?Number(match[1])-1:-1;
    if(index<0||Object.keys(SCENES)[index]!==task.sceneKey||task.batchId!=='initial-v1-'+(Math.floor(index/5)+1))throw Error('invalid_scene_task');
    if(![0,1,4].includes(index)&&!await db.prepare('SELECT id FROM tower_scene_style_approval WHERE id=1').first())throw Error('scene_style_approval_required');
-   if(index>=5){const prior=await db.prepare("SELECT count(*) n FROM tower_scenes WHERE batch_id='initial-v1-1' AND state='published'").first<{n:number}>();if(prior?.n!==5)throw Error('previous_batch_not_published');}
+   if(index>=5){const prior=await scenes.canonicalPublished('initial-v1-1');if(prior!==5)throw Error('previous_batch_not_published');}
    const old=await scenes.getInternal(task.id);
    if(old?.state==='running'){if(old.leaseUntil&&old.leaseUntil>now().toISOString())throw new PublicationWaiting(old.leaseUntil);await scenes.recover(task.id);}else if(!old||old.state==='pending')await scenes.generate(task.id,task.sceneKey,{batchId:task.batchId});
    const state=await scenes.getInternal(task.id);if(state?.state==='running'&&state.leaseUntil)throw new PublicationWaiting(state.leaseUntil);return {pending:false,state:state?.state??'missing'};
@@ -76,17 +84,18 @@ export function createTowerWeeklyServices(env:Environment){
  }catch(error){if(error instanceof PublicationWaiting)return {pending:true,state:'running',wakeAfterMs:error.wakeAfterMs};throw error;}}
  async function previewScenes(){return queue([0,1,4].map(i=>({id:'seed-v1-'+String(i+1).padStart(2,'0'),kind:'scene' as const,sceneKey:Object.keys(SCENES)[i],batchId:'initial-v1-1'})));}
  async function approveStyle(){await db.prepare("INSERT INTO tower_scene_style_approval VALUES(1,?,'tower-v1',?,?)").bind(BASELINE_SHA,now().toISOString(),JSON.stringify({source:'explicit-maintainer-confirmation',previewIds:['seed-v1-01','seed-v1-02','seed-v1-05']})).run();return {approved:true};}
- const schedule=(at:Date)=>env.TOWER_WEEKLY_ENABLED!=='true'?Promise.resolve({queued:false}):queue([{id:'due-'+managerLocalDay(at),kind:'due',scheduledTime:at.toISOString()}]);
- return {weekly:{...weekly,get:readIssue,list,page},mail,scenes,runDue,inspect,queue,seedBatch,step,schedule,sceneStatus,previewScenes,approveStyle,inaugural:()=>publish('inaugural',now().toISOString(),true)};
+ const schedule=(at:Date)=>(env.TOWER_WEEKLY_ENABLED!=='true'&&env.TOWER_DAILY_JOURNALS_ENABLED!=='true')||(at.getUTCHours()+MANAGER_CALENDAR_POLICY.offsetHours+24)%24<9?Promise.resolve({queued:false}):queue([{id:'publications-v2-'+managerLocalDay(at),kind:'due',scheduledTime:at.toISOString()}]);
+ return {daily,weekly:{...weekly,get:readIssue,list,page},mail,scenes,runDue,inspect,queue,seedBatch,step,schedule,sceneStatus,previewScenes,approveStyle,repairScene,approveBatch,inaugural:()=>publish('inaugural',now().toISOString(),true)};
 }
 export function createTowerWeeklyRoutes(options:{origin:string;services:ReturnType<typeof createTowerWeeklyServices>;operator:()=>Promise<boolean>;scheduled:()=>Promise<boolean>}){
  return async(request:Request):Promise<Response|null>=>{
-  const url=new URL(request.url),path=url.pathname,publicMatch=path.match(/^\/api\/v1\/public\/tower-weekly(?:\/(tower-weekly-[a-zA-Z0-9_-]{1,80}))?$/),operator=path==='/api/v1/operator/tower-weekly',reconcile=path==='/api/v1/operator/tower-weekly/reconcile',scheduled=path==='/api/v1/manager/publications/run-due'||path==='/api/v1/manager/publications/step',sceneAdmin=path==='/api/v1/operator/tower-scenes',preview=path.match(/^\/api\/v1\/operator\/tower-scenes\/(seed-v1-[0-9]{2})\.png$/),scenePublic=path==='/api/v1/public/tower-scenes',sceneAsset=path.match(/^\/api\/v1\/tower\/scenes\/([a-zA-Z0-9_-]{1,80})\.png$/);
-  if(!publicMatch&&!operator&&!reconcile&&!scheduled&&!sceneAdmin&&!preview&&!scenePublic&&!sceneAsset)return null;
+  const url=new URL(request.url),path=url.pathname,publicMatch=path.match(/^\/api\/v1\/public\/tower-weekly(?:\/(tower-weekly-[a-zA-Z0-9_-]{1,80}))?$/),operator=path==='/api/v1/operator/tower-weekly',reconcile=path==='/api/v1/operator/tower-weekly/reconcile',scheduled=path==='/api/v1/manager/publications/run-due'||path==='/api/v1/manager/publications/step',sceneAdmin=path==='/api/v1/operator/tower-scenes',preview=path.match(/^\/api\/v1\/operator\/tower-scenes\/(seed-v1-[0-9]{2}(?:-r[12])?)\.png$/),journalPublic=path==='/api/v1/public/tower-journals',scenePublic=path==='/api/v1/public/tower-scenes',sceneAsset=path.match(/^\/api\/v1\/tower\/scenes\/([a-zA-Z0-9_-]{1,80})\.png$/);
+  if(!publicMatch&&!operator&&!reconcile&&!scheduled&&!sceneAdmin&&!preview&&!scenePublic&&!journalPublic&&!sceneAsset)return null;
   if(url.origin!==options.origin)return json({error:'origin_rejected'},403);
-  if(!publicMatch&&!scenePublic&&!sceneAsset){if(request.headers.has('Cookie')||request.headers.has('Origin')&&request.headers.get('Origin')!==options.origin||request.headers.get('Sec-Fetch-Site')==='cross-site')return json({error:'origin_rejected'},403);if(!await(scheduled?options.scheduled():options.operator()))return json({error:'operator_required'},401);}
+  if(!publicMatch&&!scenePublic&&!journalPublic&&!sceneAsset){if(request.headers.has('Cookie')||request.headers.has('Origin')&&request.headers.get('Origin')!==options.origin||request.headers.get('Sec-Fetch-Site')==='cross-site')return json({error:'origin_rejected'},403);if(!await(scheduled?options.scheduled():options.operator()))return json({error:'operator_required'},401);}
   if((sceneAdmin&&!['GET','POST'].includes(request.method))||publicMatch&&!['GET','HEAD'].includes(request.method)||operator&&!['GET','POST'].includes(request.method)||(scheduled||reconcile)&&request.method!=='POST')return json({error:'method_not_allowed'},405);
   try{
+   if(journalPublic){if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);const response=json({edition:await options.services.daily.getLatest()});return request.method==='HEAD'?new Response(null,{headers:response.headers}):response;}
    if(scenePublic){if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);return json({scenes:await options.services.scenes.list()});}
    if(preview||sceneAsset){if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);const image=preview?await options.services.scenes.previewAsset(preview[1]):await options.services.scenes.asset(sceneAsset![1]);if(!image)return json({error:'not_found'},404);const headers={'Content-Type':'image/png','Cache-Control':preview?'no-store':'public, max-age=3600, immutable','X-Content-Type-Options':'nosniff',...(preview?{'X-Robots-Tag':'noindex, nofollow'}:{})};return new Response(request.method==='HEAD'?null:await image.arrayBuffer(),{headers});}
    if(sceneAdmin&&request.method==='GET'){const rows=(await options.services.scenes.list());return json({scenes:rows,jobs:await options.services.sceneStatus()});}
@@ -96,10 +105,12 @@ export function createTowerWeeklyRoutes(options:{origin:string;services:ReturnTy
    const raw=new TextDecoder('utf-8',{fatal:true}).decode(await readRequestBody(request,1024));const value=JSON.parse(raw) as Record<string,unknown>;
    if(!value||typeof value!=='object'||Array.isArray(value)||(path!=='/api/v1/manager/publications/step'&&Object.keys(value).length!==1))return json({error:'invalid_request'},400);
    if(path==='/api/v1/manager/publications/step')return json(await options.services.step(validatePublicationTask(value)));
+   if(sceneAdmin&&value.approvedPreviews===true){await options.services.scenes.approve(['seed-v1-01','seed-v1-02','seed-v1-05']);return json({approved:true});}
    if(sceneAdmin&&value.preview===true)return json(await options.services.previewScenes(),202);
    if(sceneAdmin&&value.style==='approved')return json(await options.services.approveStyle());
+   if(sceneAdmin&&value.repair&&typeof value.repair==='object'&&!Array.isArray(value.repair))return json(await options.services.repairScene(value.repair as Parameters<typeof options.services.repairScene>[0]),202);
    if(sceneAdmin&&Number.isSafeInteger(value.batch))return json(await options.services.seedBatch(Number(value.batch)),202);
-   if(sceneAdmin&&Number.isSafeInteger(value.approve)){const batch=Number(value.approve);if(![1,2].includes(batch))return json({error:'invalid_batch'},400);await options.services.scenes.approve(Array.from({length:5},(_,i)=>'seed-v1-'+String((batch-1)*5+i+1).padStart(2,'0')));return json({approved:true});}
+   if(sceneAdmin&&Number.isSafeInteger(value.approve)){const batch=Number(value.approve);if(![1,2].includes(batch))return json({error:'invalid_batch'},400);return json(await options.services.approveBatch(batch));}
    if(scheduled&&typeof value.scheduledTime==='string')return json(await options.services.runDue(new Date(value.scheduledTime)));
    if(reconcile&&typeof value.outboxId==='string'&&/^tower-weekly-[a-zA-Z0-9_-]{1,80}:lord$/.test(value.outboxId))return json(await options.services.mail.reconcile(value.outboxId));
    if(operator&&value.action==='inaugural'){if(!(await options.services.inspect()).configured)return json({error:'weekly_not_configured'},503);return json(await options.services.queue([{id:'inaugural',kind:'inaugural'}]),202);}
@@ -108,4 +119,4 @@ export function createTowerWeeklyRoutes(options:{origin:string;services:ReturnTy
  };
 }
 
-export function validatePublicationTask(v:Record<string,unknown>):PublicationTask{if(typeof v.id!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(v.id))throw Error('invalid_task');if(v.kind==='inaugural'&&Object.keys(v).length===2&&v.id==='inaugural')return {id:v.id,kind:v.kind};if(v.kind==='due'&&Object.keys(v).length===3&&typeof v.scheduledTime==='string')return {id:v.id,kind:v.kind,scheduledTime:v.scheduledTime};if(v.kind==='scene'&&Object.keys(v).length===4&&typeof v.sceneKey==='string'&&typeof v.batchId==='string')return {id:v.id,kind:v.kind,sceneKey:v.sceneKey,batchId:v.batchId};throw Error('invalid_task');}
+export function validatePublicationTask(v:Record<string,unknown>):PublicationTask{if(typeof v.id!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(v.id))throw Error('invalid_task');if(v.kind==='repair'&&Object.keys(v).length===3&&typeof v.repairId==='string'&&/^[a-zA-Z0-9_-]{1,48}$/.test(v.repairId)&&v.id==='scene-repair-'+v.repairId)return {id:v.id,kind:v.kind,repairId:v.repairId};if(v.kind==='inaugural'&&Object.keys(v).length===2&&v.id==='inaugural')return {id:v.id,kind:v.kind};if(v.kind==='due'&&Object.keys(v).length===3&&typeof v.scheduledTime==='string')return {id:v.id,kind:v.kind,scheduledTime:v.scheduledTime};if(v.kind==='scene'&&Object.keys(v).length===4&&typeof v.sceneKey==='string'&&typeof v.batchId==='string')return {id:v.id,kind:v.kind,sceneKey:v.sceneKey,batchId:v.batchId};throw Error('invalid_task');}

@@ -4,8 +4,8 @@ export const BIBLE='Exactly the same single stepped terraced ivory/cream rounded
 export const SCENES={
  'arrival-court':['The Arrival Court','Warm windows frame the reflection pool beside the great entrance arch.','reflection pool and arch entrance, ground-level courtyard'],
  'atrium-lobby':['Inside the Atrium','Evening light settles beneath the Tower’s open arches.','interior atrium lobby beneath monumental rounded arches'],
- 'reading-lounge':['The Reading Lounge','A quiet lounge opens toward the garden terraces.','empty communal reading lounge with warm shelves and arch-framed terrace view'],
- 'skybridge-garden':['The Skybridge Garden','Greenery follows the sheltered paths high above the courtyard.','planted skybridge within this same tower, no separate tower'],
+ 'reading-lounge':['The Reading Lounge','A quiet lounge opens toward the garden terraces.','empty communal reading lounge with warm shelves; camera faces inward toward internal rooms and only a nearby structurally connected balcony within this same continuous tower; no distant skyline, distant facade, other buildings or neighboring towers'],
+ 'skybridge-garden':['The Skybridge Garden','Greenery follows the sheltered paths high above the courtyard.','internal elevated planted walkway beneath one massive arch, visibly connected to the same continuous nearby facade; no distant facade, skyline, separate wings mistaken for towers, or separate tower'],
  'rooftop-greenhouse':['The Rooftop Greenhouse','Curved glass shelters a little garden above the city.','curved glass rooftop greenhouse pavilion of this same tower'],
  'rooftop-telescope':['Under the Evening Sky','The rooftop telescope waits beneath the deepening blue.','rooftop telescope and curved pavilion at dusk'],
  'window-reading-nook':['By the Window','Amber light gathers around a quiet window seat.','empty cozy reading nook within one amber window, recognizable tower terraces outside'],
