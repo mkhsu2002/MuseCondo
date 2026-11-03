@@ -67,3 +67,9 @@ test('a suspended claimant cannot call the paid provider after another invocatio
  const f=await fixture();try{const weekly=f.create();await weekly.enqueue(f.input);const batch=f.db.batch.bind(f.db);let suspended=false;f.db.batch=async statements=>{const result=await batch(statements);if(!suspended&&statements.some(s=>(s as unknown as {sql:string}).sql.includes("UPDATE manager_jobs SET state='running'"))){suspended=true;f.db.sqlite.exec("UPDATE tower_weekly_jobs SET lease_until='2000-01-01T00:00:00.000Z'");await weekly.processOne(f.input.periodKey);}return result;};await weekly.processOne(f.input.periodKey);assert(suspended);assert.equal(f.calls,0);assert.equal(f.db.sqlite.prepare('SELECT state FROM manager_jobs').get()!.state,'unknown');
  }finally{await f.close();}
 });
+
+test('archive cursors preserve all older issues while latest reads stay bounded',async()=>{
+ const f=await fixture();try{const weekly=f.create();await weekly.enqueue(f.input);await weekly.processOne('inaugural');for(const periodKey of ['regular-a','regular-b']){await weekly.enqueue({...f.input,periodKey,inaugural:false});await weekly.processOne(periodKey);}
+ assert.deepEqual((await weekly.list({limit:2})).map(i=>i.number),[3,2]);assert.deepEqual((await weekly.list({limit:2,before:2})).map(i=>i.number),[1]);assert.deepEqual((await weekly.list({limit:1})).map(i=>i.number),[3]);await assert.rejects(weekly.list({limit:100}),/invalid_archive_window/);await assert.rejects(weekly.list({before:-1}),/invalid_archive_window/);
+ }finally{await f.close();}
+});

@@ -10,3 +10,7 @@ test('weekly SSR card links canonical issue and archive, with real dates/count a
 test('no issue or news remains an honest empty state; optional total never invents zero',()=>{
  assert.match(renderWeeklyCard('',null),/first Tower Weekly/);const html=renderWeeklyPage('',{...issue,residentCount:null,newcomers:[],news:[]});assert(!html.includes('0 residents'));assert.match(html,/No new neighbors/);assert.match(renderWeeklyArchive('',[issue]),/Issue 1/);
 });
+
+test('archive offers stable older-issue navigation instead of dropping history',()=>{
+ const html=renderWeeklyArchive('',[issue],2);assert.match(html,/href="\/tower-weekly\?before=2"/);assert.match(html,/Older issues/);assert.doesNotMatch(renderWeeklyArchive('',[issue],null),/Older issues/);
+});

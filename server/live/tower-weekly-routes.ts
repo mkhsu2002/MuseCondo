@@ -1,3 +1,4 @@
+import {weeklyArchiveBefore} from '../../src/shared/tower-weekly.ts';
 import {createTowerScenes} from './tower-scenes.ts';
 import {BASELINE_SHA,SCENES} from './tower-scenes-catalog.ts';
 import type {AssetBucket} from './tower-autonomy.ts';
@@ -42,7 +43,8 @@ export function createTowerWeeklyServices(env:Environment){
   return issue;
  }
  async function readIssue(id:string){const saved=await weekly.get(id);if(!saved)return null;const scene=await scenes.getForPeriod(saved.periodKey);return scene?{...saved,scene}:null;}
- async function list(){const saved=await weekly.list();const found=await Promise.all(saved.map(i=>readIssue(i.id)));return found.filter((i):i is NonNullable<typeof i>=>i!==null);}
+ async function list(options:{limit?:number;before?:number}={}){const saved=await weekly.list(options);const found=await Promise.all(saved.map(async i=>{const scene=await scenes.getForPeriod(i.periodKey);return scene?{...i,scene}:null;}));return found.filter((i):i is NonNullable<typeof i>=>i!==null);}
+ async function page(before?:number,latest=false){const issues=await list({limit:latest?1:21,before});const nextBefore=!latest&&issues.length>20?issues[19].number:null;return {issues:issues.slice(0,latest?1:20),nextBefore};}
  async function runDue(at:Date){
   if(!Number.isFinite(at.getTime())||Math.abs(now().getTime()-at.getTime())>36*3600000)throw Error('invalid_schedule_time');
   if(env.TOWER_WEEKLY_ENABLED!=='true')return {weekly:'disabled'};
@@ -75,7 +77,7 @@ export function createTowerWeeklyServices(env:Environment){
  async function previewScenes(){return queue([0,1,4].map(i=>({id:'seed-v1-'+String(i+1).padStart(2,'0'),kind:'scene' as const,sceneKey:Object.keys(SCENES)[i],batchId:'initial-v1-1'})));}
  async function approveStyle(){await db.prepare("INSERT INTO tower_scene_style_approval VALUES(1,?,'tower-v1',?,?)").bind(BASELINE_SHA,now().toISOString(),JSON.stringify({source:'explicit-maintainer-confirmation',previewIds:['seed-v1-01','seed-v1-02','seed-v1-05']})).run();return {approved:true};}
  const schedule=(at:Date)=>env.TOWER_WEEKLY_ENABLED!=='true'?Promise.resolve({queued:false}):queue([{id:'due-'+managerLocalDay(at),kind:'due',scheduledTime:at.toISOString()}]);
- return {weekly:{...weekly,get:readIssue,list},mail,scenes,runDue,inspect,queue,seedBatch,step,schedule,sceneStatus,previewScenes,approveStyle,inaugural:()=>publish('inaugural',now().toISOString(),true)};
+ return {weekly:{...weekly,get:readIssue,list,page},mail,scenes,runDue,inspect,queue,seedBatch,step,schedule,sceneStatus,previewScenes,approveStyle,inaugural:()=>publish('inaugural',now().toISOString(),true)};
 }
 export function createTowerWeeklyRoutes(options:{origin:string;services:ReturnType<typeof createTowerWeeklyServices>;operator:()=>Promise<boolean>;scheduled:()=>Promise<boolean>}){
  return async(request:Request):Promise<Response|null>=>{
@@ -88,7 +90,7 @@ export function createTowerWeeklyRoutes(options:{origin:string;services:ReturnTy
    if(scenePublic){if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);return json({scenes:await options.services.scenes.list()});}
    if(preview||sceneAsset){if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);const image=preview?await options.services.scenes.previewAsset(preview[1]):await options.services.scenes.asset(sceneAsset![1]);if(!image)return json({error:'not_found'},404);const headers={'Content-Type':'image/png','Cache-Control':preview?'no-store':'public, max-age=3600, immutable','X-Content-Type-Options':'nosniff',...(preview?{'X-Robots-Tag':'noindex, nofollow'}:{})};return new Response(request.method==='HEAD'?null:await image.arrayBuffer(),{headers});}
    if(sceneAdmin&&request.method==='GET'){const rows=(await options.services.scenes.list());return json({scenes:rows,jobs:await options.services.sceneStatus()});}
-   if(publicMatch){const issue=publicMatch[1]?await options.services.weekly.get(publicMatch[1]):null;const response=publicMatch[1]?(issue?json({issue}):json({error:'not_found'},404)):json({issues:await options.services.weekly.list()});return request.method==='HEAD'?new Response(null,{status:response.status,headers:response.headers}):response;}
+   if(publicMatch){const issue=publicMatch[1]?await options.services.weekly.get(publicMatch[1]):null;const response=publicMatch[1]?(issue?json({issue}):json({error:'not_found'},404)):json(await options.services.weekly.page(weeklyArchiveBefore(url.searchParams),url.searchParams.get('latest')==='1'));return request.method==='HEAD'?new Response(null,{status:response.status,headers:response.headers}):response;}
    if(operator&&request.method==='GET')return json(await options.services.inspect());
    if(!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(request.headers.get('Content-Type')??''))return json({error:'json_required'},415);
    const raw=new TextDecoder('utf-8',{fatal:true}).decode(await readRequestBody(request,1024));const value=JSON.parse(raw) as Record<string,unknown>;

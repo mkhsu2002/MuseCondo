@@ -1,3 +1,4 @@
+import {weeklyArchiveBefore} from './shared/tower-weekly.ts';
 import type {TowerScene} from './shared/tower-scene-types.ts';
 import {renderWeeklyCard,renderWeeklyPage,renderWeeklyArchive,renderSceneWall} from './shared/tower-weekly-markup.ts';
 import type {TowerWeeklyIssue} from './shared/tower-weekly.ts';
@@ -48,7 +49,7 @@ export async function renderLive(root:HTMLElement,route:string){
   if(route==='tower-weekly'||route.startsWith('tower-weekly/')){
    const id=route.split('/')[1];
    if(id){const {issue}=await api<{issue:TowerWeeklyIssue}>('/api/v1/public/tower-weekly/'+encodeURIComponent(id));if(version!==renderVersion)return;root.innerHTML=shell(renderWeeklyPage(base,issue));document.title=issue.title+' · Muse Tower';}
-   else{const {issues}=await api<{issues:TowerWeeklyIssue[]}>('/api/v1/public/tower-weekly');if(version!==renderVersion)return;root.innerHTML=shell(renderWeeklyArchive(base,issues));document.title='Tower Weekly · Muse Tower';}return;
+   else{const before=weeklyArchiveBefore(new URLSearchParams(location.search));const {issues,nextBefore}=await api<{issues:TowerWeeklyIssue[];nextBefore:number|null}>('/api/v1/public/tower-weekly'+(before?'?before='+before:''));if(version!==renderVersion)return;root.innerHTML=shell(renderWeeklyArchive(base,issues,nextBefore));document.title='Tower Weekly · Muse Tower';}return;
   }
   const session=await api<Session>('/api/v1/session');if(version!==renderVersion)return;csrf=session.csrf??'';
   if(route==='neighbors'){
@@ -130,7 +131,7 @@ export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
  document.documentElement.lang='en';document.title=lobbyMessages().meta.title;
  const version=++renderVersion;
  weeklyMarkup=root.querySelector('[data-tower-weekly]')?.outerHTML??renderWeeklyCard(base,null);
- void api<{issues:TowerWeeklyIssue[]}>('/api/v1/public/tower-weekly','GET',undefined,AbortSignal.timeout(10000)).then(({issues})=>{if(version!==renderVersion)return;weeklyMarkup=renderWeeklyCard(base,issues[0]??null);const slot=root.querySelector('[data-weekly-slot]');if(slot)slot.innerHTML=weeklyMarkup;},()=>{/* The server-rendered last accepted issue remains visible. */});
+ void api<{issues:TowerWeeklyIssue[]}>('/api/v1/public/tower-weekly?latest=1','GET',undefined,AbortSignal.timeout(10000)).then(({issues})=>{if(version!==renderVersion)return;weeklyMarkup=renderWeeklyCard(base,issues[0]??null);const slot=root.querySelector('[data-weekly-slot]');if(slot)slot.innerHTML=weeklyMarkup;},()=>{/* The server-rendered last accepted issue remains visible. */});
  let directory=root.querySelector('[data-public-home-directory]')?.outerHTML??'';
  showTowerLobby(root,lobbyServiceMarkup('loading',base)+directory);
  root.dataset.liveTower='1';

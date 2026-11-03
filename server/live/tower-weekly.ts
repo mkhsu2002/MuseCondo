@@ -106,6 +106,6 @@ export function createTowerWeekly(options:WeeklyOptions){
   const valid=fresh.residents.filter(r=>original.residents.some(o=>o.roomId===r.roomId&&o.publicationEpoch===r.publicationEpoch&&o.publicRevision===r.publicRevision&&o.name===r.name&&o.homeURL===r.homeURL));
   return {...issue,residentCount:fresh.residentCount===issue.residentCount?issue.residentCount:null,newcomers:issue.newcomers.filter(n=>valid.some(r=>r.roomId===n.residentId)),news:issue.news.filter(n=>valid.some(r=>r.roomId===n.residentId)&&eligibleEvents(fresh,periodOf(row)).some(e=>e.id===n.eventId&&e.title===n.title&&e.summary===n.summary))};
  }
- async function list():Promise<TowerWeeklyIssue[]>{const rows=(await db.prepare('SELECT id FROM tower_weekly_issues ORDER BY number DESC LIMIT 100').all<{id:string}>()).results;return (await Promise.all(rows.map(r=>get(r.id)))).filter((i):i is TowerWeeklyIssue=>i!==null);}
+ async function list(options:{limit?:number;before?:number}={}):Promise<TowerWeeklyIssue[]>{const limit=options.limit??20,before=options.before??Number.MAX_SAFE_INTEGER;if(!Number.isSafeInteger(limit)||limit<1||limit>21||!Number.isSafeInteger(before)||before<1)throw new TypeError('invalid_archive_window');const rows=(await db.prepare('SELECT id FROM tower_weekly_issues WHERE number<? ORDER BY number DESC LIMIT ?').bind(before,limit).all<{id:string}>()).results;return (await Promise.all(rows.map(r=>get(r.id)))).filter((i):i is TowerWeeklyIssue=>i!==null);}
  return {configured,enqueue,processOne,get,list};
 }

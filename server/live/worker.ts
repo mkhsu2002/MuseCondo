@@ -1,3 +1,4 @@
+import {weeklyArchiveBefore} from '../../src/shared/tower-weekly.ts';
 import {createTowerWeeklyServices,createTowerWeeklyRoutes,type TowerPublicationBindings} from './tower-weekly-routes.ts';
 import {renderWeeklyCard,renderWeeklyPage,renderWeeklyArchive,renderSceneWall} from '../../src/shared/tower-weekly-markup.ts';
 import {routeSchemaReady} from './schema-capabilities.ts';
@@ -200,12 +201,13 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   if(!env.DB||!env.ASSETS||!validOrigin(env.PUBLIC_ORIGIN)||url.origin!==env.PUBLIC_ORIGIN)return json({error:'service_unavailable'},503);
   const limited=await checkEdgeGuard(request,env);if(limited)return limited;
   try{const services=publicationServices(env,context),issue=weeklyPage?.[1]?await services.weekly.get(weeklyPage[1]):null;const missing=!!weeklyPage?.[1]&&!issue;
-   const content=scenePage?renderSceneWall('',await services.scenes.list()):issue?renderWeeklyPage('',issue):missing?'<h1>Issue not found</h1><p>This issue is not available.</p><a href="/tower-weekly">Browse Tower Weekly</a>':renderWeeklyArchive('',await services.weekly.list());
+   const archive=!scenePage&&!weeklyPage?.[1]?await services.weekly.page(weeklyArchiveBefore(url.searchParams)):null;
+   const content=scenePage?renderSceneWall('',await services.scenes.list()):issue?renderWeeklyPage('',issue):missing?'<h1>Issue not found</h1><p>This issue is not available.</p><a href="/tower-weekly">Browse Tower Weekly</a>':renderWeeklyArchive('',archive!.issues,archive!.nextBefore);
    const asset=await env.ASSETS.fetch(new Request(new URL('/',url),request));if(!asset.ok)return asset;let html=await asset.text();
-   const title=scenePage?'Corners of Muse Tower':issue?.title??'Tower Weekly',canonical=env.PUBLIC_ORIGIN+(scenePage?'/tower-scenes':weeklyPage?.[1]?'/tower-weekly/'+weeklyPage[1]:'/tower-weekly');
+   const title=scenePage?'Corners of Muse Tower':issue?.title??'Tower Weekly',canonical=env.PUBLIC_ORIGIN+(scenePage?'/tower-scenes':weeklyPage?.[1]?'/tower-weekly/'+weeklyPage[1]:'/tower-weekly'+(weeklyArchiveBefore(url.searchParams)?'?before='+weeklyArchiveBefore(url.searchParams):''));
    html=html.replace(/<title>[\s\S]*?<\/title>/i,'<title>'+htmlEscape(title)+' · Muse Tower</title>').replace(/<link\b[^>]*rel=["']canonical["'][^>]*>/gi,'').replace(/<meta\b[^>]*property=["']og:[^>]*>/gi,'').replace('</head>',`<link rel="canonical" href="${htmlEscape(canonical)}"><meta property="og:title" content="${htmlEscape(title)}"><meta property="og:url" content="${htmlEscape(canonical)}">${issue?.scene?`<meta property="og:image" content="${htmlEscape(issue.scene.url)}">`:''}</head>`).replace('<div id="app"></div>',`<div id="app">${renderLiveShell('',content,true)}</div>`);
    const headers=new Headers(asset.headers);headers.set('Cache-Control','no-store');for(const key of ['ETag','Content-Length','Content-Encoding','Last-Modified'])headers.delete(key);if(missing)headers.set('X-Robots-Tag','noindex, nofollow');return new Response(request.method==='HEAD'?null:html,{status:missing?404:200,headers});
-  }catch{return json({error:'publication_unavailable'},503);}
+  }catch(error){return error instanceof TypeError?json({error:'invalid_request'},400):json({error:'publication_unavailable'},503);}
  }
  const legacy=legacyHomeRedirect(request,env.LEGACY_HOME_REDIRECTS);if(legacy)return legacy;
  if(!env.ASSETS)return json({available:false,error:'assets_not_bound'},503);
@@ -217,7 +219,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));
    if(!directory.ok)return response;
    const {rooms}=await directory.json() as {rooms:{id:string;name:string}[]};
-   let weekly='';try{const issues=await publicationServices(env,context).weekly.list();weekly=renderWeeklyCard('',issues[0]??null);}catch{/* The existing resident directory remains available. */}
+   let weekly='';try{const issues=await publicationServices(env,context).weekly.list({limit:1});weekly=renderWeeklyCard('',issues[0]??null);}catch{/* The existing resident directory remains available. */}
    const markup=renderTowerLobby({base:'',scene:'day',content:'<div data-weekly-slot>'+weekly+'</div>'+lobbyServiceMarkup('loading','')+renderHomeDirectory('',rooms)});
    const html=(await response.clone().text()).replace('<div id="app"></div>',`<div id="app">${markup}</div>`);
    const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');for(const key of ['ETag','Content-Length','Content-Encoding','Last-Modified'])headers.delete(key);

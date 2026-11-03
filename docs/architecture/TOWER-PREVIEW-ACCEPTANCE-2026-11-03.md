@@ -1,6 +1,8 @@
 # Tower scene preview release — 2026-11-03
 
-Status: **three private previews complete; maintainer style confirmation pending**. This is a v1.63 scene-preview release, not completion of the weekly publication, Lord delivery or daily journal batches.
+Historical preview snapshot: **three private previews complete at capture; maintainer style confirmation was pending**.
+
+> Subsequent decision, 2026-11-03: the maintainer approved all three and requested their use as future references. Durable style approval is now recorded. This snapshot retains its original preview-only evidence; follow [NEXT](../plans/NEXT.md) for the continuing release and remaining gates. This is a v1.63 scene-preview release, not completion of the weekly publication, Lord delivery or daily journal batches.
 
 Released source: `c39eb99ca278bd9c8c3b83ce16d6ed5c397ea047` (implementation `8ee037be91e4d060cda1672a0faaff968d3343ae`). Both `main` and `framework-v001` contain this code. Later documentation-only commits do not change the deployed source.
 

@@ -17,3 +17,12 @@ export type SceneKey=keyof typeof SCENES;
 export const sceneKey=(key:string):key is SceneKey=>Object.hasOwn(SCENES,key);
 export const sha=async(bytes:Uint8Array)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new Uint8Array(bytes)))).map(v=>v.toString(16).padStart(2,'0')).join('');
 export function b64(bytes:Uint8Array){let s='';for(let i=0;i<bytes.length;i+=8192)s+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(s);}
+
+// Fixed maintainer-approved first-generation references. Never promote later output here automatically.
+export const APPROVED_SCENE_REFERENCES={
+ exterior:{id:'seed-v1-01',scene_key:'arrival-court',sha256:'16ed727afb8049fbb890706ed5261b21ac573dfcd6bcaab06346d61ef9d19179',width:1920,height:1200},
+ interior:{id:'seed-v1-02',scene_key:'atrium-lobby',sha256:'93fdb814965bc760be40f0a12d49d2ffb6458983bcda969d980fd8a6f9abef67',width:1920,height:1200},
+ roof:{id:'seed-v1-05',scene_key:'rooftop-greenhouse',sha256:'c93b5f634fd3597b357447746d8a74cf5c873d85f2421a792a823ef0f5cc5e84',width:1920,height:1200}
+} as const;
+export function approvedSceneReference(key:SceneKey){return APPROVED_SCENE_REFERENCES[(['atrium-lobby','reading-lounge','window-reading-nook'] as SceneKey[]).includes(key)?'interior':(['rooftop-greenhouse','rooftop-telescope'] as SceneKey[]).includes(key)?'roof':'exterior'];}
+export const PRIMARY_SCENE_REFERENCE={role:'primary',id:'muse-tower-reference-v1',sha256:BASELINE_SHA} as const;
