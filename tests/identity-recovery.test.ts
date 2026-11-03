@@ -3060,7 +3060,7 @@ test("retained consumed challenges and unused challenges on completed parents do
   }
 });
 
-test("two concurrent pruners are independently bounded, atomically delete children first and cannot double allocate a replay", async () => {
+test("two concurrent pruners are independently bounded, atomically delete children first and cannot double allocate a replay", {timeout:10000}, async () => {
   const f = await fixture();
   try {
     const start = await f.begin();
@@ -3073,9 +3073,15 @@ test("two concurrent pruners are independently bounded, atomically delete childr
     }
     f.setTime("2026-11-02T00:00:00.000Z");
     const batch = f.db.batch.bind(f.db), deleted: number[][] = [];
+    // Both callers must reach pruning before either can allocate the shared receipt.
+    // Otherwise an allowed fast replay can bypass pruning entirely on a slower runner.
+    let arrivals = 0, releasePruners = () => {};
+    const bothPruners = new Promise<void>(resolve => { releasePruners = resolve; });
     f.db.batch = async rows => {
+      const pruning = rows.some(s => "sql" in s && String(s.sql).startsWith("DELETE FROM identity_recovery_challenges"));
+      if (pruning && ++arrivals <= 2) { if (arrivals === 2) releasePruners(); await bothPruners; }
       const result = await batch(rows);
-      if (rows.some(s => "sql" in s && String(s.sql).startsWith("DELETE FROM identity_recovery_challenges"))) {
+      if (pruning) {
         const changes = result.map(r => Number(r.meta.changes));
         assert.equal(changes.length, 3);
         assert(changes.every(n => n <= 50));
