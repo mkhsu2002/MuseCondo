@@ -1,6 +1,6 @@
 # Hosted home image delivery
 
-Status: implemented locally on 2026-11-03; deployment and hosted revalidation readback are pending. This document does not assert that all image optimization is complete.
+Status as of 2026-11-03: ETag revalidation and optional private WebP delivery are implemented locally and have passed focused checks and independent review. Three approved WebP copies and their three manifests have been uploaded to the production private bucket and verified through official object readback. The new product Functions have not been deployed; live WebP delivery and performance acceptance remain pending.
 
 ## Observed production baseline
 
@@ -14,7 +14,7 @@ Public GET requests on 2026-11-03 found two directory residents, Eve and Fang. T
 
 These are a small local-network sample, not a performance percentile or SLA. All six responses were `200 image/png`, `Cache-Control: no-store`, and Cloudflare `BYPASS`. Repeat visits therefore transferred the complete image again. The server also reconstructed D1 chunks and verified the complete SHA-256 on each request. Immutable asset deduplication previously improved storage and editing; it did not compress visitor downloads.
 
-The private deployment evidence stores request paths, dimensions, byte counts and timings in `home-image-delivery-before.json`. It contains no provider credentials.
+The original request paths, dimensions, byte counts and timings are retained in private operational evidence.
 
 ## Current implementation
 
@@ -26,12 +26,24 @@ No schema migration, image regeneration, original-file replacement, publication-
 
 Local validation: 44 focused delivery/storage/intake tests passed, including consent withdrawal with an old validator, malformed metadata, stale validators, weak validator comparison and HEAD behavior; TypeScript and targeted ESLint checks passed. Production behavior must still be checked after deployment.
 
-## Remaining first-visit improvement
+## First-visit WebP delivery
 
-The first request still downloads the full PNG. ETags improve repeat visits, not this initial payload.
+ETags alone improve repeat visits. The additional delivery module now negotiates an optional WebP copy on the existing `.png` URL when the browser explicitly accepts `image/webp` with positive quality. All PNG, WebP and conditional responses include `Vary: Accept`; their ETags distinguish representations. Source manifests, hosted HTML, API paths and original PNG files remain unchanged.
 
-A same-dimension local WebP quality-85 experiment produced Eve's home at 246,394 bytes (89.3% smaller) and dream at 233,858 bytes (87.6% smaller). These are feasibility measurements only: the experimental files are not deployed, have not been accepted as production derivatives and do not replace original art.
+A reviewed local batch uses the fixed `webp-q85-m6-v1` profile (`cwebp -q 85 -m 6 -metadata none`), without resizing or cropping:
 
-The next delivery phase should use the deployed platform's [Images binding](https://developers.cloudflare.com/images/optimization/binding/) to transform private image bytes into bounded WebP variants, while retaining the PNG master and its digest. The repository currently has no `IMAGES` binding. Both dev and production bindings, deployed code and live behavior must therefore be updated and verified together. Every request must still authorize the current publication before consulting any derivative cache. Cache keys must bind room, source digest, variant and encoder version; originals remain unchanged. Transformation failure must fall back to the verified PNG. A public transformation URL that bypasses withdrawal checks is unsuitable.
+| Image | WebP bytes | Reduction from original |
+| --- | ---: | ---: |
+| Eve home | 238,926 | 89.63% |
+| Eve dream | 224,018 | 88.08% |
+| Fang home | 394,646 | 89.67% |
 
-Before marking that phase complete, verify actual WebP content types/byte savings, visual quality, mobile sizing, missing-binding fallback, consent withdrawal, revision changes and absence of public access to private derivatives. Compare initial and conditional request timings with the saved baseline; do not infer a speed improvement solely from a passing build.
+All three original and converted images were visually inspected separately at their original dimensions. Character features, framing, room details and watercolor appearance were retained. The three approved WebP copies and their manifests are now stored privately in production. Every uploaded object was read back through the official storage API and matched its expected bytes and SHA-256; each binary was verified before its manifest was uploaded. All three original PNG hashes, byte lengths and dimensions were checked again after upload and remain unchanged. Existing production Functions do not yet read these copies, so this is storage preparation rather than verified live WebP delivery. Production resident artifacts were not copied into dev.
+
+The implementation uses the existing private `MANAGER_ASSETS` R2 binding, adding neither a new paid Images service nor a migration. The optional `TowerIntakeEnvironment.derivativeBucket` receives that binding. Publication, current revision, snapshot consent and dream consent are checked before any derivative lookup. No private preview uses this negotiation path.
+
+Each derivative uses a fixed, versioned private namespace scoped to its resident and original source digest. Its allowlisted manifest binds the format/profile version, resident identity, source SHA-256 and byte length, dimensions, output content type, expected storage identity, output SHA-256 and byte length. A manifest cannot redirect reads outside that exact identity. The source digest and size must match the immutable D1 asset metadata. Output digest, byte length, RIFF length and dimensions must all match. This profile accepts only a single static VP8 image without animation or embedded metadata. R2 size is checked before allocating its body: at most 4 KiB for a manifest and 2 MiB for an image, which must also be smaller than its PNG source. The bucket remains private.
+
+An absent binding, missing copy, malformed manifest or corrupted image falls back to the original PNG with its full-byte integrity verification. Source revisions without a prepared copy continue to work. Derivative preparation is an operator batch task, capped at six images: fetch currently authorized source bytes, verify original hashes/dimensions, compress, inspect each pair, write the binary, read back and hash, then publish its manifest last. Never replace the PNG master or upload to a public bucket. Identical existing keys must be read back; conflicting objects must not be overwritten.
+
+Local validation includes 50 focused tests covering content negotiation, explicit WebP refusal, format-specific validators, bounded reads, bad source/output metadata, original fallback, consent withdrawal and stale revisions with no R2 reads; independent review and local checks of the actual converted artifacts have also passed. Before marking this phase complete, deploy and verify both environments' code and binding, then check actual WebP content types/bytes/hashes, conditional requests, original PNG hashes, visual display and absence of direct public bucket access. Dev currently has no public resident homes: validate its empty public API and synthetic native cases without importing production resident data. Production requires hosted readback against the three prepared copies. Compare initial and conditional timings with the saved baseline; a passing build alone does not establish a speed improvement.

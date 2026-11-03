@@ -1,6 +1,6 @@
 # Tower publications and scene collection
 
-Status: 2026-11-03 parallel delivery in progress. Current live v1.66 has three maintainer-approved public scenes; the earlier [v1.63 preview acceptance](architecture/TOWER-PREVIEW-ACCEPTANCE-2026-11-03.md) is historical. Weekly/mail bindings are prepared, but no issue or notice has yet been published. Scene recovery and daily journals are implemented and await synchronized migrations 0041/0042 and release acceptance. See [NEXT](plans/NEXT.md) for current gates.
+Status: 2026-11-03 v1.67 source `fc5854c1422d43fdd68d8af6c6eebed52f61f5b5` verified in dev and production with migrations 0041/0042. The inaugural issue is public and exactly one Lord notice has confirmed provider delivery plus duplicate replay protection. Five inspected scenes are public; the second five are generating independently. Actual native daily-journal observation remains pending. [Current acceptance](architecture/TOWER-HOMEPAGE-ACCEPTANCE-2026-11-03.md) · [NEXT](plans/NEXT.md).
 
 ## Cloud ownership
 

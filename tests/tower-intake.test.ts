@@ -9,6 +9,7 @@ import { deflateSync } from "node:zlib";
 import { CONDO_PROFILE_FIELDS } from "../src/framework/condo.ts";
 import { sanitizePublicPNG } from "../server/framework/png-public.ts";
 import { createTowerIntake } from "../server/live/tower-intake.ts";
+import type { TowerDerivativeBucket } from '../server/live/tower-asset-derivatives.ts';
 import { LocalDatabase } from "../server/live/local-db.ts";
 const origin = "https://tower.example",
   sourceURL = "https://source.example/resident/condo.json";
@@ -58,7 +59,7 @@ function png(w: number, h: number, noise = false) {
     chunk("IEND", new Uint8Array()),
   ]);
 }
-async function fixture() {
+async function fixture(derivativeBucket?:TowerDerivativeBucket) {
   const db = new LocalDatabase(":memory:");
   for (const file of (await readdir(new URL('../migrations/', import.meta.url))).filter(file => file.endsWith('.sql')).sort())
     db.sqlite.exec(
@@ -110,6 +111,7 @@ async function fixture() {
       .run(await sha(token), id, "csrf-" + id, "2027-01-01T00:00:00Z");
   }
   const tower = createTowerIntake({
+    derivativeBucket,
     db,
     origin,
     localTest: true,
@@ -237,6 +239,21 @@ const consent = (expectedRevision = 1, published = true) => ({
   announcementConsent: published,
   dreamConsent: published,
   snapshotConsent: published,
+});
+test('WebP negotiation cannot read private copies before current revision and purpose consent checks',async()=>{
+  let reads=0;const f=await fixture({async get(){reads++;return null;}});
+  try{
+    const home=await f.importHome(),path=`/api/v1/tower/assets/${home.roomId}/1/home.png`,headers={Accept:'image/webp','If-None-Match':'*'};
+    assert.equal((await f.req(path,'GET',undefined,'',headers))!.status,404);assert.equal(reads,0);
+    await f.data(f.req('/publication','POST',consent()));
+    assert.equal((await f.req(path,'GET',undefined,'',headers))!.status,304);assert.equal(reads,1);
+    const before=reads;
+    assert.equal((await f.req(path.replace('/1/','/2/'),'GET',undefined,'',headers))!.status,404);assert.equal(reads,before);
+    await f.data(f.req('/publication','POST',{...consent(),dreamConsent:false}));
+    assert.equal((await f.req(path.replace('home.png','dream.png'),'GET',undefined,'',headers))!.status,404);assert.equal(reads,before);
+    await f.data(f.req('/publication','POST',consent(1,false)));
+    assert.equal((await f.req(path,'GET',undefined,'',headers))!.status,404);assert.equal(reads,before);
+  }finally{f.close();}
 });
 test("Tower owner status requires authentication and CSRF; unrelated routes pass through", async () => {
   const f = await fixture();

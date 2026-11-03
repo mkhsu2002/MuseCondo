@@ -11,6 +11,7 @@ import { createTowerSourceReader } from './tower-source-reader.ts';
 import { createTowerIntakeAuthorization } from './tower-intake-auth.ts';
 import { cloneAssetStatements, readTowerAsset, type AssetPurpose } from './tower-asset-storage.ts';
 import { authorizedTowerAssetResponse } from './tower-asset-delivery.ts';
+import type { TowerDerivativeBucket } from './tower-asset-derivatives.ts';
 import { homeSourceURL, homeSourceIdentity, isMuseShareURL } from './home-source.ts';
 import type { Database, Statement } from "./db.ts";
 import { createTowerActivities } from "./tower-activities.ts";
@@ -18,6 +19,7 @@ import { createTowerVisits } from "./tower-visits.ts";
 import type { CondoPage } from "../../src/framework/condo-render.ts";
 import { renderTowerHome } from "./tower-home-render.ts";
 export interface TowerIntakeEnvironment {
+    derivativeBucket?: TowerDerivativeBucket;
     db: Database;
     origin: string;
     localTest: boolean;
@@ -167,7 +169,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
                         if (Number(asset[2]) !== r!.public_revision ||
                             (asset[3] === "dream" && !r!.dream_consent))
                             fail(404, "asset_not_found");
-                        const response = await authorizedTowerAssetResponse(req, db, roomId, r!.public_revision!, asset[3] as AssetPurpose);
+                        const response = await authorizedTowerAssetResponse(req, db, roomId, r!.public_revision!, asset[3] as AssetPurpose, env.derivativeBucket);
                         if (!response)
                             fail(404, "asset_not_found");
                         return response;

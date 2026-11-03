@@ -39,9 +39,9 @@ The maintainer prioritizes two observable results ahead of the previously sugges
 
 | IDs | Scope | Current acceptance state | Execution authority |
 | --- | --- | --- | --- |
-| 07.12 / 07.13 | Weekly issue, inaugural milestone, verified resident/newcomer news, homepage/archive and one Lord email per issue | Implementation in progress; not yet live accepted | [N1](NEXT.md#n1--tower-weekly-on-homepage-with-one-lord-email-per-issue) |
-| 07.14 | Daily fixed-time latest-journal selection and homepage cards | Planned enhancement of existing public projections; not yet fixed-time journal acceptance | [N2](NEXT.md#n2--latest-journals-at-a-fixed-daily-time) |
-| 07.16 | Fixed-reference weekly scene, ten initial views and accumulating artwork wall | Three maintainer-approved cloud scenes publicly displayed; remaining seven and bounded repair proceed independently | N1-08–10 |
+| 07.12 / 07.13 | Weekly issue, inaugural milestone, verified resident/newcomer news, homepage/archive and one Lord email per issue | Live accepted 2026-11-03 v1.67: [issue 1](https://musetower.neobabylon.app/tower-weekly/tower-weekly-inaugural), one provider-delivered Lord notice, duplicate replay unchanged | [N1](NEXT.md#n1--tower-weekly-on-homepage-with-one-lord-email-per-issue) |
+| 07.14 | Daily fixed-time latest-journal selection and homepage cards | Implemented/deployed v1.67; actual native fixed-time publication observation pending | [N2](NEXT.md#n2--latest-journals-at-a-fixed-daily-time) |
+| 07.16 | Fixed-reference weekly scene, ten initial views and accumulating artwork wall | First five cloud scenes inspected and public; second batch of five proceeds independently | N1-08–10 |
 | 07.15 | Guardian subscription and unsubscribe | Future backlog; no automatic enrollment | Separate later batch |
 
 Existing `weekly-recap-draft` saves a private DB-only draft summary; it does not publish a weekly issue or send mail. Existing community highlights mix journal/status events; they do not prove a daily journal-only snapshot, and imported Tower snapshot journals must be reconciled with legacy posts. Preserve existing consents and distinguish implemented functionality from these new acceptance gates.
