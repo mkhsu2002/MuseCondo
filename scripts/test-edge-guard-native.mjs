@@ -62,7 +62,7 @@ try{
  const nativeAssets=new Miniflare(convertV4MiniflareOptions?convertV4MiniflareOptions(assetOptions):assetOptions);
  try{
   const protectedResponse=await nativeAssets.dispatchFetch(origin+'/tower-lord/console.js');assert.equal(protectedResponse.status,503,await protectedResponse.text());
-  const endpoint=await nativeAssets.dispatchFetch(origin+'/api/v1/operator/release',{headers:{'X-Tower-Operator-Key':'synthetic-native-key'}});assert.equal(endpoint.status,200);const endpointBody=await endpoint.json();assert.equal(endpointBody.ready,true,JSON.stringify(endpointBody));
+  const endpoint=await nativeAssets.dispatchFetch(origin+'/api/v1/operator/release',{headers:{'X-Tower-Operator-Key':'synthetic-native-key'}});assert.equal(endpoint.status,200);const endpointBody=await endpoint.json();assert.equal(endpointBody.ready,true,JSON.stringify(endpointBody));assert.equal(endpointBody.runtimeBindingsReady,true);
   const ready=await(await nativeAssets.dispatchFetch(origin+'/__synthetic-release')).json();assert.equal(ready.protectedAssetsReady,true);assert.match(ready.protectedAssetsHash,/^[a-f0-9]{64}$/);
   for(const mode of ['tamper','missing'])assert.deepEqual(await(await nativeAssets.dispatchFetch(origin+'/__synthetic-'+mode)).json(),{protectedAssetsReady:false,protectedAssetsHash:null});
   console.log('PASS native workerd actual ASSETS binding: private route remains protected, matching bytes pass, tampered digest and missing binding fail closed; no external traffic');

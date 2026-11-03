@@ -7,6 +7,7 @@ import {sourceIdentity} from './release-manifest.mjs';
 import {hashContract,releaseAssetAccess} from '../server/live/release-contract.ts';
 export async function compareReadback(manifest,readback){
  if(!manifest.buildComplete||!readback.ready)throw Error('release_not_ready');
+ if(readback.runtimeBindingsReady!==true)throw Error('release_runtime_bindings_not_ready');
  if(!readback.protectedAssetsReady||readback.protectedAssetsHash!==await hashContract(manifest.frontendAssets.filter(a=>releaseAssetAccess(a.path)==='protected')))throw Error('release_protected_assets_mismatch');
  for(const field of ['sourceSHA','sourceTreeHash','buildHash','rendererHash','frontendHash','migrationHash'])if(manifest[field]!==readback[field])throw Error('release_'+field+'_mismatch');
  if(manifest.schemaHash!==readback.schemaHash||manifest.schemaHash!==readback.expectedSchemaHash)throw Error('release_schema_mismatch');

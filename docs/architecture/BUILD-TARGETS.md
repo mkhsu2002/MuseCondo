@@ -45,3 +45,9 @@ After extraction, all three actual tools must pass again. The orchestrator propa
 The quality workflow opts in while retaining its path filters and concurrency. Cloudflare must configure the same flag in each intended environment. The earlier development build lacked Poppler; candidate v1.60 build `14a6c8a0` then rejected the initial privileged bootstrap with `sudo: a password is required`. That privileged path is superseded. Rootless hosted compatibility remains subject to the next actual CI/build result; local injected-runner success does not establish Linux package availability or hosted acceptance.
 
 Primary contracts: [APT simulation/download behavior](https://manpages.ubuntu.com/manpages/noble/man8/apt-get.8.html), [APT private directories/configuration](https://manpages.ubuntu.com/manpages/noble/man5/apt.conf.5.html), and [dpkg-deb extraction](https://manpages.ubuntu.com/manpages/noble/man1/dpkg-deb.1.html).
+
+## Configuration updates and release readback
+
+Cloudflare project GET responses redact encrypted variable values. PATCH only the fields being changed; never echo opaque/null `secret_text` entries back from a GET. Restore an intended value only from its authorized secure source, using an incremental encrypted-variable update. Actual deployment readback is required after changing configuration.
+
+The authenticated release response also requires `runtimeBindingsReady`: configured contact/trigger secrets for their bound services, mail contact/key/from values when mail is enabled, and a provider key when legacy paid calls are enabled. This is nonempty configured presence, not provider authentication or delivery verification. Disabled optional features remain valid. The verifier rejects missing, false or non-boolean flags, including older readbacks. No secret names or values appear in this response or visitor UI.

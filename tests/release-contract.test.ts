@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {RELEASE_MANIFEST} from '../server/live/generated-release.ts';
 import {hashContract,releaseReadiness,protectedAssetReadiness,type ReleaseManifest} from '../server/live/release-contract.ts';
-import runtime from '../server/live/worker.ts';
+import runtime,{type PagesBindings} from '../server/live/worker.ts';
 import {LocalDatabase} from '../server/live/local-db.ts';
 import {readFileSync,readdirSync} from 'node:fs';
 const origin='https://release.example',key='synthetic-release-operator';
 const request=(headers:Record<string,string>={})=>new Request(origin+'/api/v1/operator/release',{headers});
 test('release authentication rejects wrong keys before any D1 access',async()=>{
  let calls=0;const db={prepare(){calls++;throw Error('must not access D1');},async batch(){calls++;return [];}};
- const response=await runtime.fetch(request({'X-Tower-Operator-Key':'wrong'}),{PUBLIC_ORIGIN:origin,TOWER_OPERATOR_KEY:key,DB:db,ASSETS:{async fetch(){calls++;throw Error('must not access assets');}}});
+ const response=await runtime.fetch(request({'X-Tower-Operator-Key':'wrong'}),{PUBLIC_ORIGIN:origin,TOWER_OPERATOR_KEY:key,DB:db,IDENTITY_MAIL_DELIVERY_ENABLED:'true',ASSETS:{async fetch(){calls++;throw Error('must not access assets');}}});
  assert.equal(response.status,401);assert.equal(calls,0);
 });
 test('release rejects cookies and foreign origins before D1 access',async()=>{
@@ -22,7 +22,7 @@ function fixture(){const db=new LocalDatabase(':memory:');const files=readdirSyn
 test('release reports exact full schema and migration readiness without resident data',async()=>{
  const db=fixture();try{
   const inspect=async()=>{const response=await runtime.fetch(request({'X-Tower-Operator-Key':key}),{PUBLIC_ORIGIN:origin,TOWER_OPERATOR_KEY:key,DB:db});assert.equal(response.status,200);return await response.json();};
-  const complete=await inspect();assert.equal(complete.ready,RELEASE_MANIFEST.buildComplete&&!(RELEASE_MANIFEST as ReleaseManifest).frontendAssets.some(a=>a.path.startsWith('tower-lord/')));assert.equal((await releaseReadiness(db,{...RELEASE_MANIFEST,frontendAssets:[],buildComplete:true})).ready,true);assert.equal(complete.schemaReady,true);assert.equal(complete.migrationsReady,true);assert.match(complete.schemaHash,/^[a-f0-9]{64}$/);assert.ok(JSON.stringify(complete).length<4000);assert.doesNotMatch(JSON.stringify(complete),/CREATE TABLE|login_hash|synthetic-release-operator/);
+  const complete=await inspect();assert.equal(complete.ready,RELEASE_MANIFEST.buildComplete&&!(RELEASE_MANIFEST as ReleaseManifest).frontendAssets.some(a=>a.path.startsWith('tower-lord/')));assert.equal((await releaseReadiness(db,{...RELEASE_MANIFEST,frontendAssets:[],buildComplete:true})).ready,true);assert.equal(complete.runtimeBindingsReady,true);assert.equal(complete.schemaReady,true);assert.equal(complete.migrationsReady,true);assert.match(complete.schemaHash,/^[a-f0-9]{64}$/);assert.ok(JSON.stringify(complete).length<4000);assert.doesNotMatch(JSON.stringify(complete),/CREATE TABLE|login_hash|synthetic-release-operator/);
   db.sqlite.exec('ALTER TABLE accounts ADD COLUMN synthetic_extra TEXT');assert.equal((await inspect()).ready,false);assert.equal((await inspect()).schemaReady,false);
  }finally{db.close();}
 });
@@ -66,4 +66,25 @@ test('protected release deadline aborts a stalled fetch and cancels a stalled bo
   const result=await Promise.race([pending,new Promise<never>((_,reject)=>{guard=setTimeout(()=>reject(Error('protected_asset_deadline_missing')),6500);})]).finally(()=>clearTimeout(guard));
   assert.equal(result.protectedAssetsReady,false);assert.equal(supplied?.signal.aborted,true,phase+' request must be aborted');assert.ok(Date.now()-started<6000);if(phase==='body')assert.equal(cancelled,true);
  }
+});
+
+test('authenticated release fails configured readiness when enabled mail secrets are missing',async()=>{
+ const db=fixture();try{
+  const response=await runtime.fetch(request({'X-Tower-Operator-Key':key}),{PUBLIC_ORIGIN:origin,TOWER_OPERATOR_KEY:key,DB:db,IDENTITY_MAIL_DELIVERY_ENABLED:'true'});
+  const result=await response.json();assert.equal(response.status,200);assert.equal(result.runtimeBindingsReady,false);assert.equal(result.ready,false);
+  assert.doesNotMatch(JSON.stringify(result),/IDENTITY_MAIL|IDENTITY_CONTACT|MANAGER_SCHEDULE|meta_muse_api/);
+ }finally{db.close();}
+});
+test('runtime configuration checks only nonempty strings required by enabled features',async()=>{
+ const {runtimeBindingsReady}=await import('../server/live/release-runtime.ts');
+ const cards={} as NonNullable<PagesBindings['IDENTITY_CARDS']>,manager={} as NonNullable<PagesBindings['MANAGER_RUNTIME']>;
+ const enabled:PagesBindings={IDENTITY_CARDS:cards,MANAGER_RUNTIME:manager,IDENTITY_CONTACT_KEY:' contact ',MANAGER_SCHEDULE_TRIGGER_KEY:' trigger ',IDENTITY_MAIL_DELIVERY_ENABLED:'true',IDENTITY_MAIL_API_KEY:' key ',IDENTITY_MAIL_FROM:' from ',META_PAID_CALLS_APPROVED:'true',meta_muse_api:' provider '};
+ assert.equal(runtimeBindingsReady({}),true);assert.equal(runtimeBindingsReady(enabled),true);
+ assert.equal(runtimeBindingsReady({META_MANAGER_APPROVED:'true'}),true);
+ assert.equal(runtimeBindingsReady({IDENTITY_MAIL_DELIVERY_ENABLED:'false',META_PAID_CALLS_APPROVED:'false'}),true);
+ assert.equal(runtimeBindingsReady({IDENTITY_CARDS:cards}),false);assert.equal(runtimeBindingsReady({MANAGER_RUNTIME:manager}),false);
+ for(const field of ['IDENTITY_CONTACT_KEY','MANAGER_SCHEDULE_TRIGGER_KEY','IDENTITY_MAIL_API_KEY','IDENTITY_MAIL_FROM','meta_muse_api']){
+  for(const value of [undefined,'',' \t ',42])assert.equal(runtimeBindingsReady({...enabled,[field]:value} as PagesBindings),false,field+' must be a nonempty string');
+ }
+ for(const field of ['IDENTITY_CONTACT_KEY','IDENTITY_MAIL_API_KEY','IDENTITY_MAIL_FROM'])assert.equal(runtimeBindingsReady({IDENTITY_MAIL_DELIVERY_ENABLED:'true',IDENTITY_CONTACT_KEY:'x',IDENTITY_MAIL_API_KEY:'x',IDENTITY_MAIL_FROM:'x',[field]:undefined}),false,field+' is required for mail without a coordinator');
 });
