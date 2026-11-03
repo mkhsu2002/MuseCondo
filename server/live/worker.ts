@@ -64,7 +64,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    if(request.headers.has('Cookie')||request.headers.has('Origin')&&request.headers.get('Origin')!==env.PUBLIC_ORIGIN||request.headers.get('Sec-Fetch-Site')==='cross-site')return json({error:'origin_rejected'},403);
    if(!env.TOWER_OPERATOR_KEY||!request.headers.get('X-Tower-Operator-Key')||await digest(request.headers.get('X-Tower-Operator-Key')!)!==await digest(env.TOWER_OPERATOR_KEY))return json({error:'operator_required'},401);
    if(request.method!=='GET')return json({error:'method_not_allowed'},405);
-   return json(await releaseReadiness(env.DB,RELEASE_MANIFEST));
+   return json(await releaseReadiness(env.DB,RELEASE_MANIFEST,env.ASSETS,env.PUBLIC_ORIGIN));
   }
   const identityMailEnv=env.DB?{db:env.DB,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,from:env.IDENTITY_MAIL_FROM,coordinator:env.IDENTITY_CARDS,deliveryEnabled:env.IDENTITY_MAIL_DELIVERY_ENABLED}:undefined;
   const onMailEvent=identityMailEnv?identityMailEventDispatcher(identityMailEnv,context):async()=>{};

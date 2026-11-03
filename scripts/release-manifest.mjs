@@ -4,7 +4,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
-import {canonicalSchema,SCHEMA_QUERY,hashContract} from '../server/live/release-contract.ts';
+import {canonicalSchema,SCHEMA_QUERY,hashContract,releaseAssetAccess} from '../server/live/release-contract.ts';
 const root=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 export function sourceIdentity(directory=root){
@@ -19,7 +19,7 @@ export function sourceIdentity(directory=root){
 }
 export function emittedAssets(directory){
  const output=[];
- function visit(path){for(const entry of readdirSync(path,{withFileTypes:true})){const file=resolve(path,entry.name);if(entry.isDirectory())visit(file);else if(/\.(?:js|css)$/.test(entry.name))output.push({path:relative(directory,file).split('\\').join('/'),sha256:hash(readFileSync(file))});}}
+ function visit(path){for(const entry of readdirSync(path,{withFileTypes:true})){const file=resolve(path,entry.name);if(entry.isDirectory())visit(file);else if(/\.(?:js|css)$/.test(entry.name))output.push({path:relative(directory,file).split('\\').join('/'),sha256:hash(readFileSync(file)),access:releaseAssetAccess(relative(directory,file).split('\\').join('/'))});}}
  visit(directory);return output.sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
 }
 export async function createManifest({complete=false,directory=root}={}){

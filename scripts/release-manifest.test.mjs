@@ -37,3 +37,13 @@ test('source identity records an unstaged tracked-file deletion without failing 
   assert.notEqual(generator.sourceIdentity(directory).sourceTreeHash,deleted.sourceTreeHash,'the missing tracked path must be represented, not silently omitted');
  }finally{rmSync(directory,{recursive:true,force:true});}
 });
+
+test('emitted asset classification follows the private Tower Lord route prefix',()=>{
+ const root=mkdtempSync(join(tmpdir(),'release-assets-'));
+ try{
+  for(const path of ['tower-lord','tower-lordish','assets'])mkdirSync(join(root,path));
+  for(const path of ['tower-lord/console.js','tower-lord/console.css','tower-lordish/app.js','assets/app.js'])writeFileSync(join(root,path),path);
+  const assets=generator.emittedAssets(root);
+  assert.deepEqual(assets.map(a=>[a.path,a.access]),[['assets/app.js','public'],['tower-lord/console.css','protected'],['tower-lord/console.js','protected'],['tower-lordish/app.js','public']]);
+ }finally{rmSync(root,{recursive:true,force:true});}
+});

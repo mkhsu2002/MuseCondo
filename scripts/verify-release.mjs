@@ -4,9 +4,10 @@ import {resolve,sep} from 'node:path';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {sourceIdentity} from './release-manifest.mjs';
-import {hashContract} from '../server/live/release-contract.ts';
+import {hashContract,releaseAssetAccess} from '../server/live/release-contract.ts';
 export async function compareReadback(manifest,readback){
  if(!manifest.buildComplete||!readback.ready)throw Error('release_not_ready');
+ if(!readback.protectedAssetsReady||readback.protectedAssetsHash!==await hashContract(manifest.frontendAssets.filter(a=>releaseAssetAccess(a.path)==='protected')))throw Error('release_protected_assets_mismatch');
  for(const field of ['sourceSHA','sourceTreeHash','buildHash','rendererHash','frontendHash','migrationHash'])if(manifest[field]!==readback[field])throw Error('release_'+field+'_mismatch');
  if(manifest.schemaHash!==readback.schemaHash||manifest.schemaHash!==readback.expectedSchemaHash)throw Error('release_schema_mismatch');
 }
@@ -17,6 +18,7 @@ export async function verifyRelease(args){
  const {buildHash,...contract}=manifest;if(await hashContract(contract)!==buildHash)throw Error('release_manifest_hash_mismatch');
  const identity=sourceIdentity();if(identity.sourceSHA!==manifest.sourceSHA||identity.sourceTreeHash!==manifest.sourceTreeHash)throw Error('release_source_mismatch_rebuild_required');
  if(!manifest.buildComplete||!manifest.frontendAssets.length)throw Error('release_build_incomplete');
+ if(manifest.frontendAssets.some(a=>a.access!==releaseAssetAccess(a.path))||await hashContract(manifest.frontendAssets)!==manifest.frontendHash)throw Error('release_asset_manifest_invalid');
  const directory=resolve(options['--assets']||'dist');
  for(const asset of manifest.frontendAssets){
   const path=resolve(directory,asset.path);if(!path.startsWith(directory+sep))throw Error('release_asset_path_invalid');
@@ -31,7 +33,7 @@ export async function verifyRelease(args){
   const response=await fetch(endpoint,{headers:{'X-Tower-Operator-Key':key},redirect:'error',signal:AbortSignal.timeout(20000)});
   if(response.status!==200)throw Error('release_endpoint_rejected_'+response.status);
   const body=await response.text();if(body.length>8192)throw Error('release_readback_too_large');readback=JSON.parse(body);
-  for(const asset of manifest.frontendAssets){
+  for(const asset of manifest.frontendAssets.filter(a=>a.access==='public')){
    const url=new URL('/'+asset.path,endpoint);if(url.origin!==endpoint.origin)throw Error('release_asset_origin_invalid');
    const output=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(20000)});
    if(!output.ok||createHash('sha256').update(new Uint8Array(await output.arrayBuffer())).digest('hex')!==asset.sha256)throw Error('release_deployed_frontend_asset_mismatch');
