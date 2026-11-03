@@ -84,3 +84,5 @@ jobs:
         run: npm run test:native:publications -- "$RUNNER_TEMP/muse-native/node_modules"
       - name: Verify native daily journals, private Manager alarms, current grants and zero provider calls
         run: npm run test:native:journals -- "$RUNNER_TEMP/muse-native/node_modules"
+      - name: Verify native image jobs, private Images bridge, quotas, durable deduplication and fallback
+        run: npm run test:native:images -- "$RUNNER_TEMP/muse-native/node_modules"

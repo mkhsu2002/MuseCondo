@@ -8,11 +8,11 @@ test('introduction sits between the tower and community, with no initial third-p
  const html=renderTowerLobby({base:'/MuseCondo',content:'<section id="community-feed">Feed</section>',scene:'day'});
  assert.ok(html.indexOf('data-tower-panorama')<html.indexOf('id="tower-video"'));
  assert.ok(html.indexOf('id="tower-video"')<html.indexOf('id="community-feed"'));
- assert.match(html,/src="\/MuseCondo\/media\/musecondo-introduction-qb-fyaymkFg.jpg"/);
+ assert.match(html,/src="\/MuseCondo\/media\/musecondo-introduction-qb-fyaymkFg.webp"/);
  assert.match(html,/href="https:\/\/youtu.be\/qb-fyaymkFg" target="_blank" rel="noopener noreferrer"/);
  assert.doesNotMatch(html,/<iframe|youtube-nocookie|youtube.com\/embed/);
  const preview=renderLobbyPreview({scene:'day',imageSource:'data:image/png;base64,aW1hZ2U='});
- assert.match(preview,/data:image\/jpeg;base64,/);
+ assert.match(preview,/data:image\/webp;base64,/);
  assert.doesNotMatch(preview,/<iframe|src="\/media\//);
 });
 

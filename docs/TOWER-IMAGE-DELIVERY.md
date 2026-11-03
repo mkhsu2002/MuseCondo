@@ -47,3 +47,47 @@ Each derivative uses a fixed, versioned private namespace scoped to its resident
 An absent binding, missing copy, malformed manifest or corrupted image falls back to the original PNG with its full-byte integrity verification. Source revisions without a prepared copy continue to work. Derivative preparation is an operator batch task, capped at six images: fetch currently authorized source bytes, verify original hashes/dimensions, compress, inspect each pair, write the binary, read back and hash, then publish its manifest last. Never replace the PNG master or upload to a public bucket. Identical existing keys must be read back; conflicting objects must not be overwritten.
 
 Local validation includes 50 focused tests covering content negotiation, explicit WebP refusal, format-specific validators, bounded reads, bad source/output metadata, original fallback, consent withdrawal and stale revisions with no R2 reads; independent review and local checks of the actual converted artifacts have also passed. Before marking this phase complete, deploy and verify both environments' code and binding, then check actual WebP content types/bytes/hashes, conditional requests, original PNG hashes, visual display and absence of direct public bucket access. Dev currently has no public resident homes: validate its empty public API and synthetic native cases without importing production resident data. Production requires hosted readback against the three prepared copies. Compare initial and conditional timings with the saved baseline; a passing build alone does not establish a speed improvement.
+
+## Automatic delivery pipeline (local implementation; deployment pending)
+
+The prepared three-image batch is a bootstrap, not the future operating model. Migration `0043_tower_image_optimization.sql` and the deployed-platform pipeline add event-driven WebP preparation for these display sources:
+
+| Source | Authority before enqueue, claim and delivery | Event |
+| --- | --- | --- |
+| Hosted home main image | Current published snapshot/revision, snapshot consent and exact source SHA | Successful publication; an authorized first WebP read can fill a missed enqueue |
+| Hosted dream image | The same checks plus separate dream-sharing consent | Successful publication; the same bounded first-read recovery |
+| Tower scenes, collection wall and weekly scene | `tower_scenes.state='published'` and exact source SHA | Scene approval or completed automatic weekly scene publication |
+| Active Tower appearance day/night | The canonical Manager public-state gate, active time window, approved presentation, generation and exact source SHA | Successful public appearance activation |
+
+One scene derivative serves its wall card and any weekly issue that references that scene. Private proposals, operator previews, unshared dreams and original generation references are excluded. Jobs freeze the authorized source epoch at claim; source or publication-epoch changes before completion cancel the result. Previously ready copies can be reused only after fresh current-source authorization and exact source-SHA matching.
+
+The existing private Manager Workers receive an `IMAGES` binding in **both dev and production**. Pages Functions keep their existing `MANAGER_RUNTIME` service binding and R2 binding; no new public image transformer or bucket is exposed. The Images binding accepts verified raw source bytes from a protected Pages claim response. It never fetches an arbitrary supplied URL. Pages receives the output bytes, strips EXIF/XMP/ICC metadata, rejects animation or malformed containers, preserves alpha chunks, checks proportional scale-down dimensions and size savings, and writes a private content-addressed R2 object. A successful R2 readback precedes the immutable `ready` state. Original PNGs, admission hashes and the original Tower baseline remain unchanged.
+
+`cf-webp-1920-q85-v1` uses WebP quality 85 within a 1920 × 1920 bounding box, `fit: scale-down`, and `anim: false`. It preserves aspect ratio, never crops and never enlarges a small source. This is distinct from the bootstrap's local `webp-q85-m6-v1` encoder profile. Input is limited to the existing 8 MiB source bound; output is at most 2 MiB and must be smaller. Sources at or below 256 KiB do not need a runtime conversion job.
+
+The display route immediately uses a ready authorized copy. When conversion is incomplete, unavailable, invalid, over quota, or unsupported by the browser, it keeps the verified original PNG available. A first read may enqueue one missing durable job; it does not wait for conversion, repeatedly call the codec, introduce a placeholder, or run a polling loop. This is automatic smaller-format delivery with a reliable fallback, not a guarantee that every response is WebP.
+
+### Persistence, quota and recovery
+
+`tower_image_jobs` permanently binds the source kind/id/SHA/epoch and fixed profile. Its state machine is `pending → running → ready | rejected | unknown | cancelled`. Atomic native-clock reservations prevent concurrent claims from exceeding daily/monthly limits. Terminal jobs, source bindings, reservations and append-only `tower_image_events` cannot be rewritten or deleted. Unknown outcomes and expired in-flight leases never automatically re-run the codec. Completion upload retries reuse the exact existing bytes; they do not create another transformation.
+
+A separate actor in the existing Manager Durable Object namespace drains at most six jobs per wake. Publication/activation events wake that actor immediately. The existing daily Manager run can recover stranded pending work at most once per day; there is no new cron, CI polling or local automation. Operator backfill accepts at most six currently authorized source ids per request. R2 object keys include both the immutable job id and output SHA, so concurrent different completions cannot overwrite the winning artifact.
+
+Deploy with `TOWER_IMAGE_OPTIMIZATION_ENABLED=true` and these explicit per-environment limits:
+
+| Environment | `TOWER_IMAGE_DAILY_LIMIT` | `TOWER_IMAGE_MONTHLY_LIMIT` |
+| --- | ---: | ---: |
+| dev | 8 | 100 |
+| production | 64 | 1000 |
+
+The combined 1100 reserved transformations have a gross Images transformation price of at most **US$0.55/month** at US$0.50/1000, before any account-wide free allowance; this excludes existing Worker/R2 usage. Do not assume another project's account usage leaves a free balance. [Current Cloudflare pricing](https://developers.cloudflare.com/images/pricing/) lists 5000 free unique transformations per month, with Free-plan excess returning `9422` rather than charging, and Paid-plan excess at US$0.50/1000. [Images binding calls are billed per unique transformation](https://developers.cloudflare.com/images/optimization/binding/) and are not automatically cached. Persisting verified R2 output avoids repeated decoding and future-month re-encoding. No plan upgrade or paid purchase is part of this implementation.
+
+### Static display assets and boundaries
+
+The live homepage's existing day/night hero files are already WebP, measured at 209,394/226,428 bytes. The introduction poster now has a locally reviewed 1280 × 720 WebP at 209,292 bytes instead of the 316,161-byte JPEG (33.80% smaller); the shared video component and private preview renderer use the same WebP. The original JPEG remains available. The click-to-load player and its third-party privacy behavior are unchanged.
+
+The 3,159,963-byte original Tower reference PNG remains exact, including its baseline SHA; it is a generation reference rather than a normal display image. Original prototype/example PNG downloads remain original files. This work does not claim that every public downloadable file has been converted.
+
+### Release acceptance
+
+Local tests include real SQLite state/authority/quota races and a synthetic native workerd path through protected Pages APIs, the Manager SQLite Durable Object, R2 and D1. The native codec itself is an explicit local stub: those tests prove the deployed routing/state boundaries, not the real Images service's visual output or billable account behavior. Before completion, apply 0043 and deploy matching Pages/Workers/bindings to both environments; read back deployed schema/code/bindings, then use a bounded real Images smoke test and inspect its actual output. Verify public WebP bytes, PNG fallback/original hashes, active-appearance expiry/epoch checks, metadata stripping/alpha, one reservation/audit per job and no duplicate transform after replay. Empty dev resident data must remain an explicitly empty acceptance scope rather than a claim of real-home validation.

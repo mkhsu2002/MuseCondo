@@ -1,3 +1,5 @@
+import type {createTowerImageOptimization} from './tower-image-optimization.ts';
+import {acceptsTowerWebP} from './tower-asset-derivatives.ts';
 import {createTowerDailyJournals} from './tower-daily-journals.ts';
 import {weeklyArchiveBefore} from '../../src/shared/tower-weekly.ts';
 import {createTowerScenes} from './tower-scenes.ts';
@@ -14,14 +16,14 @@ import {readRequestBody,RequestBodyError} from './request-body.ts';
 export interface TowerPublicationBindings {
  TOWER_DAILY_JOURNALS_ENABLED?:string;TOWER_SCENES_ENABLED?:string;TOWER_WEEKLY_ENABLED?:string;TOWER_PUBLICATION_MAIL_ENABLED?:string;TOWER_PUBLICATION_AGGREGATE_APPROVED?:string;TOWER_PUBLICATION_LORD_RECIPIENT?:string;
 }
-interface Environment extends TowerPublicationBindings {bucket?:AssetBucket;assets?:{fetch(request:Request):Promise<Response>};runtime?:ManagerRuntimeBinding;trigger?:string;db:Database;origin:string;apiKey?:string;contactKey?:string;mailKey?:string;from?:string;approved?:boolean;budgetMicro?:number;dailyBudgetMicro?:number;monthlyBudgetMicro?:number;waitUntil?:(p:Promise<unknown>)=>void;now?:()=>Date;fetcher?:typeof fetch}
+interface Environment extends TowerPublicationBindings {imageOptimization?:ReturnType<typeof createTowerImageOptimization>;bucket?:AssetBucket;assets?:{fetch(request:Request):Promise<Response>};runtime?:ManagerRuntimeBinding;trigger?:string;db:Database;origin:string;apiKey?:string;contactKey?:string;mailKey?:string;from?:string;approved?:boolean;budgetMicro?:number;dailyBudgetMicro?:number;monthlyBudgetMicro?:number;waitUntil?:(p:Promise<unknown>)=>void;now?:()=>Date;fetcher?:typeof fetch}
 export type PublicationTask={id:string;kind:'repair';repairId:string}|{id:string;kind:'scene';sceneKey:string;batchId:string}|{id:string;kind:'inaugural'}|{id:string;kind:'due';scheduledTime:string};
 class PublicationWaiting extends Error {wakeAfterMs:number;constructor(lease:string){super('publication_waiting');this.wakeAfterMs=Math.max(1000,Date.parse(lease)-Date.now()+1000);}}
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 export function createTowerWeeklyServices(env:Environment){
  const now=env.now??(()=>new Date()),db=env.db;
  const daily=createTowerDailyJournals({db,origin:env.origin,enabled:env.TOWER_DAILY_JOURNALS_ENABLED==='true',now});
- const scenes=createTowerScenes({db,origin:env.origin,approved:env.TOWER_SCENES_ENABLED==='true'&&env.approved===true,apiKey:env.apiKey,budgetMicro:env.budgetMicro??0,dailyBudgetMicro:env.dailyBudgetMicro??0,monthlyBudgetMicro:env.monthlyBudgetMicro??0,bucket:env.bucket,assets:env.assets,now,fetcher:env.fetcher});
+ const scenes=createTowerScenes({db,origin:env.origin,approved:env.TOWER_SCENES_ENABLED==='true'&&env.approved===true,apiKey:env.apiKey,budgetMicro:env.budgetMicro??0,dailyBudgetMicro:env.dailyBudgetMicro??0,monthlyBudgetMicro:env.monthlyBudgetMicro??0,bucket:env.bucket,assets:env.assets,now,fetcher:env.fetcher,onPublished:env.imageOptimization?async id=>{await env.imageOptimization!.enqueue('scene',id);}:undefined});
  const sources=createPublicationSources({db,origin:env.origin,aggregateApproved:env.TOWER_PUBLICATION_AGGREGATE_APPROVED==='true'});
  const weekly=createTowerWeekly({db,...sources,publicationGuards:(source,period)=>[...sources.publicationGuards(source),db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_scene_periods p JOIN tower_scenes s ON s.id=p.scene_id WHERE p.period_key=? AND s.state='published' AND s.baseline_sha=?) THEN 1 ELSE json('weekly_scene_not_ready') END").bind(period.periodKey,BASELINE_SHA)],apiKey:env.apiKey,approved:env.approved===true&&env.TOWER_WEEKLY_ENABLED==='true',budgetMicro:env.budgetMicro??0,dailyBudgetMicro:env.dailyBudgetMicro??0,monthlyBudgetMicro:env.monthlyBudgetMicro??0,now,fetcher:env.fetcher});
  const mail=createTowerWeeklyMail({db,origin:env.origin,contactKey:env.contactKey??'',apiKey:env.mailKey,from:env.from,recipient:env.TOWER_PUBLICATION_LORD_RECIPIENT,enabled:env.TOWER_PUBLICATION_MAIL_ENABLED==='true',now,fetcher:env.fetcher});
@@ -49,6 +51,7 @@ export function createTowerWeeklyServices(env:Environment){
  async function page(before?:number,latest=false){const issues=await list({limit:latest?1:21,before});const nextBefore=!latest&&issues.length>20?issues[19].number:null;return {issues:issues.slice(0,latest?1:20),nextBefore};}
  async function runDue(at:Date){
   if(!Number.isFinite(at.getTime())||Math.abs(now().getTime()-at.getTime())>36*3600000)throw Error('invalid_schedule_time');
+  try{await env.imageOptimization?.recover();}catch{/* Image recovery is independent of publications. */}
   let dailyError:unknown;let dailyResult:{state:string;day?:string}={state:'disabled'};try{dailyResult=await daily.runDue();}catch(error){dailyError=error;dailyResult={state:'unavailable'};}
   if(env.TOWER_WEEKLY_ENABLED!=='true'){if(dailyError)throw dailyError;return {weekly:'disabled',daily:dailyResult,state:'complete'};}
   const day=managerLocalDay(at),isMonday=new Date(day+'T12:00:00.000Z').getUTCDay()===1;
@@ -85,7 +88,7 @@ export function createTowerWeeklyServices(env:Environment){
  async function previewScenes(){return queue([0,1,4].map(i=>({id:'seed-v1-'+String(i+1).padStart(2,'0'),kind:'scene' as const,sceneKey:Object.keys(SCENES)[i],batchId:'initial-v1-1'})));}
  async function approveStyle(){await db.prepare("INSERT INTO tower_scene_style_approval VALUES(1,?,'tower-v1',?,?)").bind(BASELINE_SHA,now().toISOString(),JSON.stringify({source:'explicit-maintainer-confirmation',previewIds:['seed-v1-01','seed-v1-02','seed-v1-05']})).run();return {approved:true};}
  const schedule=(at:Date)=>(env.TOWER_WEEKLY_ENABLED!=='true'&&env.TOWER_DAILY_JOURNALS_ENABLED!=='true')||(at.getUTCHours()+MANAGER_CALENDAR_POLICY.offsetHours+24)%24<9?Promise.resolve({queued:false}):queue([{id:'publications-v2-'+managerLocalDay(at),kind:'due',scheduledTime:at.toISOString()}]);
- return {daily,weekly:{...weekly,get:readIssue,list,page},mail,scenes,runDue,inspect,queue,seedBatch,step,schedule,sceneStatus,previewScenes,approveStyle,repairScene,approveBatch,inaugural:()=>publish('inaugural',now().toISOString(),true)};
+ return {imageOptimization:env.imageOptimization,daily,weekly:{...weekly,get:readIssue,list,page},mail,scenes,runDue,inspect,queue,seedBatch,step,schedule,sceneStatus,previewScenes,approveStyle,repairScene,approveBatch,inaugural:()=>publish('inaugural',now().toISOString(),true)};
 }
 export function createTowerWeeklyRoutes(options:{origin:string;services:ReturnType<typeof createTowerWeeklyServices>;operator:()=>Promise<boolean>;scheduled:()=>Promise<boolean>}){
  return async(request:Request):Promise<Response|null>=>{
@@ -97,7 +100,22 @@ export function createTowerWeeklyRoutes(options:{origin:string;services:ReturnTy
   try{
    if(journalPublic){if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);const response=json({edition:await options.services.daily.getLatest()});return request.method==='HEAD'?new Response(null,{headers:response.headers}):response;}
    if(scenePublic){if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);return json({scenes:await options.services.scenes.list()});}
-   if(preview||sceneAsset){if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);const image=preview?await options.services.scenes.previewAsset(preview[1]):await options.services.scenes.asset(sceneAsset![1]);if(!image)return json({error:'not_found'},404);const headers={'Content-Type':'image/png','Cache-Control':preview?'no-store':'public, max-age=3600, immutable','X-Content-Type-Options':'nosniff',...(preview?{'X-Robots-Tag':'noindex, nofollow'}:{})};return new Response(request.method==='HEAD'?null:await image.arrayBuffer(),{headers});}
+   if(preview||sceneAsset){
+    if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
+    if(sceneAsset&&acceptsTowerWebP(request.headers.get('Accept'))&&options.services.imageOptimization){
+     const metadata=await options.services.scenes.assetMetadata(sceneAsset[1]);if(!metadata)return json({error:'not_found'},404);
+     let optimized=null;try{optimized=await options.services.imageOptimization.image('scene',sceneAsset[1],metadata.sha256);}catch{/* Optional delivery must not hide a published original. */}
+     if(optimized){
+      const etag='"scene-webp-'+optimized.digest+'"',headers={'Content-Type':'image/webp','Cache-Control':'public, max-age=3600, immutable','Vary':'Accept','ETag':etag,'X-Content-Type-Options':'nosniff'};
+      if(request.headers.get('If-None-Match')===etag)return new Response(null,{status:304,headers});
+      return new Response(request.method==='HEAD'?null:optimized.bytes,{headers:{...headers,'Content-Length':String(optimized.size)}});
+     }
+     try{await options.services.imageOptimization.enqueue('scene',sceneAsset[1]);}catch{/* Keep published originals available. */}
+    }
+    const image=preview?await options.services.scenes.previewAsset(preview[1]):await options.services.scenes.asset(sceneAsset![1]);if(!image)return json({error:'not_found'},404);
+    const headers={'Content-Type':'image/png','Cache-Control':preview?'no-store':'public, max-age=3600, immutable','Vary':'Accept','X-Content-Type-Options':'nosniff',...(preview?{'X-Robots-Tag':'noindex, nofollow'}:{})};
+    return new Response(request.method==='HEAD'?null:await image.arrayBuffer(),{headers});
+   }
    if(sceneAdmin&&request.method==='GET'){const rows=(await options.services.scenes.list());return json({scenes:rows,jobs:await options.services.sceneStatus()});}
    if(publicMatch){const issue=publicMatch[1]?await options.services.weekly.get(publicMatch[1]):null;const response=publicMatch[1]?(issue?json({issue}):json({error:'not_found'},404)):json(await options.services.weekly.page(weeklyArchiveBefore(url.searchParams),url.searchParams.get('latest')==='1'));return request.method==='HEAD'?new Response(null,{status:response.status,headers:response.headers}):response;}
    if(operator&&request.method==='GET')return json(await options.services.inspect());

@@ -2,15 +2,19 @@
 
 The homepage places **Discover MuseCondo** after the tower artwork and before resident updates. It links the maintainer-selected video [What If Every AI Agent Had a Home? | MuseCondo at Meta AI Hackathon 2026](https://youtu.be/qb-fyaymkFg).
 
-The responsive preview uses the original locally hosted 1280 × 720 thumbnail. No YouTube iframe or player request is created until the visitor selects Play video. Playback then uses YouTube's privacy-enhanced embed, with an origin referrer and fullscreen support. The persistent Watch on YouTube link opens a new tab with `noopener noreferrer`. YouTube still controls video availability and playback permissions.
+The responsive preview uses a locally hosted 1280 × 720 WebP copy of the original thumbnail. No YouTube iframe or player request is created until the visitor selects Play video. Playback then uses YouTube's privacy-enhanced embed, with an origin referrer and fullscreen support. The persistent Watch on YouTube link opens a new tab with `noopener noreferrer`. YouTube still controls video availability and playback permissions.
 
 The Manager's static preview includes the same thumbnail as an embedded data image, without fetching YouTube or creating an iframe. Shared markup, styles and poster bytes are covered by the renderer build digest. See [artwork rights](../ASSET-LICENSE.md#project-introduction-video-preview).
 
-首頁將 **Discover MuseCondo** 放在整塔主視覺下方、居民動態上方，使用維護者指定的上述影片。預覽採原始本地 1280 × 720 縮圖；訪客按播放後才載入 YouTube 隱私強化模式播放器，支援全螢幕並提供來源 referrer。Watch on YouTube 連結另開分頁，影片可用性與播放權限仍由 YouTube 控制。
+首頁將 **Discover MuseCondo** 放在整塔主視覺下方、居民動態上方，使用維護者指定的上述影片。預覽採本地 1280 × 720 WebP 縮圖；訪客按播放後才載入 YouTube 隱私強化模式播放器，支援全螢幕並提供來源 referrer。Watch on YouTube 連結另開分頁，影片可用性與播放權限仍由 YouTube 控制。
 
 樓管靜態預覽內嵌同張縮圖，不抓取 YouTube 或建立 iframe；共用圖文與樣式均納入 renderer 摘要。縮圖權利與軟體授權分開。
 
-Current video selection updated on **2026-11-02**. The thumbnail uses the video-specific filename `public/media/musecondo-introduction-qb-fyaymkFg.jpg` so an older cached thumbnail cannot accompany the new link. The external link, privacy-enhanced player URL, accessible player title and Manager preview all use this video selection.
+Current video selection updated on **2026-11-02**. The thumbnail uses the video-specific filename `public/media/musecondo-introduction-qb-fyaymkFg.webp` so an older cached thumbnail cannot accompany the new link. The external link, privacy-enhanced player URL, accessible player title and Manager preview all use this video selection. The original `public/media/musecondo-introduction-qb-fyaymkFg.jpg` remains available unchanged for reference and compatibility downloads.
+
+**2026-11-03 local optimization (deployment pending):** the unchanged 316,161-byte JPEG was converted to a 209,292-byte WebP, 33.80% smaller, at the same 1280 × 720 dimensions. Both versions were visually inspected; title lettering, resident characters and architectural details remain clear. No cropping, video selection, click-to-load or player privacy behavior changed. The public poster and Manager's embedded preview use the WebP copy; the original JPEG is retained.
+
+**2026-11-03 本地縮圖優化（尚待部署）：** 保留 316,161 bytes 的原始 JPEG，新增同尺寸 1280 × 720、209,292 bytes 的 WebP，減少 33.80%。已分別肉眼核對兩張圖，標題文字、角色與建築細節清晰；未裁切，也未更動影片、按下才播放或隱私行為。首頁與樓管內嵌預覽使用 WebP，原 JPEG 保留供參考與相容下載。
 
 **2026-11-02 影片更新：** 首頁、雙語 README 與內嵌播放器改用 `qb-fyaymkFg`。縮圖採影片專屬檔名，避免新影片沿用瀏覽器中的舊縮圖；既有主視覺與頁面位置不變。
 

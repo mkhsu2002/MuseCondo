@@ -1,10 +1,11 @@
+import {runImageOptimization,type ImageOptimizationBindings} from './image-optimizer.ts';
 import {enqueuePublications,publicationAlarm} from './publications-clock.ts';
 import {readRequestBody} from '../../server/live/request-body.ts';
 import type {PublicationTask} from '../../server/live/tower-weekly-routes.ts';
 import {themeDiagnosticRoute} from './theme-diagnostics.ts';
 import {themeRendererRoute,type BrowserBinding} from './theme-renderer.ts';
 interface Stub {fetch(request:Request):Promise<Response>}
-interface ScheduleBindings {BROWSER?:BrowserBinding;PUBLIC_ORIGIN:string;MANAGER_SCHEDULE_TRIGGER_KEY:string;MANAGER_CLOCK?:{idFromName(name:string):unknown;get(id:unknown):Stub}}
+interface ScheduleBindings extends ImageOptimizationBindings {BROWSER?:BrowserBinding;PUBLIC_ORIGIN:string;MANAGER_SCHEDULE_TRIGGER_KEY:string;MANAGER_CLOCK?:{idFromName(name:string):unknown;get(id:unknown):Stub}}
 interface AlarmStorage {get<T>(key:string):Promise<T|undefined>;put(key:string,value:unknown):Promise<void>;setAlarm(time:number):Promise<void>;deleteAlarm():Promise<void>}
 interface DurableState {storage:AlarmStorage;blockConcurrencyWhile<T>(callback:()=>Promise<T>):Promise<T>}
 function configuration(env:ScheduleBindings){const origin=new URL(env.PUBLIC_ORIGIN);if(origin.protocol!=='https:'||origin.origin!==env.PUBLIC_ORIGIN||!env.MANAGER_SCHEDULE_TRIGGER_KEY)throw Error('schedule_not_configured');return origin;}
@@ -13,8 +14,9 @@ async function dispatch(env:ScheduleBindings,path:string,body:unknown,timeoutMs=
 export class ManagerClock {
  state:DurableState;env:ScheduleBindings;
  constructor(state:DurableState,env:ScheduleBindings){this.state=state;this.env=env;}
- async fetch(request:Request){if(new URL(request.url).pathname==='/publications/queue'&&request.method==='POST'){const value=JSON.parse(new TextDecoder().decode(await readRequestBody(request,4096))) as {tasks:PublicationTask[]};return Response.json(await this.state.blockConcurrencyWhile(()=>enqueuePublications(this.state.storage,value.tasks)));}if(request.method!=='POST'||!['/wake','/theme/ready','/theme/render'].includes(new URL(request.url).pathname))return new Response('Not found',{status:404});await this.state.blockConcurrencyWhile(async()=>{await this.state.storage.put('recoveryAttempts',0);await this.state.storage.setAlarm(Date.now()+100);});return Response.json({queued:true});}
+ async fetch(request:Request){if(new URL(request.url).pathname==='/images/wake'&&request.method==='POST'){await this.state.blockConcurrencyWhile(async()=>{await this.state.storage.put('imagesMode',true);await this.state.storage.put('imageSteps',0);await this.state.storage.setAlarm(Date.now()+100);});return Response.json({queued:true});}if(new URL(request.url).pathname==='/publications/queue'&&request.method==='POST'){const value=JSON.parse(new TextDecoder().decode(await readRequestBody(request,4096))) as {tasks:PublicationTask[]};return Response.json(await this.state.blockConcurrencyWhile(()=>enqueuePublications(this.state.storage,value.tasks)));}if(request.method!=='POST'||!['/wake','/theme/ready','/theme/render'].includes(new URL(request.url).pathname))return new Response('Not found',{status:404});await this.state.blockConcurrencyWhile(async()=>{await this.state.storage.put('recoveryAttempts',0);await this.state.storage.setAlarm(Date.now()+100);});return Response.json({queued:true});}
  async alarm(){
+  if(await this.state.storage.get<boolean>('imagesMode')){const count=(await this.state.storage.get<number>('imageSteps')??0)+1;await this.state.storage.put('imageSteps',count);await this.state.storage.setAlarm(Date.now()+150000);try{const result=await runImageOptimization(this.env);if(result.pending&&count<6)await this.state.storage.setAlarm(Date.now()+1000);else await this.state.storage.deleteAlarm();}catch{if(count>=6)await this.state.storage.deleteAlarm();}return;}
   if(await this.state.storage.get<boolean>('publicationsMode')){await publicationAlarm(this.state.storage,task=>dispatch(this.env,'/api/v1/manager/publications/step',task,450000));return;}
   // Write recovery wake before dispatch; a host interruption must not strand an owned lease.
   await this.state.storage.setAlarm(Date.now()+6*60000);
@@ -24,10 +26,11 @@ export class ManagerClock {
 }
 export default {
  async fetch(request?:Request,env?:ScheduleBindings){
-  if(!request||!env||!['/wake','/theme/ready','/theme/render','/theme/diagnose','/publications/wake'].includes(new URL(request.url).pathname)||request.method!=='POST')return new Response('Not found',{status:404});
+  if(!request||!env||!['/wake','/theme/ready','/theme/render','/theme/diagnose','/publications/wake','/images/wake'].includes(new URL(request.url).pathname)||request.method!=='POST')return new Response('Not found',{status:404});
   const provided=request.headers.get('X-Manager-Schedule-Key');if(!provided||!env.MANAGER_SCHEDULE_TRIGGER_KEY)return new Response('Unauthorized',{status:401});
   const hash=async(v:string)=>new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)));const [a,b]=await Promise.all([hash(provided),hash(env.MANAGER_SCHEDULE_TRIGGER_KEY)]);let mismatch=0;for(let i=0;i<a.length;i++)mismatch|=a[i]^b[i];if(mismatch)return new Response('Unauthorized',{status:401});
   if(request.headers.has('Cookie')||request.headers.get('Sec-Fetch-Site')==='cross-site'||request.headers.has('Origin')&&request.headers.get('Origin')!==env.PUBLIC_ORIGIN)return new Response('Unauthorized',{status:401});
+  if(new URL(request.url).pathname==='/images/wake'){if(!env.MANAGER_CLOCK||!env.IMAGES)return new Response('Unavailable',{status:503});return env.MANAGER_CLOCK.get(env.MANAGER_CLOCK.idFromName('image-derivatives')).fetch(new Request('https://clock.internal/images/wake',{method:'POST'}));}
   if(new URL(request.url).pathname==='/publications/wake'){
    if(!env.MANAGER_CLOCK)return new Response('Unavailable',{status:503});
    const value=JSON.parse(new TextDecoder().decode(await readRequestBody(request,4096))) as {tasks:PublicationTask[]};

@@ -1,3 +1,4 @@
+import {IMAGE_SCHEMA} from './tower-image-optimization.ts';
 import type {Database} from './db.ts';
 import {RELEASE_MANIFEST} from './generated-release.ts';
 import {canonicalSchema,type SchemaObject} from './release-contract.ts';
@@ -19,6 +20,7 @@ const towerHome=['tower_residencies','tower_snapshots'];
 /** Match only methods and paths supported by the corresponding public handlers. */
 export function routeSchemaCapability(method:string,pathname:string):readonly string[]{
  const path=pathname.replace(/\/$/,'');
+ if(/^\/api\/v1\/(?:manager\/images(?:\/|$)|operator\/images(?:\/|$))/.test(path))return [...new Set([...FULL_SCHEMA_CAPABILITY,...IMAGE_SCHEMA,'tower_scenes'])];
  const publicationObjects=RELEASE_MANIFEST.schemaDefinitions.filter(o=>o.name.startsWith('tower_daily_')||o.name.startsWith('tower_weekly_')||o.name.startsWith('tower_scene')).map(o=>o.name);
  if(/^\/api\/v1\/(?:operator\/(?:tower-weekly|tower-scenes)(?:\/|$)|manager\/publications\/)/.test(path))return [...new Set([...FULL_SCHEMA_CAPABILITY,...publicationObjects])];
  if(method==='GET'||method==='HEAD'){

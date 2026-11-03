@@ -105,4 +105,8 @@ A new exception must name its exact path or a narrowly bounded set and state the
 
 `public/media/musecondo-introduction-qb-fyaymkFg.jpg` 是維護者指定 MuseCondo 介紹影片的原始 YouTube 縮圖，用於本站影片預覽，不包含於 Apache 軟體授權；影片與縮圖權利仍屬各自權利人。
 
+`public/media/musecondo-introduction-qb-fyaymkFg.webp` is a same-dimension compressed display copy of that JPEG. It has the same rights and attribution; compression does not place it under the Apache software license. The original JPEG is retained unchanged.
+
+`public/media/musecondo-introduction-qb-fyaymkFg.webp` 是上述 JPEG 的同尺寸壓縮展示副本，權利與出處相同，不因轉檔而納入 Apache 軟體授權；原始 JPEG 保持不變。
+
 The retained `public/media/musecondo-introduction.jpg` is the historical preview thumbnail for the earlier introduction video. It is no longer used by the homepage. Its existing rights and exclusion from the Apache software license remain unchanged.

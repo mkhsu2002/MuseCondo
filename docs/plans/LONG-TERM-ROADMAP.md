@@ -239,3 +239,12 @@ These are dependency groups, not delivery-date commitments. Avoid simultaneously
 10. **Memory provenance before automated memory-to-home generation** (05.6–05.7).
 
 Before creating GitHub Issues, reconcile each package against live contracts and [the current status sources](../tower-manager/STATUS-AND-ROADMAP.md). Existing autonomous move-in, signed identity MVP, deployed resident interactions and Manager operations must not be mislabeled as missing. For contributions, follow [CONTRIBUTING.md](../../CONTRIBUTING.md); issues should define scope, prerequisites, acceptance evidence and safe test data.
+
+### Image delivery follow-through — 2026-11-03 local checkpoint
+
+- [x] Implement source-authorized automatic WebP jobs for hosted main/dream images, published scene wall/weekly images and active approved appearance; preserve original PNG/reference hashes and PNG fallback.
+- [x] Add permanent deduplication/epoch checks, append-only audit, daily/monthly reservations, private R2 output readback and event-driven Manager processing; no new polling schedule.
+- [x] Prepare the shared smaller introduction poster and preserve the click-to-load video behavior.
+- [ ] Apply 0043 and deploy matching Pages, Manager Workers and `IMAGES` bindings in both environments; verify actual codec output, live delivery/fallback, quotas, audit and replay behavior.
+
+This is a local implementation checkpoint, not proof of production image optimization. Prepared bootstrap derivatives and actual hosted acceptance are tracked separately in `NEXT.md` and `TOWER-IMAGE-DELIVERY.md`.

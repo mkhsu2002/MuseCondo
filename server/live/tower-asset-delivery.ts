@@ -3,7 +3,7 @@ import { readTowerAsset, readTowerAssetMetadata, type AssetPurpose } from './tow
 import { acceptsTowerWebP, readTowerWebP, TOWER_WEBP_PROFILE, type TowerDerivativeBucket } from './tower-asset-derivatives.ts';
 
 /** Caller must check current publication, revision and purpose consent first. */
-export async function authorizedTowerAssetResponse(request: Request, db: Database, room: string, revision: number, purpose: AssetPurpose, bucket?:TowerDerivativeBucket): Promise<Response|null> {
+export async function authorizedTowerAssetResponse(request: Request, db: Database, room: string, revision: number, purpose: AssetPurpose, bucket?:TowerDerivativeBucket, automatic?:{image(digest:string):Promise<{bytes:Uint8Array<ArrayBuffer>;digest:string;size:number}|null>;enqueue():Promise<unknown>}): Promise<Response|null> {
     const tag = (digest:string) => `"tower-${room}-${revision}-${purpose}-${digest}"`;
     const headers = (etag:string,type='image/png') => ({
         'Content-Type':type, 'Cache-Control':'private, no-cache, must-revalidate', 'Vary':'Accept',
@@ -11,12 +11,14 @@ export async function authorizedTowerAssetResponse(request: Request, db: Databas
     });
     const condition = request.headers.get('If-None-Match');
     const matches = (etag:string) => condition?.split(',').some(value => value.trim() === '*' || value.trim().replace(/^W\//,'') === etag);
-    if (bucket && acceptsTowerWebP(request.headers.get('Accept'))) {
+    if ((bucket || automatic) && acceptsTowerWebP(request.headers.get('Accept'))) {
         const metadata=await readTowerAssetMetadata(db,room,revision,purpose);
         if (!metadata) return null;
-        const webp=await readTowerWebP(bucket,room,metadata);
+        let auto=null;try{auto=await automatic?.image(metadata.digest)??null;}catch{/* Keep the verified original available. */}
+        const webp=auto??await readTowerWebP(bucket,room,metadata);
+        if(!webp&&automatic)try{await automatic.enqueue();}catch{/* A failed wake cannot hide original artwork. */}
         if (webp) {
-            const etag=tag(`webp-${TOWER_WEBP_PROFILE}-${webp.digest}`),responseHeaders=headers(etag,'image/webp');
+            const etag=tag(`webp-${auto?'cf-webp-1920-q85-v1':TOWER_WEBP_PROFILE}-${webp.digest}`),responseHeaders=headers(etag,'image/webp');
             if (matches(etag)) return new Response(null,{status:304,headers:responseHeaders});
             return new Response(request.method==='HEAD'?null:webp.bytes,{headers:{...responseHeaders,'Content-Length':String(webp.size)}});
         }

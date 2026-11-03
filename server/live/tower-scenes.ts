@@ -5,7 +5,7 @@ import {BASELINE_SHA,BIBLE_VERSION,BIBLE,SCENES,sceneKey,b64,approvedSceneRefere
 import {sceneProvider,outputJSON,SceneFailure,type SceneProviderOptions} from './tower-scenes-provider.ts';
 import {baseline,storeScene,readScene,type SceneArtifact} from './tower-scenes-storage.ts';
 export type {TowerScene} from '../../src/shared/tower-scene-types.ts';
-export interface TowerSceneOptions extends SceneProviderOptions {db:Database;approved:boolean;origin:string;bucket?:AssetBucket;assetFetch?:(path:string)=>Promise<Response>;assets?:{fetch(request:Request):Promise<Response>}}
+export interface TowerSceneOptions extends SceneProviderOptions {onPublished?:(id:string)=>Promise<void>;db:Database;approved:boolean;origin:string;bucket?:AssetBucket;assetFetch?:(path:string)=>Promise<Response>;assets?:{fetch(request:Request):Promise<Response>}}
 export interface SceneGenerateOptions {batchId?:string;periodKey?:string;autoPublish?:boolean}
 export interface SceneRepairRequest {id:string;mode:'resume'|'replace';sourceId:string;replacementId?:string;batchId?:string}
 interface RepairRow {id:string;mode:'resume'|'replace';source_id:string;target_id:string;logical_slot:string;scene_key:SceneKey;root_batch:string|null;repair_batch:string|null;attempt:number;baseline_sha:string;bible_version:string;created_at:string}
@@ -28,7 +28,7 @@ export function createTowerScenes(options:TowerSceneOptions){
  async function list(){const rows=(await db.prepare("SELECT * FROM tower_scenes WHERE state='published' ORDER BY published_at DESC,id LIMIT 200").all<SceneRow>()).results;return rows.map(publicScene);}
  async function asset(id:string){const s=await row(id);if(!s||s.state!=='published')return null;try{const bytes=await readScene(options.bucket,s);return {arrayBuffer:async()=>new Uint8Array(bytes).buffer,sha256:s.sha256};}catch{return null;}}
  async function previewAsset(id:string){const s=await row(id);if(!options.approved||!s||!['reviewed','published'].includes(s.state))return null;try{const bytes=await readScene(options.bucket,s);return {arrayBuffer:async()=>new Uint8Array(bytes).buffer,sha256:s.sha256};}catch{return null;}}
- async function approve(ids:string[]){if(!options.approved||ids.length<1||ids.length>6||new Set(ids).size!==ids.length)throw Error('scene_approval_invalid');for(const id of ids){const s=await row(id);if(!s||!['reviewed','published'].includes(s.state)||!s.batch_id)throw Error('scene_not_reviewed');await readScene(options.bucket,s);}await db.batch(ids.map(id=>db.prepare("UPDATE tower_scenes SET state='published',published_at=? WHERE id=? AND state='reviewed'").bind(now().toISOString(),id)));return list();}
+ async function approve(ids:string[]){if(!options.approved||ids.length<1||ids.length>6||new Set(ids).size!==ids.length)throw Error('scene_approval_invalid');for(const id of ids){const s=await row(id);if(!s||!['reviewed','published'].includes(s.state)||!s.batch_id)throw Error('scene_not_reviewed');await readScene(options.bucket,s);}await db.batch(ids.map(id=>db.prepare("UPDATE tower_scenes SET state='published',published_at=? WHERE id=? AND state='reviewed'").bind(now().toISOString(),id)));for(const id of ids)try{await options.onPublished?.(id);}catch{/* Publication stays authoritative; GET/recovery may enqueue the optional copy. */}return list();}
  async function references(key:SceneKey,settings:SceneGenerateOptions,savedPlan?:string|null){
   const approval=await db.prepare('SELECT 1 FROM tower_scene_style_approval WHERE id=1 AND baseline_sha=? AND bible_version=?').bind(BASELINE_SHA,BIBLE_VERSION).first();
   const refs:Record<string,string>[]=[{...PRIMARY_SCENE_REFERENCE}];let secondary:SceneRow|null=null;
@@ -69,6 +69,7 @@ export function createTowerScenes(options:TowerSceneOptions){
    if(typeof review.pass!=='boolean'||typeof review.description!=='string'||!review.description.trim()||review.description.length>2000||Object.keys(review).some(k=>!['pass','description'].includes(k)))throw new SceneFailure('scene_review_invalid','invalid');
    if(!review.pass)throw new SceneFailure('scene_review_failed','invalid');await readScene(options.bucket,a);
    await ownedRun("UPDATE tower_scenes SET state=?,review_json=?,published_at=? WHERE id=? AND state='running' AND lease_until=? AND lease_until>strftime('%Y-%m-%dT%H:%M:%fZ','now')",settings.autoPublish&&!settings.batchId?'published':'reviewed',JSON.stringify(review),settings.autoPublish&&!settings.batchId?now().toISOString():null,id);
+   if(settings.autoPublish&&!settings.batchId)try{await options.onPublished?.(id);}catch{/* A delivery copy never rolls back the scene. */}
    return get(id);
   }catch(error){const failure=error instanceof SceneFailure?error:new SceneFailure(error instanceof Error?error.message:'scene_failed','invalid');await run("UPDATE tower_scenes SET state=?,error_code=? WHERE id=? AND state='running' AND lease_until=? AND lease_until>strftime('%Y-%m-%dT%H:%M:%fZ','now')",failure.outcome,failure.message,id,claimedLease);return null;}
  }
@@ -115,5 +116,5 @@ export function createTowerScenes(options:TowerSceneOptions){
   let original:Uint8Array;try{original=await baseline(assetFetch);}catch{return null;}
   return runStages(id,s.scene_key,{batchId:s.batch_id??undefined,periodKey:s.period_key??undefined,autoPublish:!s.batch_id},original,claimedLease);
  }
- return {generate,approve,list,get,getInternal,asset,ensureWeekly,getForPeriod,recover,previewAsset,requestRepair,executeRepair,canonicalIds,canonicalPublished};
+ return {assetMetadata:async(id:string)=>{const s=await row(id);return s?.state==='published'?{sha256:s.sha256}:null;},generate,approve,list,get,getInternal,asset,ensureWeekly,getForPeriod,recover,previewAsset,requestRepair,executeRepair,canonicalIds,canonicalPublished};
 }

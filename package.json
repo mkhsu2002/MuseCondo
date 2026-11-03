@@ -48,7 +48,9 @@
     "test:native:publications": "node scripts/test-tower-publications-native.mjs",
     "pretest:native:publications": "node scripts/release-manifest.mjs --ensure",
     "test:native:journals": "node scripts/test-tower-journals-native.mjs",
-    "pretest:native:journals": "node scripts/release-manifest.mjs --ensure"
+    "pretest:native:journals": "node scripts/release-manifest.mjs --ensure",
+    "test:native:images": "node scripts/test-tower-images-native.mjs",
+    "pretest:native:images": "node scripts/release-manifest.mjs --ensure"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

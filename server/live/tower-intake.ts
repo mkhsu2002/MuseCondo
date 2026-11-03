@@ -20,6 +20,7 @@ import type { CondoPage } from "../../src/framework/condo-render.ts";
 import { renderTowerHome } from "./tower-home-render.ts";
 export interface TowerIntakeEnvironment {
     derivativeBucket?: TowerDerivativeBucket;
+    imageOptimization?: {image(room:string,purpose:AssetPurpose,digest:string):Promise<{bytes:Uint8Array<ArrayBuffer>;digest:string;size:number}|null>;enqueue(room:string,purpose:AssetPurpose):Promise<unknown>};
     db: Database;
     origin: string;
     localTest: boolean;
@@ -169,7 +170,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
                         if (Number(asset[2]) !== r!.public_revision ||
                             (asset[3] === "dream" && !r!.dream_consent))
                             fail(404, "asset_not_found");
-                        const response = await authorizedTowerAssetResponse(req, db, roomId, r!.public_revision!, asset[3] as AssetPurpose, env.derivativeBucket);
+                        const response = await authorizedTowerAssetResponse(req, db, roomId, r!.public_revision!, asset[3] as AssetPurpose, env.derivativeBucket, env.imageOptimization?{image:digest=>env.imageOptimization!.image(roomId,asset[3] as AssetPurpose,digest),enqueue:()=>env.imageOptimization!.enqueue(roomId,asset[3] as AssetPurpose)}:undefined);
                         if (!response)
                             fail(404, "asset_not_found");
                         return response;
