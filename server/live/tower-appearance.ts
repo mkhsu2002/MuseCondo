@@ -1,6 +1,6 @@
 import type {Database} from './db.ts';
-export const APPEARANCE_TIMEZONE='America/Vancouver';
-export const HALLOWEEN_2026={startsAt:'2026-10-31T07:00:00.000Z',endsAt:'2026-11-01T07:00:00.000Z',timezone:APPEARANCE_TIMEZONE};
+import {APPEARANCE_TIMEZONE} from './tower-autonomy-policy.ts';
+export {APPEARANCE_TIMEZONE,HALLOWEEN_2026} from './tower-autonomy-policy.ts';
 export interface AppearanceSnapshot {theme:'standard'|'halloween';startsAt:string|null;endsAt:string|null;timezone:typeof APPEARANCE_TIMEZONE}
 interface State {revision:number;theme:AppearanceSnapshot['theme'];starts_at:string|null;ends_at:string|null;timezone:string}
 interface Receipt extends AppearanceSnapshot {action:string;revision:number|null;requestKey:string}

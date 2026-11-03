@@ -1,6 +1,6 @@
 import type {Database} from './db.ts';
 import {calendarPeriods} from './tower-manager-schedule.ts';
-import {HALLOWEEN_2026} from './tower-appearance.ts';
+import {CURRENT_AUTONOMY_TASK_POLICY as taskPolicy} from './tower-autonomy-policy.ts';
 export const MODEL='muse-spark-1.3',IMAGE='muse-image-1.0',MAX_INPUT=128000,MAX_OUTPUT=8192;
 export const MAX_TEXT_RESERVE=Math.ceil((MAX_INPUT*5+MAX_OUTPUT*17)/4);
 const safeContractToken=(value:unknown)=>typeof value==='string'&&/^[A-Za-z0-9_.-]{1,100}$/.test(value)?value:null;
@@ -18,7 +18,7 @@ export function createAutonomyProvider(options:ProviderOptions){
   if(!options.apiKey)throw Error('provider_not_configured');
   const stepKey=`${c.id}:${c.step_seq}:${purpose}`,requestBody=JSON.stringify(payload);let counted=0;
   const appearanceAudit=purpose==='independent-task-audit'&&JSON.parse(c.plan_json??'null')?.kind==='appearance';
-  const auditScope=appearanceAudit?` AND EXISTS(SELECT 1 FROM tower_autonomy_authorizations a JOIN tower_autonomy_cycles c ON c.id=a.cycle_id JOIN tower_autonomy_task_anchors t ON t.cycle_id=c.id WHERE c.id=? AND c.state='audit' AND c.step_seq=? AND c.lease_until=? AND c.lease_until>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND a.kind='appearance' AND a.budget_micro=c.budget_micro AND t.anchor='appearance:halloween:2026' AND a.starts_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND a.ends_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))`:'';
+  const auditScope=appearanceAudit?` AND EXISTS(SELECT 1 FROM tower_autonomy_authorizations a JOIN tower_autonomy_cycles c ON c.id=a.cycle_id JOIN tower_autonomy_task_anchors t ON t.cycle_id=c.id WHERE c.id=? AND c.state='audit' AND c.step_seq=? AND c.lease_until=? AND c.lease_until>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND a.kind='appearance' AND a.budget_micro=c.budget_micro AND t.anchor='${taskPolicy.id}' AND a.starts_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND a.ends_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))`:'';
   const auditArgs=appearanceAudit?[c.id,c.step_seq,c.lease_until]:[];
   if(!image){
    const countId=crypto.randomUUID(),countAt=clock();
@@ -27,7 +27,7 @@ export function createAutonomyProvider(options:ProviderOptions){
    try{
     const requestInit:RequestInit={method:'POST',redirect:'manual',headers:{Authorization:`Bearer ${options.apiKey}`,'Content-Type':'application/json'},body:requestBody,signal:AbortSignal.timeout(30000)};
     const currentDay=calendarPeriods(clock()).day;
-    if((c.scope_ends_at&&clock().toISOString()>=c.scope_ends_at)||appearanceAudit&&(clock().toISOString()<HALLOWEEN_2026.startsAt||clock().toISOString()>=HALLOWEEN_2026.endsAt)){await run("UPDATE tower_autonomy_calls SET state='rejected',actual_micro=0,completed_at=? WHERE id=?",clock().toISOString(),countId);countFinished=true;await event(c.id,'unsent-audit-scope-expired',{call:countId,paidDispatched:false});throw Error('audit_scope_expired');}
+    if((c.scope_ends_at&&clock().toISOString()>=c.scope_ends_at)||appearanceAudit&&(clock().toISOString()<taskPolicy.startsAt||clock().toISOString()>=taskPolicy.endsAt)){await run("UPDATE tower_autonomy_calls SET state='rejected',actual_micro=0,completed_at=? WHERE id=?",clock().toISOString(),countId);countFinished=true;await event(c.id,'unsent-audit-scope-expired',{call:countId,paidDispatched:false});throw Error('audit_scope_expired');}
     if(currentDay!==calendarPeriods(countAt).day){await run("UPDATE tower_autonomy_calls SET state='rejected',actual_micro=0,completed_at=? WHERE id=?",clock().toISOString(),countId);countFinished=true;await event(c.id,'unsent-dispatch-day-changed',{call:countId,purpose:purpose+':input-token-count',billingDay:calendarPeriods(countAt).day,currentDay,paidDispatched:false});throw Error(purpose==='daily-thinking'?'missed_daily_thinking':'dispatch_day_changed');}
     const countResponse=await transport('https://api.meta.ai/v1/responses/input_tokens',requestInit);
     if(!countResponse.ok){await run("UPDATE tower_autonomy_calls SET state='rejected',actual_micro=0,completed_at=? WHERE id=?",clock().toISOString(),countId);countFinished=true;throw Error('token_count_rejected');}
@@ -49,7 +49,7 @@ export function createAutonomyProvider(options:ProviderOptions){
    const requestInit:RequestInit={method:'POST',redirect:'manual',headers:{Authorization:`Bearer ${options.apiKey}`,'Content-Type':'application/json'},body:requestBody,signal:AbortSignal.timeout(image?120000:90000)};
    // This is the last synchronous gate after the awaited native claim and serialized body, before HTTP.
    const currentDay=calendarPeriods(clock()).day;
-   const toolExpired=!!c.scope_ends_at&&clock().toISOString()>=c.scope_ends_at||(image||purpose==='tool-executor'||appearanceAudit)&&(clock().toISOString()<HALLOWEEN_2026.startsAt||clock().toISOString()>=HALLOWEEN_2026.endsAt);
+   const toolExpired=!!c.scope_ends_at&&clock().toISOString()>=c.scope_ends_at||(image||purpose==='tool-executor'||appearanceAudit)&&(clock().toISOString()<taskPolicy.startsAt||clock().toISOString()>=taskPolicy.endsAt);
    if(toolExpired){await run("UPDATE tower_autonomy_calls SET state='rejected',actual_micro=0,completed_at=? WHERE id=?",clock().toISOString(),call);confirmed=true;await event(c.id,'unsent-tool-scope-expired',{call,purpose,paidDispatched:false});throw Error('tool_scope_expired');}
    if(currentDay!==billingDay){await run("UPDATE tower_autonomy_calls SET state='rejected',actual_micro=0,completed_at=? WHERE id=?",clock().toISOString(),call);confirmed=true;await event(c.id,'unsent-dispatch-day-changed',{call,purpose,billingDay,currentDay,paidDispatched:false});throw Error(purpose==='daily-thinking'?'missed_daily_thinking':'dispatch_day_changed');}
    const response=await transport(`https://api.meta.ai/v1/${image?'images/edits':'responses'}`,requestInit);

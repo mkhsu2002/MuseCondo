@@ -40,7 +40,7 @@ const sources = [
  'server/live/manager-admission-types.ts',
  'server/live/app.ts','server/live/identity-mail-envelope.ts','server/live/identity-webauthn.ts',
  'server/live/identity-recovery.ts','server/live/tower-manager.ts','server/live/tower-intake.ts',
- 'server/live/tower-activities.ts','server/live/tower-visits.ts','server/live/tower-autonomy.ts',
+ 'server/live/tower-activities.ts','server/live/tower-visits.ts','server/live/tower-autonomy.ts','server/live/tower-autonomy-policy.ts','server/live/tower-autonomy-audit-cap-recovery.ts',
  'workers/identity-card/render.ts',
  'scripts/build-home.ts','scripts/build-condo.ts','scripts/verify-condo.ts',
  'public/reception.js','public/activities.js','public/tower-visits.js',

@@ -229,7 +229,7 @@ test('resumed audit can never repair images or reopen a second time, including a
 });
 
 test('unknown, PASS, expiry, mandate, insufficient task/daily room, prior receipt and altered legacy case never mint resume receipt',async()=>{
- for(const scenario of ['unknown','dispatching','PASS','expiry','disabled','task-budget','daily-budget','already-resumed','legacy-mismatch','artifact-mismatch']){
+ for(const scenario of ['unknown','dispatching','PASS','expiry','disabled','task-budget','daily-budget','already-resumed','legacy-mismatch','unknown-policy','artifact-mismatch']){
  const fixture=await blockedAuditFixture(scenario==='legacy-mismatch'?'legacy':'known');const {db,manager}=fixture;try{
  if(scenario==='unknown'||scenario==='dispatching')db.sqlite.prepare("INSERT INTO tower_autonomy_calls(id,cycle_id,step_key,purpose,model,billing_day,state,reserved_micro,created_at) VALUES('unresolved','manager-2026-10-31','unresolved','diagnostic','muse-spark-1.3','2026-10-31',?,1,?)").run(scenario,clock().toISOString());
  if(scenario==='PASS')db.sqlite.exec('UPDATE tower_autonomy_cycles SET audit_json=\'{"verdict":"PASS"}\'');
@@ -240,6 +240,8 @@ test('unknown, PASS, expiry, mandate, insufficient task/daily room, prior receip
  if(scenario==='daily-budget')db.sqlite.exec('UPDATE tower_autonomy_mandate SET daily_limit_micro=100000');
  if(scenario==='already-resumed')db.sqlite.prepare("INSERT INTO tower_autonomy_events VALUES('audit-output-cap-resume:manager-2026-10-31:r0','manager-2026-10-31','audit-output-cap-resumed','{}',?)").run(clock().toISOString());
  if(scenario==='legacy-mismatch')db.sqlite.exec('UPDATE tower_autonomy_cycles SET step_seq=9');
+ // Simulate an unrecognized durable policy without granting new authority. Production anchors are immutable.
+ if(scenario==='unknown-policy')db.sqlite.exec("DROP TRIGGER tower_autonomy_anchor_update; UPDATE tower_autonomy_task_anchors SET anchor='appearance:unregistered:2027'");
  if(scenario==='artifact-mismatch')fixture.storage.data.set([...fixture.storage.data.keys()][0],new Uint8Array([0]));
  await manager.step();assert.equal(db.sqlite.prepare("SELECT state FROM tower_autonomy_cycles WHERE id='manager-2026-10-31'").get()!.state,'blocked',scenario);assert.equal(db.sqlite.prepare("SELECT count(*) n FROM tower_autonomy_events WHERE kind='audit-output-cap-resumed'").get()!.n,scenario==='already-resumed'?1:0,scenario);assert.equal(fixture.audits,scenario==='legacy-mismatch'?0:1,scenario);assert.equal(fixture.provider.images,2,scenario);
  }finally{db.close();}}
