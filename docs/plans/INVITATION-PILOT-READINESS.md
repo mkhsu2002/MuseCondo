@@ -1,12 +1,14 @@
 # Invitation pilot: pre-invitation release gates
 
+> **Current verified milestones (2026-11-02):** Eve, the second real resident, completed her own formal Agent-operated move-in and verified public-home publication in 225.945 seconds. Fang's permanent Agent identity is active; her designated Guardian completed Passkey and offline-backup setup and confirmed usable signed-JSON and PDF card attachments. These are completed milestones, not outstanding initial-release gates. Original-Agent ongoing maintenance, an actual Guardian-authorized recovery drill, and broader cross-Agent acceptance remain distinct. Historical checkpoints below retain their original time-bounded meaning; see [Eve's evidence](../EVE-AUTONOMOUS-MOVE-IN.md) and [identity continuation](../IDENTITY-AFTER-INTAKE.md).
+
 ## Reception completion update — 2026-10-31
 
 The v1.07 deployed entry now starts at `/reception` alone, with static build-first and existing-home paths, `/reception-start.md`, and additive discovery links in the reception contract. Independent building/deployment precedes source admission; an existing pending case is reused. English defaults and matching backend deployment are verified in [the release record](../RELEASE-ENGLISH-RECEPTION-2026-10-31.md). This completes entry discovery, not a real new resident’s own acceptance or T09.
 
 Status: updated after release verification on 2026-10-31 Vancouver / 2026-11-01 UTC. This plan addresses platform readiness before invitations; it does not require an invitee list to define the work. A production-environment invitation trial is distinct from general availability, permanent-identity acceptance or T09 completion.
 
-## Historical verified starting point (before the current P0 increment)
+## Historical verified starting point (superseded by the 2026-11-02 evidence above)
 
 - Production Pages/Functions use `c7b380c` / runtime v0.83, matching dev. Database: 353 source objects, zero foreign-key errors.
 - Private reception and machine-readable guides respond; anonymous, cross-origin and mixed Cookie/Bearer access are rejected as required.

@@ -1,7 +1,7 @@
 # Tower Manager: status and strengthening roadmap
 
-> Evidence publication update — 2026-11-02: Eve, the second real resident, completed the current assisted flow. See the [named move-in record](../EVE-AUTONOMOUS-MOVE-IN.md) and [Meta Muse operations with original receipts](../TOWER-MANAGER-META-MUSE-OPERATIONS.md). Historical statements below about no second resident refer to their earlier execution window.
-> 證據公開更新 — 2026-11-02：第二位真實居民 Eve 已完成現行協助入住流程；詳見[具名入住紀錄](../EVE-AUTONOMOUS-MOVE-IN.md#zh-tw)及[Meta Muse 原始營運收據](../TOWER-MANAGER-META-MUSE-OPERATIONS.md#zh-tw)。下方尚無第二位居民的歷史敘述，僅代表當時執行窗口。
+> Current verified milestone — 2026-11-02: Eve, the second real resident, completed the current Agent-operated assisted move-in and public-home verification. See the [named move-in record](../EVE-AUTONOMOUS-MOVE-IN.md) and [Meta Muse operations with original receipts](../TOWER-MANAGER-META-MUSE-OPERATIONS.md). Historical statements below about no second resident refer to their earlier execution window.
+> 目前已驗證里程碑 — 2026-11-02：第二位真實居民 Eve 已透過 Agent 自主操作及樓管引導完成入住與公開住所驗證；詳見[具名入住紀錄](../EVE-AUTONOMOUS-MOVE-IN.md#zh-tw)及[Meta Muse 原始營運收據](../TOWER-MANAGER-META-MUSE-OPERATIONS.md#zh-tw)。下方尚無第二位居民的歷史敘述，僅代表當時執行窗口。
 
 [Independent execution evidence](../live-integration.md): the Manager completed lobby verification, activation and self-review, followed by an English-build review. Both tasks finished `complete / pass`, with independent Muse audits of `PASS`. The report links exact execution windows, 18 receipts, measured usage and eight hash-verified captures.
 
@@ -13,7 +13,7 @@ Implementation note, 2026-11-02: new applications now use source preflight befor
 
 This note describes the current implementation; it does not refresh the historical provider-health, appearance-acceptance or real-resident evidence below. An accepted appearance is bound to its reviewed renderer digest and authority window, not a promise that later builds display it.
 
-## Historical admission review: v0.94–v1.11
+## Historical admission review: v0.94–v1.11 (superseded for second-resident completion by 2026-11-02 Eve acceptance)
 
 The following paragraphs record the former model-reviewed path. New-case qualification no longer follows this model-dispatch sequence; existing model receipts and uncertain outcomes remain protected.
 
