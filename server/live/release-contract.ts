@@ -10,7 +10,7 @@ export function canonicalSchema(rows:SchemaObject[]){
  return rows.filter(r=>r.sql&&!r.name.startsWith('sqlite_')&&r.name!=='_cf_KV'&&r.name!=='d1_migrations'&&r.tbl_name!=='_cf_KV'&&r.tbl_name!=='d1_migrations').map(r=>({type:r.type,name:r.name,table:r.tbl_name,sql:normalizeSQL(r.sql!)})).sort((a,b)=>{const x=a.type+'\0'+a.name,y=b.type+'\0'+b.name;return x<y?-1:x>y?1:0;});
 }
 export async function hashContract(value:unknown){const bytes=new TextEncoder().encode(JSON.stringify(value));return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');}
-export interface ReleaseManifest {version:1;sourceSHA:string;sourceTreeHash:string;schemaHash:string;schemaObjects:number;migrations:{name:string;sha256:string}[];migrationHash:string;rendererHash:string;frontendAssets:{path:string;sha256:string}[];frontendHash:string;buildComplete:boolean;buildHash:string}
+export interface ReleaseManifest {version:1;sourceSHA:string;sourceTreeHash:string;schemaHash:string;schemaObjects:number;schemaDefinitions:ReturnType<typeof canonicalSchema>;migrations:{name:string;sha256:string}[];migrationHash:string;rendererHash:string;frontendAssets:{path:string;sha256:string}[];frontendHash:string;buildComplete:boolean;buildHash:string}
 export async function releaseReadiness(db:Database|undefined,manifest:ReleaseManifest){
  let schemaHash:string|null=null,schemaReady=false,migrationsReady=false;
  if(db)try{

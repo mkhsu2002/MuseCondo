@@ -107,3 +107,20 @@ Local verification evidence for phase 3:
 
 
 Phase 3 size-boundary review follow-up: a red regression showed that dream replacement previously accepted a retained home plus new dream above the existing 12 MiB final-snapshot ceiling. The dream route now counts the validated retained home and selected dream before preparing its batch, returning the existing `413 source_images_too_large` error above the ceiling. Storage preparation independently rejects an uploaded pair above 12 MiB. Exact-boundary and one-byte-over tests cover both object-backed and legacy-backed retained homes, checking unchanged snapshots, asset objects/chunks/refs, request receipts and audit on rejection. The helper boundary test also verifies an exact 12 MiB pair. After correction, the focused storage/dream/intake/sync/completion run passed 74/74; Pages Functions typechecking, ESLint, current-module native D1 asset tests and `git diff --check` passed. These follow-up checks do not replace the final release-wide verification.
+
+## Phase 5: Route schema capabilities (2026-11-02)
+
+Status: implementation only; deployed code/schema and two-environment live behavior remain pending. See [the capability inventory](ROUTE-SCHEMA-CAPABILITIES.md).
+
+Exact supported public read methods/paths select only their actual read dependencies. All private/auth, write, unknown, malformed, status, appearance/autonomy and mixed asset routes retain the original conservative full requirement set, including migration 0037. The private card coordinator keeps its independent gate. Origin, edge and transport checks still run first.
+
+The selected schema query binds one JSON names array through `json_each`, with no readiness cache. Required type, owning table and normalized DDL must match definitions generated from the actual migrations in the private release manifest. Full schema hashes and the migration ledger remain the authenticated release authority. No schema definitions are returned publicly.
+
+Focused evidence: the eight new capability regressions fail five cases against the previous worker and pass all eight with the new gate; existing Pages/release regressions pass 19/19. Coverage exercises valid published HTML/JSON/image reads despite unrelated missing visits/identity guards, required-storage failures, same-name views/altered DDL, activity list/detail isolation, fail-closed writes without audit/mail effects, drop/restore without stale cache, and one bounded selected schema query per public home request. `npm run verify` passed: typecheck, lint, production build, and all 1,322 discovered tests (0 failures/skips). Native edge passed with real workerd rate-limit bindings and pre-D1/card rejection. Native assets passed canonical capability selection using one JSON bind, unrelated-guard isolation and restoration, plus existing 8MiB reads / 12MiB batches, deduplication, legacy anchors, rollback, household isolation and corruption rejection; all outbound traffic was denied. `git diff --check` passed. No platform migration, deployment or live readback was performed by this implementation phase.
+
+
+### Official platform preparation verified by the releasing maintainer
+
+On 2026-11-02 (America/Vancouver), migration 0037 was actually applied to development and production, in that order, using the committed source from `6cb69f7`. Both databases match all 477 expected SQL objects and all 37 migration names, with zero foreign-key errors. Existing residency, identity, snapshot, legacy-asset, request-receipt and Tower-audit records remained unchanged; the new storage tables are empty. The original application remains available. This is an additive schema preparation, not a claim that the new Functions or frontend are deployed.
+
+The actual Pages configuration now uses `npm run verify`, Node 24.22.1 and Python 3.13.3 in both environments. Other secret names, bindings and branch filters were read back unchanged. Final application/private Worker deployment and live verification remain pending. Detailed official-platform evidence is retained in the private operations repository, outside public deployment artifacts.

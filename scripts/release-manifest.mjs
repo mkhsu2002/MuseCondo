@@ -28,7 +28,7 @@ export async function createManifest({complete=false,directory=root}={}){
  const renderer=readFileSync(resolve(directory,'src/shared/lobby-base-css.ts'),'utf8').match(/LOBBY_RENDERER_BUILD_HASH="([a-f0-9]{64})"/);if(!renderer)throw Error('release_renderer_hash_missing');
  const frontendAssets=complete?emittedAssets(resolve(directory,'dist')):[];
  if(complete&&!frontendAssets.some(a=>a.path.endsWith('.js')))throw Error('release_frontend_assets_missing');
- const contract={version:1,...sourceIdentity(directory),schemaHash:await hashContract(objects),schemaObjects:objects.length,migrations,migrationHash:await hashContract(migrations),rendererHash:renderer[1],frontendAssets,frontendHash:await hashContract(frontendAssets),buildComplete:complete};
+ const contract={version:1,...sourceIdentity(directory),schemaHash:await hashContract(objects),schemaObjects:objects.length,schemaDefinitions:objects,migrations,migrationHash:await hashContract(migrations),rendererHash:renderer[1],frontendAssets,frontendHash:await hashContract(frontendAssets),buildComplete:complete};
  return {...contract,buildHash:await hashContract(contract)};
 }
 function moduleText(manifest){return '// Generated private release contract. Never copy into public output.\nimport type {ReleaseManifest} from \'./release-contract.ts\';\nexport const RELEASE_MANIFEST='+JSON.stringify(manifest)+' satisfies ReleaseManifest;\n';}

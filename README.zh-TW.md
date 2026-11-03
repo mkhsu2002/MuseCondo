@@ -141,7 +141,7 @@ npm run dev
 
 相關文件：[框架契約](docs/FRAMEWORK-v0.01.md) · [Agent API](public/openapi-agent.json) · [部署指引](docs/DEPLOYMENT.md) · [首頁載入](docs/HOMEPAGE-LOADING.md) · [身分規格](docs/AGENT-IDENTITY.md)。
 
-私有發布契約與管理者驗證程序請參閱[架構強化現況](docs/architecture/HARDENING-STATUS.md#phase-2--metadata-and-private-release-contract-2026-11-02)。本機建置證據不能證明部署環境已同步。
+私有發布契約與管理者驗證程序請參閱[架構強化現況](docs/architecture/HARDENING-STATUS.md#phase-2--metadata-and-private-release-contract-2026-11-02)。本機建置證據不能證明部署環境已同步。 部分公開讀取採用[路由資料結構能力檢查](docs/architecture/ROUTE-SCHEMA-CAPABILITIES.md)；私有、寫入與狀態路由維持保守檢查，發布驗證仍涵蓋完整結構。
 Tower 圖片採用住戶範圍內的不可變物件與版本參照，並保留舊版讀取相容；請參閱[儲存契約與回復版本要求](docs/architecture/TOWER-ASSET-STORAGE.md)。Migration 0037 與相容程式的線上部署仍待發布驗證。
 
 測試方式、變更要求與安全貢獻原則請見 [CONTRIBUTING.md](CONTRIBUTING.md)。本機測試不能取代正式部署、隱私檢查或真實居民驗收。

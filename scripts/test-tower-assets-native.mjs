@@ -7,11 +7,22 @@ const runtime=process.argv[2];
 if(!runtime)throw Error('Usage: npm run test:native:assets -- /path/to/runtime/node_modules');
 const {build}=await import(pathToFileURL(runtime+'/esbuild/lib/main.js').href);
 const {Miniflare,convertV4MiniflareOptions}=await import(pathToFileURL(runtime+'/miniflare/dist/src/index.js').href);
-const source=`import {assetStatements,cloneAssetStatements,readTowerAsset} from './server/live/tower-asset-storage.ts';
+const source=`import {routeSchemaReady} from './server/live/schema-capabilities.ts';
+import {assetStatements,cloneAssetStatements,readTowerAsset} from './server/live/tower-asset-storage.ts';
 const room='f'.repeat(16), second='e'.repeat(16), at='2026-11-03T00:00:00.000Z';
 const sha=async bytes=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');
 export default {async fetch(request,env){
  const db=env.DB, {size,mode}=await request.json();
+ if(mode==='capabilities'){
+  const home='/home/'+room;
+  if(!await routeSchemaReady(db,'GET',home)||!await routeSchemaReady(db,'GET','/api/v1/status'))throw Error('native_canonical_schema_not_ready');
+  const guard=await db.prepare("SELECT sql FROM sqlite_master WHERE name='identity_recovery_request_prune_guard'").first();
+  await db.prepare('DROP TRIGGER identity_recovery_request_prune_guard').run();
+  if(!await routeSchemaReady(db,'GET',home)||await routeSchemaReady(db,'GET','/api/v1/status'))throw Error('native_capability_isolation_failed');
+  await db.prepare(guard.sql).run();
+  if(!await routeSchemaReady(db,'GET','/api/v1/status'))throw Error('native_capability_restore_failed');
+  return Response.json({mode,ready:true,selectedBindCount:1});
+ }
  if(mode==='seed'){
   await db.batch([
    db.prepare('INSERT INTO tower_admission_policies VALUES(2,?,0,?)').bind('["*"]',at),db.prepare('UPDATE tower_admission_current SET policy_version=2 WHERE id=1'),
@@ -83,7 +94,7 @@ try{
   const statements=JSON.parse(execFileSync('python3',['-c',"import sys,sqlite3,json\ns=sys.stdin.read();p='';out=[]\nfor c in s:\n p+=c\n if c==';' and sqlite3.complete_statement(p):out.append(p);p=''\nprint(json.dumps(out))"],{input:await readFile(root+'/migrations/'+name,'utf8'),encoding:'utf8'}));
   await db.batch(statements.map(sql=>db.prepare(sql)));
  }
- for(const data of [{mode:'seed'},{mode:'store',size:4},{mode:'store',size:3*1024*1024},{mode:'store',size:8*1024*1024},{mode:'dedup',size:4},{mode:'aggregate',size:4},{mode:'legacy',size:4},{mode:'rollback',size:4},{mode:'isolation',size:4},{mode:'tamper',size:4}]){
+ for(const data of [{mode:'capabilities'},{mode:'seed'},{mode:'store',size:4},{mode:'store',size:3*1024*1024},{mode:'store',size:8*1024*1024},{mode:'dedup',size:4},{mode:'aggregate',size:4},{mode:'legacy',size:4},{mode:'rollback',size:4},{mode:'isolation',size:4},{mode:'tamper',size:4}]){
   const response=await mf.dispatchFetch('https://synthetic-assets.example/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   const body=await response.text();assert.equal(response.status,200,body.slice(0,500));console.log(body);
  }
