@@ -1,5 +1,6 @@
 // Optional cached tooling only. No provider credentials, browser or external traffic.
 import assert from 'node:assert/strict';
+import {setTimeout as pause} from 'node:timers/promises';
 import {readFile,mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
@@ -31,9 +32,20 @@ try{
  // A native service endpoint rejects raw principals and arbitrary fields before rate counters.
  const guard=await mf.getWorker('guard');
  assert.equal((await guard.fetch('https://edge-guard.internal/check',{method:'POST',body:JSON.stringify({kind:'read',ipHash:'192.0.2.5',credentialHash:null})})).status,400);
- const before=await counts();
- for(let i=0;i<45;i++)await mf.dispatchFetch(origin+'/api/v1/agent/identity/card',{headers:{'CF-Connecting-IP':'192.0.2.8'}});
- const saturated=await counts();assert.equal(saturated.dbCalls,before.dbCalls);assert.equal(saturated.cardCalls,40);assert.equal((await mf.dispatchFetch(origin+'/api/v1/agent/identity/card',{headers:{'CF-Connecting-IP':'192.0.2.8'}})).status,429);assert.deepEqual(await counts(),saturated);
+ // Native fixed-window counters legitimately reset at a real clock boundary.
+ // Only sample wholly inside one window; a crossed-window sample cannot prove saturation.
+ const burstWindow=config.ratelimits.find(r=>r.name==='BURST').simple.period*1000;
+ let stableBurst=false;
+ for(let trial=0;trial<3&&!stableBurst;trial++){
+  const phase=Date.now()%burstWindow;
+  if(phase<250)await pause(250-phase);else if(burstWindow-phase<500)await pause(burstWindow-phase+250);
+  const ip='192.0.2.'+(8+trial),before=await counts(),started=Date.now(),window=Math.floor(started/burstWindow);
+  for(let i=0;i<45;i++)await mf.dispatchFetch(origin+'/api/v1/agent/identity/card',{headers:{'CF-Connecting-IP':ip}});
+  const saturated=await counts(),denied=await mf.dispatchFetch(origin+'/api/v1/agent/identity/card',{headers:{'CF-Connecting-IP':ip}}),after=await counts(),finished=Date.now();
+  if(Math.floor(finished/burstWindow)!==window||started%burstWindow<250||finished%burstWindow>burstWindow-250)continue;
+  assert.equal(saturated.dbCalls,before.dbCalls);assert.equal(saturated.cardCalls-before.cardCalls,40);assert.equal(denied.status,429);assert.deepEqual(after,saturated);stableBurst=true;
+ }
+ assert.ok(stableBurst,'A stable native rate-limit window is required; crossed samples are not acceptance');
  console.log('PASS native workerd Pages + private service + actual RateLimit bindings: six-open cap, shared IP across credential rotation, distinct IP, canonical alias guard, invalid raw fields, burst denial before D1/card, no external traffic');
 }finally{await mf.dispose();}
 // Missing binding in an actual compiled isolate must fail before the synthetic D1 boundary.
