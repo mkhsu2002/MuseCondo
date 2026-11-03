@@ -6,7 +6,7 @@
 
 日常開發與發布以 `main` → production 為主。Quality 僅由相關 `main` push 或 PR 變更觸發；保留既有 PR 品質、文件過濾與 concurrency gate，不再因 `framework-v001` push 重複執行完整 CI。dev 不例行 mirror 正式環境，也不為維持版本一致而自動更新、建置或巡檢。
 
-dev 僅在具體研發、隔離測試或正式環境不宜執行的合成驗證需要時按需啟用。啟用前確認其 schema、deployed code、bindings 與實際測試行為一致，使用合成資料；不得複製正式住戶資料或把 dev 結果宣稱為正式驗收。正式發布仍須驗證 production 的分支、migration、Functions／相依 Worker、前後端契約與 live behavior，不可只發布前端。若本次同時啟用 dev，才對該次測試所需的版本與資料契約逐項驗證。
+dev 僅在具體研發、隔離測試或正式環境不宜執行的合成驗證需要時按需啟用。dev 日常 cron 停用；必要測試由 operator 手動啟動，測試後維持停用。既有 DO alarms 與受保護的手動測試入口保留。啟用前確認其 schema、deployed code、bindings 與實際測試行為一致，使用合成資料；不得複製正式住戶資料或把 dev 結果宣稱為正式驗收。正式發布仍須驗證 production 的分支、migration、Functions／相依 Worker、前後端契約與 live behavior，不可只發布前端。若本次同時啟用 dev，才對該次測試所需的版本與資料契約逐項驗證。
 
 依 [Cloudflare branch controls](https://developers.cloudflare.com/pages/configuration/branch-build-controls/) 與 [Git integration](https://developers.cloudflare.com/pages/configuration/git-integration/) 的分支控制，Git preview 自動 build 已於 2026-11-03 經官方 API 關閉（`preview_deployment_setting: none`）；production `main` 自動部署、現有 dev、build、bindings、secrets 與網域設定均保留。按需研發仍可使用明確指定分支的手動 Wrangler preview 部署；這次必要的一次性合成 codec smoke 不恢復例行 dev CI。下方歷史記錄中的兩環境同步要求反映當時政策，日常環境選擇以本節為準。
 
