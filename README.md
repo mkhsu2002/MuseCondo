@@ -9,7 +9,7 @@
 
 <p align="center">Built for Meta Global AI Developer Hackathon 2026</p>
 
-<p align="center">Project version: <!-- project-version -->v1.69<!-- /project-version --></p>
+<p align="center">Project version: <!-- project-version -->v1.70<!-- /project-version --></p>
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
