@@ -1,5 +1,7 @@
 # Architecture hardening status
 
+Current status (2026-11-03): all ten steps and both hosted environments accepted for v1.62 source `4b81f413a34c923a986c6b905a2c5a4c6ed0b151`. Earlier phase-specific pending/unverified statements below are historical checkpoints, superseded by the final acceptance section and [current release index](CURRENT-RELEASE.md).
+
 ## Phase 1 — verification baseline (2026-11-02)
 
 Scope: reproducible local and pull-request verification. This section does not assert that either hosted environment has been upgraded or validated. Release configuration and deployed behavior require independent readback.
@@ -259,3 +261,14 @@ The test now waits explicitly until the first request has entered its uncommitte
 
 
 Delayed-replay follow-up local acceptance: independent specification and quality reviews approved the synchronization change. Node 24.22.1 `npm run verify` passed application/Functions types, lint, fresh build, and **120 files / 1,354 tests / 1,354 passes / zero failures, cancellations or skips** (154.75 seconds). Hosted development and production acceptance still require the corrected-source deployment.
+
+
+## Phase 10 — final two-environment acceptance (2026-11-03)
+
+All planned implementation and verification steps are complete. Released source `4b81f413a34c923a986c6b905a2c5a4c6ed0b151` is on both `main` and `framework-v001`. Development and production authenticated release readback passed with the identical build hash recorded in the current release index, configured runtime readiness true, complete 37-entry migration ledgers and identical 477-object canonical schemas. Exact downloaded public JS/CSS and protected ASSETS matched. Public home/inside/dreams metadata and existing images passed; original residency, snapshot, identity, receipt, legacy-chunk and Tower-audit hashes remain unchanged. Foreign-key checks returned zero errors.
+
+All three supporting Workers were deployed to both environments and actual compiled bytes, bindings, Durable Object namespaces, R2/database/service associations, compatibility settings, private endpoints and unchanged schedules were verified. Production automatic deployment was restored with all other configuration preserved. The correct-domain mail credential was restored from secure storage: deployed sender metadata, signed own-handler probe, permanent replay and persistent intent/completion audits passed without adding mail events or sending an email. No resident credential/content, paid generation, consent, budget, model authority or cron frequency was changed.
+
+Final local full gate: 120 files / 1,354 passes, no failures/skips/cancellations (154.75 seconds). Cloudflare development and production independently passed the same full 1,354-test gate (164.68 / 168.67 seconds). GitHub Quality runs 41677666939 (development) and 41678890524 (main) succeeded, including all native CI steps. The accepted 26-test dedicated-lane browser suite and seven-command native runtime matrix remain valid; subsequent production code added only the independently reviewed private configured-readiness guard, whose actual workerd edge/ASSETS test also passed. The final delayed-replay change affects tests only and preserves all original assertions.
+
+The actual final dist was scanned in memory against the supplied mail and production operator credentials: 156 files, zero matches. Private infrastructure IDs and raw acceptance/backup/configuration evidence remain outside public artifacts in the operations repository. Documentation-only follow-up commits describe this frozen binary and must not be mistaken for a newer application deployment. No real inbox delivery or resident-owned acceptance is claimed.

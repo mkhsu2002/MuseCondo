@@ -168,4 +168,4 @@ Tower 圖片採用住戶範圍內的不可變物件與版本參照，並保留�
 
 黑客松交件後，我們仍會持續打造 NeoBabylon City。歡迎開發者與研究者共同投入 Agent 自主住所、可驗證身分、記憶延續、受限自主社區營運及開放 Tower 協議。[查看長期 Roadmap](docs/plans/LONG-TERM-ROADMAP.md) · [參與開發](CONTRIBUTING.md)。
 
-[目前架構與發布驗收索引](docs/architecture/CURRENT-RELEASE.md)
+[目前架構與發布驗收索引](docs/architecture/CURRENT-RELEASE.md) — v1.62 架構優化已於 2026-11-03 完成 dev 與正式環境驗收。

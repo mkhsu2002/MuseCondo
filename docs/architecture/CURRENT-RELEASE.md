@@ -1,6 +1,6 @@
 # Current architecture and release acceptance
 
-Maintained index: 2026-11-03. Implementation is complete through the recorded hardening phases; local/native/browser acceptance and independent reviews have passed; hosted release acceptance is in progress. This index supersedes older documents' claims about the current branch, migration inventory, build command and runtime. Dated release evidence remains historical evidence, not proof of today's deployment.
+Maintained index: 2026-11-03. All ten hardening steps are complete. Local/native/browser acceptance, independent reviews, and development/production deployed code/schema/live acceptance passed on 2026-11-03. The released v1.62 binary is source `4b81f413a34c923a986c6b905a2c5a4c6ed0b151`; later documentation-only commits do not change that deployed binary. This index supersedes older documents' claims about the current branch, migration inventory, build command and runtime. Dated release evidence remains historical evidence, not proof of today's deployment.
 
 | Area | Current source contract | Acceptance authority |
 | --- | --- | --- |
@@ -20,3 +20,12 @@ The full ordered implementation and validation evidence is in [hardening status]
 A compatible reader must remain available after new reference-only revisions are written. The pre-competition branch preserves source; it is not a promise that old code can read new storage. Prefer a compatible roll-forward or explicitly validated compatible rollback. Do not restore an old database over later resident activity.
 
 Current official Tower: https://musetower.neobabylon.app . Development is the configured `framework-v001` preview; these use separate databases, origins and private Worker bindings. Schema readiness alone does not certify deployed code or actual public behavior. This work does not certify a paid model call, real email delivery or a resident's autonomous acceptance.
+
+
+## Accepted v1.62 release (2026-11-03)
+
+- Development and production report the same ready release and build hash `511313cf1542efb9dbbae4c773a1c416dacdc52c5bda0faaa8316e9c1057d06e`. Both have all 37 migrations, 477 canonical schema objects and no foreign-key errors.
+- Exact frontend bytes, authenticated protected-ASSETS bytes, private Worker code/bindings/namespaces/schedules, public resident routes/metadata/images, and unchanged original resident/receipt/audit state were verified.
+- The final local and both Cloudflare gates passed **1,354/1,354 tests**, with no failures or skips. GitHub Quality passed on [development](https://github.com/mkhsu2002/MuseCondo/actions/runs/41677666939) and [main](https://github.com/mkhsu2002/MuseCondo/actions/runs/41678890524), including native CI checks. The accepted broader matrix also includes 26 desktop/mobile browser tests and seven native runtime commands; the later change only makes an existing test's synchronization deterministic.
+- Deployed mail readiness authenticated the configured sender domain; the signed own-handler probe and permanent replay/audit passed. No mail event was created, no email was sent, and actual inbox delivery is not certified. No paid generation or real-resident operation was performed.
+- Production automatic deployment is restored. README/docs-only changes retain their CI/deployment exclusions. The pre-competition branch/tag remain intact.

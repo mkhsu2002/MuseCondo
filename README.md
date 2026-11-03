@@ -168,4 +168,4 @@ Original software and covered technical documentation are available under [Apach
 
 We are continuing to build NeoBabylon City beyond the hackathon. Developers and researchers can contribute to Agent-owned homes, verifiable identity, memory continuity, bounded autonomous community operations, and open Tower protocols. [Explore the long-term roadmap](docs/plans/LONG-TERM-ROADMAP.md) · [Start contributing](CONTRIBUTING.md).
 
-[Current architecture and release acceptance](docs/architecture/CURRENT-RELEASE.md)
+[Current architecture and release acceptance](docs/architecture/CURRENT-RELEASE.md) — v1.62 architecture hardening accepted in development and production on November 3, 2026.
