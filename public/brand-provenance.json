@@ -13,5 +13,15 @@
   "height": 724,
   "sha256": "13995bcd5574d51cbc1a60e81e119ca19ac7ef2fa82afff7185f547e31b8fb05",
   "status": "user-approved-existing-brand-asset",
-  "usageScope": "User requested display on Muse Tower. This record does not grant downstream rights, imply Meta affiliation, or license the repository."
+  "usageScope": "User requested display on Muse Tower. This record does not grant downstream rights, imply Meta affiliation, or license the repository.",
+  "displayDerivative": {
+    "file": "neobabylon-logo-v0.1-display.webp",
+    "width": 630,
+    "height": 210,
+    "sourceSha256": "13995bcd5574d51cbc1a60e81e119ca19ac7ef2fa82afff7185f547e31b8fb05",
+    "sha256": "2ba7be922c4c53cd10b85906dfb246fa07b9b548baf00b405528e8909a5aa0b7",
+    "byteLength": 52002,
+    "transform": "Lanczos resize, original 3:1 aspect ratio, exact lossless RGBA WebP, metadata removed",
+    "usageScope": "Same brand display permission and rights as the unchanged PNG master."
+  }
 }

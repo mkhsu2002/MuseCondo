@@ -201,7 +201,7 @@ test('missing character image falls back to readable resident text without break
 test('public community has four life sections, notices, privacy-safe profiles and honest disclosures', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.brand-logo')).toHaveAttribute('alt', 'NeoBabylon');
-  expect(await page.locator('.brand-logo').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(2172);
+  expect(await page.locator('.brand-logo').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(630);
   await expect(page.locator('.tower-wordmark')).toContainText('Muse Tower');
   await expect(page.locator('h1')).toContainText('Every window,');
   await expect(page.locator('.community-life > section')).toHaveCount(4);

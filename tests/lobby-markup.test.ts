@@ -40,13 +40,30 @@ test('private preview never accepts arbitrary URLs, markup or other MIME types',
 test('private preview stylesheet bytes and embedded brand match the maintained production sources',()=>{
  const actual=LOBBY_CSS_SOURCES.map(path=>readFileSync(new URL('../'+path,import.meta.url),'utf8')).join('\n');
  assert.equal(LOBBY_BASE_CSS,actual);assert.equal(createHash('sha256').update(actual).digest('hex'),LOBBY_BASE_CSS_HASH);
- assert.equal(LOBBY_LOGO_DATA_URL,'data:image/png;base64,'+readFileSync(new URL('../public/neobabylon-logo-v0.1.png',import.meta.url)).toString('base64'));
+ assert.equal(LOBBY_LOGO_DATA_URL,'data:image/webp;base64,'+readFileSync(new URL('../public/neobabylon-logo-v0.1-display.webp',import.meta.url)).toString('base64'));
  assert.doesNotMatch(LOBBY_BASE_CSS,/@import|url\(/i);
 });
 
 test('renderer build digest covers actual markup, scene text, generic theme code, notices, CSS and brand bytes',()=>{
  const sha=(value:string|Uint8Array)=>createHash('sha256').update(value).digest('hex');
  const sources=Object.fromEntries(LOBBY_RENDERER_SOURCES.map(path=>[path,sha(readFileSync(new URL('../'+path,import.meta.url)))]));
- const expected=sha(JSON.stringify({protocol:'lobby-renderer-build-v1',css:LOBBY_BASE_CSS_HASH,sources,brand:sha(readFileSync(new URL('../public/neobabylon-logo-v0.1.png',import.meta.url)))}));
+ const expected=sha(JSON.stringify({protocol:'lobby-renderer-build-v1',css:LOBBY_BASE_CSS_HASH,sources,brand:sha(readFileSync(new URL('../public/neobabylon-logo-v0.1-display.webp',import.meta.url)))}));
  assert.equal(LOBBY_RENDERER_BUILD_HASH,expected);assert.notEqual(LOBBY_RENDERER_BUILD_HASH,LOBBY_BASE_CSS_HASH);
+});
+
+test('display brand is a bounded transparent 3x asset while the original master remains intact',()=>{
+ const logo=readFileSync(new URL('../public/neobabylon-logo-v0.1-display.webp',import.meta.url));
+ assert.equal(logo.subarray(0,4).toString(),'RIFF');assert.equal(logo.subarray(8,16).toString(),'WEBPVP8L');
+ const dimensions=logo.readUInt32LE(21);
+ assert.equal((dimensions&0x3fff)+1,630);assert.equal(((dimensions>>>14)&0x3fff)+1,210);
+ assert.equal((dimensions>>>28)&1,1,'Alpha must be preserved');assert.ok(logo.length<60000);
+ const original=readFileSync(new URL('../public/neobabylon-logo-v0.1.png',import.meta.url));
+ assert.equal(createHash('sha256').update(original).digest('hex'),'13995bcd5574d51cbc1a60e81e119ca19ac7ef2fa82afff7185f547e31b8fb05');
+ const live=renderLiveShell('/prefix','<p>content</p>');
+ assert.match(live,/src="\/prefix\/neobabylon-logo-v0.1-display\.webp"/);
+ assert.doesNotMatch(live,/neobabylon-logo-v0.1\.png/);
+ assert.match(live,/alt="NeoBabylon" width="630" height="210"/);
+ const preview=renderLobbyPreview({scene:'day',imageSource:'data:image/png;base64,aW1hZ2U='});
+ assert.ok(preview.includes(LOBBY_LOGO_DATA_URL));
+ assert.ok(!preview.includes(original.toString('base64')));
 });
