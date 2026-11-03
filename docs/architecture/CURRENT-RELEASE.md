@@ -1,13 +1,13 @@
 # Current architecture and release acceptance
 
-Maintained index: 2026-11-03. All ten hardening steps are complete. Local/native/browser acceptance, independent reviews, and development/production deployed code/schema/live acceptance passed on 2026-11-03. The released v1.62 binary is source `4b81f413a34c923a986c6b905a2c5a4c6ed0b151`; later documentation-only commits do not change that deployed binary. This index supersedes older documents' claims about the current branch, migration inventory, build command and runtime. Dated release evidence remains historical evidence, not proof of today's deployment.
+Maintained index: 2026-11-03. All ten hardening steps are complete. Local/native/browser acceptance, independent reviews, and development/production deployed code/schema/live acceptance passed on 2026-11-03. The current v1.63 scene-preview binary is source `c39eb99ca278bd9c8c3b83ce16d6ed5c397ea047`; weekly/mail publication remains disabled pending its separate acceptance. Three private cloud-generated scene previews await maintainer style confirmation. Later documentation-only commits do not change that deployed binary. See [preview acceptance](TOWER-PREVIEW-ACCEPTANCE-2026-11-03.md). This index supersedes older documents' claims about the current branch, migration inventory, build command and runtime. Dated release evidence remains historical evidence, not proof of today's deployment.
 
 | Area | Current source contract | Acceptance authority |
 | --- | --- | --- |
 | Submission baseline | `backup/pre-competition-2026-11-02` and annotated `pre-competition-2026-11-02`, commit `289d7458d5c3ed80bc413b3c6751d5ce7094c0ef` | Remote refs verified; retained intact |
 | Application | Main branch; modular Pages Functions and private supporting Workers | Private per-environment deployed code/binding readback |
 | Runtime and quality | Node 24.22.1; `npm run verify` | Types including Functions, lint, production build, every discovered Node/tooling test |
-| Database | All ordered `migrations/*.sql`, currently 0001–0037; 477 application schema objects | Both hosted D1 schemas and migration ledgers, authenticated release contract |
+| Database | All ordered `migrations/*.sql`, currently 0001–0040; 550 application schema objects | Both hosted D1 schemas and migration ledgers, authenticated release contract |
 | Build outputs | Tower `dist`, fictional demo `dist-demo`, standalone home explicit output | [Build targets](BUILD-TARGETS.md), recursive HTML/static-resource guards |
 | Private release | Source/working-tree, renderer, migration, canonical schema, public/protected frontend integrity | Authenticated `/api/v1/operator/release` and `npm run release:verify` |
 | Storage | Immutable room-scoped objects and revision refs, direct legacy anchors | Native D1 byte/limit/rollback checks and immutable legacy reads |
@@ -19,10 +19,10 @@ The full ordered implementation and validation evidence is in [hardening status]
 
 A compatible reader must remain available after new reference-only revisions are written. The pre-competition branch preserves source; it is not a promise that old code can read new storage. Prefer a compatible roll-forward or explicitly validated compatible rollback. Do not restore an old database over later resident activity.
 
-Current official Tower: https://musetower.neobabylon.app . Development is the configured `framework-v001` preview; these use separate databases, origins and private Worker bindings. Schema readiness alone does not certify deployed code or actual public behavior. This work does not certify a paid model call, real email delivery or a resident's autonomous acceptance.
+Current official Tower: https://musetower.neobabylon.app . Development is the configured `framework-v001` preview; these use separate databases, origins and private Worker bindings. Schema readiness alone does not certify deployed code or actual public behavior. The scene-preview record certifies three actual cloud-generated images. It does not certify a published weekly issue, real Lord email delivery or daily journal acceptance.
 
 
-## Accepted v1.62 release (2026-11-03)
+## Historical accepted v1.62 hardening release (2026-11-03)
 
 - Development and production report the same ready release and build hash `511313cf1542efb9dbbae4c773a1c416dacdc52c5bda0faaa8316e9c1057d06e`. Both have all 37 migrations, 477 canonical schema objects and no foreign-key errors.
 - Exact frontend bytes, authenticated protected-ASSETS bytes, private Worker code/bindings/namespaces/schedules, public resident routes/metadata/images, and unchanged original resident/receipt/audit state were verified.

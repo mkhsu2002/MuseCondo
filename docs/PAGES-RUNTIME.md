@@ -1,6 +1,6 @@
 # Cloudflare Pages 同源 Tower runtime
 
-> 維護入口（2026-11-03）：以[目前架構與發布索引](architecture/CURRENT-RELEASE.md)為準。正式 build gate 為 `npm run verify`、Node 24.22.1，所需 migration 為完整 0001–0037（477 application SQL objects）。兩環境已套用 0037；新應用程式發布與 readback 狀態見[執行紀錄](architecture/HARDENING-STATUS.md)。部署必須同步 Functions、前端與相依私有 Worker，不能只上傳靜態 dist。
+> 維護入口（2026-11-03）：以[目前架構與發布索引](architecture/CURRENT-RELEASE.md)為準。正式 build gate 為 `npm run verify`、Node 24.22.1，所需 migration 為完整 0001–0040（550 application SQL objects）。兩環境已套用 0037；新應用程式發布與 readback 狀態見[執行紀錄](architecture/HARDENING-STATUS.md)。部署必須同步 Functions、前端與相依私有 Worker，不能只上傳靜態 dist。
 
 ## 歷史契約與版本證據（2026-10-29 至 2026-11-02）
 

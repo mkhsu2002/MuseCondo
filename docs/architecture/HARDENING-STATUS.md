@@ -1,5 +1,6 @@
 # Architecture hardening status
 
+> Release note 2026-11-03: the hardening acceptance below remains historical evidence. Current v1.63 preview code/schema and its three private cloud images are recorded in [the current release index](CURRENT-RELEASE.md) and [preview acceptance](TOWER-PREVIEW-ACCEPTANCE-2026-11-03.md). Weekly/mail/daily-journal completion is not claimed.
 Current status (2026-11-03): all ten steps and both hosted environments accepted for v1.62 source `4b81f413a34c923a986c6b905a2c5a4c6ed0b151`. Earlier phase-specific pending/unverified statements below are historical checkpoints, superseded by the final acceptance section and [current release index](CURRENT-RELEASE.md).
 
 ## Phase 1 — verification baseline (2026-11-02)

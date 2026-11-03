@@ -1,6 +1,6 @@
 # Tower publications and scene collection
 
-Status: 2026-11-03 implementation candidate; see [NEXT](plans/NEXT.md) for actual deployment, visual approval and publication acceptance. Existing v1.62 remains the released baseline until a verified release is recorded. No image or issue is represented as published by this design document.
+Status: 2026-11-03 v1.63 preview release verified in dev and production; [acceptance record](architecture/TOWER-PREVIEW-ACCEPTANCE-2026-11-03.md). Exactly three private cloud-generated previews await maintainer style confirmation. No seed or issue is published; weekly/mail features remain disabled. See [NEXT](plans/NEXT.md) for remaining delivery gates.
 
 ## Cloud ownership
 
