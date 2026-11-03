@@ -131,10 +131,11 @@ Meta Muse API 驅動的自主運作：Tower Manager 使用 Meta Muse 模型進�
 
 ## 開發者指南
 
-本機開發請使用 Node.js 24：
+本機開發請使用 Node.js 24.22.1：
 
 ```sh
 npm ci
+npm run verify
 npm run dev
 ```
 

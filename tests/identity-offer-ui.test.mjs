@@ -1,11 +1,18 @@
 /* global Response */
-import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync,existsSync} from 'node:fs';import vm from 'node:vm';
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync,existsSync} from 'node:fs';import vm from 'node:vm';import {setImmediate} from 'node:timers/promises';
 const htmlURL=new URL('../public/identity-offer.html',import.meta.url),scriptURL=new URL('../public/identity-offer.js',import.meta.url);
 async function fixture(hash='#'+'a'.repeat(32)+'.'+'b'.repeat(64)){
  assert.ok(existsSync(htmlURL),'human offer choice page exists');assert.ok(existsSync(scriptURL),'human offer choice script exists');
  const nodes=new Map(),calls=[],history=[];for(const id of ['offer-status','offer-form','offer-consent','offer-accept','offer-decline','offer-home','offer-expiry'])nodes.set(id,{hidden:false,disabled:false,checked:false,textContent:'',handlers:{},addEventListener(type,fn){this.handlers[type]=fn;}});
  const context={document:{getElementById:id=>nodes.get(id)},location:{hash,pathname:'/identity/offer',origin:'https://identity.example'},history:{replaceState:(...args)=>history.push(args)},fetch:async(url,init)=>{calls.push({url,init});return new Response(JSON.stringify(url.endsWith('/inspect')?{state:'pending',publicURL:'https://identity.example/home/test',expiresAt:'2026-11-02T00:00:00.000Z',offerDigest:'c'.repeat(64)}:{state:'accepted'}),{headers:{'Content-Type':'application/json'}});},URL,JSON,RegExp};
- vm.runInNewContext(readFileSync(scriptURL,'utf8'),context);for(let i=0;i<6;i++)await Promise.resolve();return {nodes,calls,history};
+ vm.runInNewContext(readFileSync(scriptURL,'utf8'),context);
+ // Response.json() may complete after the current microtask queue. Wait for a rendered
+ // terminal inspection state, with a deadline so a broken inspect cannot hang the suite.
+ const deadline=Date.now()+2000;
+ while(nodes.get('offer-status').textContent==='Checking your invitation…'){
+  assert.ok(Date.now()<deadline,'invitation inspection did not complete');await setImmediate();
+ }
+ return {nodes,calls,history};
 }
 test('human offer choice strips fragment, never submits a decision on view, requires explicit consent and sends no household credential',async()=>{
  const f=await fixture();assert.equal(f.calls.length,1);assert.ok(f.calls[0].url.endsWith('/inspect'));assert.match(f.nodes.get('offer-home').textContent,/home/);assert.match(f.nodes.get('offer-expiry').textContent,/2026-11-02/);assert.equal(f.history.length,1);

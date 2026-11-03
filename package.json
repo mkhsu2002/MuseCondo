@@ -4,15 +4,15 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.12"
+    "node": "24.22.1"
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "node scripts/generate-lobby-css.mjs --write && tsc --noEmit && vite build && node scripts/routes.mjs && node scripts/social-preview.mjs && node scripts/sanitize-public.mjs && node scripts/check-build.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --project tsconfig.functions.json --noEmit",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test tests/domain.test.ts tests/community.test.ts tests/build-output.test.mjs",
+    "test": "node scripts/run-tests.mjs",
     "test:identity": "node --experimental-strip-types --test tests/identity*.test.ts",
     "test:e2e": "playwright test",
     "manager:edit": "node --experimental-strip-types scripts/edit-community.ts",
@@ -24,7 +24,11 @@
     "condo:build": "node --experimental-strip-types scripts/build-condo.ts",
     "condo:verify": "node --experimental-strip-types scripts/verify-condo.ts",
     "test:condo": "node --experimental-strip-types --test tests/condo*.test.ts",
-    "test:tower": "node --experimental-strip-types --test tests/tower*.test.ts tests/tower*.test.mjs"
+    "test:tower": "node --experimental-strip-types --test tests/tower*.test.ts tests/tower*.test.mjs",
+    "test:all": "node scripts/run-tests.mjs",
+    "verify": "node scripts/check-node.mjs && npm run typecheck && npm run lint && npm run build && npm run test:all",
+    "test:native:edge": "node scripts/test-edge-guard-native.mjs",
+    "test:native:mail": "node scripts/test-identity-mail-native.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

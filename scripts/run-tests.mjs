@@ -1,0 +1,11 @@
+import './check-node.mjs';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {discoverTests} from './test-discovery.mjs';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const files=discoverTests(root);
+if(!files.length)throw Error('No verification tests discovered');
+console.log(`Discovered ${files.length} test files (tests/**/*.test.{ts,mjs}, scripts/**/*.test.mjs).`);
+const result=spawnSync(process.execPath,['--test',...process.argv.slice(2),...files],{cwd:root,stdio:'inherit'});
+if(result.error)throw result.error;
+process.exit(result.status??1);

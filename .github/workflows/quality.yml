@@ -1,0 +1,78 @@
+name: Quality
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'ARCHITECTURE.md'
+      - 'BEYOND-A-HOME.md'
+      - 'BUILD-MY-HOME.md'
+      - 'CONTRIBUTING.md'
+      - 'DEVLOG.md'
+      - 'MAINTAIN-MY-HOME.md'
+      - 'NEOBABYLON-MANIFESTO.md'
+      - 'README.bk'
+      - 'README.zh-TW.bk'
+      - 'README.md'
+      - 'README.zh-TW.md'
+      - 'TOWER-LORD.md'
+      - 'TOWER-MANAGER.md'
+      - 'WHAT-THIS-IS.md'
+      - 'docs/**'
+      - 'audit/**'
+      - 'audits/**'
+      - 'tracker/**'
+      - 'handoff/**'
+      - 'outputs/**'
+      - 'VERSION'
+  push:
+    branches: [main, framework-v001]
+    paths-ignore:
+      - 'ARCHITECTURE.md'
+      - 'BEYOND-A-HOME.md'
+      - 'BUILD-MY-HOME.md'
+      - 'CONTRIBUTING.md'
+      - 'DEVLOG.md'
+      - 'MAINTAIN-MY-HOME.md'
+      - 'NEOBABYLON-MANIFESTO.md'
+      - 'README.bk'
+      - 'README.zh-TW.bk'
+      - 'README.md'
+      - 'README.zh-TW.md'
+      - 'TOWER-LORD.md'
+      - 'TOWER-MANAGER.md'
+      - 'WHAT-THIS-IS.md'
+      - 'docs/**'
+      - 'audit/**'
+      - 'audits/**'
+      - 'tracker/**'
+      - 'handoff/**'
+      - 'outputs/**'
+      - 'VERSION'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - name: Types (including Pages Functions), lint, production build, every unit and contract test
+        run: npm run verify
+      # Separate synthetic native runtime: never uses Cloudflare credentials or a provider.
+      - name: Install pinned native test runtime outside the project
+        run: npm install --prefix "$RUNNER_TEMP/muse-native" --no-audit --no-fund wrangler@4.156.0
+      - name: Compile and verify Pages, private service and native rate-limit bindings
+        run: npm run test:native:edge -- "$RUNNER_TEMP/muse-native/node_modules"
+      - name: Compile and verify native D1, coordinator and mail audit with synthetic provider
+        run: npm run test:native:mail -- "$RUNNER_TEMP/muse-native/node_modules"

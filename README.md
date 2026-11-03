@@ -131,10 +131,11 @@ For current engineering evidence and unresolved work, see the [Tower Manager sta
 
 ## For developers
 
-Use Node.js 24 to run the framework locally:
+Use Node.js 24.22.1 to run the framework locally:
 
 ```sh
 npm ci
+npm run verify
 npm run dev
 ```
 
