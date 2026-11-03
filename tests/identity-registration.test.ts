@@ -645,7 +645,7 @@ test("registration binds the original household, invitation, epoch and confirmat
     f.db.close();
   }
 });
-test("two officially verified synthetic completions race atomically; exact retry returns one receipt and independent competition loses", async () => {
+test("two officially verified synthetic completions race atomically; exact retry returns one receipt and independent competition loses", {timeout:10000}, async () => {
   for (const same of [true, false]) {
     const f = await fixture();
     try {
@@ -659,6 +659,18 @@ test("two officially verified synthetic completions race atomically; exact retry
           offlineRecoveryCode: "e".repeat(64),
           backupConfirmed: true,
         };
+      // Both ceremonies must finish official verification before either commit.
+      // Starting two promises alone permits one challenge to be consumed first.
+      const batch = f.db.batch.bind(f.db);
+      let arrivals = 0, release!: () => void;
+      const verified = new Promise<void>(resolve => { release = resolve; });
+      f.db.batch = async statements => {
+        if (statements.some(statement => (statement as unknown as {sql:string}).sql.startsWith("INSERT INTO identity_guardians"))) {
+          if (++arrivals === 2) release();
+          await verified;
+        }
+        return batch(statements);
+      };
       const results = await Promise.all([
         f.send("/complete", body),
         f.send("/complete", {
@@ -666,6 +678,7 @@ test("two officially verified synthetic completions race atomically; exact retry
           requestKey: same ? body.requestKey : "competing-key",
         }),
       ]);
+      assert.equal(arrivals, 2, "Both verified completions reached the atomic commit race");
       assert.deepEqual(
         results.map((r) => r.status).sort(),
         same ? [200, 200] : [200, 409],
