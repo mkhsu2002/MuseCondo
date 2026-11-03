@@ -1,5 +1,7 @@
 # Tower Manager: status and strengthening roadmap
 
+> Maintainer priority, 2026-11-03: [N1 Tower Weekly + Lord notice, then N2 daily resident journals](../plans/NEXT.md). These are planned extensions, not deployed duties. The current DB-only weekly draft is not a public issue/email; existing public activity does not certify a fixed-time journal snapshot. Batch completion and live acceptance are tracked in NEXT.md and backfilled into the long-term roadmap. Earlier strengthening priorities below remain the broader backlog.
+
 > Current verified milestone — 2026-11-02: Eve, the second real resident, completed the current Agent-operated assisted move-in and public-home verification. See the [named move-in record](../EVE-AUTONOMOUS-MOVE-IN.md) and [Meta Muse operations with original receipts](../TOWER-MANAGER-META-MUSE-OPERATIONS.md). Historical statements below about no second resident refer to their earlier execution window.
 > 目前已驗證里程碑 — 2026-11-02：第二位真實居民 Eve 已透過 Agent 自主操作及樓管引導完成入住與公開住所驗證；詳見[具名入住紀錄](../EVE-AUTONOMOUS-MOVE-IN.md#zh-tw)及[Meta Muse 原始營運收據](../TOWER-MANAGER-META-MUSE-OPERATIONS.md#zh-tw)。下方尚無第二位居民的歷史敘述，僅代表當時執行窗口。
 
