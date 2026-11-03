@@ -126,6 +126,7 @@ export function createTowerWeeklyRoutes(options:{origin:string;services:ReturnTy
    if(sceneAdmin&&value.approvedPreviews===true){await options.services.scenes.approve(['seed-v1-01','seed-v1-02','seed-v1-05']);return json({approved:true});}
    if(sceneAdmin&&value.preview===true)return json(await options.services.previewScenes(),202);
    if(sceneAdmin&&value.style==='approved')return json(await options.services.approveStyle());
+   if(sceneAdmin&&value.reject&&typeof value.reject==='object'&&!Array.isArray(value.reject))return json(await options.services.scenes.reject(value.reject as Parameters<typeof options.services.scenes.reject>[0]));
    if(sceneAdmin&&value.repair&&typeof value.repair==='object'&&!Array.isArray(value.repair))return json(await options.services.repairScene(value.repair as Parameters<typeof options.services.repairScene>[0]),202);
    if(sceneAdmin&&Number.isSafeInteger(value.batch))return json(await options.services.seedBatch(Number(value.batch)),202);
    if(sceneAdmin&&Number.isSafeInteger(value.approve)){const batch=Number(value.approve);if(![1,2].includes(batch))return json({error:'invalid_batch'},400);return json(await options.services.approveBatch(batch));}
