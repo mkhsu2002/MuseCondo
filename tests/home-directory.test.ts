@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import ts from 'typescript';
+import {renderWeeklyCard} from '../src/shared/tower-weekly-markup.ts';
 import {renderHomeDirectory} from '../src/shared/home-directory.ts';
 import runtime from '../server/live/worker.ts';
 import {LocalDatabase} from '../server/live/local-db.ts';
@@ -15,7 +16,7 @@ const turn=async()=>{for(let n=0;n<3;n++)await new Promise<void>(resolve=>setImm
 function frontend(initial='',statusResponse?:Promise<Response>){
  const listing=deferred<{rooms:{id:string;name:string}[]}>(),community=deferred<unknown>(),frames:string[]=[];
  const root={innerHTML:initial,dataset:{},querySelector(selector:string){if(selector==='[data-public-home-directory]'){const outerHTML=this.innerHTML.match(/<section[^>]*data-public-home-directory[^>]*>[\s\S]*?<\/section>/)?.[0];return outerHTML?{outerHTML,addEventListener(){}}:null;}return {addEventListener(){}};}};
- const context={root,renderVersion:0,liveServiceSeen:false,base:'',document:{documentElement:{},title:''},AbortSignal,fetch:async()=>statusResponse??Response.json({available:true,registrationEnabled:false,mode:'live'}),lobbyMessages:()=>({meta:{title:'Tower'}}),showTowerLobby:(target:typeof root,content:string)=>{frames.push(content);target.innerHTML=content;},lobbyServiceMarkup:(kind:string)=>`<p>${kind}</p>`,api:(path:string)=>path.endsWith('/rooms')?listing.promise:community.promise,renderHomeDirectory,validateCommunity:()=>({events:[]}),renderLobbyFeed:()=>'<p>Community feed</p>',pending:undefined as Promise<void>|undefined};
+ const context={root,renderWeeklyCard,weeklyMarkup:'',renderVersion:0,liveServiceSeen:false,base:'',document:{documentElement:{},title:''},AbortSignal,fetch:async()=>statusResponse??Response.json({available:true,registrationEnabled:false,mode:'live'}),lobbyMessages:()=>({meta:{title:'Tower'}}),showTowerLobby:(target:typeof root,content:string)=>{frames.push(content);target.innerHTML=content;},lobbyServiceMarkup:(kind:string)=>`<p>${kind}</p>`,api:(path:string)=>path.endsWith('/rooms')?listing.promise:path.endsWith('/tower-weekly')?Promise.resolve({issues:[]}):community.promise,renderHomeDirectory,validateCommunity:()=>({events:[]}),renderLobbyFeed:()=>'<p>Community feed</p>',pending:undefined as Promise<void>|undefined};
  const source=readFileSync(new URL('../src/live.ts',import.meta.url),'utf8').split('export async function renderLiveTower')[1];assert.ok(source,'exercise the maintained frontend function');
  const code=ts.transpileModule('async function renderLiveTower'+source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText;
  runInNewContext(code+';globalThis.pending=renderLiveTower(root);',context);
@@ -58,8 +59,8 @@ test('updating homepage content preserves the hero and player nodes and binds co
  const fn=file.statements.find((node):node is ts.FunctionDeclaration=>ts.isFunctionDeclaration(node)&&node.name?.text==='showTowerLobby');assert.ok(fn);
  let shellWrites=0,binds=0;const feed={innerHTML:''};
  const root={querySelector:(selector:string)=>selector==='[data-lobby-feed]'?feed:null,get innerHTML(){return 'existing shell';},set innerHTML(_value:string){shellWrites++;}};
- const context={root,lobbyRoot:null,base:'',disposeLobby(){},towerScenePreference:()=> 'day',renderTowerLobby:()=> 'replacement shell',bindTowerWelcome:()=>{binds++;}};
+ const context={root,weeklyMarkup:'',lobbyRoot:null,base:'',disposeLobby(){},towerScenePreference:()=> 'day',renderTowerLobby:()=> 'replacement shell',bindTowerWelcome:()=>{binds++;}};
  const code=ts.transpileModule(fn!.getText(file),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText;
  runInNewContext(code+';showTowerLobby(root,"loading");showTowerLobby(root,"validated feed");',context);
- assert.equal(shellWrites,0,'data refresh must not replace the homepage shell');assert.equal(feed.innerHTML,'validated feed');assert.equal(binds,1);
+ assert.equal(shellWrites,0,'data refresh must not replace the homepage shell');assert.equal(feed.innerHTML,'<div data-weekly-slot></div>validated feed');assert.equal(binds,1);
 });

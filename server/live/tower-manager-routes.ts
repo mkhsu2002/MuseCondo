@@ -4,7 +4,7 @@ import {createTowerAppearance} from './tower-appearance.ts';
 import {createManagerSchedule} from './tower-manager-schedule.ts';
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
 const required=['tower_appearance_state','tower_appearance_audit','tower_appearance_revision','tower_appearance_audit_immutable_update','tower_appearance_audit_immutable_delete','tower_appearance_state_guard','tower_appearance_state_permanent','tower_manager_runs','tower_manager_runs_binding','tower_manager_runs_permanent'];
-export function createManagerRoutes(options:{db:Database;bucket?:AssetBucket;origin:string;operator:()=>Promise<boolean>;scheduleAuthorized:()=>Promise<boolean>;now?:()=>Date}){
+export function createManagerRoutes(options:{db:Database;bucket?:AssetBucket;origin:string;operator:()=>Promise<boolean>;scheduleAuthorized:()=>Promise<boolean>;now?:()=>Date;onDue?:(at:Date)=>Promise<unknown>}){
  const {db,origin,operator,scheduleAuthorized}=options,now=options.now??(()=>new Date()),appearance=createTowerAppearance(db,now),schedule=createManagerSchedule(db,now);
  return {async fetch(request:Request):Promise<Response|null>{
   const url=new URL(request.url),publicRoute=url.pathname==='/api/v1/tower/appearance',appearanceRoute=url.pathname==='/api/v1/operator/manager/appearance',scheduleRoute=url.pathname==='/api/v1/operator/manager/schedule',runRoute=url.pathname==='/api/v1/manager/run-due';
@@ -31,7 +31,7 @@ export function createManagerRoutes(options:{db:Database;bucket?:AssetBucket;ori
    let value:unknown;try{value=JSON.parse(raw);}catch{return json({error:'invalid_json'},400);}
    if(runRoute){
     if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>k!=='scheduledTime')||!('scheduledTime' in value)||typeof value.scheduledTime!=='string')return json({error:'invalid_schedule_time'},400);
-    return json(await schedule.runDue(new Date(value.scheduledTime)));
+    const at=new Date(value.scheduledTime),result=await schedule.runDue(at);return json({...result,...(options.onDue?{publications:await options.onDue(at)}:{})});
    }
    return json(await appearance.command(value,'operator'),201);
   }catch(error){

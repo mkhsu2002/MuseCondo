@@ -1,3 +1,5 @@
+import {createTowerWeeklyServices,createTowerWeeklyRoutes,type TowerPublicationBindings} from './tower-weekly-routes.ts';
+import {renderWeeklyCard,renderWeeklyPage,renderWeeklyArchive,renderSceneWall} from '../../src/shared/tower-weekly-markup.ts';
 import {routeSchemaReady} from './schema-capabilities.ts';
 import {RELEASE_MANIFEST} from './generated-release.ts';
 import {releaseReadiness} from './release-contract.ts';
@@ -6,7 +8,7 @@ import {createHomePreflightRoute} from './home-preflight-route.ts';
 import {createMoveInCompletion} from './move-in-completion.ts';
 import {createMoveInInvitationChoice} from './move-in-invitation-choice.ts';
 import {renderHomeDirectory} from '../../src/shared/home-directory.ts';
-import {renderTowerLobby,lobbyServiceMarkup} from '../../src/shared/lobby-markup.ts';
+import {renderLiveShell,renderTowerLobby,lobbyServiceMarkup} from '../../src/shared/lobby-markup.ts';
 import {createIdentityOffer} from './identity-offer.ts';
 import {transportCheck} from './transport-check.ts';
 import {createNativeSourceInspection} from './native-source-inspection.ts';
@@ -36,7 +38,7 @@ import {createManagerRoutes} from './tower-manager-routes.ts';
 import {createAutonomyRoutes,type ManagerRuntimeBinding} from './tower-autonomy-routes.ts';
 import {autonomySchemaReady,type AssetBucket} from './tower-autonomy.ts';
 import type {Database} from './db.ts';
-export interface PagesBindings extends TowerLordBindings {
+export interface PagesBindings extends TowerLordBindings,TowerPublicationBindings {
  EDGE_GUARD?:EdgeGuardBinding;EDGE_GUARD_REQUIRED?:string;
  IDENTITY_CARDS?:IdentityCardNamespace;
  MANAGER_ASSETS?:AssetBucket;MANAGER_RUNTIME?:ManagerRuntimeBinding;
@@ -51,6 +53,8 @@ const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,
 function validOrigin(value:string|undefined){try{return !!value&&new URL(value).origin===value&&value.startsWith('https://');}catch{return false;}}
 const amount=(v:string|undefined)=>v&&/^\d{1,10}$/.test(v)?Number(v):0;
 function sourceOrigins(v:string|undefined):string[]{try{const a=JSON.parse(v??'[]');return Array.isArray(a)&&a.length<=20&&a.every(x=>typeof x==='string'&&validOrigin(x))?a:[];}catch{return [];}}
+function publicationServices(env:PagesBindings,context?:RuntimeContext){return createTowerWeeklyServices({db:env.DB!,origin:env.PUBLIC_ORIGIN!,...env,apiKey:env.meta_muse_api,mailKey:env.IDENTITY_MAIL_API_KEY,from:env.IDENTITY_MAIL_FROM,contactKey:env.IDENTITY_CONTACT_KEY,approved:env.META_MANAGER_APPROVED==='true',budgetMicro:amount(env.META_MANAGER_BUDGET_MICRO),dailyBudgetMicro:amount(env.META_MANAGER_DAILY_MICRO),monthlyBudgetMicro:amount(env.META_MANAGER_MONTHLY_MICRO),bucket:env.MANAGER_ASSETS,assets:env.ASSETS,runtime:env.MANAGER_RUNTIME,trigger:env.MANAGER_SCHEDULE_TRIGGER_KEY,waitUntil:context?p=>context.waitUntil(p):undefined});}
+const htmlEscape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 /** Same-origin Pages runtime. Secrets remain in deployment storage; status only reports gates. */
 export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeContext):Promise<Response>{
  const lord=await towerLordRoute(request,env);if(lord)return lord;
@@ -68,6 +72,11 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    const release=await releaseReadiness(env.DB,RELEASE_MANIFEST,env.ASSETS,env.PUBLIC_ORIGIN),bindingsReady=runtimeBindingsReady(env);
    return json({...release,runtimeBindingsReady:bindingsReady,ready:release.ready&&bindingsReady});
   }
+  if(/^\/api\/v1\/(?:operator\/(?:tower-weekly|tower-scenes)(?:\/|$)|manager\/publications\/)/.test(url.pathname)){
+   if(request.headers.has('Cookie')||request.headers.get('Sec-Fetch-Site')==='cross-site'||request.headers.has('Origin')&&request.headers.get('Origin')!==env.PUBLIC_ORIGIN)return json({error:'origin_rejected'},403);
+   const scheduledPath=url.pathname.startsWith('/api/v1/manager/'),key=scheduledPath?env.MANAGER_SCHEDULE_TRIGGER_KEY:env.TOWER_OPERATOR_KEY,provided=request.headers.get(scheduledPath?'X-Manager-Schedule-Key':'X-Tower-Operator-Key');
+   if(!key||!provided||await digest(provided)!==await digest(key))return json({error:'operator_required'},401);
+  }
   const identityMailEnv=env.DB?{db:env.DB,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,from:env.IDENTITY_MAIL_FROM,coordinator:env.IDENTITY_CARDS,deliveryEnabled:env.IDENTITY_MAIL_DELIVERY_ENABLED}:undefined;
   const onMailEvent=identityMailEnv?identityMailEventDispatcher(identityMailEnv,context):async()=>{};
   if(isIdentityCardPath(url.pathname)){const response=await proxyIdentityCard(request,env.IDENTITY_CARDS);await dispatchIdentityCardResult(request,response,env.DB,onMailEvent);return response;}
@@ -84,10 +93,13 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const invitationChoice=await createMoveInInvitationChoice({db,origin:env.PUBLIC_ORIGIN!}).fetch(request);if(invitationChoice)return invitationChoice;
   const identityOffer=await createIdentityOffer({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,verifyCompletion:completion.verify,onMailEvent}).fetch(request);if(identityOffer)return identityOffer;
   const sourceInspection=await createNativeSourceInspection({operator:async()=>operator()})(request);if(sourceInspection)return sourceInspection;
+  const publications=publicationServices(env,context);
+  if(url.pathname==='/api/v1/identity/mail/webhook'){const hook=await publications.mail.handleWebhook(request.clone());if(hook)return hook;}
+  const weeklyResponse=await createTowerWeeklyRoutes({origin:env.PUBLIC_ORIGIN!,services:publications,operator,scheduled:async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&request.headers.get('X-Manager-Schedule-Key')===env.MANAGER_SCHEDULE_TRIGGER_KEY})(request);if(weeklyResponse)return weeklyResponse;
   const mailControlResponse=await createIdentityMailControl({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request);if(mailControlResponse)return mailControlResponse;
   const scheduled=async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!request.headers.get('X-Manager-Schedule-Key')&&await digest(request.headers.get('X-Manager-Schedule-Key')!)===await digest(env.MANAGER_SCHEDULE_TRIGGER_KEY);
   const autonomyRoute=await createAutonomyRoutes({db,origin:env.PUBLIC_ORIGIN!,operator,scheduled,bucket:env.MANAGER_ASSETS,runtime:env.MANAGER_RUNTIME,trigger:env.MANAGER_SCHEDULE_TRIGGER_KEY,apiKey:env.meta_muse_api,assets:env.ASSETS,verifyCompletion:completion.verify}).fetch(request);if(autonomyRoute)return autonomyRoute;
-  const managerRoute=await createManagerRoutes({db,bucket:env.MANAGER_ASSETS,origin:env.PUBLIC_ORIGIN!,operator,scheduleAuthorized:async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!request.headers.get('X-Manager-Schedule-Key')&&await digest(request.headers.get('X-Manager-Schedule-Key')!)===await digest(env.MANAGER_SCHEDULE_TRIGGER_KEY)}).fetch(request);if(managerRoute)return managerRoute;
+  const managerRoute=await createManagerRoutes({db,bucket:env.MANAGER_ASSETS,origin:env.PUBLIC_ORIGIN!,operator,onDue:at=>publications.schedule(at),scheduleAuthorized:async()=>!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!request.headers.get('X-Manager-Schedule-Key')&&await digest(request.headers.get('X-Manager-Schedule-Key')!)===await digest(env.MANAGER_SCHEDULE_TRIGGER_KEY)}).fetch(request);if(managerRoute)return managerRoute;
   if(url.pathname==='/api/v1/operator/identity/mail-readiness')return (await createIdentityMailReadiness({db,origin:env.PUBLIC_ORIGIN!,from:env.IDENTITY_MAIL_FROM,apiKey:env.IDENTITY_MAIL_API_KEY,operator}).fetch(request))!;
   const admissionResponse=await createTowerAdmission({db,origin:env.PUBLIC_ORIGIN!,operator}).fetch(request);if(admissionResponse)return admissionResponse;
   const generator=metaSecretConfigured&&paidCallsApproved?createFrameworkHomeGenerator({apiKey:env.meta_muse_api,approvedPaidCalls:true,textModel:MANAGER_MODEL,journal:databaseJournal(db)}):undefined;
@@ -182,6 +194,19 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   if(!env.ASSETS)return json({error:'assets_not_bound'},503);
   return env.ASSETS.fetch(request);
  }
+ const weeklyPage=url.pathname.match(/^\/tower-weekly(?:\/(tower-weekly-[a-zA-Z0-9_-]{1,80}))?\/?$/),scenePage=/^\/tower-scenes\/?$/.test(url.pathname);
+ if(weeklyPage||scenePage){
+  if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
+  if(!env.DB||!env.ASSETS||!validOrigin(env.PUBLIC_ORIGIN)||url.origin!==env.PUBLIC_ORIGIN)return json({error:'service_unavailable'},503);
+  const limited=await checkEdgeGuard(request,env);if(limited)return limited;
+  try{const services=publicationServices(env,context),issue=weeklyPage?.[1]?await services.weekly.get(weeklyPage[1]):null;const missing=!!weeklyPage?.[1]&&!issue;
+   const content=scenePage?renderSceneWall('',await services.scenes.list()):issue?renderWeeklyPage('',issue):missing?'<h1>Issue not found</h1><p>This issue is not available.</p><a href="/tower-weekly">Browse Tower Weekly</a>':renderWeeklyArchive('',await services.weekly.list());
+   const asset=await env.ASSETS.fetch(new Request(new URL('/',url),request));if(!asset.ok)return asset;let html=await asset.text();
+   const title=scenePage?'Corners of Muse Tower':issue?.title??'Tower Weekly',canonical=env.PUBLIC_ORIGIN+(scenePage?'/tower-scenes':weeklyPage?.[1]?'/tower-weekly/'+weeklyPage[1]:'/tower-weekly');
+   html=html.replace(/<title>[\s\S]*?<\/title>/i,'<title>'+htmlEscape(title)+' · Muse Tower</title>').replace(/<link\b[^>]*rel=["']canonical["'][^>]*>/gi,'').replace(/<meta\b[^>]*property=["']og:[^>]*>/gi,'').replace('</head>',`<link rel="canonical" href="${htmlEscape(canonical)}"><meta property="og:title" content="${htmlEscape(title)}"><meta property="og:url" content="${htmlEscape(canonical)}">${issue?.scene?`<meta property="og:image" content="${htmlEscape(issue.scene.url)}">`:''}</head>`).replace('<div id="app"></div>',`<div id="app">${renderLiveShell('',content,true)}</div>`);
+   const headers=new Headers(asset.headers);headers.set('Cache-Control','no-store');for(const key of ['ETag','Content-Length','Content-Encoding','Last-Modified'])headers.delete(key);if(missing)headers.set('X-Robots-Tag','noindex, nofollow');return new Response(request.method==='HEAD'?null:html,{status:missing?404:200,headers});
+  }catch{return json({error:'publication_unavailable'},503);}
+ }
  const legacy=legacyHomeRedirect(request,env.LEGACY_HOME_REDIRECTS);if(legacy)return legacy;
  if(!env.ASSETS)return json({available:false,error:'assets_not_bound'},503);
  if(url.pathname==='/'&&request.method==='GET'&&env.DB&&url.origin===env.PUBLIC_ORIGIN){
@@ -192,7 +217,8 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));
    if(!directory.ok)return response;
    const {rooms}=await directory.json() as {rooms:{id:string;name:string}[]};
-   const markup=renderTowerLobby({base:'',scene:'day',content:lobbyServiceMarkup('loading','')+renderHomeDirectory('',rooms)});
+   let weekly='';try{const issues=await publicationServices(env,context).weekly.list();weekly=renderWeeklyCard('',issues[0]??null);}catch{/* The existing resident directory remains available. */}
+   const markup=renderTowerLobby({base:'',scene:'day',content:'<div data-weekly-slot>'+weekly+'</div>'+lobbyServiceMarkup('loading','')+renderHomeDirectory('',rooms)});
    const html=(await response.clone().text()).replace('<div id="app"></div>',`<div id="app">${markup}</div>`);
    const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');for(const key of ['ETag','Content-Length','Content-Encoding','Last-Modified'])headers.delete(key);
    return new Response(html,{status:response.status,headers});

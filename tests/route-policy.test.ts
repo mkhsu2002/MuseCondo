@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {isLiveRoute,createNavigationEpoch} from '../src/route-policy.ts';
 test('historical and unknown routes stay out of the live renderer',()=>{
- for(const path of ['move-in','neighbors','home/0123456789abcdef','home/0123456789abcdef/inside','home/0123456789abcdef/dreams'])assert.equal(isLiveRoute(path),true,path);
+ for(const path of ['move-in','neighbors','tower-weekly','tower-weekly/tower-weekly-inaugural','tower-scenes','home/0123456789abcdef','home/0123456789abcdef/inside','home/0123456789abcdef/dreams'])assert.equal(isLiveRoute(path),true,path);
  for(const path of ['about','入住','選輯紀錄','m7k2px','m7k2px/inside','m7k2px/dreams','home/bad','neighbors/bad','move-in-extra','home/0123456789abcdef/unknown','unknown'])assert.equal(isLiveRoute(path),false,path);
 });
 test('delayed live imports cannot render or focus after a newer demo navigation',async()=>{

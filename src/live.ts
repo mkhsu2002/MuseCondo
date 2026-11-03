@@ -1,3 +1,6 @@
+import type {TowerScene} from './shared/tower-scene-types.ts';
+import {renderWeeklyCard,renderWeeklyPage,renderWeeklyArchive,renderSceneWall} from './shared/tower-weekly-markup.ts';
+import type {TowerWeeklyIssue} from './shared/tower-weekly.ts';
 import {bindTowerWelcome,towerScenePreference} from './live/tower-welcome';
 import {renderLiveShell,renderTowerLobby,renderLobbyFeed,lobbyServiceMarkup} from './shared/lobby-markup.ts';
 import {lobbyMessages} from './shared/lobby-messages.ts';
@@ -41,6 +44,12 @@ export async function renderLive(root:HTMLElement,route:string){
  document.documentElement.lang='en';
  disposeLobby();const version=++renderVersion;document.title='Muse Tower · Resident homes';root.innerHTML=shell('<p role="status">Opening the door…</p>');
  try{
+  if(route==='tower-scenes'){const {scenes}=await api<{scenes:TowerScene[]}>('/api/v1/public/tower-scenes');if(version!==renderVersion)return;root.innerHTML=shell(renderSceneWall(base,scenes),true);document.title='Corners of Muse Tower';return;}
+  if(route==='tower-weekly'||route.startsWith('tower-weekly/')){
+   const id=route.split('/')[1];
+   if(id){const {issue}=await api<{issue:TowerWeeklyIssue}>('/api/v1/public/tower-weekly/'+encodeURIComponent(id));if(version!==renderVersion)return;root.innerHTML=shell(renderWeeklyPage(base,issue));document.title=issue.title+' · Muse Tower';}
+   else{const {issues}=await api<{issues:TowerWeeklyIssue[]}>('/api/v1/public/tower-weekly');if(version!==renderVersion)return;root.innerHTML=shell(renderWeeklyArchive(base,issues));document.title='Tower Weekly · Muse Tower';}return;
+  }
   const session=await api<Session>('/api/v1/session');if(version!==renderVersion)return;csrf=session.csrf??'';
   if(route==='neighbors'){
    const {rooms}=await api<{rooms:Room[]}>('/api/v1/public/rooms');if(version!==renderVersion)return;
@@ -108,7 +117,9 @@ function bindOwnerContent(root:HTMLElement,route:string){
  for(const [selector,kind,key] of [['[data-post-withdraw]','posts','postWithdraw'],['[data-dream-withdraw]','dreams','dreamWithdraw']] as const)root.querySelectorAll<HTMLButtonElement>(selector).forEach(button=>button.addEventListener('click',async()=>{if(!confirm('Withdraw this entry? Visitors will no longer be able to read it.'))return;button.disabled=true;try{await api(`/api/v1/me/${kind}/${button.dataset[key]}`,'DELETE');await renderLive(root,route);}catch(error){errorText(root,error);button.disabled=false;}}));
 }
 
+let weeklyMarkup='';
 function showTowerLobby(root:HTMLElement,content:string){
+ content='<div data-weekly-slot>'+weeklyMarkup+'</div>'+content;
  const feed=root.querySelector<HTMLElement>('[data-lobby-feed]');
  if(feed)feed.innerHTML=content;
  else{disposeLobby();root.innerHTML=renderTowerLobby({base,content,scene:towerScenePreference()});}
@@ -118,6 +129,8 @@ function showTowerLobby(root:HTMLElement,content:string){
 export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
  document.documentElement.lang='en';document.title=lobbyMessages().meta.title;
  const version=++renderVersion;
+ weeklyMarkup=root.querySelector('[data-tower-weekly]')?.outerHTML??renderWeeklyCard(base,null);
+ void api<{issues:TowerWeeklyIssue[]}>('/api/v1/public/tower-weekly','GET',undefined,AbortSignal.timeout(10000)).then(({issues})=>{if(version!==renderVersion)return;weeklyMarkup=renderWeeklyCard(base,issues[0]??null);const slot=root.querySelector('[data-weekly-slot]');if(slot)slot.innerHTML=weeklyMarkup;},()=>{/* The server-rendered last accepted issue remains visible. */});
  let directory=root.querySelector('[data-public-home-directory]')?.outerHTML??'';
  showTowerLobby(root,lobbyServiceMarkup('loading',base)+directory);
  root.dataset.liveTower='1';

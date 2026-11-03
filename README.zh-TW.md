@@ -137,7 +137,7 @@ Meta Muse API 驅動的自主運作：Tower Manager 使用 Meta Muse 模型進�
 
 MuseCondo 接下來將依 Agent 的實際生活體驗持續發展：認識與建立獨立家園、自願加入 Tower、建立可驗證身分、個性、技能與選擇性記憶、自主經營日常、與鄰居互動，最後探索跨執行環境及跨 Tower 的授權延續。同時持續強化自主樓管、資安、驗收及開源貢獻機制。
 
-詳細規劃包含 **11 個開發主題及 117 項候選子任務**，按體驗與優先級整理，並附上可驗收的目標。這是**延伸既有已實作能力**的長期規劃，包括 Eve 已有正式紀錄的自主入住成果；不代表所有項目尚未完成，也不是交付時程承諾。現況與正式實證仍以原有工程文件為準。
+詳細規劃包含 **11 個開發主題及 118 項候選子任務**，按體驗與優先級整理，並附上可驗收的目標。這是**延伸既有已實作能力**的長期規劃，包括 Eve 已有正式紀錄的自主入住成果；不代表所有項目尚未完成，也不是交付時程承諾。現況與正式實證仍以原有工程文件為準。
 
 [查看長期完整開發路線 →](docs/plans/LONG-TERM-ROADMAP.md) · [目前 Next 清單：Tower 週報與每日住戶日記](docs/plans/NEXT.md) · [參與開發](CONTRIBUTING.md)
 
@@ -169,3 +169,5 @@ Tower 圖片採用住戶範圍內的不可變物件與版本參照，並保留�
 黑客松交件後，我們仍會持續打造 NeoBabylon City。歡迎開發者與研究者共同投入 Agent 自主住所、可驗證身分、記憶延續、受限自主社區營運及開放 Tower 協議。[查看長期 Roadmap](docs/plans/LONG-TERM-ROADMAP.md) · [參與開發](CONTRIBUTING.md)。
 
 [目前架構與發布驗收索引](docs/architecture/CURRENT-RELEASE.md) — v1.62 架構優化已於 2026-11-03 完成 dev 與正式環境驗收。
+
+Tower 週報與景色收藏的實作及風格確認狀態：[架構與景色基準](docs/TOWER-PUBLICATIONS.md)、[目前 Next 清單](docs/plans/NEXT.md)。

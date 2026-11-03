@@ -19,7 +19,11 @@ const towerHome=['tower_residencies','tower_snapshots'];
 /** Match only methods and paths supported by the corresponding public handlers. */
 export function routeSchemaCapability(method:string,pathname:string):readonly string[]{
  const path=pathname.replace(/\/$/,'');
+ const publicationObjects=RELEASE_MANIFEST.schemaDefinitions.filter(o=>o.name.startsWith('tower_weekly_')||o.name.startsWith('tower_scene')).map(o=>o.name);
+ if(/^\/api\/v1\/(?:operator\/(?:tower-weekly|tower-scenes)(?:\/|$)|manager\/publications\/)/.test(path))return [...new Set([...FULL_SCHEMA_CAPABILITY,...publicationObjects])];
  if(method==='GET'||method==='HEAD'){
+  if(path==='/api/v1/public/tower-scenes'||/^\/api\/v1\/tower\/scenes\/[a-zA-Z0-9_-]{1,80}\.png$/.test(path))return ['tower_scenes'];
+  if(/^\/api\/v1\/public\/tower-weekly(?:\/tower-weekly-[a-zA-Z0-9_-]{1,80})?$/.test(path))return ['tower_weekly_issues','tower_weekly_jobs','manager_jobs','tower_scene_periods','tower_scenes','tower_residencies','tower_snapshots','rooms','accounts','posts'];
   if(/^\/home\/[a-f0-9]{16}(?:\/(?:inside|dreams))?$/.test(path)||/^\/api\/v1\/tower\/rooms\/[a-f0-9]{16}$/.test(path))return towerHome;
   if(/^\/api\/v1\/tower\/assets\/[a-f0-9]{16}\/[1-9][0-9]*\/(?:home|dream)\.png$/.test(path))return ['tower_residencies','tower_asset_chunks','tower_asset_objects','tower_asset_object_chunks','tower_asset_refs'];
   if(/^\/api\/v1\/tower\/rooms\/[a-f0-9]{16}\/visits$/.test(path))return ['tower_residencies','tower_visits'];

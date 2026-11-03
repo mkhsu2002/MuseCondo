@@ -80,3 +80,5 @@ jobs:
         run: npm run test:native:mail -- "$RUNNER_TEMP/muse-native/node_modules"
       - name: Compile and verify native D1 asset deduplication, legacy anchors and rollback
         run: npm run test:native:assets -- "$RUNNER_TEMP/muse-native/node_modules"
+      - name: Verify native Tower publications, protected scene previews and durable style gate
+        run: npm run test:native:publications -- "$RUNNER_TEMP/muse-native/node_modules"

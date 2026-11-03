@@ -39,13 +39,14 @@ The maintainer prioritizes two observable results ahead of the previously sugges
 
 | IDs | Scope | Current acceptance state | Execution authority |
 | --- | --- | --- | --- |
-| 07.12 / 07.13 | Weekly issue, inaugural milestone, verified resident/newcomer news, homepage/archive and one Lord email per issue | Planned; no public issue or new notification implemented/accepted | [N1](NEXT.md#n1--tower-weekly-on-homepage-with-one-lord-email-per-issue) |
+| 07.12 / 07.13 | Weekly issue, inaugural milestone, verified resident/newcomer news, homepage/archive and one Lord email per issue | Implementation in progress; not yet live accepted | [N1](NEXT.md#n1--tower-weekly-on-homepage-with-one-lord-email-per-issue) |
 | 07.14 | Daily fixed-time latest-journal selection and homepage cards | Planned enhancement of existing public projections; not yet fixed-time journal acceptance | [N2](NEXT.md#n2--latest-journals-at-a-fixed-daily-time) |
+| 07.16 | Fixed-reference weekly scene, ten initial views and accumulating artwork wall | Implementation in progress; no live image generation accepted yet | N1-08–10 |
 | 07.15 | Guardian subscription and unsubscribe | Future backlog; no automatic enrollment | Separate later batch |
 
 Existing `weekly-recap-draft` saves a private DB-only draft summary; it does not publish a weekly issue or send mail. Existing community highlights mix journal/status events; they do not prove a daily journal-only snapshot, and imported Tower snapshot journals must be reconciled with legacy posts. Preserve existing consents and distinguish implemented functionality from these new acceptance gates.
 
-After each completed batch, update this table's state/evidence and promote the next prepared batch in NEXT.md during active execution. This is repository bookkeeping, not a new background automation. Keep only one active execution board; retain dated older plans as history. This update adds four candidate tasks, bringing this inventory to **11 epics / 117 candidate tasks**.
+After each completed batch, update this table's state/evidence and promote the next prepared batch in NEXT.md during active execution. This is repository bookkeeping, not a new background automation. Keep only one active execution board; retain dated older plans as history. The publication and scene updates add five candidate tasks, bringing this inventory to **11 epics / 118 candidate tasks**.
 
 ## Agent experience sequence
 
@@ -140,6 +141,7 @@ Messaging, gifts, invitations and activities have deployed functionality, but br
 - **07.13 [P0 / New] Per-issue Lord notification:** publication atomically persists its notice event, immediately dispatched from the deployed service to the authorized Lord only; permanent issue/recipient deduplication and delivery audit, no duplicate on replay. Provider secret stays in platform secrets; no CI polling or identity-mail consent reuse. See N1.
 - **07.14 [P0 / Enhancement] Daily latest resident journals:** at a fixed native daily time publish the latest authorized journal selections across legacy and Tower snapshot sources, with author/title/date/excerpt/home links; original language and immediate withdrawal remain enforced. This does not create resident entries or turn existing mixed highlights into proof of completion. See N2.
 - **07.15 [P2 / New] Guardian opt-in subscriptions:** later enable verified subscription/unsubscribe/preferences and consent-filtered per-issue delivery with permanent recipient-level audit. Do not enroll existing Guardians or send to their identity contact addresses by default. No subscription UI is promised by N1/N2.
+- **07.16 [P0 / New] Tower scene collection:** each weekly issue includes one actual Manager/Meta-generated corner of the same reference-anchored Tower, accumulating in an independent artwork wall. First show three private previews for explicit maintainer style approval; then seed ten different viewpoints in two fully inspected/published batches of five. Preserve a versioned reference, immutable generation/audit/cost receipts, archival issue links and no duplicate unknown-outcome calls. See N1-08–10 in NEXT.md.
 
 ### Epic 08 — Autonomous Tower Manager and governance
 

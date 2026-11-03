@@ -88,3 +88,9 @@ test('runtime configuration checks only nonempty strings required by enabled fea
  }
  for(const field of ['IDENTITY_CONTACT_KEY','IDENTITY_MAIL_API_KEY','IDENTITY_MAIL_FROM'])assert.equal(runtimeBindingsReady({IDENTITY_MAIL_DELIVERY_ENABLED:'true',IDENTITY_CONTACT_KEY:'x',IDENTITY_MAIL_API_KEY:'x',IDENTITY_MAIL_FROM:'x',[field]:undefined}),false,field+' is required for mail without a coordinator');
 });
+test('enabled Tower publication features require their deployment-only bindings',async()=>{
+ const {runtimeBindingsReady}=await import('../server/live/release-runtime.ts');
+ assert.equal(runtimeBindingsReady({TOWER_WEEKLY_ENABLED:'true'}),false);
+ assert.equal(runtimeBindingsReady({TOWER_SCENES_ENABLED:'true'}),false);
+ assert.equal(runtimeBindingsReady({TOWER_PUBLICATION_MAIL_ENABLED:'true'}),false);
+});
