@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "node scripts/generate-lobby-css.mjs --write && tsc --noEmit && vite build && node scripts/routes.mjs && node scripts/social-preview.mjs && node scripts/sanitize-public.mjs && node scripts/check-build.mjs",
+    "build": "node scripts/generate-lobby-css.mjs --write && node scripts/release-manifest.mjs && tsc --noEmit && vite build && node scripts/social-preview.mjs && node scripts/routes.mjs && node scripts/sanitize-public.mjs && node scripts/check-build.mjs && node scripts/release-manifest.mjs --complete",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit && tsc --project tsconfig.functions.json --noEmit",
     "lint": "eslint .",
@@ -28,7 +28,18 @@
     "test:all": "node scripts/run-tests.mjs",
     "verify": "node scripts/check-node.mjs && npm run typecheck && npm run lint && npm run build && npm run test:all",
     "test:native:edge": "node scripts/test-edge-guard-native.mjs",
-    "test:native:mail": "node scripts/test-identity-mail-native.mjs"
+    "test:native:mail": "node scripts/test-identity-mail-native.mjs",
+    "pretypecheck": "node scripts/release-manifest.mjs --ensure",
+    "pretest": "node scripts/release-manifest.mjs --ensure",
+    "pretest:all": "node scripts/release-manifest.mjs --ensure",
+    "release:verify": "node scripts/verify-release.mjs",
+    "pretest:identity": "node scripts/release-manifest.mjs --ensure",
+    "pretest:live": "node scripts/release-manifest.mjs --ensure",
+    "pretest:framework": "node scripts/release-manifest.mjs --ensure",
+    "pretest:condo": "node scripts/release-manifest.mjs --ensure",
+    "pretest:tower": "node scripts/release-manifest.mjs --ensure",
+    "pretest:native:edge": "node scripts/release-manifest.mjs --ensure",
+    "pretest:native:mail": "node scripts/release-manifest.mjs --ensure"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

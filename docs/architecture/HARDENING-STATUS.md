@@ -47,3 +47,40 @@ The Pages build command must independently invoke `npm run verify`; a GitHub qua
 - Supported Node gate: Node 24.22.1 exits successfully; Node 23.9.0 exits 1 with the required version and selection instructions.
 - `git diff --check`: PASS.
 - Browser E2E and live environment verification: not performed as part of this phase.
+
+## Phase 2 — metadata and private release contract (2026-11-02)
+
+Implementation status: local implementation only. Development and production release/readback remain pending; no hosted code or schema claim follows from the local checks below. The releasing maintainer independently reread both environments through the official Cloudflare API: each existing schema has 461 objects and 36 migrations, and both complete canonical schema hashes match `d0618a3896a6c2835e3f5e2e4c519da44168bae18a065c18b89d8cf8b9852c28`. Both still run the previous application; the new endpoint and manifest await deployment. The release generator derives these counts from files automatically rather than hardcoding them.
+
+### Build and private contract
+
+The production build now injects social previews before copying the public shell to `/about`, `/neighbors`, `/move-in` and existing demo resident routes such as `/m7k2px`. Standalone identity, verification, recovery, maintenance and offer documents remain `noindex` without copied social tags. The regression executes the real HTML postprocessors in the maintained build order inside an isolated output fixture, then inspects emitted public and private route HTML. It introduces no `dist` prerequisite for standalone `npm test`.
+
+`npm run build` first generates an incomplete private contract, then builds assets and generates the complete contract. `.release/manifest.json` and `server/live/generated-release.ts` are ignored; neither is copied to `dist`. No timestamp is included. Clean-checkout typechecking and default tests prepare the missing module automatically without treating a pre-existing `dist` as current release evidence. Native Pages compilation must run after the build and consumes the complete generated module.
+
+The contract binds the source SHA (`CF_PAGES_COMMIT_SHA`, otherwise Git HEAD), a digest of the current tracked and non-ignored source inventory, ordered migration names and byte checksums, normalized complete SQLite schema definitions, maintained renderer build hash, and every emitted JavaScript/CSS file and byte hash. The source-tree digest makes uncommitted source changes distinguishable from the recorded commit. A final release must be rebuilt after the release commit; do not reuse a pre-commit manifest or infer source identity from `dist`.
+
+Node 24 `DatabaseSync` applies every migration to a fresh in-memory database. Generator and Pages runtime use the same token normalization and SHA-256 functions. SQL comments and whitespace are ignored; quoted content, columns, constraints, trigger bodies, indexes and views remain in the digest. SQLite internals, `_cf_KV` and `d1_migrations` objects are excluded. Readiness compares full definitions, not only object names. The applied migration ledger must contain exactly the expected names; migration byte checksums identify the source release but do not prove historical SQL bytes from D1's name-only ledger.
+
+`GET /api/v1/operator/release` runs before the existing global schema gate, allowing incomplete databases to report `ready: false`. It retains canonical-host, edge and transport protection, rejects cookies/foreign origins, and verifies `X-Tower-Operator-Key` before D1 access. Only bounded hashes and readiness flags are returned, with `Cache-Control: no-store`; raw DDL, provider errors, credentials and resident rows are never returned. The manifest and endpoint are operational evidence, never visitor UI metadata. Missing database/ledger or schema mismatches fail readiness closed. This does not implement the later route-capability gate.
+
+### Operator verification
+
+After committing, build the exact source again:
+
+```sh
+npm run verify
+npm run release:verify -- --endpoint https://HOST/api/v1/operator/release
+```
+
+Inject `RELEASE_OPERATOR_KEY` only into the temporary child-process environment from secure storage. Never place the key in shell arguments, tracked files or saved readbacks. The CLI sends it only to the specified HTTPS operator endpoint, rejects redirects, then independently downloads public JS/CSS without credentials and checks their actual bytes. It compares local source identity, complete manifest, schema, migration, renderer, frontend and aggregate build hashes. A source change after the build requires a rebuild. Unstaged deletion of a tracked input is represented by a deterministic missing-file sentinel in the source inventory; verification remains usable and the deletion changes the source digest. Other filesystem errors remain fatal.
+
+An existing private JSON readback can be checked offline with `npm run release:verify -- --readback /private/path/readback.json`; `--manifest` and `--assets` can select existing local evidence. Offline mode verifies supplied evidence and local asset bytes; it does not certify the current hosted asset bytes. Neither CLI mode needs provider credentials in the repository.
+
+Private supporting Worker code, bindings, secret names, branch targets and both environments still require separate official-platform readback and native checks. The endpoint does not certify private Workers, bindings or external provider behavior. Cloudflare build configuration changes are recorded by the releasing maintainer only after actual API readback; they do not establish that the next application version is already live.
+
+### Regression evidence
+
+The wrong-key request originally returned 503 after accessing the schema gate; the new test first reproduced that failure, then passed with 401 and zero D1 calls. Cookie/foreign-origin rejection, exact schema readiness, an added column, replaced trigger and absent applied migration are covered. The frontend verifier accepts matching evidence, then rejects changed JavaScript bytes. Full verification and native compilation results are recorded by the maintainer with the final release evidence.
+
+Local validation: `npm run verify` passed with 112 discovered files, 1,298 tests, zero failures/skips (96.70 seconds for tests), including explicit Pages Functions typechecking and ESLint. `test:native:edge` passed using the existing local runtime: actual compiled Pages/private-service rate limits and missing-binding fail-closed checks, with no external traffic. `test:native:mail` also passed: actual compiled Pages, coordinator and native D1 with attachment bytes, durable audit, race rollback and reconciliation; all network calls were stubbed. The isolated metadata fixture revision then passed focused tests, typechecking and lint. These checks do not establish live deployment readiness.

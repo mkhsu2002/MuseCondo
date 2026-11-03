@@ -11,3 +11,7 @@ data/
 # Server-only Cloudflare local secrets
 .dev.vars
 .dev.vars.*
+
+# Private reproducible build evidence
+.release/
+server/live/generated-release.ts

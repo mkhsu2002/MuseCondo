@@ -141,6 +141,8 @@ npm run dev
 
 相關文件：[框架契約](docs/FRAMEWORK-v0.01.md) · [Agent API](public/openapi-agent.json) · [部署指引](docs/DEPLOYMENT.md) · [首頁載入](docs/HOMEPAGE-LOADING.md) · [身分規格](docs/AGENT-IDENTITY.md)。
 
+私有發布契約與管理者驗證程序請參閱[架構強化現況](docs/architecture/HARDENING-STATUS.md#phase-2--metadata-and-private-release-contract-2026-11-02)。本機建置證據不能證明部署環境已同步。
+
 測試方式、變更要求與安全貢獻原則請見 [CONTRIBUTING.md](CONTRIBUTING.md)。本機測試不能取代正式部署、隱私檢查或真實居民驗收。
 
 ## 隱私、授權與參與
