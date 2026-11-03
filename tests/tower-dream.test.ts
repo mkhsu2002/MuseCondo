@@ -1,3 +1,5 @@
+import {sanitizePublicPNG} from '../server/framework/png-public.ts';
+import {readTowerAsset,assetStatements} from '../server/live/tower-asset-storage.ts';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -64,7 +66,7 @@ async function fixture() {
     "0005_framework.sql",
     "0006_tower_intake.sql",
     "0007_tower_manager.sql",
-    "0008_tower_publication_events.sql",
+    "0008_tower_publication_events.sql","0037_tower_asset_storage.sql",
   ])
     db.sqlite.exec(
       await readFile(new URL("../migrations/" + file, import.meta.url), "utf8"),
@@ -238,13 +240,7 @@ test("dream upload creates a private atomic revision, strips image metadata and 
     );
     assert.equal(f.changes, changes);
     assert.equal(f.fetches, fetches);
-    const homeBytes = (rev: number) =>
-      f.db.sqlite
-        .prepare(
-          "SELECT hex(data) data FROM tower_asset_chunks WHERE revision=? AND purpose='home'",
-        )
-        .all(rev);
-    assert.deepEqual(homeBytes(1), homeBytes(2));
+    assert.deepEqual((await readTowerAsset(f.db,f.home.roomId,1,'home'))!.bytes,(await readTowerAsset(f.db,f.home.roomId,2,'home'))!.bytes);
     const same = { ...dream, title: "改寫夢", reflection: "我記得光。" };
     await f.data(f.req("/dream", payload(2, "dream-text-update", same)), 201);
     assert.equal(
@@ -258,12 +254,12 @@ test("dream upload creates a private atomic revision, strips image metadata and 
     assert.notEqual(
       f.db.sqlite
         .prepare(
-          "SELECT digest FROM tower_asset_chunks WHERE revision=2 AND purpose='dream'",
+          "SELECT digest FROM tower_asset_refs WHERE revision=2 AND purpose='dream'",
         )
         .get()!.digest,
       f.db.sqlite
         .prepare(
-          "SELECT digest FROM tower_asset_chunks WHERE revision=4 AND purpose='dream'",
+          "SELECT digest FROM tower_asset_refs WHERE revision=4 AND purpose='dream'",
         )
         .get()!.digest,
     );
@@ -272,7 +268,7 @@ test("dream upload creates a private atomic revision, strips image metadata and 
     assert.equal(
       f.db.sqlite
         .prepare(
-          "SELECT COUNT(*) n FROM tower_asset_chunks WHERE revision=5 AND purpose='dream'",
+          "SELECT COUNT(*) n FROM tower_asset_refs WHERE revision=5 AND purpose='dream'",
         )
         .get()!.n,
       0,
@@ -735,4 +731,29 @@ test("oversize response is preserved when the sender rejects stream cancellation
   } finally {
     f.close();
   }
+});
+
+
+test('dream upload enforces the 12MiB final pair boundary for object and legacy homes without partial writes',async()=>{
+ const width=1280,header=Buffer.alloc(13);header.writeUInt32BE(width);header.writeUInt32BE(width,4);header[8]=8;header[9]=6;
+ const pixels=Buffer.alloc((width*4+1)*width);let random=0x12345678;
+ for(let y=0;y<width;y++)for(let x=1;x<=width*4;x++){random^=random<<13;random^=random>>>17;random^=random<<5;pixels[y*(width*4+1)+x]=random&255;}
+ const upload=Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(pixels)),chunk('IEND',Buffer.alloc(0))]);
+ const clean=await sanitizePublicPNG(upload),limit=12*1024*1024;
+ for(const mode of ['object','legacy'])for(const extra of [1,0]){
+  const f=await fixture();try{
+   const retained=new Uint8Array(limit-clean.length+extra),hash=Buffer.from(await crypto.subtle.digest('SHA-256',retained)).toString('hex');
+   assert(retained.length<8*1024*1024);assert(upload.length<8*1024*1024);
+   f.db.sqlite.exec('DROP TRIGGER tower_asset_ref_permanent');f.db.sqlite.prepare("DELETE FROM tower_asset_refs WHERE purpose='home'").run();
+   f.db.sqlite.exec("CREATE TRIGGER tower_asset_ref_permanent BEFORE DELETE ON tower_asset_refs BEGIN SELECT RAISE(ABORT,'tower-asset-ref-permanent'); END");
+   if(mode==='object')await f.db.batch(await assetStatements(f.db,f.home.roomId,1,[{purpose:'home',bytes:retained,digest:hash}]));
+   else for(let offset=0;offset<retained.length;offset+=524288)f.db.sqlite.prepare('INSERT INTO tower_asset_chunks VALUES(?,?,?,?,?,?)').run(f.home.roomId,1,'home',offset/524288,retained.slice(offset,offset+524288),hash);
+   const tables=['tower_snapshots','tower_asset_objects','tower_asset_object_chunks','tower_asset_refs','tower_requests','tower_audit'];
+   const counts=()=>tables.map(table=>f.count(table)),before=counts();
+   const response=(await f.upload(payload(1,'dream-size-boundary'),upload))!;
+   assert.equal(response.status,extra?413:201,mode+': '+await response.clone().text());
+   if(extra){assert.equal((await response.json()).error,'source_images_too_large');assert.deepEqual(counts(),before);assert.equal(f.db.sqlite.prepare('SELECT revision FROM tower_residencies').get()!.revision,1);}
+   else {assert.equal((await readTowerAsset(f.db,f.home.roomId,2,'home'))!.size+ (await readTowerAsset(f.db,f.home.roomId,2,'dream'))!.size,limit);assert.equal(f.count('tower_snapshots'),2);}
+  }finally{f.close();}
+ }
 });

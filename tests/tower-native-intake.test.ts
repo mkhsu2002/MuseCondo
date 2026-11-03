@@ -51,7 +51,7 @@ test('native challenge binds exact source identity; readable HTML never grants a
 test('native import, reviewed sync and publication preserve saved revisions and original share link',async()=>{const f=await fixture();try{
  const prepared=await f.prepare();assert.equal(prepared.status,201,JSON.stringify(prepared.value));f.setClaim(prepared.value.claim);assert.equal((await f.request('/claim',{claimId:prepared.value.claimId})).status,200);
  const imported=await f.request('/import',{sourceURL:share,residentId:'eeeeeeeeeeeeeeee',requestKey:'native-import-home',proof:'challenge'});assert.equal(imported.status,201,JSON.stringify(imported.value));const room=imported.value.roomId;
- assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_snapshots').get()!.n,1);assert.equal(f.db.sqlite.prepare('SELECT hex(data) data FROM tower_asset_chunks').get()!.data?.toString().includes(Buffer.from('PRIVATE_METADATA').toString('hex').toUpperCase()),false);
+ assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_snapshots').get()!.n,1);assert.equal(f.db.sqlite.prepare('SELECT hex(data) data FROM tower_asset_object_chunks').get()!.data?.toString().includes(Buffer.from('PRIVATE_METADATA').toString('hex').toUpperCase()),false);
  f.setIntro('A new introduction for review');const preview=await f.request('/source-preview',{expectedRevision:1});assert.equal(preview.status,200,JSON.stringify(preview.value));
  f.setIntro('Changed after review');assert.equal((await f.request('/snapshot',{expectedRevision:1,requestKey:'native-stale-sync',reviewedSourceDigest:preview.value.sourceDigest,apply:['intro']})).status,409);
  const fresh=await f.request('/source-preview',{expectedRevision:1});const applied=await f.request('/snapshot',{expectedRevision:1,requestKey:'native-reviewed-sync',reviewedSourceDigest:fresh.value.sourceDigest,apply:['intro']});assert.equal(applied.status,201,JSON.stringify(applied.value));
@@ -118,7 +118,7 @@ test('first native import rechecks case and qualification authority after HTML d
    if(mode==='policy-changed'){f.db.sqlite.prepare("INSERT INTO tower_admission_policies VALUES(2,'[\"meta-muse\"]',1,'2026-10-31T00:00:00.000Z')").run();f.db.sqlite.prepare('UPDATE tower_admission_current SET policy_version=2').run();}
   });
   const denied=await f.request('/import',{sourceURL:share,residentId:'eeeeeeeeeeeeeeee',requestKey:'native-import-stale-authority',proof:'challenge'});assert.equal(denied.status,403,mode+': '+JSON.stringify(denied.value));assert.equal(denied.value.error,'source_authorization_required');assert.equal(changed,true);
-  for(const table of ['rooms','tower_residencies','tower_snapshots','tower_asset_chunks','tower_admission_memberships'])assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM '+table).get()!.n,0,mode+': '+table);
+  for(const table of ['rooms','tower_residencies','tower_snapshots','tower_asset_chunks','tower_asset_objects','tower_asset_object_chunks','tower_asset_refs','tower_admission_memberships'])assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM '+table).get()!.n,0,mode+': '+table);
   assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n,beforeAudit);assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM tower_requests WHERE operation='import'").get()!.n,0);
  }finally{f.db.close();}}
 });

@@ -1,3 +1,4 @@
+import { assetStatements, cloneAssetStatements, readTowerAsset, storedTowerImages, type AssetPurpose } from './tower-asset-storage.ts';
 import {homeSourceURL, homeSourceIdentity, isMuseShareURL, readNativeHome, readNativeClaim, validateHomeSnapshot, homeSourceMapping, HomeSourceError} from './home-source.ts';
 import type { Database, Statement } from "./db.ts";
 import {createTowerActivities} from "./tower-activities.ts";
@@ -115,9 +116,6 @@ function revision(v: unknown) {
   if (!Number.isSafeInteger(v) || (v as number) < 1)
     fail(400, "expected_revision_required");
   return v as number;
-}
-function pngBytes(hex:string){
- const result=new Uint8Array(hex.length/2);for(let i=0;i<result.length;i++){const a=hex.charCodeAt(i*2),b=hex.charCodeAt(i*2+1);result[i]=(a<=57?a-48:a-55)*16+(b<=57?b-48:b-55);}return result;
 }
 function requestKey(v: unknown) {
   const s = string(v, 80);
@@ -303,13 +301,6 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       .prepare(sql)
       .bind(...args)
       .first<T>();
-  const all = async <T>(sql: string, ...args: unknown[]) =>
-    (
-      await db
-        .prepare(sql)
-        .bind(...args)
-        .all<T>()
-    ).results;
   const json = (value: unknown, status = 200) =>
     new Response(JSON.stringify(value), {
       status,
@@ -722,7 +713,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
     if(images.reduce((n,image)=>n+image.bytes.length,0)>12*1024*1024)fail(413,"source_images_too_large");
     return { site, images };
   }
-  function snapshotStatements(
+  async function snapshotStatements(
     roomId: string,
     rev: number,
     data: Awaited<ReturnType<typeof snapshot>>,
@@ -735,22 +726,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         )
         .bind(roomId, rev, JSON.stringify(data.site), digest, stamp()),
     ];
-    for (const im of data.images)
-      for (let p = 0; p < im.bytes.length; p += 524288)
-        statements.push(
-          db
-            .prepare(
-              "INSERT INTO tower_asset_chunks(room_id,revision,purpose,sequence,data,digest) VALUES(?,?,?,?,unhex(?),?)",
-            )
-            .bind(
-              roomId,
-              rev,
-              im.purpose,
-              p / 524288,
-              Array.from(im.bytes.subarray(p,p+524288),b=>b.toString(16).padStart(2,"0")).join(""),
-              im.digest,
-            ),
-        );
+    statements.push(...await assetStatements(db,roomId,rev,data.images));
     return statements;
   }
   const syncGroups = ["intro", "profile", "daily", "home", "dream"] as const;
@@ -768,10 +744,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
       baseRevision: r.revision, site: data.site,
       images: data.images.map(image => ({ purpose: image.purpose, digest: image.digest })) }));
   }
-  const storedImages = (r: Residency) => all<{purpose: "home" | "dream"; digest: string; size: number}>(
-    "SELECT purpose,MIN(digest) AS digest,SUM(length(data)) AS size FROM tower_asset_chunks WHERE room_id=? AND revision=? GROUP BY purpose ORDER BY purpose",
-    r.room_id, r.revision,
-  );
+  const storedImages = (r: Residency) => storedTowerImages(db,r.room_id,r.revision);
   function syncValues(site: PublicCondoSite, images: {purpose: string; digest: string}[]) {
     const image = (purpose: string) => images.find(i => i.purpose === purpose)?.digest ?? null;
     return {
@@ -884,23 +857,9 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
               (asset[3] === "dream" && !r!.dream_consent)
             )
               fail(404, "asset_not_found");
-            const chunks = await all<{
-              data: string;
-              digest: string;
-            }>(
-              "SELECT hex(data) AS data,digest FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose=? ORDER BY sequence",
-              roomId,
-              r!.public_revision,
-              asset[3],
-            );
-            if (!chunks.length) fail(404, "asset_not_found");
-            const parts = chunks.map((c) => pngBytes(c.data)),
-              bytes = new Uint8Array(parts.reduce((s, b) => s + b.length, 0));
-            let p = 0;
-            for (const b of parts) {
-              bytes.set(b, p);
-              p += b.length;
-            }
+            const stored = await readTowerAsset(db,roomId,r!.public_revision!,asset[3] as AssetPurpose);
+            if(!stored)fail(404,"asset_not_found");
+            const bytes=stored!.bytes;
             return new Response(req.method === "HEAD" ? null : bytes, {
               headers: {
                 "Content-Type": "image/png",
@@ -983,20 +942,9 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
         if (privateAsset && req.method === "GET") {
           if (!r || Number(privateAsset[1]) !== r.revision)
             fail(404, "asset_not_found");
-          const chunks = await all<{ data: string }>(
-            "SELECT hex(data) AS data FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose=? ORDER BY sequence",
-            r.room_id,
-            r.revision,
-            privateAsset[2],
-          );
-          if (!chunks.length) fail(404, "asset_not_found");
-          const parts = chunks.map((c) => pngBytes(c.data)),
-            bytes = new Uint8Array(parts.reduce((n, b) => n + b.length, 0));
-          let p = 0;
-          for (const b of parts) {
-            bytes.set(b, p);
-            p += b.length;
-          }
+          const stored=await readTowerAsset(db,r.room_id,r.revision,privateAsset[2] as AssetPurpose);
+          if(!stored)fail(404,"asset_not_found");
+          const bytes=stored!.bytes;
           return new Response(bytes, {
             headers: {
               "Content-Type": "image/png",
@@ -1289,9 +1237,8 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             reviewedSourceDigest, apply };
           try {
             await write(identity, [sourceGenerationGuard(accountId, generation), revisionGuard(r!),
-              ...snapshotStatements(r!.room_id, rev, { site, images }, await hash(JSON.stringify(site))),
-              db.prepare("INSERT INTO tower_asset_chunks(room_id,revision,purpose,sequence,data,digest) SELECT room_id,?,purpose,sequence,data,digest FROM tower_asset_chunks WHERE room_id=? AND revision=? AND ((purpose='home' AND ?) OR (purpose='dream' AND ?))")
-                .bind(rev, r!.room_id, expected, chosen("home") ? 0 : 1, chosen("dream") ? 0 : 1),
+              ...await snapshotStatements(r!.room_id, rev, { site, images }, await hash(JSON.stringify(site))),
+              ...await cloneAssetStatements(db,r!.room_id,expected,rev,preserved.map(image=>image.purpose)),
               db.prepare("UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=? AND account_id=? AND revision=?")
                 .bind(rev, stamp(), r!.room_id, accountId, expected),
               receipt(identity, key, "snapshot", inputHash, result),
@@ -1428,7 +1375,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
               ),
           );
           statements.push(
-            ...snapshotStatements(
+            ...await snapshotStatements(
               roomId,
               rev,
               data,
@@ -1485,7 +1432,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
           try{await write(identity,[
             db.prepare("SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=?) THEN 1 ELSE json('tower-revision-conflict') END").bind(r!.room_id,accountId,expected),
             db.prepare("INSERT INTO tower_snapshots(room_id,revision,public_json,content_digest,created_at) VALUES(?,?,?,?,?)").bind(r!.room_id,rev,JSON.stringify(site),await hash(JSON.stringify(site)),stamp()),
-            db.prepare("INSERT INTO tower_asset_chunks(room_id,revision,purpose,sequence,data,digest) SELECT room_id,?,purpose,sequence,data,digest FROM tower_asset_chunks WHERE room_id=? AND revision=?").bind(rev,r!.room_id,expected),
+            ...await cloneAssetStatements(db,r!.room_id,expected,rev,site.dream?["home","dream"]:["home"]),
             db.prepare("UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=? AND account_id=? AND revision=?").bind(rev,stamp(),r!.room_id,accountId,expected),
             receipt(identity,key,"content",inputHash,result),audit(accountId,r!.room_id,"resident-content-updated",rev,{fields:Object.keys(content)}),
           ]);}catch(error){if(error instanceof TowerError)throw error;const saved=await prior(identity,key,"content",inputHash);if(saved)return json(saved,201);const latest=await residency(accountId);if(latest?.revision!==expected)fail(409,"revision_conflict");fail(503,"tower_storage_unavailable");}
@@ -1538,11 +1485,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
             dream &&
             image === null &&
             (!previous.dream ||
-              !(await one(
-                "SELECT 1 FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose='dream' LIMIT 1",
-                r!.room_id,
-                expected,
-              )))
+              !(await readTowerAsset(db,r!.room_id,expected,"dream")))
           )
             fail(400, "dream_image_required");
           const site = validateTowerSnapshot(
@@ -1579,13 +1522,17 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
               revision: rev,
               published: false,
             };
+          const retainedHome = await readTowerAsset(db,r!.room_id,expected,"home"),
+            retainedDream = dream !== null && cleaned === null ? await readTowerAsset(db,r!.room_id,expected,"dream") : null;
+          if ((retainedHome?.size ?? 0) + (dream === null ? 0 : cleaned?.length ?? retainedDream?.size ?? 0) > 12 * 1024 * 1024)
+            fail(413,"source_images_too_large");
           const statements = [
             db
               .prepare(
                 "SELECT CASE WHEN EXISTS(SELECT 1 FROM tower_residencies WHERE room_id=? AND account_id=? AND revision=?) THEN 1 ELSE json('tower-revision-conflict') END",
               )
               .bind(r!.room_id, accountId, expected),
-            ...snapshotStatements(
+            ...await snapshotStatements(
               r!.room_id,
               rev,
               {
@@ -1603,16 +1550,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
               },
               await hash(JSON.stringify(site)),
             ),
-            db
-              .prepare(
-                "INSERT INTO tower_asset_chunks(room_id,revision,purpose,sequence,data,digest) SELECT room_id,?,purpose,sequence,data,digest FROM tower_asset_chunks WHERE room_id=? AND revision=? AND (purpose='home' OR (purpose='dream' AND ?))",
-              )
-              .bind(
-                rev,
-                r!.room_id,
-                expected,
-                dream !== null && cleaned === null ? 1 : 0,
-              ),
+            ...await cloneAssetStatements(db,r!.room_id,expected,rev,dream!==null&&cleaned===null?["home","dream"]:["home"]),
             db
               .prepare(
                 "UPDATE tower_residencies SET revision=?,updated_at=? WHERE room_id=? AND account_id=? AND revision=?",
@@ -1649,11 +1587,7 @@ export function createTowerIntake(env: TowerIntakeEnvironment) {
               fail(409, "publish_draft_first");
             if (
               !(await getSite(r!, false)).dream ||
-              !(await one(
-                "SELECT 1 FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose='dream' LIMIT 1",
-                r!.room_id,
-                expected,
-              ))
+              !(await readTowerAsset(db,r!.room_id,expected,"dream"))
             )
               fail(400, "no_public_dream");
           }

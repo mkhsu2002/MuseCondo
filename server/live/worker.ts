@@ -1,3 +1,4 @@
+import {TOWER_ASSET_STORAGE_SCHEMA} from './tower-asset-storage.ts';
 import {RELEASE_MANIFEST} from './generated-release.ts';
 import {releaseReadiness} from './release-contract.ts';
 import {createHomePreflightRoute} from './home-preflight-route.ts';
@@ -78,7 +79,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const db=env.DB;if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function')return json({available:false,error:'database_not_bound',admission:{status:'unavailable',applyURL:env.PUBLIC_ORIGIN!+'/reception'},runtime:safe},503);
   try{
    const rows=(await db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','trigger','index','view')").all<{name:string}>()).results;
-   if(![...['maintenance_authorities','maintenance_requests','maintenance_challenges','maintenance_request_binding','maintenance_challenge_binding'],...ASSISTED_ADMISSION_SCHEMA,...IDENTITY_OFFER_SCHEMA,...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...MANAGER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',admission:{status:'unavailable',applyURL:env.PUBLIC_ORIGIN!+'/reception'},runtime:safe},503);
+   if(![...['maintenance_authorities','maintenance_requests','maintenance_challenges','maintenance_request_binding','maintenance_challenge_binding'],...ASSISTED_ADMISSION_SCHEMA,...IDENTITY_OFFER_SCHEMA,...TOWER_ASSET_STORAGE_SCHEMA,...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...MANAGER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA].every(name=>rows.some(row=>row.name===name)))return json({available:false,error:'database_schema_not_ready',admission:{status:'unavailable',applyURL:env.PUBLIC_ORIGIN!+'/reception'},runtime:safe},503);
   }catch{return json({available:false,error:'database_unavailable',admission:{status:'unavailable',applyURL:env.PUBLIC_ORIGIN!+'/reception'},runtime:safe},503);}
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
   const completion=createMoveInCompletion({db,origin:env.PUBLIC_ORIGIN!});

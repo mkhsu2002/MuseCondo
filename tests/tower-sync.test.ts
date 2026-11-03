@@ -1,3 +1,4 @@
+import { readTowerAsset, assetStatements } from '../server/live/tower-asset-storage.ts';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -45,7 +46,7 @@ function png(w = 16, h = 16, pixel = 0) {
 const sourceURL="https://source.example/test/condo.json";
 async function fixture() {
  const db=new LocalDatabase(":memory:");
- for(const file of ["0001_live_mvp.sql","0002_recovery_audit.sql","0003_provider_requests.sql","0004_agent_onboarding.sql","0005_framework.sql","0006_tower_intake.sql","0007_tower_manager.sql","0008_tower_publication_events.sql"])
+ for(const file of ["0001_live_mvp.sql","0002_recovery_audit.sql","0003_provider_requests.sql","0004_agent_onboarding.sql","0005_framework.sql","0006_tower_intake.sql","0007_tower_manager.sql","0008_tower_publication_events.sql","0037_tower_asset_storage.sql"])
   db.sqlite.exec(await readFile(new URL("../migrations/"+file,import.meta.url),"utf8"));
  const digest=Buffer.from(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(token))).toString("hex");
  db.sqlite.prepare("INSERT INTO accounts(id,login_hash,created_at) VALUES(?,?,?)").run(account,digest,"2026-10-30T00:00:00Z");
@@ -60,7 +61,7 @@ async function fixture() {
  const imported=await data(req("/import",{sourceURL,residentId:site.home.id,requestKey:"import-sync-1",proof:"owner-attested"}),201);
  const count=(table:string)=>Number(db.sqlite.prepare("SELECT COUNT(*) n FROM "+table).get()!.n);
  const stored=(rev:number)=>JSON.parse(db.sqlite.prepare("SELECT public_json FROM tower_snapshots WHERE revision=?").get(rev)!.public_json as string) as PublicCondoSite;
- const chunks=(rev:number,purpose:string)=>db.sqlite.prepare("SELECT hex(data) data,digest FROM tower_asset_chunks WHERE revision=? AND purpose=? ORDER BY sequence").all(rev,purpose);
+ const chunks=async(rev:number,purpose:string)=>{const asset=await readTowerAsset(db,imported.roomId,rev,purpose as "home"|"dream");return asset?[{data:Buffer.from(asset.bytes).toString("hex").toUpperCase(),digest:asset.digest}]:[];};
  const preview=(rev=1,bearer?:string)=>data(req("/source-preview",{expectedRevision:rev},bearer));
  const apply=(review:{baseRevision:number;sourceDigest:string},fields:string[],key="sync-reviewed-1",bearer?:string)=>req("/snapshot",{expectedRevision:review.baseRevision,requestKey:key,reviewedSourceDigest:review.sourceDigest,apply:fields},bearer);
  const addDream=()=>{site.dream={id:"sync-dream",title:"原夢",body:"原夢內容",wish:"原願望",occurredAt:"2026-10-30T00:00:00Z",image:{src:"./assets/dream.png",alt:"原夢圖"}};site.home.dreams=[{id:site.dream.id,type:"dream",title:site.dream.title,body:site.dream.body,occurredAt:site.dream.occurredAt,image:site.dream.image.src}];};
@@ -71,12 +72,12 @@ test("source preview compares the current private authority without persistence 
   await f.data(f.req("/publication",{expectedRevision:1,published:true,snapshotConsent:true,directoryConsent:true,announcementConsent:true,dreamConsent:false}));
   await f.data(f.req("/content",{expectedRevision:1,requestKey:"local-content-1",content:{intro:"Tower 本地新介紹"}}),201);
   f.site.home.intro="原站新介紹";f.site.home.name="原站新名字";f.site.homeAlt="原站新圖說";f.homeImage=png(16,9,90);
-  const counts=[f.count("tower_snapshots"),f.count("tower_requests"),f.count("tower_audit"),f.count("tower_asset_chunks")];
+  const counts=[f.count("tower_snapshots"),f.count("tower_requests"),f.count("tower_audit"),f.count("tower_asset_objects"),f.count("tower_asset_object_chunks"),f.count("tower_asset_refs")];
   const review=await f.preview(2);
   assert.equal(review.baseRevision,2);assert.match(review.sourceDigest,/^[a-f0-9]{64}$/);
   assert.deepEqual(review.groups.find((g:{field:string})=>g.field==="intro").before,{name:"原名字",intro:"Tower 本地新介紹"});
   assert.equal(review.groups.find((g:{field:string})=>g.field==="home").changed,true);
-  assert.deepEqual([f.count("tower_snapshots"),f.count("tower_requests"),f.count("tower_audit"),f.count("tower_asset_chunks")],counts);
+  assert.deepEqual([f.count("tower_snapshots"),f.count("tower_requests"),f.count("tower_audit"),f.count("tower_asset_objects"),f.count("tower_asset_object_chunks"),f.count("tower_asset_refs")],counts);
   assert.equal(f.db.sqlite.prepare("SELECT public_revision FROM tower_residencies").get()!.public_revision,1);
  }finally{f.close();}
 });
@@ -91,24 +92,24 @@ test("explicit groups update only chosen JSON and preserve every unselected asse
  const f=await fixture();try{
   await f.data(f.req("/content",{expectedRevision:1,requestKey:"local-intro-1",content:{intro:"保留本地介紹"}}),201);
   f.site.home.intro="來源介紹";f.site.home.name="來源名字";f.site.homeAlt="來源家圖說";f.homeImage=png(16,9,80);f.addDream();
-  const review=await f.preview(2),before=f.stored(2),oldChunks=f.chunks(2,"home");
+  const review=await f.preview(2),before=f.stored(2),oldChunks=(await f.chunks(2,"home"));
   const result=await f.data(f.apply(review,["profile","daily"]),201);
   assert.deepEqual(result.apply,["profile","daily"]);assert.equal(result.reviewedSourceDigest,review.sourceDigest);
-  assert.deepEqual(f.stored(3),before);assert.deepEqual(f.chunks(3,"home"),oldChunks);assert.equal(f.stored(3).dream,null);
+  assert.deepEqual(f.stored(3),before);assert.deepEqual((await f.chunks(3,"home")),oldChunks);assert.equal(f.stored(3).dream,null);
   assert.equal(f.db.sqlite.prepare("SELECT dream_consent,public_revision,source_url FROM tower_residencies").get()!.source_url,sourceURL);
   const next=await f.preview(3);await f.data(f.apply(next,["intro","home"],"sync-intro-home"),201);
   assert.equal(f.stored(4).home.intro,"來源介紹");assert.equal(f.stored(4).home.name,"來源名字");assert.equal(f.stored(4).home.id,before.home.id);assert.deepEqual(f.stored(4).home.routes,before.home.routes);
-  assert.equal(f.stored(4).homeAlt,"來源家圖說");assert.notDeepEqual(f.chunks(4,"home"),oldChunks);assert.equal(f.stored(4).dream,null);
+  assert.equal(f.stored(4).homeAlt,"來源家圖說");assert.notDeepEqual((await f.chunks(4,"home")),oldChunks);assert.equal(f.stored(4).dream,null);
  }finally{f.close();}
 });
 test("dream is a single opt-in import group and never grants publication consent",async()=>{
  const f=await fixture();try{
   f.addDream();const review=await f.preview();await f.data(f.apply(review,["dream"]),201);
-  assert.deepEqual(f.stored(2).dream,f.site.dream);assert.deepEqual(f.stored(2).home.dreams,f.site.home.dreams);assert.equal(f.chunks(2,"dream").length,1);
+  assert.deepEqual(f.stored(2).dream,f.site.dream);assert.deepEqual(f.stored(2).home.dreams,f.site.home.dreams);assert.equal((await f.chunks(2,"dream")).length,1);
   assert.equal(f.db.sqlite.prepare("SELECT dream_consent FROM tower_residencies").get()!.dream_consent,0);
-  assert.doesNotMatch(Buffer.from(f.chunks(2,"dream")[0].data as string,"hex").toString("latin1"),/PRIVATE_IMAGE_METADATA/);
+  assert.doesNotMatch(Buffer.from((await f.chunks(2,"dream"))[0].data as string,"hex").toString("latin1"),/PRIVATE_IMAGE_METADATA/);
   f.site.dream=null;f.site.home.dreams=[];await f.data(f.apply(await f.preview(2),["dream"],"remove-source-dream"),201);
-  assert.equal(f.stored(3).dream,null);assert.deepEqual(f.stored(3).home.dreams,[]);assert.equal(f.chunks(3,"dream").length,0);assert.equal(f.chunks(2,"dream").length,1);
+  assert.equal(f.stored(3).dream,null);assert.deepEqual(f.stored(3).home.dreams,[]);assert.equal((await f.chunks(3,"dream")).length,0);assert.equal((await f.chunks(2,"dream")).length,1);
  }finally{f.close();}
 });
 test("changed remote text or image requires a fresh review even for unselected groups",async()=>{
@@ -159,7 +160,7 @@ test("concurrent sync writes have one winner and failed audit atomically rolls b
  const f=await fixture();try{
   f.homeImage=png(16,9,75);const review=await f.preview();
   f.db.sqlite.exec("CREATE TRIGGER fail_sync BEFORE INSERT ON tower_audit WHEN NEW.action='snapshot-imported' BEGIN SELECT RAISE(ABORT,'PRIVATE_SYNC_STORAGE'); END");
-  await f.data(f.apply(review,["home"]),503).then(v=>assert.equal(v.error,"tower_storage_unavailable"));assert.equal(f.count("tower_snapshots"),1);assert.equal(f.count("tower_requests"),1);assert.equal(f.count("tower_asset_chunks"),1);
+  await f.data(f.apply(review,["home"]),503).then(v=>assert.equal(v.error,"tower_storage_unavailable"));assert.equal(f.count("tower_snapshots"),1);assert.equal(f.count("tower_requests"),1);assert.equal(f.count("tower_asset_object_chunks"),1);
   f.db.sqlite.exec("DROP TRIGGER fail_sync");
   const results=await Promise.all([f.apply(review,["home"],"concurrent-sync-a"),f.apply(review,["home"],"concurrent-sync-b")]);assert.deepEqual(results.map(r=>r!.status).sort(),[201,409]);assert.equal(f.count("tower_snapshots"),2);
  }finally{f.close();}
@@ -171,7 +172,7 @@ test("source digest is canonical and ignores removed PNG metadata",async()=>{
   f.site=reorder(f.site) as PublicCondoSite;
   assert.equal((await f.preview()).sourceDigest,review.sourceDigest);
   // The imported PNG contains tEXt; use its stripped equivalent as the source.
-  const hex=f.chunks(1,"home")[0].data as string;f.homeImage=new Uint8Array(Buffer.from(hex,"hex"));
+  const hex=(await f.chunks(1,"home"))[0].data as string;f.homeImage=new Uint8Array(Buffer.from(hex,"hex"));
   assert.equal((await f.preview()).sourceDigest,review.sourceDigest);
  }finally{f.close();}
 });
@@ -179,10 +180,10 @@ test("unselected local dream and its chunks survive a source sync while the exis
  const f=await fixture();try{
   f.addDream();await f.data(f.apply(await f.preview(),["dream"]),201);
   await f.data(f.req("/publication",{expectedRevision:2,published:true,snapshotConsent:true,directoryConsent:false,announcementConsent:false,dreamConsent:true}));
-  const localDream=f.stored(2).dream,localChunks=f.chunks(2,"dream");
+  const localDream=f.stored(2).dream,localChunks=(await f.chunks(2,"dream"));
   f.site.dream!.title="來源改了夢";f.site.home.dreams[0].title=f.site.dream!.title;f.dreamImage=png(16,16,55);f.site.home.intro="新介紹";
   await f.data(f.apply(await f.preview(2),["intro"],"retain-local-dream"),201);
-  assert.deepEqual(f.stored(3).dream,localDream);assert.deepEqual(f.chunks(3,"dream"),localChunks);
+  assert.deepEqual(f.stored(3).dream,localDream);assert.deepEqual((await f.chunks(3,"dream")),localChunks);
   const state=f.db.sqlite.prepare("SELECT public_revision,dream_consent FROM tower_residencies").get()!;assert.equal(state.public_revision,2);assert.equal(state.dream_consent,1);
   assert.equal(f.count("manager_events"),1);
  }finally{f.close();}
@@ -197,8 +198,12 @@ test("a source preview cannot disclose the original household after its token is
 });
 test("mixed preserved and imported images are bounded by the 12MiB final snapshot limit",async()=>{
  const f=await fixture();try{
-  // A prior valid large home is preserved without decoding or rewriting it.
-  f.db.sqlite.prepare("UPDATE tower_asset_chunks SET data=zeroblob(?) WHERE purpose='home'").run(7*1024*1024);
+  // Install a valid immutable large synthetic object before preserving its reference.
+  const large=new Uint8Array(7*1024*1024),hash=Buffer.from(await crypto.subtle.digest('SHA-256',large)).toString('hex');
+  f.db.sqlite.exec('DROP TRIGGER tower_asset_ref_permanent');f.db.sqlite.prepare("DELETE FROM tower_asset_refs WHERE purpose='home'").run();
+  // Restore the permanent guard before using production statement preparation.
+  f.db.sqlite.exec("CREATE TRIGGER tower_asset_ref_permanent BEFORE DELETE ON tower_asset_refs BEGIN SELECT RAISE(ABORT,'tower-asset-ref-permanent'); END");
+  await f.db.batch(await assetStatements(f.db,f.imported.roomId,1,[{purpose:'home',bytes:large,digest:hash}]));
   f.addDream();
   const width=1280,height=1280,header=Buffer.alloc(13);header.writeUInt32BE(width);header.writeUInt32BE(height,4);header[8]=8;header[9]=6;
   const pixels=Buffer.alloc((width*4+1)*height);let state=0x12345678;
@@ -211,7 +216,7 @@ test("mixed preserved and imported images are bounded by the 12MiB final snapsho
 
 test("appearance descriptions follow reviewed profile sync, content updates and withdrawal without changing image pixels or identity",async()=>{
  const f=await fixture();try{
-  const original=f.stored(1),pixels=f.chunks(1,"home");
+  const original=f.stored(1),pixels=(await f.chunks(1,"home"));
   f.site.profile.characterAppearance="A green sprout with a blue scarf";
   f.site.profile.guardianAppearance="A silver-haired human in a wall portrait";
   f.site.profile.guardianPersonality="Patient and curious";
@@ -220,14 +225,14 @@ test("appearance descriptions follow reviewed profile sync, content updates and 
   await f.data(f.apply(review,["daily"],"appearance-unselected"),201);
   assert.equal(f.stored(2).profile.characterAppearance,undefined);
   review=await f.preview(2);await f.data(f.apply(review,["profile"],"appearance-selected"),201);
-  assert.deepEqual(f.stored(3).profile,f.site.profile);assert.deepEqual(f.chunks(3,"home"),pixels);
+  assert.deepEqual(f.stored(3).profile,f.site.profile);assert.deepEqual((await f.chunks(3,"home")),pixels);
   assert.equal(f.stored(3).home.id,original.home.id);assert.deepEqual(f.stored(3).home.routes,original.home.routes);
   const local={...f.site.profile,guardianPersonality:"Quiet and thoughtful"};
   await f.data(f.req("/content",{expectedRevision:3,requestKey:"appearance-content",content:{profile:local}}),201);
   assert.equal(f.stored(4).profile.guardianPersonality,"Quiet and thoughtful");
   delete f.site.profile.guardianPersonality;review=await f.preview(4);
   await f.data(f.apply(review,["profile"],"appearance-withdrawal"),201);
-  assert.equal(f.stored(5).profile.guardianPersonality,undefined);assert.deepEqual(f.chunks(5,"home"),pixels);
+  assert.equal(f.stored(5).profile.guardianPersonality,undefined);assert.deepEqual((await f.chunks(5,"home")),pixels);
   const invalid={...f.site.profile,guardianAppearance:{evidenceIds:["private"]}};
   await f.data(f.req("/content",{expectedRevision:5,requestKey:"appearance-invalid",content:{profile:invalid}}),400);
   assert.equal(f.count("tower_snapshots"),5);
@@ -236,15 +241,15 @@ test("appearance descriptions follow reviewed profile sync, content updates and 
 
 test("portrait crops participate in profile sync, reject out-of-bounds content and preserve image bytes",async()=>{
  const f=await fixture();try{
-  const pixels=f.chunks(1,"home");f.site.profile.characterPortraitCrop="41,7,33,70";f.site.profile.guardianPortraitCrop="77,7,14,30";
+  const pixels=(await f.chunks(1,"home"));f.site.profile.characterPortraitCrop="41,7,33,70";f.site.profile.guardianPortraitCrop="77,7,14,30";
   let review=await f.preview();await f.data(f.apply(review,["profile"],"crop-sync"),201);
-  assert.equal(f.stored(2).profile.characterPortraitCrop,"41,7,33,70");assert.deepEqual(f.chunks(2,"home"),pixels);
+  assert.equal(f.stored(2).profile.characterPortraitCrop,"41,7,33,70");assert.deepEqual((await f.chunks(2,"home")),pixels);
   await f.data(f.req("/content",{expectedRevision:2,requestKey:"crop-invalid",content:{profile:{...f.site.profile,guardianPortraitCrop:"99,0,2,10"}}}),400);
   assert.equal(f.count("tower_snapshots"),2);
   const local={...f.site.profile,guardianPortraitCrop:"76,7,14,30"};
   await f.data(f.req("/content",{expectedRevision:2,requestKey:"crop-local",content:{profile:local}}),201);
   assert.equal(f.stored(3).profile.guardianPortraitCrop,"76,7,14,30");
   delete f.site.profile.characterPortraitCrop;review=await f.preview(3);await f.data(f.apply(review,["profile"],"crop-withdrawal"),201);
-  assert.equal(f.stored(4).profile.characterPortraitCrop,undefined);assert.deepEqual(f.chunks(4,"home"),pixels);
+  assert.equal(f.stored(4).profile.characterPortraitCrop,undefined);assert.deepEqual((await f.chunks(4,"home")),pixels);
  }finally{f.close();}
 });

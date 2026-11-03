@@ -76,3 +76,5 @@ jobs:
         run: npm run test:native:edge -- "$RUNNER_TEMP/muse-native/node_modules"
       - name: Compile and verify native D1, coordinator and mail audit with synthetic provider
         run: npm run test:native:mail -- "$RUNNER_TEMP/muse-native/node_modules"
+      - name: Compile and verify native D1 asset deduplication, legacy anchors and rollback
+        run: npm run test:native:assets -- "$RUNNER_TEMP/muse-native/node_modules"

@@ -39,7 +39,9 @@
     "pretest:condo": "node scripts/release-manifest.mjs --ensure",
     "pretest:tower": "node scripts/release-manifest.mjs --ensure",
     "pretest:native:edge": "node scripts/release-manifest.mjs --ensure",
-    "pretest:native:mail": "node scripts/release-manifest.mjs --ensure"
+    "pretest:native:mail": "node scripts/release-manifest.mjs --ensure",
+    "test:native:assets": "node scripts/test-tower-assets-native.mjs",
+    "pretest:native:assets": "node scripts/release-manifest.mjs --ensure"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

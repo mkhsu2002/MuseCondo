@@ -1,3 +1,4 @@
+import {readTowerAsset,type AssetPurpose} from './tower-asset-storage.ts';
 import {parse,type DefaultTreeAdapterMap} from 'parse5';
 import type {Database} from './db.ts';
 import {digest} from './app.ts';
@@ -45,8 +46,8 @@ export function createMoveInCompletion(env:Options){
     if(required.some(v=>!visible.includes(normal(v))))throw Error('public_content_mismatch');checks[page]=true;
    }
    for(const purpose of expected.dream?['home','dream']:['home']){stage='asset-'+purpose;const bytes=await read(`/api/v1/tower/assets/${r.room_id}/${r.public_revision}/${purpose}.png`,'image/png',8*1024*1024);await validatePNG(bytes);
-    const chunks=(await env.db.prepare('SELECT hex(data) data FROM tower_asset_chunks WHERE room_id=? AND revision=? AND purpose=? ORDER BY sequence').bind(r.room_id,r.public_revision,purpose).all<{data:string}>()).results;
-    let offset=0;if(!chunks.length)throw Error('public_image_mismatch');for(const chunk of chunks){if(chunk.data.length%2)throw Error('public_image_mismatch');for(let i=0;i<chunk.data.length;i+=2){if(offset>=bytes.length||bytes[offset++]!==Number.parseInt(chunk.data.slice(i,i+2),16))throw Error('public_image_mismatch');}}if(offset!==bytes.length)throw Error('public_image_mismatch');checks[stage]=true;
+    const stored=await readTowerAsset(env.db,r.room_id,r.public_revision!,purpose as AssetPurpose);
+    if(!stored||stored.bytes.length!==bytes.length||stored.bytes.some((b,i)=>b!==bytes[i]))throw Error('public_image_mismatch');checks[stage]=true;
    }
    stage='directory';const directory=JSON.parse(decoder.decode(await read('/api/v1/public/rooms','application/json',2*1024*1024)));if(!Array.isArray(directory.rooms)||directory.rooms.filter((v:{id?:unknown})=>v.id===r.room_id).length!==1)throw Error('public_directory_mismatch');checks.directory=true;
    stage='homepage';const homepage=parse(decoder.decode(await read('/','text/html',2*1024*1024)));if(listedDoor(homepage,`/home/${r.room_id}`)!==1)throw Error('public_homepage_door_missing');checks.homepage=true;

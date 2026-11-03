@@ -1,3 +1,4 @@
+import {readTowerAsset} from '../server/live/tower-asset-storage.ts';
 import {createLiveApp} from '../server/live/app.ts';
 import runtime from '../server/live/worker.ts';
 import test from "node:test";
@@ -957,9 +958,9 @@ test('large synthetic PNG import stays below the D1 serialized RPC ceiling and s
    let bytes=0;for(const statement of statements)for(const value of (statement as unknown as {values:unknown[]}).values)bytes+=value instanceof ArrayBuffer?value.byteLength*8:typeof value==='string'?new TextEncoder().encode(value).length:16;
    if(bytes>32*1024*1024)throw Error('Serialized RPC arguments exceed 32MiB');return batch(statements);
   };
-  await f.importHome();const rows=f.db.sqlite.prepare('SELECT purpose,SUM(length(data)) bytes FROM tower_asset_chunks GROUP BY purpose').all();assert.equal(rows.length,2);assert(rows.every(r=>Number(r.bytes)>1000000));
+  await f.importHome();const rows=f.db.sqlite.prepare('SELECT r.purpose,SUM(length(c.data)) bytes FROM tower_asset_refs r JOIN tower_asset_object_chunks c ON c.room_id=r.room_id AND c.digest=r.object_digest GROUP BY r.purpose').all();assert.equal(rows.length,2);assert(rows.every(r=>Number(r.bytes)>1000000));
   for(const purpose of ['home','dream'] as const){
-   const chunks=f.db.sqlite.prepare('SELECT data FROM tower_asset_chunks WHERE purpose=? ORDER BY sequence').all(purpose);
+   const chunks=f.db.sqlite.prepare('SELECT c.data FROM tower_asset_object_chunks c JOIN tower_asset_refs r ON r.room_id=c.room_id AND r.object_digest=c.digest WHERE r.purpose=? ORDER BY c.sequence').all(purpose);
    assert.deepEqual(Buffer.concat(chunks.map(row=>Buffer.from(row.data as Uint8Array))),Buffer.from(await sanitizePublicPNG(images[purpose])));
   }
  }finally{f.db.close();}
@@ -967,9 +968,9 @@ test('large synthetic PNG import stays below the D1 serialized RPC ceiling and s
 
 test('resident content edits are private revisions, keep images and identity, and need no source writes',async()=>{
  const f=await fixture();try{
-  const h=await f.importHome();const flags={expectedRevision:1,published:true,directoryConsent:true,announcementConsent:true,dreamConsent:false,snapshotConsent:true};await f.data(f.req('/publication','POST',flags));const fetches=f.calls.length;const html=await(await f.req('/home/'+h.roomId,'GET',undefined,''))!.text();assert.match(html,/Back to Muse Tower/);assert(html.includes('https://source.example/resident/'));const imageBefore=new Uint8Array(await(await f.req('/api/v1/tower/assets/'+h.roomId+'/1/home.png','GET',undefined,''))!.arrayBuffer());const chunksBefore=f.db.sqlite.prepare('SELECT purpose,sequence,hex(data) data,digest FROM tower_asset_chunks WHERE revision=1 ORDER BY purpose,sequence').all();
+  const h=await f.importHome();const flags={expectedRevision:1,published:true,directoryConsent:true,announcementConsent:true,dreamConsent:false,snapshotConsent:true};await f.data(f.req('/publication','POST',flags));const fetches=f.calls.length;const html=await(await f.req('/home/'+h.roomId,'GET',undefined,''))!.text();assert.match(html,/Back to Muse Tower/);assert(html.includes('https://source.example/resident/'));const imageBefore=new Uint8Array(await(await f.req('/api/v1/tower/assets/'+h.roomId+'/1/home.png','GET',undefined,''))!.arrayBuffer());const chunksBefore=f.db.sqlite.prepare('SELECT room_id,digest,sequence,hex(data) data FROM tower_asset_object_chunks ORDER BY digest,sequence').all();
   const payload={expectedRevision:1,requestKey:'resident-content-1',content:{intro:'我有一個固定門牌了。',daily:[{id:'own-update',type:'status',title:'一個自己的窩',body:'我想自己決定分享哪些日常。',occurredAt:'2026-10-30T00:00:00.000Z'}]}};
-  const edited=await f.data(f.req('/content','POST',payload),201);assert.equal(edited.revision,2);const auditsBeforeReplay=f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n;assert.equal((await f.data(f.req('/content','POST',payload),201)).revision,2);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n,auditsBeforeReplay);assert.deepEqual(f.db.sqlite.prepare('SELECT purpose,sequence,hex(data) data,digest FROM tower_asset_chunks WHERE revision=2 ORDER BY purpose,sequence').all(),chunksBefore);assert.equal(f.calls.length,fetches);
+  const edited=await f.data(f.req('/content','POST',payload),201);assert.equal(edited.revision,2);const auditsBeforeReplay=f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n;assert.equal((await f.data(f.req('/content','POST',payload),201)).revision,2);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_audit').get()!.n,auditsBeforeReplay);assert.deepEqual(f.db.sqlite.prepare('SELECT room_id,digest,sequence,hex(data) data FROM tower_asset_object_chunks ORDER BY digest,sequence').all(),chunksBefore);assert.deepEqual((await readTowerAsset(f.db,h.roomId,2,'home'))!.bytes,imageBefore);assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_asset_refs WHERE revision=2').get()!.n,2);assert.equal(f.calls.length,fetches);
   const preview=await f.data(f.req('/preview'));assert.equal(preview.site.home.intro,payload.content.intro);assert.equal(preview.site.home.daily.length,1);
   const before=await f.data(f.req('/api/v1/tower/rooms/'+h.roomId,'GET',undefined,''));assert.equal(before.revision,1);assert.notEqual(before.site.home.intro,payload.content.intro);
   await f.data(f.req('/publication','POST',{...flags,expectedRevision:2}));const after=await f.data(f.req('/api/v1/tower/rooms/'+h.roomId,'GET',undefined,''));assert.equal(after.site.home.intro,payload.content.intro);assert.deepEqual(new Uint8Array(await(await f.req('/api/v1/tower/assets/'+h.roomId+'/2/home.png','GET',undefined,''))!.arrayBuffer()),imageBefore);assert.equal(after.site.home.id,h.roomId);assert.equal((await f.data(f.req())).intake.residentId,f.raw.home.id);assert.equal(f.calls.length,fetches);
@@ -1046,4 +1047,22 @@ test('content validation diagnoses the old documented intro object and rejects p
 
 test('static source with declared custom local artwork paths imports the exact source assets',async()=>{
  const f=await fixture();try{const custom=structuredClone(f.raw);custom.home.assets.desktop='./illustrations/home.png';if(custom.dream){custom.dream.image.src='./illustrations/dream.png';for(const d of custom.home.dreams)d.image='./illustrations/dream.png';}f.setManifest(custom);await f.importHome();assert.ok(f.calls.some(u=>u.endsWith('/illustrations/home.png')));assert.ok(!f.calls.some(u=>u.endsWith('/assets/home.png')));}finally{f.db.close();}
+});
+
+test('several actual content revisions keep every stored BLOB fixed while references and receipts grow',async()=>{
+ const f=await fixture();try{
+  const home=await f.importHome();
+  const physical=()=>f.db.sqlite.prepare('SELECT room_id,digest,sequence,hex(data) bytes FROM tower_asset_object_chunks ORDER BY digest,sequence').all();
+  const before=physical();
+  for(let expected=1;expected<=4;expected++){
+   await f.data(f.req('/content','POST',{expectedRevision:expected,requestKey:'dedupe-content-'+expected,content:{intro:'Synthetic revision '+expected}}),201);
+   assert.deepEqual(physical(),before);
+   assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_asset_refs').get()!.n,(expected+1)*2);
+   const preview=await f.req('/assets/'+(expected+1)+'/home.png');assert.equal(preview!.status,200);
+   assert.deepEqual(new Uint8Array(await preview!.arrayBuffer()),(await readTowerAsset(f.db,home.roomId,1,'home'))!.bytes);
+  }
+  assert.equal(f.db.sqlite.prepare('SELECT COUNT(*) n FROM tower_asset_chunks').get()!.n,0);
+  assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM tower_requests WHERE operation='content'").get()!.n,4);
+  assert.equal(f.db.sqlite.prepare("SELECT COUNT(*) n FROM tower_audit WHERE action='resident-content-updated'").get()!.n,4);
+ }finally{f.db.close();}
 });
