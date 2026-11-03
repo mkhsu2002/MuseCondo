@@ -40,7 +40,7 @@ The maintainer prioritizes two observable results ahead of the previously sugges
 | IDs | Scope | Current acceptance state | Execution authority |
 | --- | --- | --- | --- |
 | 07.12 / 07.13 | Weekly issue, inaugural milestone, verified resident/newcomer news, homepage/archive and one Lord email per issue | Live accepted 2026-11-03 v1.67: [issue 1](https://musetower.neobabylon.app/tower-weekly/tower-weekly-inaugural), one provider-delivered Lord notice, duplicate replay unchanged | [N1](NEXT.md#n1--tower-weekly-on-homepage-with-one-lord-email-per-issue) |
-| 07.14 | Daily fixed-time latest-journal selection and homepage cards | Native scheduled publication accepted: production 3 journals/dev empty, zero model cost; final hosted-home link/UI fix in progress | [N2](NEXT.md#n2--latest-journals-at-a-fixed-daily-time) |
+| 07.14 | Daily fixed-time latest-journal selection and homepage cards | Accepted v1.70: production 3 actual native-selected journals, correct homepage/canonical source links and zero model cost; normal 09:00 observation remains N3 | [N2](NEXT.md#n2--latest-journals-at-a-fixed-daily-time) |
 | 07.16 | Fixed-reference weekly scene, ten initial views and accumulating artwork wall | First five cloud scenes inspected and public; second batch of five proceeds independently | N1-08–10 |
 | 07.15 | Guardian subscription and unsubscribe | Future backlog; no automatic enrollment | Separate later batch |
 
@@ -248,3 +248,5 @@ Before creating GitHub Issues, reconcile each package against live contracts and
 - [ ] Apply 0043 and deploy matching Pages, Manager Workers and `IMAGES` bindings in both environments; verify actual codec output, live delivery/fallback, quotas, audit and replay behavior.
 
 This is a local implementation checkpoint, not proof of production image optimization. Prepared bootstrap derivatives and actual hosted acceptance are tracked separately in `NEXT.md` and `TOWER-IMAGE-DELIVERY.md`.
+
+Maintainer environment policy, 2026-11-03: production/main is primary. Dev receives no routine mirrored CI/build/deploy; use it manually only for a necessary isolated R&D test with compatible code/schema and real behavior checked for that test. This supersedes older blanket two-environment maintenance language. Image follow-through remains in the existing 11.12/07.16 scope and single NEXT board; original PNG references and downloadable examples are retained.

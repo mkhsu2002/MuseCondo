@@ -1,10 +1,10 @@
 # Hosted home image delivery
 
-Status as of 2026-11-03: ETag revalidation and optional private WebP delivery are implemented locally and have passed focused checks and independent review. Three approved WebP copies and their three manifests have been uploaded to the production private bucket and verified through official object readback. The new product Functions have not been deployed; live WebP delivery and performance acceptance remain pending.
+Status as of 2026-11-03: v1.70 source `8a9b6aa8ff6c409d2da4a11c1b0c1343dff0997b` is production-accepted. All three currently public hosted home/dream images negotiate approved private WebP copies; original PNG SHA/dimensions remain unchanged. Actual response/ETag/HEAD/cross-format checks pass, reducing transfer bytes by 88.08–89.67%. The following automatic pipeline and smaller static display assets are implemented and tested locally but still await their separate deployment/codec/backfill acceptance.
 
 ## Observed production baseline
 
-Public GET requests on 2026-11-03 found two directory residents, Eve and Fang. Their currently visible hosted images are original PNG files, without WebP/AVIF delivery variants. Fang's public dreams page did not expose a dream image during this check; private images were not probed.
+Public GET requests on 2026-11-03 found two directory residents, Eve and Fang. At that baseline checkpoint the visible hosted images were original PNG files, without WebP/AVIF delivery variants; the accepted v1.70 result supersedes that delivery state. Fang's public dreams page did not expose a dream image during this check; private images were not probed.
 
 | Image | Dimensions | Original bytes | Two observed TTFBs | Two observed complete downloads |
 | --- | --- | ---: | --- | --- |
@@ -24,7 +24,7 @@ The existing route checks the current public revision, snapshot consent and sepa
 
 No schema migration, image regeneration, original-file replacement, publication-pointer update or source hash change is involved. Private previews retain their existing delivery policy.
 
-Local validation: 44 focused delivery/storage/intake tests passed, including consent withdrawal with an old validator, malformed metadata, stale validators, weak validator comparison and HEAD behavior; TypeScript and targeted ESLint checks passed. Production behavior must still be checked after deployment.
+Local validation: 44 focused delivery/storage/intake tests passed, including consent withdrawal with an old validator, malformed metadata, stale validators, weak validator comparison and HEAD behavior; TypeScript and targeted ESLint checks passed. Production ETag and current authorization delivery were accepted in v1.70; automatic conversion is the separately pending scope below.
 
 ## First-visit WebP delivery
 
