@@ -5,3 +5,8 @@ export function createNavigationEpoch(){
  let version=0;
  return {begin(){const current=++version;return ()=>current===version;}};
 }
+
+/** Hosted homes use the current consent-filtered server document, not the legacy room SPA. */
+export function usesPublishedHomeDocument(pathname:string,base=''){
+ return pathname.startsWith(base+'/') && /^\/home\/[a-f0-9]{16}(?:\/(?:inside|dreams))?\/?$/.test(pathname.slice(base.length));
+}

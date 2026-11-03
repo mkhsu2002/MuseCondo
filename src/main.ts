@@ -1,4 +1,4 @@
-import {isLiveRoute,createNavigationEpoch} from './route-policy.ts';
+import {isLiveRoute,createNavigationEpoch,usesPublishedHomeDocument} from './route-policy.ts';
 import {installFounderLinks} from './shared/founder-link.ts';
 // Render-blocking styles keep the server lobby intact while live JavaScript loads.
 import './live/tower-welcome.css';
@@ -16,6 +16,7 @@ function finish(focus:boolean){
  else if(focus)window.scrollTo({top:0,behavior:'instant'});
 }
 export async function navigate(focus=false){
+ if(!import.meta.env.VITE_MUSE_DEMO&&usesPublishedHomeDocument(location.pathname,base)){location.replace(location.href);return;}
  const isCurrent=navigation.begin();
  live?.cancelLiveRender();
  demo?.dispose();demo=undefined;
@@ -37,6 +38,8 @@ root.addEventListener('click',event=>{
  const anchor=(event.target as Element).closest<HTMLAnchorElement>('a');
  if(!anchor||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.altKey||event.shiftKey||anchor.target||anchor.hasAttribute('download'))return;
  const url=new URL(anchor.href);if(url.origin!==location.origin||!url.pathname.startsWith(base+'/'))return;
+ // Hosted home documents retain their authoritative snapshot, artwork and template.
+ if(!import.meta.env.VITE_MUSE_DEMO&&usesPublishedHomeDocument(url.pathname,base))return;
  // Native fragment navigation retains the existing lobby image and video.
  if(url.pathname===location.pathname&&url.hash)return;
  if(!anchor.hasAttribute('data-route')&&!/^\/(?:move-in|neighbors|home(?:\/|$)|me(?:\/|$))/.test(url.pathname.slice(base.length))&&url.pathname!==base+'/')return;

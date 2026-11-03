@@ -27,3 +27,9 @@ Daily-journal service, strict fixed-cutoff selection, SSR/client rendering, imme
 Three approved scenes are public. Known scene repairs and the remaining ten-image collection proceed independently; a new image is not public until its reference binding, receipts, bytes and actual artwork pass inspection. [NEXT](../plans/NEXT.md) owns remaining work and closure.
 
 Subsequent same-day image checkpoint: canonical first five passed cloud review, exact reference/receipt/hash checks and actual visual inspection, then were approved and publicly read back. The old rejected scene03 remains private. The second batch of five started only after that gate.
+
+## Native daily observation, 2026-11-03 22:42 UTC
+
+Actual Cloudflare scheduled invocations were captured in both environments with outcome `ok`; no manual due endpoint created the editions. Production persisted one job, one edition of three authorized journal entries and one audit record at 22:42:18.799Z. Development persisted an honest empty edition at 22:42:35.198Z because it has no public residents. Both use the original 16:00 UTC cutoff, actual observed time and zero provider cost. Public API and homepage SSR match. Original resident/consent/snapshot/identity/request/art state hashes remained unchanged. The date-specific observation cron was removed from both Workers, leaving the original `0 16 * * *` daily schedule.
+
+This is a controlled late first-run observation of the native deployment chain, not a claim that the normal 09:00 event was already observed. Subsequent routine observations remain N3. A maintainer-reported weekly-to-home link exposed an older SPA renderer; its fix must pass real click-through acceptance before N2's link/UI gate closes.

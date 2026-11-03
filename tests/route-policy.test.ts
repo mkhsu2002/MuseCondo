@@ -22,3 +22,35 @@ test('historical refresh retries an existing edition and blocks duplicate in-fli
  const code=ts.transpileModule('const click='+handler!.getText(file)+';click(event);',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
  for(const loading of [false,true]){let refreshes=0;runInNewContext(code,{community:{edition:{id:'already-loaded'}},communityLoading:loading,refreshCommunity:()=>{refreshes++;},event:{target:{closest:(selector:string)=>selector==='[data-refresh-community]'?{}:null}}});assert.equal(refreshes,loading?0:1);}
 });
+
+
+test('weekly resident links keep native document navigation and never render the legacy public-room model',async()=>{
+ const {readFileSync}=await import('node:fs');const {runInNewContext}=await import('node:vm');const ts=(await import('typescript')).default;
+ const source=readFileSync(new URL('../src/main.ts',import.meta.url),'utf8'),file=ts.createSourceFile('main.ts',source,ts.ScriptTarget.Latest,true);
+ let handler:import('typescript').ArrowFunction|undefined;
+ const visit=(node:import('typescript').Node)=>{if(ts.isCallExpression(node)&&node.expression.getText(file)==='root.addEventListener'&&node.arguments[0]?.getText(file)==="'click'"&&ts.isArrowFunction(node.arguments[1]))handler=node.arguments[1];ts.forEachChild(node,visit);};visit(file);assert.ok(handler);
+ const {usesPublishedHomeDocument}=await import('../src/route-policy.ts');
+ const code=ts.transpileModule('const click='+handler!.getText(file).replaceAll('import.meta.env.VITE_MUSE_DEMO','false')+';click(event);',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ for(const home of ['home/da854b41f3bf3504','home/da854b41f3bf3504/inside','home/d0e4167aba9b3e75/dreams']){
+  let prevented=0,pushed=0,navigated=0;
+  runInNewContext(code,{usesPublishedHomeDocument,base:'',URL,location:{origin:'https://tower.example',pathname:'/tower-weekly/tower-weekly-inaugural'},history:{pushState(){pushed++;}},navigate(){navigated++;},event:{button:0,target:{closest(){return {href:'https://tower.example/'+home,target:'',hasAttribute(){return false;}};}},preventDefault(){prevented++;}}});
+  assert.deepEqual({prevented,pushed,navigated},{prevented:0,pushed:0,navigated:0},home);
+ }
+});
+
+test('native home navigation recognizes current hosted views without swallowing unrelated or standalone paths',async()=>{
+ const {usesPublishedHomeDocument:f}=await import('../src/route-policy.ts');
+ for(const suffix of ['','/inside','/dreams','/'])assert.equal(f('/home/0123456789abcdef'+suffix),true);
+ assert.equal(f('/preview/home/0123456789abcdef/inside','/preview'),true);
+ for(const path of ['/home/not-a-room','/home/0123456789abcdef/private','/move-in','/tower-weekly','/other/home/0123456789abcdef'])assert.equal(f(path),false,path);
+});
+
+test('history restoration to a hosted home reloads its published document before any legacy renderer',async()=>{
+ const {readFileSync}=await import('node:fs');const {runInNewContext}=await import('node:vm');const ts=(await import('typescript')).default;
+ const source=readFileSync(new URL('../src/main.ts',import.meta.url),'utf8'),file=ts.createSourceFile('main.ts',source,ts.ScriptTarget.Latest,true);
+ const fn=file.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='navigate') as import('typescript').FunctionDeclaration;assert.ok(fn?.body);
+ const code=ts.transpileModule('async function navigate(focus=false)'+fn.body!.getText(file).replaceAll('import.meta.env.VITE_MUSE_DEMO','false')+';navigate();',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const {usesPublishedHomeDocument}=await import('../src/route-policy.ts');let destination='';
+ await runInNewContext(code,{usesPublishedHomeDocument,base:'',location:{pathname:'/home/da854b41f3bf3504/inside',href:'https://tower.example/home/da854b41f3bf3504/inside',replace(url:string){destination=url;}}});
+ assert.equal(destination,'https://tower.example/home/da854b41f3bf3504/inside');
+});

@@ -42,8 +42,8 @@ test('the lazy homepage router preserves SSR doors while its live import is pend
  const source=readFileSync(new URL('../src/main.ts',import.meta.url),'utf8'),file=ts.createSourceFile('main.ts',source,ts.ScriptTarget.Latest,true);
  const fn=file.statements.find((node):node is ts.FunctionDeclaration=>ts.isFunctionDeclaration(node)&&node.name?.text==='navigate');assert.ok(fn);
  const loader=deferred<unknown>(),root={innerHTML:renderHomeDirectory('',[{id,name:'SSR door before network'}])};let captured='';
- const code=ts.transpileModule(fn!.getText(file).replace('export ','').replace("import('./live')",'loadLive()').replace("import('./demo')",'loadDemo()').replace('import.meta.env.VITE_MUSE_DEMO','false'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText;
- const context={navigation:createNavigationEpoch(),live:undefined,demo:undefined,root,base:'',location:{pathname:'/'},isLiveRoute:()=>false,loadLive:()=>loader.promise,finish:()=>{},pending:undefined as Promise<void>|undefined};
+ const code=ts.transpileModule(fn!.getText(file).replace('export ','').replace("import('./live')",'loadLive()').replace("import('./demo')",'loadDemo()').replaceAll('import.meta.env.VITE_MUSE_DEMO','false'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText;
+ const context={navigation:createNavigationEpoch(),live:undefined,demo:undefined,root,base:'',location:{pathname:'/'},usesPublishedHomeDocument:()=>false,isLiveRoute:()=>false,loadLive:()=>loader.promise,finish:()=>{},pending:undefined as Promise<void>|undefined};
  runInNewContext(code+';globalThis.pending=navigate();',context);
  assert.match(root.innerHTML,/SSR door before network/);
  loader.resolve({renderLiveTower:async(target:typeof root)=>{captured=target.innerHTML;}});await context.pending;
