@@ -25,7 +25,7 @@ on:
       - 'outputs/**'
       - 'VERSION'
   push:
-    branches: [main, framework-v001]
+    branches: [main]
     paths-ignore:
       - 'ARCHITECTURE.md'
       - 'BEYOND-A-HOME.md'

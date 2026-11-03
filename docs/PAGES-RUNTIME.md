@@ -2,6 +2,14 @@
 
 > 維護入口（2026-11-03）：以[目前架構與發布索引](architecture/CURRENT-RELEASE.md)為準。正式 build gate 為 `npm run verify`、Node 24.22.1，所需 migration 為完整 0001–0040（550 application SQL objects）。兩環境已套用 0037；新應用程式發布與 readback 狀態見[執行紀錄](architecture/HARDENING-STATUS.md)。部署必須同步 Functions、前端與相依私有 Worker，不能只上傳靜態 dist。
 
+## 環境與發布政策（2026-11-03 更新）
+
+日常開發與發布以 `main` → production 為主。Quality 僅由相關 `main` push 或 PR 變更觸發；保留既有 PR 品質、文件過濾與 concurrency gate，不再因 `framework-v001` push 重複執行完整 CI。dev 不例行 mirror 正式環境，也不為維持版本一致而自動更新、建置或巡檢。
+
+dev 僅在具體研發、隔離測試或正式環境不宜執行的合成驗證需要時按需啟用。啟用前確認其 schema、deployed code、bindings 與實際測試行為一致，使用合成資料；不得複製正式住戶資料或把 dev 結果宣稱為正式驗收。正式發布仍須驗證 production 的分支、migration、Functions／相依 Worker、前後端契約與 live behavior，不可只發布前端。若本次同時啟用 dev，才對該次測試所需的版本與資料契約逐項驗證。
+
+依 [Cloudflare branch controls](https://developers.cloudflare.com/pages/configuration/branch-build-controls/) 與 [Git integration](https://developers.cloudflare.com/pages/configuration/git-integration/) 的分支控制，Git preview 自動 build 已於 2026-11-03 經官方 API 關閉（`preview_deployment_setting: none`）；production `main` 自動部署、現有 dev、build、bindings、secrets 與網域設定均保留。按需研發仍可使用明確指定分支的手動 Wrangler preview 部署；這次必要的一次性合成 codec smoke 不恢復例行 dev CI。下方歷史記錄中的兩環境同步要求反映當時政策，日常環境選擇以本節為準。
+
 ## 歷史契約與版本證據（2026-10-29 至 2026-11-02）
 
 以下保留當時的分階段說明與查核日期；其中 0001–0005、0001–0011 與舊 build 指令僅供理解歷史功能，不是目前完整升級清單，也不表示本輪重新完成線上驗證。
@@ -18,7 +26,7 @@
 
 ## 入口與組建
 
-首頁載入契約（2026-11-02）：正式 Pages 回應在公開門牌外直接提供完整首頁框架；前端同步接手並只更新 `data-lobby-feed` 區域，避免基本清單先閃現及重建主圖／播放器。Pages/Functions、前端 bundle 與共享 Manager renderer 須在 dev／正式同步發布，詳見[首頁載入](HOMEPAGE-LOADING.md)。這項變更不新增 migration 或 JSON API 格式。
+首頁載入契約（2026-11-02）：正式 Pages 回應在公開門牌外直接提供完整首頁框架；前端同步接手並只更新 `data-lobby-feed` 區域，避免基本清單先閃現及重建主圖／播放器。Pages/Functions、前端 bundle 與共享 Manager renderer 須在本次實際部署的目標環境同步發布；dev 是否啟用依上述政策決定，詳見[首頁載入](HOMEPAGE-LOADING.md)。這項變更不新增 migration 或 JSON API 格式。
 
 `functions/[[path]].ts` 委派 `server/live/worker.ts`，採 Pages Functions 標準模式，不混用 `_worker.js` advanced mode。
 
@@ -47,7 +55,7 @@
 
 Pages binding 名稱為 **DB**。正式與 dev／Preview 分開使用正確資料庫；設定後重新部署使 Functions 收到 binding。runtime schema gate 要求 framework 新表存在，缺 DB、缺 migration 或查詢失敗時回 503 JSON。
 
-發布時必須逐一確認目標分支、兩環境所需 migration、Functions/API 與前端版本，再實測 `/api/v1/status`、三層路由、夢同意／scope、圖片存取及撤回。前端已切到 framework 流程而後端尚缺 `0005` 時，應阻止發布並先修正環境一致性。
+發布時必須逐一確認 production 目標分支、所需 migration、Functions/API 與前端版本；若本次另啟用 dev，對該測試環境做相同契約檢查，再實測 `/api/v1/status`、三層路由、夢同意／scope、圖片存取及撤回。前端已切到 framework 流程而後端尚缺 `0005` 時，應阻止發布並先修正環境一致性。
 
 ## Runtime 配置
 
