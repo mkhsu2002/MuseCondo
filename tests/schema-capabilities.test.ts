@@ -30,7 +30,7 @@ async function fixture(){
 test('only supported public methods and exact handler paths receive reduced capabilities',()=>{
  assert.deepEqual(routeSchemaCapability('GET',home),['tower_residencies','tower_snapshots']);
  assert.deepEqual(routeSchemaCapability('HEAD',home+'/inside/'),['tower_residencies','tower_snapshots']);
- assert.deepEqual(routeSchemaCapability('GET','/api/v1/public/rooms/'+room+'/dreams'),['rooms','dream_consent','dreams']);
+ assert.deepEqual(routeSchemaCapability('GET','/api/v1/public/rooms/'+room+'/dreams'),['rooms','dream_consent','dreams','tower_residencies']);
  for(const [method,path] of [['POST',home],['GET',home+'//'],['GET','/home/bad-id'],['GET','/api/v1/tower/assets/'+room+'/0/home.png'],['HEAD','/api/v1/public/rooms'],['GET','/api/v1/tower/appearance'],['GET','/api/v1/assets/'+'a'.repeat(32)],['GET','/api/v1/status'],['GET','/api/v1/unrecognized']])assert.equal(routeSchemaCapability(method,path),FULL_SCHEMA_CAPABILITY,path);
  assert.ok(FULL_SCHEMA_CAPABILITY.length>100);
  assert.ok(CAPABILITY_SCHEMA_QUERY.length<100000);
@@ -100,3 +100,5 @@ test('public home performs one bounded selected schema query using one names bin
  assert.equal(RELEASE_MANIFEST.schemaDefinitions.length,RELEASE_MANIFEST.schemaObjects);
  }finally{f.db.close();}
 });
+
+test('legacy room public reads fail closed when Tower membership authority is absent',async()=>{const f=await fixture();try{f.db.sqlite.exec('PRAGMA foreign_keys=OFF; DROP TABLE tower_residencies');for(const path of ['/api/v1/public/rooms/'+room,'/api/v1/public/rooms/'+room+'/dreams']){const response=await f.get(path);assert.equal(response.status,503,path);assert.equal((await response.json()).error,'database_schema_not_ready');}}finally{f.db.close();}});

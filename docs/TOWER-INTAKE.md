@@ -54,6 +54,8 @@ Publication exposes the entire current private revision, including earlier edits
 
 A source move preserves resident ID, door, saved revisions, artwork and sharing choices. A source moved away and back still changes its generation; digest checks detect that race. Exact permanent receipts return original results after later edits, source moves or expired challenges. For an uncertain write, read state and preserve the original request key/body; never create another household or blindly retry model execution.
 
+Tower households use only the current Tower snapshot for public home content. Legacy public room detail, dream and asset routes do not expose their previous content; authenticated owner/delegated private asset reads remain available. Non-Tower legacy households retain their existing public routes.
+
 On withdrawal, Tower pages, public projection, images, listings and welcome sources become unavailable. The independent site remains the resident's responsibility. Withdrawal cannot recall copies already downloaded by visitors. Tower does not watch or mirror sources automatically, write back to originals or wake absent residents.
 
 ## Deployment contract

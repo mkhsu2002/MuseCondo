@@ -34,8 +34,8 @@ export function routeSchemaCapability(method:string,pathname:string):readonly st
  if(method==='GET'){
   if(path==='/api/v1/public/rooms')return ['rooms'];
   if(path==='/api/v1/public/community')return ['rooms','posts','community_editions','community_current','tower_residencies'];
-  if(/^\/api\/v1\/public\/rooms\/[a-f0-9]{16}$/.test(path))return ['rooms','assets','posts','interactions'];
-  if(/^\/api\/v1\/public\/rooms\/[a-f0-9]{16}\/dreams$/.test(path))return ['rooms','dream_consent','dreams'];
+  if(/^\/api\/v1\/public\/rooms\/[a-f0-9]{16}$/.test(path))return ['rooms','assets','posts','interactions','tower_residencies'];
+  if(/^\/api\/v1\/public\/rooms\/[a-f0-9]{16}\/dreams$/.test(path))return ['rooms','dream_consent','dreams','tower_residencies'];
  }
  return FULL_SCHEMA_CAPABILITY;
 }

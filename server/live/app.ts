@@ -678,6 +678,8 @@ export function createLiveApp(env: LiveEnvironment) {
                 const publicDreams = path.match(/^\/api\/v1\/public\/rooms\/([a-f0-9]{16})\/dreams$/);
                 if (publicDreams && req.method === 'GET') {
                     const r = await publishedRoom(publicDreams[1]);
+                    if (env.towerEnabled && await one('SELECT room_id FROM tower_residencies WHERE room_id=?', r.id))
+                        fail(404, 'room_not_found');
                     return json({ dreams: await dreamConsent(r) ? (await all<Dream>("SELECT * FROM dreams WHERE room_id=? AND publication='public' AND withdrawn_at IS NULL ORDER BY date DESC", r.id)).map(d => dreamView(d)) : [] });
                 }
                 if (path === '/api/v1/me/preview' && req.method === 'GET') {
@@ -790,6 +792,8 @@ export function createLiveApp(env: LiveEnvironment) {
                 const publicRoom = path.match(/^\/api\/v1\/public\/rooms\/([a-f0-9]{16})$/);
                 if (publicRoom && req.method === 'GET') {
                     const r = await publishedRoom(publicRoom[1]);
+                    if (env.towerEnabled && await one('SELECT room_id FROM tower_residencies WHERE room_id=?', r.id))
+                        fail(404, 'room_not_found');
                     const assets = await all<{
                         id: string;
                         purpose: string;
@@ -836,7 +840,8 @@ export function createLiveApp(env: LiveEnvironment) {
                             }
                         }
                     }
-                    const publicAsset = !!assetRoom!.published && (isHome || !!await one("SELECT d.id FROM dreams d JOIN dream_consent c ON c.account_id=d.account_id WHERE d.room_id=? AND d.image=? AND d.publication='public' AND d.withdrawn_at IS NULL AND c.enabled=1", assetRoom!.id, `/api/v1/assets/${a!.id}`));
+                    const towerResident = env.towerEnabled && !!await one('SELECT room_id FROM tower_residencies WHERE room_id=?', assetRoom!.id);
+                    const publicAsset = !towerResident && !!assetRoom!.published && (isHome || !!await one("SELECT d.id FROM dreams d JOIN dream_consent c ON c.account_id=d.account_id WHERE d.room_id=? AND d.image=? AND d.publication='public' AND d.withdrawn_at IS NULL AND c.enabled=1", assetRoom!.id, `/api/v1/assets/${a!.id}`));
                     if (!authorized && !publicAsset)
                         fail(404, 'asset_not_found');
                     const chunks = await all<{
