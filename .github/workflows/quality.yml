@@ -68,6 +68,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Types (including Pages Functions), lint, production build, every unit and contract test
+        env:
+          MUSE_INSTALL_TEST_TOOLS: '1'
         run: npm run verify
       # Separate synthetic native runtime: never uses Cloudflare credentials or a provider.
       - name: Install pinned native test runtime outside the project

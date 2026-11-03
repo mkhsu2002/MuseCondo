@@ -26,7 +26,7 @@
     "test:condo": "node --experimental-strip-types --test tests/condo*.test.ts",
     "test:tower": "node --experimental-strip-types --test tests/tower*.test.ts tests/tower*.test.mjs",
     "test:all": "node scripts/run-tests.mjs",
-    "verify": "node scripts/check-node.mjs && npm run typecheck && npm run lint && npm run build && npm run test:all",
+    "verify": "node scripts/check-node.mjs && node scripts/check-test-tools.mjs && npm run typecheck && npm run lint && npm run build && npm run test:all",
     "test:native:edge": "node scripts/test-edge-guard-native.mjs",
     "test:native:mail": "node scripts/test-identity-mail-native.mjs",
     "pretypecheck": "node scripts/release-manifest.mjs --ensure",
