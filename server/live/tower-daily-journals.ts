@@ -2,7 +2,7 @@ import type {Database} from './db.ts';
 import {managerLocalDay} from './tower-calendar.ts';
 import {createPublicationSources,type PublicationJournal} from './tower-publication-sources.ts';
 import {digest} from './live-contract.ts';
-import type {TowerJournalEdition,TowerJournalItem} from '../../src/shared/tower-journals.ts';
+import {TOWER_DAILY_JOURNAL_LIMIT,type TowerJournalEdition,type TowerJournalItem} from '../../src/shared/tower-journals.ts';
 interface Options {db:Database;origin:string;enabled:boolean;now?:()=>Date}
 interface Frozen extends TowerJournalItem {sourceKind:'tower-snapshot';sourceKey:string;roomId:string;entryId:string;publicRevision:number;publicationEpoch:number;publishedAt:string|null;snapshotCreatedAt:string|null;bodyDigest:string}
 const period=(day:string)=>({periodKey:day,periodStart:day+'T00:00:00.000Z',cutoffAt:day+'T16:00:00.000Z',recipientHash:'0'.repeat(64),inaugural:false});
@@ -16,7 +16,7 @@ export function createTowerDailyJournals(options:Options){
   if(!options.enabled)return result('disabled');
   if(observed.toISOString()<p.cutoffAt)return result('not_due');
   if(await db.prepare('SELECT day FROM tower_daily_journal_editions WHERE day=?').bind(day).first())return result('already_complete');
-  const source=await sources.readSource(p,{strictAsOf:true}),selected=await Promise.all(sources.journals(source).slice(0,3).map(freeze));
+  const source=await sources.readSource(p,{strictAsOf:true}),selected=await Promise.all(sources.journals(source).slice(0,TOWER_DAILY_JOURNAL_LIMIT).map(freeze));
   try{await db.batch([
    ...sources.publicationGuards(source),
    db.prepare(`INSERT INTO tower_daily_journal_jobs(day,cutoff_at,observed_at,source_digest,missed_days,actual_micro) SELECT ?,?,?,?,CASE WHEN MAX(day) IS NULL THEN 0 ELSE MAX(0,CAST(julianday(?)-julianday(MAX(day)) AS INTEGER)-1) END,0 FROM tower_daily_journal_jobs`).bind(day,p.cutoffAt,observed.toISOString(),source.sourceDigest,day),

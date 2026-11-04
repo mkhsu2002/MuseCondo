@@ -5,11 +5,14 @@ import {execFileSync} from 'node:child_process';
 import {readFile,readdir} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {createManifest} from './release-manifest.mjs';
 import {managerLocalDay} from '../server/live/tower-calendar.ts';
 const runtime=process.argv[2];if(!runtime)throw Error('Pass an existing node_modules directory containing miniflare and esbuild');
 const {Miniflare,convertV4MiniflareOptions}=await import(pathToFileURL(join(resolve(runtime),'miniflare/dist/src/index.js')).href);
 const {build}=await import(pathToFileURL(join(resolve(runtime),'esbuild/lib/main.js')).href);
-const compile=async entry=>(await build({entryPoints:[entry],bundle:true,format:'esm',platform:'browser',write:false,target:'es2022'})).outputFiles[0].text;
+// Compile the current canonical migrations into this isolated test without mutating frozen release artifacts.
+const expectedManifest=await createManifest();
+const compile=async entry=>(await build({entryPoints:[entry],bundle:true,format:'esm',platform:'browser',write:false,target:'es2022',plugins:[{name:'synthetic-release-manifest',setup(build){build.onLoad({filter:/generated-release\.ts$/},()=>({contents:'export const RELEASE_MANIFEST='+JSON.stringify(expectedManifest)+';',loader:'ts'}));}}]})).outputFiles[0].text;
 const [pages,clock]=await Promise.all([compile('server/live/worker.ts'),compile('workers/tower-manager/worker.ts')]);
 // An isolated native harness changes a grant between source read and the real D1 atomic batch.
 // Production Pages/Manager bundles above are compiled without hooks or clock substitutions.
@@ -57,7 +60,7 @@ async function scenario(empty=false){
   const a=await resident('a',{count:2,malformed:empty}),b=await resident('b',{count:2,revoked:empty});
   await resident('c',{malformed:true});await resident('d',{revoked:true});
   const get=async()=>{const response=await mf.dispatchFetch(origin+'/api/v1/public/tower-journals');assert.equal(response.status,200,await response.clone().text());assert.equal(response.headers.get('Cache-Control'),'no-store');return response.json();};
-  const home=async()=>{const response=await mf.dispatchFetch(origin+'/');assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'no-store');const html=await response.text();assert.match(html,/id="tower-landscape"/);assert.match(html,/data-tower-video-play/);assert.doesNotMatch(html,/<iframe[^>]+youtube/);return html;};
+  const home=async()=>{const response=await mf.dispatchFetch(origin+'/');assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'no-store');const html=await response.text();assert.match(html,/id="tower-landscape"/);assert.doesNotMatch(html,/<iframe[^>]+youtube/);return html;};
   const post=(path,key)=>mf.dispatchFetch(origin+path,{method:'POST',headers:{'Content-Type':'application/json',...(key?{'X-Manager-Schedule-Key':key}:{})},body:JSON.stringify({scheduledTime:new Date().toISOString()})});
   const rows=async table=>(await db.prepare('SELECT * FROM '+table+' ORDER BY day').all()).results;
   const counts=async()=>Promise.all(['jobs','editions','audit'].map(async name=>(await rows('tower_daily_journal_'+name)).length));
@@ -85,7 +88,7 @@ async function scenario(empty=false){
    const deadline=Date.now()+15000;while(Date.now()<deadline&&(await counts())[0]===0)await new Promise(done=>setTimeout(done,50));
    assert.deepEqual(await counts(),[1,1,1]);assert.equal(steps,1,'A real private SQLite DO alarm dispatched the daily task');
    if(scheduledEntry)assert.equal(schedules,1,'The actual Worker scheduled entry reached protected Pages run-due');
-   const edition=(await get()).edition;assert.equal(edition.day,day);assert.equal(edition.cutoffAt,cutoff);assert.deepEqual(edition.items.map(i=>i.title),empty?[]:['Native journal a0','Native journal a1','Native journal b0']);
+   const edition=(await get()).edition;assert.equal(edition.day,day);assert.equal(edition.cutoffAt,cutoff);assert.deepEqual(edition.items.map(i=>i.title),empty?[]:['Native journal a0','Native journal a1','Native journal b0','Native journal b1']);
    for(const item of edition.items){assert.equal(item.originalAt,at);assert.equal(item.excerpt,'Original neighbor story '+item.title.slice(-2));assert.match(item.href,/\/home\/[ab]{16}\/inside$/);}
    const html=await home();if(!empty){for(const item of edition.items)assert.ok(html.includes(item.title),'Raw SSR/JavaScript-disabled response includes selected journal');assert.match(html,/data-tower-journals/);}else assert.doesNotMatch(html,/Native journal/);
    assert.doesNotMatch(JSON.stringify(edition),/bodyDigest|sourceKey|publicationEpoch|publicRevision|source_digest|synthetic-daily-trigger/);
@@ -96,17 +99,17 @@ async function scenario(empty=false){
    for(const table of ['jobs','audit'])assert.equal((await rows('tower_daily_journal_'+table))[0].actual_micro,0);
    if(!empty){
     await db.prepare('UPDATE tower_residencies SET announcement_consent=0 WHERE room_id=?').bind(a).run();
-    assert.deepEqual((await get()).edition.items.map(i=>i.title),['Native journal b0']);assert.doesNotMatch(await home(),/Native journal a[01]/);
+    assert.deepEqual((await get()).edition.items.map(i=>i.title),['Native journal b0','Native journal b1']);assert.doesNotMatch(await home(),/Native journal a[01]/);
     // Concurrent revocation and read: only the read after the committed revocation is the authority.
     await Promise.all([get(),db.prepare('DELETE FROM tower_snapshots WHERE room_id=?').bind(b).run()]);
     assert.deepEqual((await get()).edition.items,[]);assert.doesNotMatch(await home(),/Native journal [ab][01]/);
-    assert.equal(JSON.parse((await rows('tower_daily_journal_editions'))[0].selection_json).length,3,'Withdrawal hides saved choices without filling or rewriting history');
+    assert.equal(JSON.parse((await rows('tower_daily_journal_editions'))[0].selection_json).length,4,'Withdrawal hides saved choices without filling or rewriting history');
    }
    for(const name of ['jobs','editions','audit']){
     await assert.rejects(db.prepare('UPDATE tower_daily_journal_'+name+' SET day=day').run(),/daily_immutable/);
     await assert.rejects(db.prepare('DELETE FROM tower_daily_journal_'+name).run(),/daily_immutable/);
    }
-   console.log('PASS native '+(empty?'malformed/revoked empty edition':'latest-three SSR/API, live revocation/removal and concurrent read')+'; real D1 clock, atomic immutable zero-cost rows and permanent DO replay protection');
+   console.log('PASS native '+(empty?'malformed/revoked empty edition':'latest-four SSR/API, live revocation/removal and concurrent read')+'; real D1 clock, atomic immutable zero-cost rows and permanent DO replay protection');
   }
   for(const table of ['manager_jobs','tower_weekly_jobs','tower_weekly_issues','tower_weekly_outbox','tower_scenes'])assert.equal((await db.prepare('SELECT count(*) n FROM '+table).first()).n,0,table+' stays unused without provider credentials or weekly enablement');
   assert.equal(providerCalls,0,'No text, image, email or external provider calls');

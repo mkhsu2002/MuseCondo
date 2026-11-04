@@ -29,11 +29,11 @@ test('weekly resident links keep native document navigation and never render the
  const source=readFileSync(new URL('../src/main.ts',import.meta.url),'utf8'),file=ts.createSourceFile('main.ts',source,ts.ScriptTarget.Latest,true);
  let handler:import('typescript').ArrowFunction|undefined;
  const visit=(node:import('typescript').Node)=>{if(ts.isCallExpression(node)&&node.expression.getText(file)==='root.addEventListener'&&node.arguments[0]?.getText(file)==="'click'"&&ts.isArrowFunction(node.arguments[1]))handler=node.arguments[1];ts.forEachChild(node,visit);};visit(file);assert.ok(handler);
- const {usesPublishedHomeDocument}=await import('../src/route-policy.ts');
+ const {usesPublishedHomeDocument,usesStandaloneDocument}=await import('../src/route-policy.ts');
  const code=ts.transpileModule('const click='+handler!.getText(file).replaceAll('import.meta.env.VITE_MUSE_DEMO','false')+';click(event);',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
- for(const home of ['home/da854b41f3bf3504','home/da854b41f3bf3504/inside','home/d0e4167aba9b3e75/dreams']){
+ for(const home of ['home/da854b41f3bf3504','home/da854b41f3bf3504/inside','home/d0e4167aba9b3e75/dreams','project','tower-history']){
   let prevented=0,pushed=0,navigated=0;
-  runInNewContext(code,{usesPublishedHomeDocument,base:'',URL,location:{origin:'https://tower.example',pathname:'/tower-weekly/tower-weekly-inaugural'},history:{pushState(){pushed++;}},navigate(){navigated++;},event:{button:0,target:{closest(){return {href:'https://tower.example/'+home,target:'',hasAttribute(){return false;}};}},preventDefault(){prevented++;}}});
+  runInNewContext(code,{usesPublishedHomeDocument,usesStandaloneDocument,base:'',URL,location:{origin:'https://tower.example',pathname:'/tower-weekly/tower-weekly-inaugural'},history:{pushState(){pushed++;}},navigate(){navigated++;},event:{button:0,target:{closest(){return {href:'https://tower.example/'+home,target:'',hasAttribute(){return false;}};}},preventDefault(){prevented++;}}});
   assert.deepEqual({prevented,pushed,navigated},{prevented:0,pushed:0,navigated:0},home);
  }
 });
@@ -50,7 +50,7 @@ test('history restoration to a hosted home reloads its published document before
  const source=readFileSync(new URL('../src/main.ts',import.meta.url),'utf8'),file=ts.createSourceFile('main.ts',source,ts.ScriptTarget.Latest,true);
  const fn=file.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='navigate') as import('typescript').FunctionDeclaration;assert.ok(fn?.body);
  const code=ts.transpileModule('async function navigate(focus=false)'+fn.body!.getText(file).replaceAll('import.meta.env.VITE_MUSE_DEMO','false')+';navigate();',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
- const {usesPublishedHomeDocument}=await import('../src/route-policy.ts');let destination='';
- await runInNewContext(code,{usesPublishedHomeDocument,base:'',location:{pathname:'/home/da854b41f3bf3504/inside',href:'https://tower.example/home/da854b41f3bf3504/inside',replace(url:string){destination=url;}}});
+ const {usesPublishedHomeDocument,usesStandaloneDocument}=await import('../src/route-policy.ts');let destination='';
+ await runInNewContext(code,{usesPublishedHomeDocument,usesStandaloneDocument,base:'',location:{pathname:'/home/da854b41f3bf3504/inside',href:'https://tower.example/home/da854b41f3bf3504/inside',replace(url:string){destination=url;}}});
  assert.equal(destination,'https://tower.example/home/da854b41f3bf3504/inside');
 });

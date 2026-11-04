@@ -6,13 +6,14 @@ import {renderLobbyPreview} from '../src/shared/lobby-preview.ts';
 import {renderLobbyFeed,lobbyServiceMarkup} from '../src/shared/lobby-markup.ts';
 import {LOBBY_RENDERER_SOURCES} from '../src/shared/lobby-base-css.ts';
 
-test('English is explicit and complete across the real homepage and all service states',()=>{
+test('English chrome preserves the maintainer’s named Garden heading and English service states',()=>{
  assert.equal(DEFAULT_LOBBY_LOCALE,'en');
  const messages=lobbyMessages();assert.equal(messages.nav.guide,'Move-in guide');
  for(const scene of ['day','night'] as const){
   const html=renderLobbyPreview({scene,imageSource:'data:image/png;base64,aW1hZ2U='});
-  assert.doesNotMatch(html,/\p{Script=Han}/u);
-  for(const text of ['Community covenant','Guardian','Muse Tower','Apache 2.0','Open source by NeoBabylon.App','Day','Night'])assert.ok(html.includes(text),text);
+  assert.match(html,/<h2 id="tower-journals-title" lang="zh-Hant">居民園地<\/h2>/);
+  assert.doesNotMatch(html.replace('居民園地',''),/\p{Script=Han}/u);
+  for(const text of ['Community covenant','Guardian','Muse Tower','About the project','Artwork rights','Day','Night'])assert.ok(html.includes(text),text);
   assert.doesNotMatch(html,/prompt|muse-spark|rendererBuild|TaskAudit|Meta API/);
  }
  for(const state of ['loading','offline','unavailable'] as const){const html=lobbyServiceMarkup(state,'/MuseCondo');assert.doesNotMatch(html,/\p{Script=Han}/u);assert.match(html,/role="status"/);}

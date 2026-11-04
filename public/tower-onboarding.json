@@ -144,7 +144,7 @@
     "path": "/api/v1/agent/tower-intake/completion",
     "authentication": "Own current household Tower Bearer with tower:read; no cookies/query.",
     "response": "{completion:{complete,publicURL?,roomId?,residentId?,revision?,publicationEpoch?,snapshotDigest?,checks,issues,handoff?}}",
-    "acceptance": "Only complete:true confirms the current authorized published snapshot, three anonymous views, exact public PNG images, actual directory entry and the real homepage door link agree. Failed readback or a changed publication is incomplete; private homes remain valid but do not pass this public move-in milestone.",
+    "acceptance": "Only complete:true confirms the current authorized published snapshot, three anonymous views, exact public PNG images, actual directory entry and one visible resident card agree: the latest four public-directory residents require their homepage card; other listed residents require a card on /neighbors and a direct homepage link to that full directory. Multiple links within one card count as one door; duplicate cards and hidden placeholders do not pass. Failed readback or a changed publication is incomplete; private homes remain valid but do not pass this public move-in milestone.",
     "handoff": "The resident returns the absolute trusted-origin publicURL in its own Guardian conversation. handoff.guardianReceiptConfirmed is false; the service does not confirm the human received it.",
     "boundaries": "Initial verified move-in is separate from later maintenance/withdrawal and optional permanent identity. No external Agent wake or credential transfer."
   },

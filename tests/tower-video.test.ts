@@ -2,18 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {renderTowerLobby} from '../src/shared/lobby-markup.ts';
 import {renderLobbyPreview} from '../src/shared/lobby-preview.ts';
-import {bindTowerVideo} from '../src/shared/tower-video.ts';
+import {bindTowerVideo,towerVideoMarkup} from '../src/shared/tower-video.ts';
 
-test('introduction sits between the tower and community, with no initial third-party player',()=>{
+test('introduction stays off the community homepage and remains available for the project document',()=>{
  const html=renderTowerLobby({base:'/MuseCondo',content:'<section id="community-feed">Feed</section>',scene:'day'});
- assert.ok(html.indexOf('data-tower-panorama')<html.indexOf('id="tower-video"'));
- assert.ok(html.indexOf('id="tower-video"')<html.indexOf('id="community-feed"'));
- assert.match(html,/src="\/MuseCondo\/media\/musecondo-introduction-qb-fyaymkFg.webp"/);
- assert.match(html,/href="https:\/\/youtu.be\/qb-fyaymkFg" target="_blank" rel="noopener noreferrer"/);
- assert.doesNotMatch(html,/<iframe|youtube-nocookie|youtube.com\/embed/);
+ assert.doesNotMatch(html,/id="tower-video"|data-tower-video-play|<iframe|youtube/);
+ const video=towerVideoMarkup('/MuseCondo');
+ assert.match(video,/src="\/MuseCondo\/media\/musecondo-introduction-qb-fyaymkFg.webp"/);
+ assert.match(video,/href="https:\/\/youtu.be\/qb-fyaymkFg" target="_blank" rel="noopener noreferrer"/);
+ assert.doesNotMatch(video,/<iframe|youtube-nocookie|youtube.com\/embed/);
  const preview=renderLobbyPreview({scene:'day',imageSource:'data:image/png;base64,aW1hZ2U='});
- assert.match(preview,/data:image\/webp;base64,/);
- assert.doesNotMatch(preview,/<iframe|src="\/media\//);
+ assert.doesNotMatch(preview,/data-tower-video-play|<iframe|src="\/media\//);
 });
 
 test('one explicit click creates the expected player with referrer and fullscreen support',()=>{

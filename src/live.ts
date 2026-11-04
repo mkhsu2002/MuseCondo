@@ -1,13 +1,14 @@
+import {renderAgentMoveIn,type CommunityAdmission} from './shared/community-resources.ts';
 import {renderTowerJournals} from './shared/tower-journals-markup.ts';
 import type {TowerJournalEdition} from './shared/tower-journals.ts';
 import {weeklyArchiveBefore} from './shared/tower-weekly.ts';
 import type {TowerScene} from './shared/tower-scene-types.ts';
-import {renderWeeklyCard,renderWeeklyPage,renderWeeklyArchive,renderSceneWall} from './shared/tower-weekly-markup.ts';
+import {renderWeeklyCard,renderWeeklyPage,renderWeeklyArchive,renderSceneWall,renderScenePreview} from './shared/tower-weekly-markup.ts';
 import type {TowerWeeklyIssue} from './shared/tower-weekly.ts';
 import {bindTowerWelcome,towerScenePreference} from './live/tower-welcome';
-import {renderLiveShell,renderTowerLobby,renderLobbyFeed,lobbyServiceMarkup} from './shared/lobby-markup.ts';
+import {renderLiveShell,renderTowerLobby,lobbyServiceMarkup} from './shared/lobby-markup.ts';
 import {lobbyMessages} from './shared/lobby-messages.ts';
-import {renderHomeDirectory} from './shared/home-directory.ts';
+import {renderHomeDirectory,renderNeighborDirectory} from './shared/home-directory.ts';
 import {disposeTowerAppearance} from './live/tower-appearance.ts';
 import {towerPanel,bindTowerPanel,type Residency} from './live/tower-panel';
 import { renderHome, type HomePage } from './framework/render.ts';
@@ -15,7 +16,6 @@ import './framework/home.css';
 import { isFrameworkLiveRoute, homeAccessMarkup, towerHome, seedOnboardingPayload, seedOnboardingForm, artworkReviewForm, ownerContentForms, tokenScopeFields, type LiveHome, type LiveDream, type LiveRoom } from './live/framework-ui.ts';
 import { onboardingGrantCard, bindOnboardingGrants } from './live/onboarding-grants';
 import './live.css';
-import { validateCommunity, type Community } from './community/schema';
 type Room=LiveRoom;
 type Home=LiveHome;
 type Session = {signedIn:boolean;csrf?:string};
@@ -54,11 +54,11 @@ export async function renderLive(root:HTMLElement,route:string){
    if(id){const {issue}=await api<{issue:TowerWeeklyIssue}>('/api/v1/public/tower-weekly/'+encodeURIComponent(id));if(version!==renderVersion)return;root.innerHTML=shell(renderWeeklyPage(base,issue));document.title=issue.title+' · Muse Tower';}
    else{const before=weeklyArchiveBefore(new URLSearchParams(location.search));const {issues,nextBefore}=await api<{issues:TowerWeeklyIssue[];nextBefore:number|null}>('/api/v1/public/tower-weekly'+(before?'?before='+before:''));if(version!==renderVersion)return;root.innerHTML=shell(renderWeeklyArchive(base,issues,nextBefore));document.title='Tower Weekly · Muse Tower';}return;
   }
-  const session=await api<Session>('/api/v1/session');if(version!==renderVersion)return;csrf=session.csrf??'';
   if(route==='neighbors'){
    const {rooms}=await api<{rooms:Room[]}>('/api/v1/public/rooms');if(version!==renderVersion)return;
-   root.innerHTML=shell(`<p class="eyebrow">DOORS OPEN TO YOU</p><h1>Neighbors</h1><p>Every public home shares only what its resident has chosen to share.</p><a class="button" href="${path('reception')}">Move in with my Agent</a><div class="live-grid">${rooms.length?rooms.map(r=>`<a class="live-card" href="${path(`home/${r.id}`)}"><small>${r.testOnly?'Isolated test resident':'Resident'}${r.city?` · ${e(r.city)}`:''}</small><h2>${e(r.name)}</h2><p>${e(r.role)}</p><p>${e(r.intro)}</p><span>Visit this home ↗</span></a>`).join(''):'<p>There are no public homes yet. The first door is being prepared.</p>'}</div>`);return;
+   root.innerHTML=shell(renderNeighborDirectory(base,rooms),true);document.title='Our neighbors · Muse Tower';return;
   }
+  const session=await api<Session>('/api/v1/session');if(version!==renderVersion)return;csrf=session.csrf??'';
   if(route.startsWith('home/')){
    const [,id,section]=route.split('/'),page:HomePage=section==='inside'?'inside':section==='dreams'?'dreams':'home';
    const [home,{dreams}]=await Promise.all([api<Home>(`/api/v1/public/rooms/${id}`),api<{dreams:import('./framework/types.ts').PublicDreamEntry[]}>(`/api/v1/public/rooms/${id}/dreams`)]);if(version!==renderVersion)return;
@@ -123,17 +123,23 @@ function bindOwnerContent(root:HTMLElement,route:string){
 
 let weeklyMarkup='';
 let journalsMarkup='';
+let scenesMarkup='';
+let lobbyAdmission:CommunityAdmission='unavailable';
 function showTowerLobby(root:HTMLElement,content:string){
- content='<div data-weekly-slot>'+weeklyMarkup+'</div><div data-journals-slot>'+journalsMarkup+'</div>'+content;
+ content='<div data-weekly-slot>'+weeklyMarkup+'</div><div data-journals-slot>'+journalsMarkup+'</div>'+content+'<div data-scenes-slot>'+scenesMarkup+'</div>';
  const feed=root.querySelector<HTMLElement>('[data-lobby-feed]');
  if(feed)feed.innerHTML=content;
- else{disposeLobby();root.innerHTML=renderTowerLobby({base,content,scene:towerScenePreference()});}
+ else{disposeLobby();root.innerHTML=renderTowerLobby({base,content,scene:towerScenePreference(),admission:lobbyAdmission});}
+ const invitation=root.querySelector('[data-agent-move-in]');if(invitation)invitation.outerHTML=renderAgentMoveIn(base,lobbyAdmission);
  if(lobbyRoot!==root){lobbyRoot=root;bindTowerWelcome(root,base);}
 }
 
 export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
  document.documentElement.lang='en';document.title=lobbyMessages().meta.title;
  const version=++renderVersion;
+ lobbyAdmission='unavailable';
+ scenesMarkup=root.querySelector('[data-scene-preview]')?.outerHTML??renderScenePreview(base,[]);
+ void api<{scenes:TowerScene[]}>('/api/v1/public/tower-scenes','GET',undefined,AbortSignal.timeout(10000)).then(({scenes})=>{if(version!==renderVersion)return;scenesMarkup=renderScenePreview(base,scenes);const slot=root.querySelector('[data-scenes-slot]');if(slot)slot.innerHTML=scenesMarkup;},()=>{if(version===renderVersion){scenesMarkup=renderScenePreview(base,[]);const slot=root.querySelector('[data-scenes-slot]');if(slot)slot.innerHTML=scenesMarkup;}});
  journalCleanup?.();journalCleanup=null;
  journalsMarkup=root.querySelector('[data-tower-journals]')?.outerHTML??renderTowerJournals(null);
  weeklyMarkup=root.querySelector('[data-tower-weekly]')?.outerHTML??renderWeeklyCard(base,null);
@@ -156,6 +162,7 @@ export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
   if(absent&&!liveServiceSeen&&fallback){if(version===renderVersion){disposeLobby();delete root.dataset.liveTower;fallback?.();}return;}
   if(!response.ok||absent)throw new Error('service unavailable');
   status=await response.json();if(status.available!==true)throw new Error('service unavailable');liveServiceSeen=true;
+  lobbyAdmission=status.admission?.status==='accepting'?'accepting':status.admission?.status==='paused'?'paused':'unavailable';
  }catch{
   if(version===renderVersion){showTowerLobby(root,lobbyServiceMarkup('offline',base));root.querySelector('#live-status-retry')!.addEventListener('click',()=>{void renderLiveTower(root,fallback);});}
   return;
@@ -165,19 +172,13 @@ export async function renderLiveTower(root:HTMLElement,fallback?:()=>void){
  let listingVerified=false;
  showTowerLobby(root,lobbyServiceMarkup('loading',base)+directory);
  try{
-  const feed=api<Community>('/api/v1/public/community','GET',undefined,AbortSignal.timeout(5000)).then(value=>({value}),()=>({value:null}));
   const {rooms}=await api<{rooms:Room[]}>('/api/v1/public/rooms','GET',undefined,AbortSignal.timeout(5000));
   if(version!==renderVersion)return;
 
   if(!Array.isArray(rooms)||rooms.some(r=>!r||!/^[a-f0-9]{16}$/.test(r.id)))throw new Error('Resident details could not be verified.');
   directory=renderHomeDirectory(base,rooms);listingVerified=true;
   showTowerLobby(root,lobbyServiceMarkup('loading',base)+directory);
-  const {value:raw}=await feed;
-  if(version!==renderVersion)return;
-  if(!raw)throw new Error('Community could not be verified.');
-  const community=validateCommunity({schemaVersion:1,sourceDigest:raw.edition.sourceDigest,events:raw.events},raw.edition,rooms.map(r=>r.id),{redactedModel:true});
-  if(community.events.some(event=>event.isFixture||event.origin!=='resident-authorized'))throw new Error('The source of these public entries could not be verified. They are not displayed.');
-  showTowerLobby(root,renderLobbyFeed(base,community,rooms,status)+directory);
+  showTowerLobby(root,directory+'<p class="community-refresh"><button id="live-tower-refresh" type="button">Refresh community</button></p>');
   document.title=lobbyMessages().meta.title;
   root.querySelector('#live-tower-refresh')!.addEventListener('click',()=>{void renderLiveTower(root);});
  }catch{

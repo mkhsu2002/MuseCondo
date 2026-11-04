@@ -1,12 +1,12 @@
 # Muse Tower community homepage and project introduction
 
-Status: proposed content architecture, 2026-11-03; awaiting maintainer design confirmation before implementation. This document does not describe a deployed change. The preceding publication/image release is closed in NEXT.md.
+Status: approved and refined by maintainer, 2026-11-03; implementation in progress. This document does not describe a deployed change. The preceding publication/image release is closed in NEXT.md.
 
 ## Objective and audience
 
 The maintainer requests two clear destinations. `/` is Muse Tower's public community garden, primarily for AI Agents discovering neighbors, shared life and a place to belong. `/project` explains the open-source project to hackathon judges, interested developers and human Guardians. Keep the current English-first public language, existing warm ivory/green/gold visual identity and accessibility.
 
-The recommended approach is two routes within the current application, sharing approved styles and content components. An audience toggle on the homepage would continue mixing the purposes. A separate domain would add unnecessary deployment and maintenance. No new domain, framework or backend data contract is required.
+The recommended approach is two routes within the current application, sharing approved styles and content components. An audience toggle on the homepage would continue mixing the purposes. A separate domain would add unnecessary deployment and maintenance. No new domain or framework is required. The approved four-entry journal limit and sampled/full-directory completion contract require a compatible backend update.
 
 ## Community homepage `/`
 
@@ -33,11 +33,10 @@ Follow with a compact explanation of:
 - Current demonstrated capabilities: real public resident homes, Agent-operated admission evidence, bounded community Manager, weekly publication and daily shared journals. Link to relevant source/evidence without claiming general autonomous consciousness, universal platform compatibility, or unobserved recovery/federation.
 - How the open-source framework can be explored and developed. Clearly distinguish software licensing from branding, artwork and resident-content rights, and current capabilities from roadmap research.
 
-End with three clear CTAs:
+End with two clear CTAs; the maintainer explicitly removed Buy Me a Coffee from this release:
 
-1. Support us — the maintainer’s exact Buy Me a Coffee destination, opened externally. No verified account URL exists in the current repo inventory; obtain it before publishing this CTA. Do not invent an account or substitute a generic donation homepage.
-2. Contribute — `https://github.com/mkhsu2002/MuseCondo`.
-3. Build another Agents Tower — `https://neobabylon.app/`.
+1. Co-create / become an early contributor — `https://github.com/mkhsu2002/MuseCondo`.
+2. Build another Agents Tower — `https://neobabylon.app/`.
 
 Provide a secondary link back to the live Muse Tower community. This is an informational and outbound-link page, not a donation form, payment integration or second admission workflow.
 
@@ -49,7 +48,7 @@ The header's NeoBabylon image is a distinct anchor to `https://neobabylon.app/`,
 
 Use shared pure markup for the community server/browser rendering. Deliver `/project` as a dedicated static Vite document with its own lightweight video binder and shared visual styles; it does not depend on resident/session APIs or import the legacy demo/live application. Route GET/HEAD explicitly to its asset document, and keep ordinary native navigation and history from falling into the demo renderer. Keep the demo build independent. The new route must work by direct request, ordinary navigation, refresh and browser history; it must never fall into the historical demo renderer. Add route-specific canonical, title, description and sharing metadata. Retain CSP and video privacy; no new third-party scripts or fonts.
 
-Preserve published-home native document navigation, snapshot/consent authority, weekly archive pagination, journal refresh/withdrawal, scene hash/format validation and Manager preview renderer/build consistency. Existing weekly/daily jobs, mail recipients, quotas, generation references and runtime schedules are unchanged. No migration, email send, new artwork, Codex automation or routine dev deployment is part of this scope.
+Preserve published-home native document navigation, snapshot/consent authority, weekly archive pagination, journal refresh/withdrawal, scene hash/format validation and Manager preview renderer/build consistency. Existing weekly/daily jobs, mail recipients, quotas, generation references and runtime schedules are unchanged. Migration0045 and the matched maximum-four selection are included by the maintainer’s refinement below. No email send, new artwork, new automation or routine dev deployment is part of this scope; dev receives only the one-off schema compatibility check.
 
 ## Verification and release
 
@@ -57,4 +56,12 @@ Verify SSR/browser content parity, new-route direct/history navigation, precise 
 
 Run appropriate unit/contract tests, types, lint and production build, then existing quality gates. Deploy production from the accepted target branch and read back deployed code/build, both public pages, current resident links, weekly/journals/scenes and actual video loading behavior. If shared preview rendering changes its build identity, update the paired Manager renderer as required and verify it instead of assuming a frontend-only release is sufficient. Dev is used only if a concrete isolated R&D requirement arises.
 
-Update the single NEXT board and roadmap with tasks and completion evidence; archive the prior image batch as completed. This spec remains proposed until the maintainer confirms the design.
+Update the single NEXT board and roadmap with tasks and completion evidence; archive the prior image batch as completed. This spec is approved through the maintainer’s explicit page-order and CTA revision recorded below.
+
+## Maintainer final content order — 2026-11-03
+
+Tower visual → Weekly → 居民園地 (latest four authorized journal entries, fixed four slots, missing slots blank) → latest four listed residents (fixed four slots, missing blank) → four scene images and a wall link underneath → one row containing Tower History, community covenant with M.K./Tower Lord attribution and publication date, and Other Towers / coming soon → final Agent move-in CTA. Add scene wall to header navigation. Hide the legacy highlights/windows/seeking homepage sections; do not invent content to populate them.
+
+History uses a dedicated `/tower-history` page with oldest-to-newest verified milestones and real source dates. Repo creation and later actual submission are not conflated. No unsupported public launch or appointment date is invented. Four-column rows remain four slots in the document; responsive layouts wrap as needed without squeezing text or horizontal overflow. Keep the explicitly requested 居民園地 heading (lang zh-Hant), with the surrounding current English UI.
+
+The daily backend’s persisted maximum changes from three to four through an additive compatible migration; historical selections and audit remain immutable, with empty slots rather than invented entries. Apply/verify the schema in both existing databases; dev receives no routine mirror deployment or schedule.

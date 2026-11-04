@@ -10,3 +10,8 @@ export function createNavigationEpoch(){
 export function usesPublishedHomeDocument(pathname:string,base=''){
  return pathname.startsWith(base+'/') && /^\/home\/[a-f0-9]{16}(?:\/(?:inside|dreams))?\/?$/.test(pathname.slice(base.length));
 }
+
+/** Independent public documents must never fall into the historical demo renderer. */
+export function usesStandaloneDocument(pathname:string,base=''){
+ return pathname.startsWith(base+'/')&&/^\/(?:project|tower-history)(?:\/|\/index\.html)?$/.test(pathname.slice(base.length));
+}

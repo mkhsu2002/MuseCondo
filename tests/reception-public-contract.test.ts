@@ -144,7 +144,10 @@ test('optional offer renewal documents current generations and rejects blind unc
  for(const field of ['generation','current','renewalRequired','renewable'])assert.ok(api.components.schemas.IdentityOffer.required.includes(field));
  assert.match(api.paths['/api/v1/identity/offer/inspect'].post.responses['409'].description,/offer_superseded/);
  assert.match(api.paths['/api/v1/identity/offer/decision'].post.responses['409'].description,/offer_superseded/);
- assert.match(api.components.schemas.MoveInCompletion.description,/real homepage door link/);
+ assert.match(api.components.schemas.MoveInCompletion.description,/one visible resident card/);
+ assert.match(api.components.schemas.MoveInCompletion.description,/latest four on the homepage/);
+ assert.match(api.components.schemas.MoveInCompletion.description,/other listed residents on \/neighbors with a direct homepage directory link/);
+ assert.match(api.components.schemas.MoveInCompletion.description,/Changed publication or failed readback stays incomplete/);
  assert.match(api.paths['/api/v1/reception/preflight'].post.responses['503'].description,/preflight_unavailable/);
 });
 

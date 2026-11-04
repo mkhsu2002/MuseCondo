@@ -5,6 +5,7 @@ import {runInNewContext} from 'node:vm';
 import ts from 'typescript';
 import {homeArtwork,giftCatalog} from '../src/artwork.ts';
 import {residents} from '../src/residents.ts';
+import {renderNeighborDirectory} from '../src/shared/home-directory.ts';
 import {homeAccessMarkup} from '../src/live/framework-ui.ts';
 
 function liveHarness(fetcher:typeof fetch){
@@ -14,6 +15,7 @@ function liveHarness(fetcher:typeof fetch){
  const modules:Record<string,unknown>={
   './shared/lobby-markup.ts':{renderLiveShell:(_base:string,content:string)=>`<main>${content}</main>`},
   './shared/lobby-messages.ts':{lobbyMessages:()=>({})},
+  './shared/home-directory.ts':{renderNeighborDirectory},
   './live/tower-appearance.ts':{disposeTowerAppearance:()=>{}},
   './live/framework-ui.ts':{homeAccessMarkup},
  };
@@ -23,8 +25,8 @@ function liveHarness(fetcher:typeof fetch){
 test('live neighbor chrome defaults to English while resident-authored names, role and intro remain exact and escaped',async()=>{
  const name='方 & Fang',role='夢的收藏家',intro='自己的文字 <script>';const h=liveHarness(async(url)=>Response.json(String(url).endsWith('/session')?{signedIn:false}:{rooms:[{id:'0123456789abcdef',name,role,intro}]}));
  const root={innerHTML:'',querySelector:()=>null};await h.render(root,'neighbors');
- assert.equal(h.document.documentElement.lang,'en');assert.match(root.innerHTML,/<h1>Neighbors<\/h1>/);assert.match(root.innerHTML,/Move in with my Agent/);assert.match(root.innerHTML,/方 &amp; Fang/);assert.match(root.innerHTML,/夢的收藏家/);assert.match(root.innerHTML,/自己的文字 &lt;script&gt;/);assert.doesNotMatch(root.innerHTML,/<script>/);
- assert.doesNotMatch(root.innerHTML.replaceAll('方 &amp; Fang','').replaceAll(role,'').replaceAll('自己的文字 &lt;script&gt;',''),/\p{Script=Han}/u);
+ assert.equal(h.document.documentElement.lang,'en');assert.match(root.innerHTML,/<h1[^>]*>Our neighbors<\/h1>/);assert.match(root.innerHTML,/Visit this home/);assert.match(root.innerHTML,/方 &amp; Fang/);assert.match(root.innerHTML,/夢的收藏家/);assert.match(root.innerHTML,/自己的文字 &lt;script&gt;/);assert.doesNotMatch(root.innerHTML,/<script>/);
+ assert.doesNotMatch(root.innerHTML.replace(/<span class="resident-door-mark" aria-hidden="true">[^<]*<\/span>/g,'').replaceAll('方 &amp; Fang','').replaceAll(role,'').replaceAll('自己的文字 &lt;script&gt;',''),/\p{Script=Han}/u);
 });
 test('live service failures and signed-out move-in controls use English without changing route or auth contract',async()=>{
  for(const bad of [false,true]){const h=liveHarness(async()=>bad?new Response('offline',{status:503}):Response.json({signedIn:false})),root={innerHTML:'',querySelector:()=>null};await h.render(root,'move-in');assert.equal(h.document.documentElement.lang,'en');assert.doesNotMatch(root.innerHTML,/\p{Script=Han}/u);assert.match(root.innerHTML,bad?/Check status again/:/Account key/);assert.match(root.innerHTML,bad?/do not|before creating another account/:/Start at Reception/);}
@@ -49,4 +51,15 @@ test('public notice errors are English and artwork IDs keep their original resid
  const exported:Record<string,unknown>={},source=readFileSync(new URL('../src/community/client.ts',import.meta.url),'utf8'),compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;runInNewContext(compiled,{exports:exported,require:()=>({}),fetch:async()=>new Response(null,{status:503})});await assert.rejects((exported.loadCommunity as (base:string,ids:string[])=>Promise<unknown>)('',[]),/Unable to read the public notice file/);
  for(const resident of residents){assert.ok(homeArtwork[resident.id].description.startsWith(resident.name+"'s "));assert.ok(homeArtwork[resident.id].desktop);}
  assert.deepEqual(giftCatalog.map(v=>v.id),['gift-sprout','gift-cloud','gift-coffee']);assert.doesNotMatch(giftCatalog.map(v=>v.name+' '+v.description).join(''),/\p{Script=Han}/u);
+});
+
+
+test('the full neighbor directory keeps every valid public row and escapes optional role and intro',()=>{
+ const rows=Array.from({length:6},(_,i)=>({id:(i+1).toString(16).repeat(16),name:`Neighbor ${i}`,role:'Role <b> & "quoted"',intro:'Intro <script> & own words'}));
+ const html=renderNeighborDirectory('',[...rows,{id:'javascript:bad',name:'Invalid private row',role:'HIDDEN_ROLE',intro:'HIDDEN_INTRO'}]);
+ assert.equal((html.match(/data-resident-slot/g)??[]).length,6);
+ for(const row of rows)assert.ok(html.includes(`href="/home/${row.id}"`));
+ assert.match(html,/Neighbor 5/);assert.match(html,/Role &lt;b&gt; &amp; &quot;quoted&quot;/);assert.match(html,/Intro &lt;script&gt; &amp; own words/);
+ assert.doesNotMatch(html,/<script>|<b>|Invalid private row|HIDDEN_ROLE|HIDDEN_INTRO/);
+ assert.doesNotThrow(()=>renderNeighborDirectory('',[{id:'a'.repeat(16),name:'Only a name'}]));
 });

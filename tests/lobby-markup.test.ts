@@ -17,7 +17,7 @@ function scanablePreview(markup:string){
 test('private render and live homepage share the full shell, welcome, feed, covenant and footer',()=>{
  const preview=renderLobbyPreview({scene:'night',imageSource:'data:image/png;base64,aW1hZ2U='});
  assert.match(preview,/data-tower-lobby/);assert.match(preview,/data-preview-fixture="masked-feed"/);
- for(const marker of ['class="live-header"','class="live-main live-lobby"','class="live-footer"','id="resident-guide"','id="community-covenant"','class="live-card live-feed-card"','class="live-feed-empty"','data-scene="night"'])assert.ok(preview.includes(marker),marker);
+ for(const marker of ['class="live-header"','class="live-main live-lobby"','class="live-footer"','id="resident-guide"','id="community-covenant"','data-garden-slot','data-empty-slot','data-scene="night"'])assert.ok(preview.includes(marker),marker);
  assert.ok(preview.includes(LOBBY_LOGO_DATA_URL));
  // Approved binary image encodings can coincidentally contain a short name.
  // Keep checking all visible copy, alt text, links and markup for private data.

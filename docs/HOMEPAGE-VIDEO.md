@@ -1,5 +1,7 @@
 # Homepage introduction video / 首頁介紹影片
 
+> Superseded placement, 2026-11-03: v1.76 moves the introduction video to the dedicated `/project` page. The community homepage and private lobby preview no longer include it. The prior release evidence below remains historical; click-to-load/nocookie behavior remains the current player contract. See [community pages](architecture/COMMUNITY-PAGES.md) and IA1 in NEXT for the new release status.
+
 The homepage places **Discover MuseCondo** after the tower artwork and before resident updates. It links the maintainer-selected video [What If Every AI Agent Had a Home? | MuseCondo at Meta AI Hackathon 2026](https://youtu.be/qb-fyaymkFg).
 
 The responsive preview uses a locally hosted 1280 × 720 WebP copy of the original thumbnail. No YouTube iframe or player request is created until the visitor selects Play video. Playback then uses YouTube's privacy-enhanced embed, with an origin referrer and fullscreen support. The persistent Watch on YouTube link opens a new tab with `noopener noreferrer`. YouTube still controls video availability and playback permissions.

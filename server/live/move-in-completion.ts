@@ -9,10 +9,25 @@ interface State {room_id:string;resident_id:string;public_revision:number|null;d
 type Node=DefaultTreeAdapterMap['node'];
 const text=(n:Node):string=>n.nodeName==='#text'?('value' in n?n.value:''):('tagName' in n&&['script','style'].includes(n.tagName))?'':('childNodes' in n?n.childNodes.map(text).join(' '):'');
 const normal=(s:string)=>s.replace(/\s+/g,' ').trim();
+function hidden(node:Node){return 'attrs' in node&&node.attrs.some(a=>a.name==='hidden'||a.name==='aria-hidden'&&a.value==='true');}
+function doorLink(node:Node,href:string):boolean {
+ if(hidden(node))return false;
+ const attrs='attrs' in node?node.attrs:[];
+ return 'tagName' in node&&node.tagName==='a'&&attrs.some(a=>a.name==='href'&&a.value===href)&&!!normal(text(node))||'childNodes' in node&&node.childNodes.some(child=>doorLink(child,href));
+}
 function listedDoor(node:Node,href:string,inDirectory=false):number {
+ if(hidden(node))return 0;
  const attrs='attrs' in node?node.attrs:[],directory=inDirectory||attrs.some(a=>a.name==='data-public-home-directory');
- const match=directory&&'tagName' in node&&node.tagName==='a'&&attrs.some(a=>a.name==='href'&&a.value===href)&&!!normal(text(node));
- return Number(match)+('childNodes' in node?node.childNodes.reduce((sum,child)=>sum+listedDoor(child,href,directory),0):0);
+ // One resident card is one door, even when its name and action both link home.
+ // Legacy list items retain the same unique-card boundary; loose links do not count.
+ const card=directory&&'tagName' in node&&(node.tagName==='article'&&attrs.some(a=>a.name==='data-resident-slot')||node.tagName==='li');
+ if(card)return Number(doorLink(node,href));
+ return 'childNodes' in node?node.childNodes.reduce((sum,child)=>sum+listedDoor(child,href,directory),0):0;
+}
+function directoryLink(node:Node,href:string,inDirectory=false):boolean {
+ if(hidden(node))return false;
+ const attrs='attrs' in node?node.attrs:[],directory=inDirectory||attrs.some(a=>a.name==='data-public-home-directory');
+ return directory&&doorLink(node,href)||'childNodes' in node&&node.childNodes.some(child=>directoryLink(child,href,directory));
 }
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
 export function createMoveInCompletion(env:Options){
@@ -50,7 +65,15 @@ export function createMoveInCompletion(env:Options){
     if(!stored||stored.bytes.length!==bytes.length||stored.bytes.some((b,i)=>b!==bytes[i]))throw Error('public_image_mismatch');checks[stage]=true;
    }
    stage='directory';const directory=JSON.parse(decoder.decode(await read('/api/v1/public/rooms','application/json',2*1024*1024)));if(!Array.isArray(directory.rooms)||directory.rooms.filter((v:{id?:unknown})=>v.id===r.room_id).length!==1)throw Error('public_directory_mismatch');checks.directory=true;
-   stage='homepage';const homepage=parse(decoder.decode(await read('/','text/html',2*1024*1024)));if(listedDoor(homepage,`/home/${r.room_id}`)!==1)throw Error('public_homepage_door_missing');checks.homepage=true;
+   stage='homepage';const homepage=parse(decoder.decode(await read('/','text/html',2*1024*1024)));
+   const newest=directory.rooms.findIndex((v:{id?:unknown})=>v.id===r.room_id)<4;
+   if(newest){if(listedDoor(homepage,`/home/${r.room_id}`)!==1)throw Error('public_homepage_door_missing');}
+   else {
+    if(!directoryLink(homepage,'/neighbors'))throw Error('public_homepage_directory_missing');
+    stage='neighbors';const neighbors=parse(decoder.decode(await read('/neighbors','text/html',2*1024*1024)));
+    if(listedDoor(neighbors,`/home/${r.room_id}`)!==1)throw Error('public_neighbor_door_missing');checks.neighbors=true;
+   }
+   checks.homepage=true;
    stage='publication';const current=await state(accountId);if(JSON.stringify(current)!==JSON.stringify(r))throw Error('publication_changed');checks.currentRevision=true;
    result.complete=true;result.roomId=r.room_id;result.residentId=r.resident_id;result.revision=r.public_revision;result.publicationEpoch=r.publication_epoch;result.snapshotDigest=r.content_digest??undefined;result.publicURL=env.origin+`/home/${r.room_id}`;result.handoff={text:`Your home is published in Muse Tower: ${result.publicURL}`,guardianReceiptConfirmed:false};return result;
   }catch(error){issues.push({stage,code:error instanceof Error&&/^[a-z_]+$/.test(error.message)?error.message:'public_verification_failed'});return result;}

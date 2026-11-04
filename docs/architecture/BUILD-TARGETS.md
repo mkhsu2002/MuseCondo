@@ -28,7 +28,7 @@ Navigation invalidates older asynchronous work before awaiting a new import. A s
 
 ## Local SQLite migration ledger
 
-`dev:live` discovers ordered migration files rather than checking a hand-maintained list of sentinel tables. `local-migrations.ts` hashes their exact bytes and replays known prefixes into an in-memory database. Fresh databases apply all 37 current migrations. A database without `local_migrations` is adopted only when its entire application schema exactly matches one unique known prefix. Unknown, ambiguous, modified, or hash-mismatched databases fail closed. Existing data is never reset or dropped.
+`dev:live` discovers ordered migration files rather than checking a hand-maintained list of sentinel tables. `local-migrations.ts` hashes their exact bytes and replays known prefixes into an in-memory database. Fresh databases apply all45 current migrations (including the compatible maximum-four journal migration); prior numbered checkpoints are historical. A database without `local_migrations` is adopted only when its entire application schema exactly matches one unique known prefix. Unknown, ambiguous, modified, or hash-mismatched databases fail closed. Existing data is never reset or dropped.
 
 Adoption, remaining migrations, ledger writes, final schema verification, and `PRAGMA foreign_key_check` run in one local immediate transaction. Failures roll back the whole operation. Existing `data/local-mvp.sqlite` is not touched by tests: they use only `:memory:`. A local migration result is not evidence that either hosted D1 environment has been updated. Local development has no mail or paid provider dispatch.
 
@@ -51,3 +51,7 @@ Primary contracts: [APT simulation/download behavior](https://manpages.ubuntu.co
 Cloudflare project GET responses redact encrypted variable values. PATCH only the fields being changed; never echo opaque/null `secret_text` entries back from a GET. Restore an intended value only from its authorized secure source, using an incremental encrypted-variable update. Actual deployment readback is required after changing configuration.
 
 The authenticated release response also requires `runtimeBindingsReady`: configured contact/trigger secrets for their bound services, mail contact/key/from values when mail is enabled, and a provider key when legacy paid calls are enabled. This is nonempty configured presence, not provider authentication or delivery verification. Disabled optional features remain valid. The verifier rejects missing, false or non-boolean flags, including older readbacks. No secret names or values appear in this response or visitor UI.
+
+## Community document inputs (v1.76)
+
+Tower builds emit separate index, project/index and tower-history/index HTML inputs. Do not copy the root SPA shell over the latter two in routes.mjs. Functions resolve their directory assets; the independent demo entry is unchanged. Project-only and history-only HTML changes must be included in Cloudflare production build-watch paths. See [community pages](COMMUNITY-PAGES.md).

@@ -3,7 +3,7 @@ import {createTowerImageRoutes} from './tower-image-routes.ts';
 import {renderTowerJournals} from '../../src/shared/tower-journals-markup.ts';
 import {weeklyArchiveBefore} from '../../src/shared/tower-weekly.ts';
 import {createTowerWeeklyServices,createTowerWeeklyRoutes,type TowerPublicationBindings} from './tower-weekly-routes.ts';
-import {renderWeeklyCard,renderWeeklyPage,renderWeeklyArchive,renderSceneWall} from '../../src/shared/tower-weekly-markup.ts';
+import {renderWeeklyCard,renderWeeklyPage,renderWeeklyArchive,renderSceneWall,renderScenePreview} from '../../src/shared/tower-weekly-markup.ts';
 import {routeSchemaReady} from './schema-capabilities.ts';
 import {RELEASE_MANIFEST} from './generated-release.ts';
 import {releaseReadiness} from './release-contract.ts';
@@ -11,8 +11,8 @@ import {runtimeBindingsReady} from './release-runtime.ts';
 import {createHomePreflightRoute} from './home-preflight-route.ts';
 import {createMoveInCompletion} from './move-in-completion.ts';
 import {createMoveInInvitationChoice} from './move-in-invitation-choice.ts';
-import {renderHomeDirectory} from '../../src/shared/home-directory.ts';
-import {renderLiveShell,renderTowerLobby,lobbyServiceMarkup} from '../../src/shared/lobby-markup.ts';
+import {renderHomeDirectory,renderNeighborDirectory} from '../../src/shared/home-directory.ts';
+import {renderLiveShell,renderTowerLobby} from '../../src/shared/lobby-markup.ts';
 import {createIdentityOffer} from './identity-offer.ts';
 import {transportCheck} from './transport-check.ts';
 import {createNativeSourceInspection} from './native-source-inspection.ts';
@@ -192,6 +192,13 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   return new Response(response.body,{status:response.status,headers});
  }
+ if(/^\/(project|tower-history)(?:\/|\/index\.html)?$/.test(url.pathname)){
+  if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
+  if(!env.ASSETS)return json({error:'assets_not_bound'},503);
+  const response=await env.ASSETS.fetch(new Request(new URL('/'+url.pathname.split('/')[1]+'/',url),request));
+  const headers=new Headers(response.headers);headers.set('Cache-Control','no-cache');
+  return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
+ }
  if(/^\/(reception|activities|identity)\/?$/.test(url.pathname)){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
   if(!env.ASSETS)return json({error:'assets_not_bound'},503);
@@ -216,6 +223,21 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    const headers=new Headers(asset.headers);headers.set('Cache-Control','no-store');for(const key of ['ETag','Content-Length','Content-Encoding','Last-Modified'])headers.delete(key);if(missing)headers.set('X-Robots-Tag','noindex, nofollow');return new Response(request.method==='HEAD'?null:html,{status:missing?404:200,headers});
   }catch(error){return error instanceof TypeError?json({error:'invalid_request'},400):json({error:'publication_unavailable'},503);}
  }
+ if(/^\/neighbors\/?$/.test(url.pathname)&&env.DB&&env.ASSETS&&url.origin===env.PUBLIC_ORIGIN){
+  if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
+  const limited=await checkEdgeGuard(request,env);if(limited)return limited;
+  try{
+   const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));
+   if(!directory.ok)return json({error:'directory_unavailable'},503);
+   const {rooms}=await directory.json() as {rooms:{id:string;name:string}[]};
+   if(!Array.isArray(rooms)||rooms.some(r=>!r||!/^[a-f0-9]{16}$/.test(r.id)||typeof r.name!=='string'))return json({error:'directory_unavailable'},503);
+   const asset=await env.ASSETS.fetch(new Request(new URL('/',url),request));if(!asset.ok)return asset;
+   const canonical=env.PUBLIC_ORIGIN+'/neighbors';
+   const html=(await asset.text()).replace(/<title>[\s\S]*?<\/title>/i,'<title>Our neighbors · Muse Tower</title>').replace(/<link\b[^>]*rel=["']canonical["'][^>]*>/gi,'').replace(/<meta\b[^>]*property=["']og:[^>]*>/gi,'').replace('</head>',`<link rel="canonical" href="${htmlEscape(canonical)}"><meta property="og:title" content="Our neighbors · Muse Tower"><meta property="og:url" content="${htmlEscape(canonical)}"></head>`).replace('<div id="app"></div>',`<div id="app">${renderLiveShell('',renderNeighborDirectory('',rooms),true)}</div>`);
+   const headers=new Headers(asset.headers);headers.set('Cache-Control','no-store');for(const key of ['ETag','Content-Length','Content-Encoding','Last-Modified'])headers.delete(key);
+   return new Response(request.method==='HEAD'?null:html,{status:200,headers});
+  }catch{return json({error:'directory_unavailable'},503);}
+ }
  const legacy=legacyHomeRedirect(request,env.LEGACY_HOME_REDIRECTS);if(legacy)return legacy;
  if(!env.ASSETS)return json({available:false,error:'assets_not_bound'},503);
  if(url.pathname==='/'&&request.method==='GET'&&env.DB&&url.origin===env.PUBLIC_ORIGIN){
@@ -226,7 +248,8 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    let rooms:{id:string;name:string}[]=[];try{const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));if(directory.ok)rooms=((await directory.json()) as {rooms:{id:string;name:string}[]}).rooms;}catch{/* Other public sections remain independent of the directory. */}
    let journals='';try{journals=renderTowerJournals(await publicationServices(env,context).daily.getLatest());}catch{/* Current unverified journals remain hidden. */}
    let weekly='';try{const issues=await publicationServices(env,context).weekly.list({limit:1});weekly=renderWeeklyCard('',issues[0]??null);}catch{/* The existing resident directory remains available. */}
-   const markup=renderTowerLobby({base:'',scene:'day',content:'<div data-weekly-slot>'+weekly+'</div><div data-journals-slot>'+journals+'</div>'+lobbyServiceMarkup('loading','')+renderHomeDirectory('',rooms)});
+   let scenery=renderScenePreview('',[]);try{scenery=renderScenePreview('',await publicationServices(env,context).scenes.list());}catch{/* Unverified scenery stays blank. */}
+   const markup=renderTowerLobby({base:'',scene:'day',content:'<div data-weekly-slot>'+weekly+'</div><div data-journals-slot>'+journals+'</div>'+renderHomeDirectory('',rooms)+'<div data-scenes-slot>'+scenery+'</div>'});
    const html=(await response.clone().text()).replace('<div id="app"></div>',`<div id="app">${markup}</div>`);
    const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');for(const key of ['ETag','Content-Length','Content-Encoding','Last-Modified'])headers.delete(key);
    return new Response(html,{status:response.status,headers});
