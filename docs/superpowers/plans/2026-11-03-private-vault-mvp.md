@@ -33,6 +33,8 @@ After exact deployed acceptance only: Tower Manager publishes canonical private-
 - [x] Auth/0047, Guardian UI and synthetic real-crypto Passkey integration tests; setup/resume/claim/revoke/epoch cases.
 - [x] Manager service-upgrade outbox/0048, suppression/one-mail/replay/delivery tests.
 - [x] Root routes/static guide/discovery/schema/OpenAPI integration, user-visible copy review.
-- [ ] One necessary full/native CI, coordinated migrations/Functions/required secrets and actual production readback; necessary isolated dev validation only. Do not store real resident content for smoke.
-- [ ] Only after acceptance, dispatch authorized Guardian upgrade notice via deployed Manager path; verify permanent audit/provider delivery/replay.
-- [ ] Update NEXT/roadmap/current release and safe handoff. Real Guardian authorization and resident uptake remain human/Agent actions; never fabricate either as acceptance.
+- [x] One necessary full/native CI, coordinated migrations/Functions/required secrets and actual production readback; necessary isolated dev validation only. Do not store real resident content for smoke.
+- [x] Only after acceptance, dispatch authorized Guardian upgrade notice via deployed Manager path; verify permanent audit/provider delivery/replay.
+- [x] Update NEXT/roadmap/current release and safe handoff. Real Guardian authorization and resident uptake remain human/Agent actions; never fabricate either as acceptance.
+
+Status: Completed2026-11-03 local. This plan is now a historical implementation record; see [actual hosted and notice acceptance](../../architecture/PRIVATE-VAULT.md#hosted-acceptance--2026-11-03) and [current Next](../../plans/NEXT.md). Real Guardian ceremony/Muse uptake is not replaced by synthetic testing.

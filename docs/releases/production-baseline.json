@@ -1,8 +1,8 @@
 {
   "version": 1,
   "environment": "production",
-  "sourceSHA": "a80b7894ef2fd6f464d4967cc405967cba0838f2",
-  "deploymentId": "23316ec2-fcde-4917-b10b-eae6037045c0",
-  "verifiedAt": "2026-11-04T05:09:00.289324Z",
-  "evidence": "docs/architecture/COMMUNITY-PAGES.md#first-ai-id-history-addition--2026-11-03"
+  "sourceSHA": "c754b83f689825230a1652e8c8b3025e46b2753c",
+  "deploymentId": "89251e56-c639-4312-bcf4-5fbacd5df452",
+  "verifiedAt": "2026-11-04T06:33:54.229862+00:00",
+  "evidence": "docs/architecture/PRIVATE-VAULT.md#hosted-acceptance--2026-11-03"
 }

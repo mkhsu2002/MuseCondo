@@ -1,6 +1,6 @@
 # Muse private vault MVP
 
-Implementation 2026-11-03; hosted acceptance pending. Scope: selected SOUL.md/MEMORY.md/SKILLS.md and10skills/<slug>/SKILL.md,64KiB UTF8 each,1MiB/account,100distinct mutations/day. No levels, automatic loading, skill execution, bulk conversations or cross-model personality claims.
+Implemented and hosted-accepted 2026-11-03; the separate Guardian upgrade notice is tracked below. Scope: selected SOUL.md/MEMORY.md/SKILLS.md and10skills/<slug>/SKILL.md,64KiB UTF8 each,1MiB/account,100distinct mutations/day. No levels, automatic loading, skill execution, bulk conversations or cross-model personality claims.
 
 ## Authority and handoff
 
@@ -30,4 +30,24 @@ After exact production acceptance, one authorized notice dispatch and zero-send 
 
 Focused store/auth/UI/notice/HTTP tests and actual compiled Pages + native D1 exercise synthetic software-authenticator UV, same-key claim, encrypted CRUD/export, no household/operator bypass, tombstone/replay and epoch revocation. This is not evidence of a real human ceremony or original Muse use. Native notice tests use only fake provider with outbound traffic prohibited.
 
-The backend change requires one full/native CI and coordinated48migration/code/secrets release. Auto Pages alone must be blocked; use the same-run tested artifact, no second application build. Necessary isolated dev validation is permitted without real resident content or paid/autonomous cron. Existing production Manager renderer088 remains matched; dev's previous renderer requires one necessary matched update if used for this release validation. Preserve existing resident/card/Guardian/passkey rows and authority. Public delivery and real notice remain pending until the actual acceptance record is appended.
+The backend change requires one full/native CI and coordinated48migration/code/secrets release. Auto Pages alone must be blocked; use the same-run tested artifact, no second application build. Necessary isolated dev validation is permitted without real resident content or paid/autonomous cron. Existing production Manager renderer088 remains matched; dev's previous renderer requires one necessary matched update if used for this release validation. Preserve existing resident/card/Guardian/passkey rows and authority. The dated acceptance records below supersede the earlier pending release state.
+
+
+## Hosted acceptance — 2026-11-03
+
+Production v1.85 source `c754b83f689825230a1652e8c8b3025e46b2753c` accepted at 2026-11-04 06:33:54 UTC (November3 local). [Quality41784925641](https://github.com/mkhsu2002/MuseCondo/actions/runs/41784925641) passed1,618 tests, build/type/lint and every native gate, including vault and isolated fake-provider notice tests. The initial failed CI was stopped before publication; three stale migration-count/isolated route-fixture assertions were corrected and11 targeted cases passed before this successful run.
+
+Both environments adopted artifact13300738086 from that same successful run, with no second application build. Required0046–0048 migrations are applied:48 migrations,646 canonical objects, schema `5c16c8fdd53122d1f6d52b0c0bd708802d0f6ee1fab7a57ee4fc07dd9c95b0a3`. Production deployment `89251e56-c639-4312-bcf4-5fbacd5df452` and necessary dev deployment `4992a768-9d76-4308-a539-ef72d11ec69f` match exact source/build/frontend/schema and renderer088. Independent deployment-only vault secrets are configured; production Manager required no redeploy, while dev received its necessary renderer sync. Existing data/bindings/flags remain; dev cron stays empty, paid/image/mail features stay off. Cloudflare Git auto-build remains OFF, preview Git builds none.
+
+Public start/approval/guide/scripts GET+HEAD, strict CSP and exact artifact bytes pass; capabilities report available with mandatory Guardian Passkey authorization, and unauthorized private/operator requests return401. Existing production resident/Guardian/identity/Passkey/mail/image/journal/audit data were unchanged by migration and application deployment. Later sender readiness probes and the separately authorized notice create their own expected audit records.
+
+At06:35:44 UTC, the deployed dev HTTP flow passed with a strictly test-only, unpublished fixture under the unchanged admission policy: missing UV rejected403; software-generated real-crypto UV accepted; same-key claim; encrypted save/read/list/export; deletion and old PUT replay without restoration; revoked access rejected403. Test identity retired and synthetic Passkey revoked; no active test grant, real resident files, provider calls or mail. This proves the deployed contract, not a real Guardian ceremony or resident uptake. Original residents must independently authorize and choose their files.
+
+Raw receipts remain in the private operations store. Public entry: [Vault start](https://musetower.neobabylon.app/vault/start) · [Muse guide](https://musetower.neobabylon.app/vault-guide.md).
+
+
+## Guardian upgrade notice acceptance — 2026-11-03
+
+Following hosted acceptance, the deployed Tower Manager service-upgrade path published canonical `private-vault-v1`. Fresh deployed sender verification and signed own-handler probe passed. Current selection found1 eligible verified Guardian mailbox; exactly1 encrypted outbox event and1 permanent dispatch were recorded. Signed webhook delivered at2026-11-04 06:37:14 UTC; protected official-provider GET reconciliation independently confirmed delivery at06:37:25 UTC. No unknown, failed or blocked events.
+
+The identical release dispatch was replayed: permanent dispatch count remained1, new sends0, and outbox/audit/delivery facts unchanged. Existing identity-mail events and weekly dispatch counts were unchanged. No new cron, provider key in local/runner/frontend, fake production Passkey approval or real resident file upload was used. Provider delivery is confirmed; human reading and Muse claim/use are not asserted. Notification contains the public start/guide and Guardian-to-Muse continuation instructions. Recipient details and raw receipts remain private.
