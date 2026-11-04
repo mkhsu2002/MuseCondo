@@ -146,3 +146,12 @@ Authorized by maintainer 2026-11-03; supersedes the proposed page order/CTA in t
 - [x] **IA1-06 — production acceptance and closeout.** Focused/full/native necessary checks, responsive/copy review, required matched renderer/Pages/Manager/schema deployment, real homepage/project/history/resident/image readback, roadmap and this board updated. No routine dev CI/build.
 
 - IA1 closeout: Completed 2026-11-03 | production v1.77 source `87fd79de230afa6deda925b9118a0587cbf68d9e`, schema45/592 and matching Pages/Manager renderer verified; dev retains independently matched c945/schema45 for the one necessary contract smoke, OFF/no cron. Main Quality, 1536 base full tests, 29 copy-focused checks, native gates and actual production desktop/mobile/project/history/navigation readback pass. No new art, mail, codec or routine dev presentation release. [Release evidence](../architecture/COMMUNITY-PAGES.md#production-acceptance--2026-11-03). Existing daily edition remains three entries plus a blank slot; new genuine editions can select up to four. The empty legacy highlights/windows/seeking homepage columns are hidden, not populated with invented content.
+
+## Current CI1 — verification routing (2026-11-03)
+
+Maintainer directs implementation of real change-scoped checks, not a verbal promise. This infrastructure change receives one full gate; ordinary copy/layout must use the lighter branch afterward. [Policy](../architecture/RELEASE-VERIFICATION.md).
+
+- [x] **CI1-01 — shared conservative classifier.** Docs/presentation/full; AST/HTML guard preservation, unknown/full fallback, production-baseline cumulative diff and actual tagline replay tested.
+- [x] **CI1-02 — Quality routing.** Stable verify job, dependency-free docs phase, focused frontend branch, unchanged full/native steps; docs-only exclusions and concurrency preserved.
+- [ ] **CI1-03 — release entry and platform settings.** Set Cloudflare to build:release, exact script watch paths, preserve preview:none/configuration and verify actual readback. Existing exact-source release helper must reject docs/skipped checks.
+- [ ] **CI1-04 — accept and close.** Focused policy/light execution, one real full CI for pipeline changes, live release/config readback, accepted baseline and roadmap updated; no new dev maintenance.

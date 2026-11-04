@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "environment": "production",
+  "sourceSHA": "87fd79de230afa6deda925b9118a0587cbf68d9e",
+  "deploymentId": "b7a8cbd3-1af8-4520-83d1-df36df424fa4",
+  "verifiedAt": "2026-11-04T01:55:22.542626+00:00",
+  "evidence": "docs/architecture/COMMUNITY-PAGES.md#production-acceptance--2026-11-03"
+}

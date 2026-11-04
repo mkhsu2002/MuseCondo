@@ -79,3 +79,7 @@ secret 存在且付費 gate 開啟才建立 framework Meta generator；否則 di
 發布後除 status 外，須實測 cookie／CSRF、私密 seed、三層 deep links、當前配對圖驗收、夢獨立同意與三種夢 scope，以及專屬夢圖撤回後無法經公開 asset 路由繞過。公開資料不可返回內部生成欄位；靜態首頁成功不能代替服務驗收。
 
 官方平台參考：[Functions routing](https://developers.cloudflare.com/pages/functions/routing/)、[Bindings](https://developers.cloudflare.com/pages/functions/bindings/)、[Wrangler configuration](https://developers.cloudflare.com/pages/functions/wrangler-configuration/)。本輪文件更新未重新查核平台規格，實際操作前依 owning source 與平台當前回應驗證。
+
+## CI／發布分流（2026-11-03）
+
+以[共用分流規則](architecture/RELEASE-VERIFICATION.md)與 CI1 實際設定驗收為準：文案／排版執行 build 加前端必要檢查，後端、權限、資料契約及未知變更維持完整驗證；文件不自動建置或部署。分流不免除 schema／Functions／私有 renderer 的相符發布要求。

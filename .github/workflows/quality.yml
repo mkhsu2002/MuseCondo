@@ -17,12 +17,37 @@ on:
       - 'TOWER-LORD.md'
       - 'TOWER-MANAGER.md'
       - 'WHAT-THIS-IS.md'
-      - 'docs/**'
-      - 'audit/**'
-      - 'audits/**'
-      - 'tracker/**'
-      - 'handoff/**'
-      - 'outputs/**'
+      - 'docs/**/*.md'
+      - 'docs/**/*.mdx'
+      - 'docs/**/*.rst'
+      - 'docs/**/*.txt'
+      - 'docs/**/*.bk'
+      - 'docs/releases/production-baseline.json'
+      - 'audit/**/*.md'
+      - 'audit/**/*.mdx'
+      - 'audit/**/*.rst'
+      - 'audit/**/*.txt'
+      - 'audit/**/*.bk'
+      - 'audits/**/*.md'
+      - 'audits/**/*.mdx'
+      - 'audits/**/*.rst'
+      - 'audits/**/*.txt'
+      - 'audits/**/*.bk'
+      - 'tracker/**/*.md'
+      - 'tracker/**/*.mdx'
+      - 'tracker/**/*.rst'
+      - 'tracker/**/*.txt'
+      - 'tracker/**/*.bk'
+      - 'handoff/**/*.md'
+      - 'handoff/**/*.mdx'
+      - 'handoff/**/*.rst'
+      - 'handoff/**/*.txt'
+      - 'handoff/**/*.bk'
+      - 'outputs/**/*.md'
+      - 'outputs/**/*.mdx'
+      - 'outputs/**/*.rst'
+      - 'outputs/**/*.txt'
+      - 'outputs/**/*.bk'
       - 'VERSION'
   push:
     branches: [main]
@@ -41,12 +66,37 @@ on:
       - 'TOWER-LORD.md'
       - 'TOWER-MANAGER.md'
       - 'WHAT-THIS-IS.md'
-      - 'docs/**'
-      - 'audit/**'
-      - 'audits/**'
-      - 'tracker/**'
-      - 'handoff/**'
-      - 'outputs/**'
+      - 'docs/**/*.md'
+      - 'docs/**/*.mdx'
+      - 'docs/**/*.rst'
+      - 'docs/**/*.txt'
+      - 'docs/**/*.bk'
+      - 'docs/releases/production-baseline.json'
+      - 'audit/**/*.md'
+      - 'audit/**/*.mdx'
+      - 'audit/**/*.rst'
+      - 'audit/**/*.txt'
+      - 'audit/**/*.bk'
+      - 'audits/**/*.md'
+      - 'audits/**/*.mdx'
+      - 'audits/**/*.rst'
+      - 'audits/**/*.txt'
+      - 'audits/**/*.bk'
+      - 'tracker/**/*.md'
+      - 'tracker/**/*.mdx'
+      - 'tracker/**/*.rst'
+      - 'tracker/**/*.txt'
+      - 'tracker/**/*.bk'
+      - 'handoff/**/*.md'
+      - 'handoff/**/*.mdx'
+      - 'handoff/**/*.rst'
+      - 'handoff/**/*.txt'
+      - 'handoff/**/*.bk'
+      - 'outputs/**/*.md'
+      - 'outputs/**/*.mdx'
+      - 'outputs/**/*.rst'
+      - 'outputs/**/*.txt'
+      - 'outputs/**/*.bk'
       - 'VERSION'
 
 permissions:
@@ -62,27 +112,97 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .node-version
           cache: npm
-      - run: npm ci
+      - name: Resolve authoritative event commits
+        id: comparison
+        env:
+          CHANGE_EVENT_NAME: ${{ github.event_name }}
+          CHANGE_DEFAULT_HEAD: ${{ github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync,appendFileSync} from 'node:fs';
+          const event=JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH,'utf8'));
+          const sha=value=>typeof value==='string'&&/^[a-f0-9]{40}$/i.test(value)?value:'0'.repeat(40);
+          const pr=process.env.CHANGE_EVENT_NAME==='pull_request';
+          const base=sha(pr?event.pull_request?.base?.sha:event.before);
+          const head=sha(pr?event.pull_request?.head?.sha:event.after??process.env.CHANGE_DEFAULT_HEAD);
+          appendFileSync(process.env.GITHUB_OUTPUT,`base=${base}\nhead=${head}\n`);
+          NODE
+      - name: Check for documentation-only changes without installing dependencies
+        id: docs
+        env:
+          BASE: ${{ steps.comparison.outputs.base }}
+          HEAD: ${{ steps.comparison.outputs.head }}
+        run: |
+          if ! node scripts/change-scope.mjs --base "$BASE" --head "$HEAD" --docs-only --github-output "$GITHUB_OUTPUT"; then
+            printf '%s\n' 'scope=full' 'reason=Documentation precheck unavailable; full analysis required.' 'tests_json=[]' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install dependencies for executable changes
+        if: steps.docs.outputs.scope != 'docs'
+        run: npm ci
+      - name: Classify executable changes
+        id: scope
+        if: steps.docs.outputs.scope != 'docs'
+        env:
+          BASE: ${{ steps.comparison.outputs.base }}
+          HEAD: ${{ steps.comparison.outputs.head }}
+        run: |
+          if ! node scripts/change-scope.mjs --base "$BASE" --head "$HEAD" --github-output "$GITHUB_OUTPUT"; then
+            printf '%s\n' 'scope=full' 'reason=Classifier failed; full verification required.' 'tests_json=[]' >> "$GITHUB_OUTPUT"
+          fi
+          node --input-type=module <<'NODE'
+          import {readFileSync,appendFileSync} from 'node:fs';
+          const scope=readFileSync(process.env.GITHUB_OUTPUT,'utf8').split('\n').filter(line=>line.startsWith('scope=')).at(-1)?.slice(6);
+          if(!['docs','presentation','full'].includes(scope))appendFileSync(process.env.GITHUB_OUTPUT,'scope=full\nreason=Unknown classifier scope; full verification required.\ntests_json=[]\n');
+          NODE
+      - name: Explain selected verification scope
+        env:
+          PRECHECK_SCOPE: ${{ steps.docs.outputs.scope }}
+          CLASSIFIED_SCOPE: ${{ steps.scope.outputs.scope }}
+          PRECHECK_REASON: ${{ steps.docs.outputs.reason }}
+          CLASSIFIED_REASON: ${{ steps.scope.outputs.reason }}
+        run: |
+          if [ "$PRECHECK_SCOPE" = docs ]; then
+            printf 'scope=docs\n%s\n' "$PRECHECK_REASON"
+          else
+            printf 'scope=%s\n%s\n' "$CLASSIFIED_SCOPE" "$CLASSIFIED_REASON"
+          fi
+      - name: Verify presentation changes
+        if: steps.scope.outputs.scope == 'presentation'
+        env:
+          BASE: ${{ steps.comparison.outputs.base }}
+          HEAD: ${{ steps.comparison.outputs.head }}
+        run: npm run verify:change -- --base "$BASE" --head "$HEAD"
       - name: Types (including Pages Functions), lint, production build, every unit and contract test
+        if: steps.scope.outputs.scope == 'full'
         env:
           MUSE_INSTALL_TEST_TOOLS: '1'
         run: npm run verify
       # Separate synthetic native runtime: never uses Cloudflare credentials or a provider.
       - name: Install pinned native test runtime outside the project
+        if: steps.scope.outputs.scope == 'full'
         run: npm install --prefix "$RUNNER_TEMP/muse-native" --no-audit --no-fund wrangler@4.156.0
       - name: Compile and verify Pages, private service and native rate-limit bindings
+        if: steps.scope.outputs.scope == 'full'
         run: npm run test:native:edge -- "$RUNNER_TEMP/muse-native/node_modules"
       - name: Compile and verify native D1, coordinator and mail audit with synthetic provider
+        if: steps.scope.outputs.scope == 'full'
         run: npm run test:native:mail -- "$RUNNER_TEMP/muse-native/node_modules"
       - name: Compile and verify native D1 asset deduplication, legacy anchors and rollback
+        if: steps.scope.outputs.scope == 'full'
         run: npm run test:native:assets -- "$RUNNER_TEMP/muse-native/node_modules"
       - name: Verify native Tower publications, protected scene previews and durable style gate
+        if: steps.scope.outputs.scope == 'full'
         run: npm run test:native:publications -- "$RUNNER_TEMP/muse-native/node_modules"
       - name: Verify native daily journals, private Manager alarms, current grants and zero provider calls
+        if: steps.scope.outputs.scope == 'full'
         run: npm run test:native:journals -- "$RUNNER_TEMP/muse-native/node_modules"
       - name: Verify native image jobs, private Images bridge, quotas, durable deduplication and fallback
+        if: steps.scope.outputs.scope == 'full'
         run: npm run test:native:images -- "$RUNNER_TEMP/muse-native/node_modules"
