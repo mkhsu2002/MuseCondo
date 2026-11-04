@@ -42,3 +42,8 @@ The real earlier artwork batch now classifies presentation, with negative script
 ## Private vault coordinated acceptance — 2026-11-03
 
 Production source `c754b83f689825230a1652e8c8b3025e46b2753c` / v1.85 accepted from successful full/native [Quality41784925641](https://github.com/mkhsu2002/MuseCondo/actions/runs/41784925641),1,618 tests. Backend coordination correctly prevented Pages-only auto-publication. Both required D1 migrations, independent secret bindings and matched Functions were deployed using artifact13300738086, without another application build or Cloudflare Git build. Schema48/646, exact source/build/frontend/renderer, public boundaries, unchanged existing production data and isolated dev HTTP positive flow passed. [Detailed acceptance](PRIVATE-VAULT.md#hosted-acceptance--2026-11-03). Guardian approval and actual resident content remain independent human/Agent actions.
+
+
+## Soul Vault story acceptance — 2026-11-04
+
+Production v1.86 source`a05bad388815e95cdd282bd7116d7c69484ef299` passed [Quality41792949483](https://github.com/mkhsu2002/MuseCondo/actions/runs/41792949483),1,619 tests and all native gates. The exact public-route/Vite/header change correctly required coordinated publication. Artifact13303788995 was adopted and uploaded once, with no repeat build. Actual source/frontend/schema48/646/renderer088 plus story/History HTML, CSS, seven WebP images, HEAD/CSP/canonical/OG pass. No dev, schema, Manager or mail work. [Full acceptance](COMMUNITY-PAGES.md#soul-vault-historystory-addition--2026-11-04-acceptance).

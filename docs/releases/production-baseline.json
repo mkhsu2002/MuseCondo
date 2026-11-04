@@ -1,8 +1,8 @@
 {
   "version": 1,
   "environment": "production",
-  "sourceSHA": "c754b83f689825230a1652e8c8b3025e46b2753c",
-  "deploymentId": "89251e56-c639-4312-bcf4-5fbacd5df452",
-  "verifiedAt": "2026-11-04T06:33:54.229862+00:00",
-  "evidence": "docs/architecture/PRIVATE-VAULT.md#hosted-acceptance--2026-11-03"
+  "sourceSHA": "a05bad388815e95cdd282bd7116d7c69484ef299",
+  "deploymentId": "50cb0ecd-61ff-469b-9187-2795a8a2ee06",
+  "verifiedAt": "2026-11-04T07:41:03.813901+00:00",
+  "evidence": "docs/architecture/COMMUNITY-PAGES.md#soul-vault-historystory-addition--2026-11-04-acceptance"
 }
