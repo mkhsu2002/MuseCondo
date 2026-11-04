@@ -1,5 +1,7 @@
 # Hosted home image delivery
 
+> Current application follow-up, 2026-11-03: production v1.77 retains the same accepted image pipeline and eight immutable outputs. The video poster now belongs to `/project`; it is absent from the community homepage/private lobby preview. Metrics below are the recorded image-release measurements, not a new performance benchmark. [Current acceptance](architecture/COMMUNITY-PAGES.md#production-acceptance--2026-11-03).
+
 Status as of 2026-11-03: production v1.75 source `7f7932529413702736108a6c556bd20d6c36d2b2` is deployed and exact-source/schema/Worker/IMAGES verified. All three public hosted home/dream images already have production-accepted WebP delivery (bootstrap reduction 88.08–89.67%). Real once-only dev codec smoke, replay and production-404 checks passed; production automatic optimization is enabled at 64/day and 1000/month, dev stays OFF. All eight existing public image outputs are accepted in batches six and two; no new artwork was generated. New static WebP logo/poster are verified live.
 
 ## Observed production baseline

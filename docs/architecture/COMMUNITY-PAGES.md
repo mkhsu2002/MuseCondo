@@ -1,6 +1,6 @@
 # Community pages and project introduction
 
-Implementation: v1.76, 2026-11-03. Live release acceptance is tracked in IA1 in [NEXT](../plans/NEXT.md); this implementation record alone is not deployment evidence.
+Production accepted: v1.77, 2026-11-03; the core page architecture was first verified as c945/v1.76, followed by the approved production-only headline refinement. IA1 is closed in [NEXT](../plans/NEXT.md).
 
 ## Public destinations
 
@@ -46,3 +46,17 @@ Dates use Vancouver/Pacific time. Day-only evidence stays day-only; original UTC
 | First Tower Weekly | November3 15:23 | Actual issue publishedAt22:23:58.707Z and canonical inaugural issue |
 
 This records the development start, not an unverified formal contest-registration timestamp. The earliest documented hosting release is not a claim of an exact server-first-start instant. “Manager takes up duties” means the recorded standing mandate, not an invented ceremony. Add later milestones only with observed source dates and a corresponding public content/document update; no recurring job or new timeline-writing authority is installed.
+
+## Production acceptance — 2026-11-03
+
+Completed 2026-11-03 | production v1.77 source `87fd79de230afa6deda925b9118a0587cbf68d9e`, schema45/592 and matching Pages/Manager renderer verified; dev retains independently matched c945/schema45 for the one necessary contract smoke, OFF/no cron. Main Quality, 1536 base full tests, 29 copy-focused checks, native gates and actual production desktop/mobile/project/history/navigation readback pass. No new art, mail, codec or routine dev presentation release.
+
+Production deployment `b7a8cbd3-1af8-4520-83d1-df36df424fa4` serves build `4172232c6a7c0ebb97e99f96443a834f278c7e02ffd62ffd66ea74810f85cb67`. The source tree and required45 migration hashes match the canonical592-object schema. Original resident/consent/snapshot/identity state, historical daily edition/audit and all eight ready image jobs/events are unchanged. The Manager contains the same current private renderer; its existing Browser/IMAGES/DO bindings and `0 16 * * *` schedule are preserved.
+
+The core c945 release applied0045 and verified both environments. The subsequent presentation change updates only production; inactive dev stays on its own accepted c945 Pages/renderer pair, with the same schema45/data contract, auto-images OFF and no cron. This is intentional scope, not an incomplete schema deployment.
+
+Actual public desktop/mobile readback verifies all three four-slot rows, three existing journal cards/one blank, two residents/two blanks, four public scene images, resource row/charter attribution, final Reception CTA and city/Tower brand destinations. The selected headline and small label are exact, and page/share titles agree. Project’s two outbound CTAs, four roles and click-loaded nocookie iframe pass; initial YouTube requests and iframe count are zero. History contains eight dated milestones. Canonical /project and /tower-history work directly and without client rendering; full Neighbors includes current real doors.
+
+Production static HTML contains one existing platform-injected CloudflareInsights beacon. Its exact fixed367-byte block is pinned by SHA-256 `004f0da6fc8e2ecee41b551e8fc3eb2deb0cc83028c92fc115620bcf737931a3`; removing that one exact block yields byte-for-byte frozen project/history HTML. All remaining bytes and security headers are verified, not broadly normalized. License/static assets compare raw bytes. Existing strict CSP is retained; no third-party tracking allowance was added.
+
+Cloudflare automatic main builds were temporarily paused for the ordered manual release, then restored. Build-watch now includes project/* and tower-history/* while preserving docs-only exclusions and preview:none. The final documentation commit needs no new build/deploy. N3 retains next normal daily/weekly observations rather than claiming future events or adding a Codex automation.

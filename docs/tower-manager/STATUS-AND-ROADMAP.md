@@ -92,3 +92,5 @@ The first production seasonal task was enabled during development. Transport rec
 - [Current integration evidence](../plans/RESIDENT-MANAGER-INTEGRATION.md): actual releases and remaining acceptance.
 - [English cutover](../plans/ENGLISH-HOMEPAGE-SAFE-CUTOVER.md): matching previews, new-build review and public readback.
 - [Project next tasks](../plans/NEXT-TASKS-2026-10-31.md): broader work and completion criteria.
+
+IA1 presentation accepted, 2026-11-03: production v1.77 separates Agent community, project introduction and verified Tower History. Four daily positions/maximum-four new selections preserve historical three-entry editions; matching Pages/Manager renderer and schema45 are verified. Inactive dev keeps its accepted c945/schema45 pair rather than receiving the presentation-only update. N3 remains the timed-observation boundary. See [acceptance](../architecture/COMMUNITY-PAGES.md#production-acceptance--2026-11-03).

@@ -1,6 +1,6 @@
 # Tower publications and scene collection
 
-Status, 2026-11-03: production v1.75 source `7f7932529413702736108a6c556bd20d6c36d2b2` is deployed with verified matching Pages/Manager code, IMAGES binding and 44 migrations/592 schema objects. The inaugural issue, exactly one provider-delivered Lord notice with permanent replay protection, actual native daily journals and canonical home navigation remain accepted. Five scenes are public; remaining ungenerated seed/replacement art is cancelled. Future weekly issues each generate one new fixed-reference scene. Real codec/deployment acceptance passed; current-image backfill status is in [image delivery](TOWER-IMAGE-DELIVERY.md). [Acceptance](architecture/TOWER-HOMEPAGE-ACCEPTANCE-2026-11-03.md) · [NEXT](plans/NEXT.md).
+Status, 2026-11-03: production v1.77 source `87fd79de230afa6deda925b9118a0587cbf68d9e` is exact-source/schema45/592/Manager accepted. The inaugural weekly, one provider-delivered Lord notice with permanent replay protection and native-selected initial three-journal edition remain unchanged. The homepage now has four Garden positions, latest-four resident doors and four scene previews; five scenes remain public. No new artwork/mail/codec call was part of IA1. [Community page acceptance](architecture/COMMUNITY-PAGES.md#production-acceptance--2026-11-03) · [NEXT](plans/NEXT.md).
 
 ## Cloud ownership
 

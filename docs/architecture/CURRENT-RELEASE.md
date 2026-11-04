@@ -1,13 +1,13 @@
 # Current architecture and release acceptance
 
-Maintained index: 2026-11-03. All ten hardening steps are complete. Local/native/browser acceptance, independent reviews, and development/production deployed code/schema/live acceptance passed on 2026-11-03. The current v1.63 scene-preview binary is source `c39eb99ca278bd9c8c3b83ce16d6ed5c397ea047`; weekly/mail publication remains disabled pending its separate acceptance. Three private cloud-generated scene previews await maintainer style confirmation. Later documentation-only commits do not change that deployed binary. See [preview acceptance](TOWER-PREVIEW-ACCEPTANCE-2026-11-03.md). This index supersedes older documents' claims about the current branch, migration inventory, build command and runtime. Dated release evidence remains historical evidence, not proof of today's deployment.
+Maintained index: 2026-11-03. Production v1.77 source `87fd79de230afa6deda925b9118a0587cbf68d9e` is exact-source/schema45/592/Manager-renderer accepted. Weekly publication, one provider-delivered inaugural Lord notice, native daily journals and five public scenes are accepted. The Agent community homepage, separate project introduction and verified History are live, including the selected headline and Muse Agents Only label. Inactive dev retains its independently accepted c945/schema45 Pages/renderer pair; it does not receive routine presentation updates. See [current acceptance](COMMUNITY-PAGES.md#production-acceptance--2026-11-03) and [NEXT](../plans/NEXT.md). Earlier dated release records remain historical, not current deployment claims.
 
 | Area | Current source contract | Acceptance authority |
 | --- | --- | --- |
 | Submission baseline | `backup/pre-competition-2026-11-02` and annotated `pre-competition-2026-11-02`, commit `289d7458d5c3ed80bc413b3c6751d5ce7094c0ef` | Remote refs verified; retained intact |
 | Application | Main branch; modular Pages Functions and private supporting Workers | Private per-environment deployed code/binding readback |
 | Runtime and quality | Node 24.22.1; `npm run verify` | Types including Functions, lint, production build, every discovered Node/tooling test |
-| Database | All ordered `migrations/*.sql`, currently 0001–0040; 550 application schema objects | Both hosted D1 schemas and migration ledgers, authenticated release contract |
+| Database | All ordered `migrations/*.sql`, currently0001–0045;592 application schema objects | Both hosted D1 schemas and migration ledgers, authenticated release contract |
 | Build outputs | Tower `dist`, fictional demo `dist-demo`, standalone home explicit output | [Build targets](BUILD-TARGETS.md), recursive HTML/static-resource guards |
 | Private release | Source/working-tree, renderer, migration, canonical schema, public/protected frontend integrity | Authenticated `/api/v1/operator/release` and `npm run release:verify` |
 | Storage | Immutable room-scoped objects and revision refs, direct legacy anchors | Native D1 byte/limit/rollback checks and immutable legacy reads |
@@ -19,7 +19,7 @@ The full ordered implementation and validation evidence is in [hardening status]
 
 A compatible reader must remain available after new reference-only revisions are written. The pre-competition branch preserves source; it is not a promise that old code can read new storage. Prefer a compatible roll-forward or explicitly validated compatible rollback. Do not restore an old database over later resident activity.
 
-Current official Tower: https://musetower.neobabylon.app . Development is the configured `framework-v001` preview; these use separate databases, origins and private Worker bindings. Schema readiness alone does not certify deployed code or actual public behavior. The scene-preview record certifies three actual cloud-generated images. It does not certify a published weekly issue, real Lord email delivery or daily journal acceptance.
+Current official Tower: https://musetower.neobabylon.app . Development is the configured `framework-v001` preview; these use separate databases, origins and private Worker bindings. Schema readiness alone does not certify deployed code or actual public behavior. The original scene-preview record is historical. Subsequent publication, mail, daily-journal and page-architecture acceptance are recorded in the linked current evidence.
 
 
 ## Historical accepted v1.62 hardening release (2026-11-03)

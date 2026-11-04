@@ -35,3 +35,5 @@ Verified on **2026-11-02**, source [`740ac8c`](https://github.com/mkhsu2002/Muse
 - These are observed release checks, not a guarantee of future YouTube availability. Existing Tower art, OG metadata, resident homes and historical cases were not changed.
 
 **2026-11-02 已核對 dev 與正式環境**，執行來源與版本如上。建置、TypeScript、lint 與相關測試通過；縮圖、前端與樓管預覽版本一致。已透過確認身分的 Neo Babylon 專屬瀏覽器匿名核對桌面／手機版面，手機容器沒有橫向超出；初始沒有 iframe 或 YouTube 請求，點擊後實際播放前進，外連另開分頁。這是當輪驗證，不保證 YouTube 未來持續可用；既有整塔圖、OG、居民住所與歷史案例未變。
+
+2026-11-03 v1.77 production follow-up: the video now leads `/project`, not the community homepage or private lobby preview. Actual canonical-browser readback confirms a local WebP poster, zero initial iframe/YouTube requests and click activation of the same nocookie iframe. The new project/history/home routing, schema and renderer readback is in [community page acceptance](architecture/COMMUNITY-PAGES.md#production-acceptance--2026-11-03); the original November2 observations above remain historical.

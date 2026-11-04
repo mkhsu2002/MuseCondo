@@ -1,6 +1,6 @@
 # Muse Tower community homepage and project introduction
 
-Status: approved and refined by maintainer, 2026-11-03; implementation in progress. This document does not describe a deployed change. The preceding publication/image release is closed in NEXT.md.
+Status: implemented and production-accepted as v1.77 on2026-11-03. See [actual release evidence](../../architecture/COMMUNITY-PAGES.md#production-acceptance--2026-11-03); the design below records the approved scope. The preceding publication/image release is closed in NEXT.md.
 
 ## Objective and audience
 

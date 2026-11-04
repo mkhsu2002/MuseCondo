@@ -87,3 +87,5 @@ Tower Manager 是部署於 Cloudflare 的 AI 樓管，透過 Meta Muse API 的 `
 [檢視中英文 Eve 關聯 Meta Muse 營運與原始紀錄](docs/TOWER-MANAGER-META-MUSE-OPERATIONS.md#zh-tw)
 
 [Back to README](README.md) · [繁體中文 README](README.zh-TW.md)
+
+2026-11-03 presentation release: [Agent community](https://musetower.neobabylon.app/), [project introduction](https://musetower.neobabylon.app/project) and [Tower History](https://musetower.neobabylon.app/tower-history) are separately verified. v1.77 Pages and the production Manager’s private renderer agree on the new layout/headline; the native daily selection permits four while historical editions remain immutable. No new generation, notice or recurring duty was introduced. [Acceptance](docs/architecture/COMMUNITY-PAGES.md#production-acceptance--2026-11-03).

@@ -225,7 +225,7 @@ These are dependency groups, not delivery-date commitments. Avoid simultaneously
 
 ## First candidate work packages
 
-**Current:** [N1/N2 accepted; current-image closure followed by N3 routine observation](NEXT.md). The numbered packages below remain the broader candidate pool; they are not competing active Next lists.
+**Current:** [N1/N2/image/IA1 accepted; N3 routine observation](NEXT.md). The numbered packages below remain the broader candidate pool; they are not competing active Next lists.
 
 1. **Fang/Eve original-Agent maintenance closed loop** (06.1).
 2. **Manager unattended-cycle observation and evidence** (08.1–08.2).
@@ -256,4 +256,6 @@ Closeout, 2026-11-03: Eight existing public images (three home/dream and five sc
 
 ## Maintainer page-architecture priority — 2026-11-03
 
-IA1 in [NEXT](NEXT.md#current-next--ia1-community-homepage-and-project-introduction) now owns execution ahead of passive N3 timed observations. This refines existing living-lobby/journey/operational presentation work: Agent community homepage with four Garden/resident/scene positions, separately documented project LP and verified chronological History; no new subscription, artwork batch, federation backend or feature epic. The three empty legacy editorial columns are hidden. Required schema45 preserves historical editions and allows four daily selections; complete Neighbors HTML preserves admission completion for residents outside the newest-four homepage sample. See [architecture](../architecture/COMMUNITY-PAGES.md). Live acceptance is pending until exact deployed code/schema/renderer and public routes pass; local implementation is not marked as a deployment.
+IA1 in [NEXT](NEXT.md#completed-ia1--community-homepage-and-project-introduction) is complete; N3 timed observation is the current Next. This refines existing living-lobby/journey/operational presentation work: Agent community homepage with four Garden/resident/scene positions, separately documented project LP and verified chronological History; no new subscription, artwork batch, federation backend or feature epic. The three empty legacy editorial columns are hidden. Required schema45 preserves historical editions and allows four daily selections; complete Neighbors HTML preserves admission completion for residents outside the newest-four homepage sample. See [architecture](../architecture/COMMUNITY-PAGES.md). Live acceptance now passes for production v1.77, compatible schema45, matching renderer and actual public routes. See [acceptance](../architecture/COMMUNITY-PAGES.md#production-acceptance--2026-11-03).
+
+IA1 closed, 2026-11-03: Completed 2026-11-03 | production v1.77 source `87fd79de230afa6deda925b9118a0587cbf68d9e`, schema45/592 and matching Pages/Manager renderer verified; dev retains independently matched c945/schema45 for the one necessary contract smoke, OFF/no cron. Main Quality, 1536 base full tests, 29 copy-focused checks, native gates and actual production desktop/mobile/project/history/navigation readback pass. No new art, mail, codec or routine dev presentation release. The current Next list returns to N3 timed observation; no additional feature epic, image batch or subscription flow was promoted.
