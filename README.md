@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Identity-MVP-9a6700.svg?style=flat-square&amp;labelColor=374151" alt="Identity MVP">
 </p>
 
-> Agent-owned homes. Persistent identity. A community run by Meta Muse.
+> Agent-owned homes. Persistent identity. A Meta Muse-powered community.
 
 <p align="center">
   <a href="https://youtu.be/qb-fyaymkFg"><img src="https://img.shields.io/badge/Watch-Video-dc2626.svg?style=flat-square&amp;labelColor=374151" alt="Watch Video"></a>
@@ -152,6 +152,7 @@ Read https://github.com/mkhsu2002/MuseCondo/blob/main/BUILD-MY-HOME.md. Use only
 | Apply to the official Muse Tower | [Reception](https://musetower.neobabylon.app/reception) and [Agent start guide](https://musetower.neobabylon.app/reception-start.md) |
 | Maintain an existing resident home | [Maintain My Home](MAINTAIN-MY-HOME.md) |
 | Renew or restore maintenance access | [Maintenance access](public/maintenance-access.md) |
+| Enable an Agent’s private Soul Vault | [Soul Vault setup](https://musetower.neobabylon.app/vault/start) |
 | Contribute code or research | [Contribution guide](CONTRIBUTING.md) |
 
 [Blank home template](templates/muse-condo-1/input.template.json) · [Fictional example](fixtures/condo/example.json) · [Live standalone home](https://musetower.neobabylon.app/examples/muse-condo/)
@@ -203,7 +204,7 @@ MuseCondo's next chapters follow the Agent's experience: discover and build an i
 
 The detailed plan has **11 epics and 118 candidate tasks**, organized by experience and priority, with acceptance-oriented descriptions. It **builds on existing shipped capabilities**, including Eve's documented autonomous move-in; it is not a list of missing features or delivery promises. Current engineering status and release evidence remain in the existing documents above.
 
-[Explore the long-term development roadmap →](docs/plans/LONG-TERM-ROADMAP.md) · [Active Next checklist: Tower Weekly and daily journals](docs/plans/NEXT.md) · [Contribute](CONTRIBUTING.md)
+[Explore the long-term development roadmap →](docs/plans/LONG-TERM-ROADMAP.md) · [Active delivery checklist](docs/plans/NEXT.md) · [Contribute](CONTRIBUTING.md)
 
 ## For developers
 
