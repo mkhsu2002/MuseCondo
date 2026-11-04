@@ -166,8 +166,15 @@ Maintainer directs implementation of real change-scoped checks, not a verbal pro
 
 - PP1 closeout: Completed 2026-11-03 | v1.81 source `15283fe` | exact-source full/native CI and Cloudflare success; [Project, summary and five essays](../architecture/PROJECT-PERSPECTIVES.md#production-acceptance) verified live with GET/HEAD, complete source text, metadata, CSP and CSS. Existing schema/renderer retained, no Manager/dev deployment or new model/mail action. N3 remains the future observation list.
 
-## Current PP2 — original question and supplied covers (2026-11-03)
+## Completed PP2 — original question and supplied covers (2026-11-03)
 
 - [x] **PP2-01 — original question.** Complete source question publicly disclosed on hub by explicit maintainer request.
 - [x] **PP2-02 — five supplied covers.** Muse/Meta, Grok, Gemini, ChatGPT, Claude; native uncropped WebP covers and matching JPEG OG/Twitter, size/type/visual/source mapping checked.
-- [ ] **PP2-03 — release acceptance.** Focused checks/build, main publication, live hub/cover/OG readback and roadmap closeout. All five artworks are supplied; the original three-image subset is superseded.
+- [x] **PP2-03 — release acceptance.** Focused checks/build, main publication, live hub/cover/OG readback and roadmap closeout. All five artworks are supplied; the original three-image subset is superseded.
+
+- PP2 closeout: Completed 2026-11-03 | v1.82 source `fc55e88` | original question and all five supplied covers/social images accepted live, ten exact image hashes/signatures/dimensions verified, exact-source full/native CI and CF success. [Acceptance and measured bottleneck](../architecture/PROJECT-PERSPECTIVES.md#supplied-artwork-production-acceptance). No data, generation, mail or routine dev change.
+
+### Pending release-cost correction under N3-04
+
+- [ ] **N3-04a — proportional artwork checks and duplicate gates.** Real PP2 evidence exposed static artwork/ASSET-LICENSE changes being forced full on both GitHub and Cloudflare. Preserve script/link/permission/contract protections while allowing validated local cover/social assets and accompanying rights text to take necessary presentation checks. Remove duplicate full runs through a concrete exact-source/artifact gate design; do not claim this is already solved.
+- [ ] **N3-04b — prototype output inventory.** Audit the approximately79MiB public/prototype-assets and its public consumers before reducing the approximately95MiB output. No deletion or route removal is authorized by this diagnostic note alone. Clone5.267s was secondary to queue531.529s/build382.100s, so prioritize the gate correction first.

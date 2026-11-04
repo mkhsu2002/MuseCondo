@@ -1,8 +1,8 @@
 {
   "version": 1,
   "environment": "production",
-  "sourceSHA": "15283fe4116fa169f05c87b28be219625f9e588b",
-  "deploymentId": "bacc58aa-3ba1-4e7f-8926-82b695bd47ee",
-  "verifiedAt": "2026-11-04T03:07:27.760297Z",
-  "evidence": "docs/architecture/PROJECT-PERSPECTIVES.md#production-acceptance"
+  "sourceSHA": "fc55e88dd7582c490c6ec701c56a542d0c068ce1",
+  "deploymentId": "ca19c823-0693-4e16-92eb-b3a084bc64df",
+  "verifiedAt": "2026-11-04T03:42:48.022739Z",
+  "evidence": "docs/architecture/PROJECT-PERSPECTIVES.md#supplied-artwork-production-acceptance"
 }
