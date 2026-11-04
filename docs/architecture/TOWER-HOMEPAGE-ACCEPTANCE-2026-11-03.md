@@ -34,7 +34,9 @@ Actual Cloudflare scheduled invocations were captured in both environments with 
 
 This is a controlled late first-run observation of the native deployment chain, not a claim that the normal 09:00 event was already observed. Subsequent routine observations remain N3. A maintainer-reported weekly-to-home link exposed an older SPA renderer; its fix must pass real click-through acceptance before N2's link/UI gate closes.
 
-## Pending hosted-home correction and legacy authority boundary
+## Historical pre-v1.70 pending hosted-home correction and legacy authority boundary
+
+Status note, 2026-11-03: these pending gates were subsequently accepted in the v1.70 section below; they are not current blockers.
 
 The weekly click-through was reproduced against the live site: the client intercepted `/home/:id/inside` and used the old room renderer, while a fresh request returned the correct published snapshot and journal. The correction uses native document navigation for all three hosted-home views and history restoration. Independent focused tests also cover demo routing, modifier clicks and same-document fragments.
 
@@ -50,4 +52,19 @@ Source `8a9b6aa8ff6c409d2da4a11c1b0c1343dff0997b` passed both exact-source Quali
 
 Canonical browser link activation from the actual weekly navigated Fang and Eve to their correct server documents, preserved the weekly referrer and correct canonical/title, exposed the real journal bodies and made no legacy public-room request. Physical pointer stability checks were unavailable in the background browser tab; actual DOM link activation exercised the same router/default navigation. All six home-view brand links passed. Legacy public detail/dream aliases return 404; no live owner impersonation or resident mutation was used.
 
-Three public hosted images passed original PNG SHA/dimension checks and actual WebP negotiation: Eve home 2303463→238926 bytes, Eve dream 1879976→224018, Fang home 3818981→394646. Conditional 304, HEAD, private revalidation, Vary and cross-format validators passed. N2 source-link/UI acceptance is closed; automatic new-image conversion and ten-scene closure remain the next batch.
+Three public hosted images passed original PNG SHA/dimension checks and actual WebP negotiation: Eve home 2303463→238926 bytes, Eve dream 1879976→224018, Fang home 3818981→394646. Conditional 304, HEAD, private revalidation, Vary and cross-format validators passed. N2 source-link/UI acceptance is closed; automatic display conversion remains separately tracked below; the ten-scene target was later cancelled by maintainer direction.
+
+
+## v1.75 closeout — 2026-11-03
+
+Source `7f7932529413702736108a6c556bd20d6c36d2b2` is the deployed application; later closeout commits change documentation only. Production activation deployment `1f808af8-ef15-4aa6-9f3f-87f14d33acb8` serves build `b0dce386a225d7c91a1e3f9322ef0adcc898180d6ada095ffe5677dbd52d38e9`. Exact Pages/Manager runtime JavaScript, preserved bindings, 44 migrations and 592 schema objects were verified against deployed state. Original resident, publication-authority and identity records remain unchanged.
+
+A necessary one-off dev R&D run used this same main artifact, not routine dev CI or a resident mirror. The actual Images binding returned a transparent 3×3 WebP; alpha matched, metadata was stripped, the output SHA matched its permanent receipt, and replay did not claim a second transform. Lossy RGB conversion is not described as pixel-lossless. Production denies the smoke endpoint with 404. Production optimization is enabled at 64/day and 1000/month; dev remains disabled, with no daily cron or automatic preview build. Production retains its ordinary `0 16 * * *` schedule.
+
+Production homepage readback confirmed the exact 52,002-byte transparent WebP logo and 209,292-byte WebP introduction poster. Original PNG/JPEG files and the fixed Tower reference remain unchanged. Native daily selection and real weekly-to-home navigation retain the earlier acceptance; next normal 09:00 and Monday observations remain N3 rather than manufactured future runs.
+
+The maintainer cancelled all ungenerated initial/replacement art, including 06-r1. D1 readback found no 06-r1 scene/repair intent and no pending/running Manager generation job. The wall retains exactly five public canonical works; already-generated private 06–10 remain private with their historical receipts. Future generation is one new scene per regular weekly issue. The former ten-public-image exit target is superseded, not claimed complete.
+
+### Existing-public-image output acceptance
+
+Eight existing public images (three home/dream and five scenes) accepted in bounded batches of six and two: all ready, exact official private R2/public WebP bytes, original PNG SHA unchanged, 304/HEAD/Vary/representation validators and replay without new reservation/audit. Each output was visually inspected. Reduction 86.62–89.76%; combined 26,437,492→3,190,736 bytes. No private seed06–10, new artwork or active appearance was converted. All eight jobs hold one reservation and pending/running/ready audit; identical backfill replay leaves permanent ledger and audit unchanged. Total production gross reservation is 4,000 micro-USD, not a provider-charge claim. Private operations evidence binds every source/output SHA and per-batch visual review; no secrets, raw provider payloads or private previews are published here.

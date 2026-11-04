@@ -1,6 +1,6 @@
 # Hosted home image delivery
 
-Status as of 2026-11-03: v1.70 source `8a9b6aa8ff6c409d2da4a11c1b0c1343dff0997b` is production-accepted. All three currently public hosted home/dream images negotiate approved private WebP copies; original PNG SHA/dimensions remain unchanged. Actual response/ETag/HEAD/cross-format checks pass, reducing transfer bytes by 88.08–89.67%. The following automatic pipeline and smaller static display assets are implemented and tested locally but still await their separate deployment/codec/backfill acceptance.
+Status as of 2026-11-03: production v1.75 source `7f7932529413702736108a6c556bd20d6c36d2b2` is deployed and exact-source/schema/Worker/IMAGES verified. All three public hosted home/dream images already have production-accepted WebP delivery (bootstrap reduction 88.08–89.67%). Real once-only dev codec smoke, replay and production-404 checks passed; production automatic optimization is enabled at 64/day and 1000/month, dev stays OFF. All eight existing public image outputs are accepted in batches six and two; no new artwork was generated. New static WebP logo/poster are verified live.
 
 ## Observed production baseline
 
@@ -24,7 +24,7 @@ The existing route checks the current public revision, snapshot consent and sepa
 
 No schema migration, image regeneration, original-file replacement, publication-pointer update or source hash change is involved. Private previews retain their existing delivery policy.
 
-Local validation: 44 focused delivery/storage/intake tests passed, including consent withdrawal with an old validator, malformed metadata, stale validators, weak validator comparison and HEAD behavior; TypeScript and targeted ESLint checks passed. Production ETag and current authorization delivery were accepted in v1.70; automatic conversion is the separately pending scope below.
+Local validation: 44 focused delivery/storage/intake tests passed, including consent withdrawal with an old validator, malformed metadata, stale validators, weak validator comparison and HEAD behavior; TypeScript and targeted ESLint checks passed. Production ETag and current authorization delivery were accepted in v1.70; automatic profile and current backfill acceptance are separately recorded below.
 
 ## First-visit WebP delivery
 
@@ -38,7 +38,7 @@ A reviewed local batch uses the fixed `webp-q85-m6-v1` profile (`cwebp -q 85 -m 
 | Eve dream | 224,018 | 88.08% |
 | Fang home | 394,646 | 89.67% |
 
-All three original and converted images were visually inspected separately at their original dimensions. Character features, framing, room details and watercolor appearance were retained. The three approved WebP copies and their manifests are now stored privately in production. Every uploaded object was read back through the official storage API and matched its expected bytes and SHA-256; each binary was verified before its manifest was uploaded. All three original PNG hashes, byte lengths and dimensions were checked again after upload and remain unchanged. Existing production Functions do not yet read these copies, so this is storage preparation rather than verified live WebP delivery. Production resident artifacts were not copied into dev.
+All three original and converted images were visually inspected separately at their original dimensions. Character features, framing, room details and watercolor appearance were retained. The three approved WebP copies and their manifests are now stored privately in production. Every uploaded object was read back through the official storage API and matched its expected bytes and SHA-256; each binary was verified before its manifest was uploaded. All three original PNG hashes, byte lengths and dimensions were checked again after upload and remain unchanged. Historical storage-preparation checkpoint: the subsequent v1.70 release verified live delivery of all three bootstrap copies. The current automatic profile is recorded separately below. Production resident artifacts were not copied into dev.
 
 The implementation uses the existing private `MANAGER_ASSETS` R2 binding, adding neither a new paid Images service nor a migration. The optional `TowerIntakeEnvironment.derivativeBucket` receives that binding. Publication, current revision, snapshot consent and dream consent are checked before any derivative lookup. No private preview uses this negotiation path.
 
@@ -46,9 +46,9 @@ Each derivative uses a fixed, versioned private namespace scoped to its resident
 
 An absent binding, missing copy, malformed manifest or corrupted image falls back to the original PNG with its full-byte integrity verification. Source revisions without a prepared copy continue to work. Derivative preparation is an operator batch task, capped at six images: fetch currently authorized source bytes, verify original hashes/dimensions, compress, inspect each pair, write the binary, read back and hash, then publish its manifest last. Never replace the PNG master or upload to a public bucket. Identical existing keys must be read back; conflicting objects must not be overwritten.
 
-Local validation includes 50 focused tests covering content negotiation, explicit WebP refusal, format-specific validators, bounded reads, bad source/output metadata, original fallback, consent withdrawal and stale revisions with no R2 reads; independent review and local checks of the actual converted artifacts have also passed. Before marking this phase complete, deploy and verify both environments' code and binding, then check actual WebP content types/bytes/hashes, conditional requests, original PNG hashes, visual display and absence of direct public bucket access. Dev currently has no public resident homes: validate its empty public API and synthetic native cases without importing production resident data. Production requires hosted readback against the three prepared copies. Compare initial and conditional timings with the saved baseline; a passing build alone does not establish a speed improvement.
+Local validation includes 50 focused tests covering content negotiation, explicit WebP refusal, format-specific validators, bounded reads, bad source/output metadata, original fallback, consent withdrawal and stale revisions with no R2 reads; independent review and local checks of the actual converted artifacts have also passed. This bootstrap phase passed actual production WebP bytes/hashes, conditional requests, original PNG hashes and visual delivery in v1.70; it is not the later automatic-codec acceptance. Dev currently has no public resident homes: validate its empty public API and synthetic native cases without importing production resident data. Production requires hosted readback against the three prepared copies. Compare initial and conditional timings with the saved baseline; a passing build alone does not establish a speed improvement.
 
-## Automatic delivery pipeline (local implementation; deployment pending)
+## Automatic delivery pipeline (v1.75 deployed and public backfill accepted)
 
 The prepared three-image batch is a bootstrap, not the future operating model. Migration `0043_tower_image_optimization.sql` and the deployed-platform pipeline add event-driven WebP preparation for these display sources:
 
@@ -73,14 +73,9 @@ The display route immediately uses a ready authorized copy. When conversion is i
 
 A separate actor in the existing Manager Durable Object namespace drains at most six jobs per wake. Publication/activation events wake that actor immediately. The existing daily Manager run can recover stranded pending work at most once per day; there is no new cron, CI polling or local automation. Operator backfill accepts at most six currently authorized source ids per request. R2 object keys include both the immutable job id and output SHA, so concurrent different completions cannot overwrite the winning artifact.
 
-Deploy with `TOWER_IMAGE_OPTIMIZATION_ENABLED=true` and these explicit per-environment limits:
+Production activation uses `TOWER_IMAGE_OPTIMIZATION_ENABLED=true` with daily/monthly limits 64/1000. Dev optimization remains disabled and has no backfill or cron; its historical inactive 8/100 settings do not authorize work. Only its permanent once-only fixed synthetic smoke is allowed.
 
-| Environment | `TOWER_IMAGE_DAILY_LIMIT` | `TOWER_IMAGE_MONTHLY_LIMIT` |
-| --- | ---: | ---: |
-| dev | 8 | 100 |
-| production | 64 | 1000 |
-
-The combined 1100 reserved transformations have a gross Images transformation price of at most **US$0.55/month** at US$0.50/1000, before any account-wide free allowance; this excludes existing Worker/R2 usage. Do not assume another project's account usage leaves a free balance. [Current Cloudflare pricing](https://developers.cloudflare.com/images/pricing/) lists 5000 free unique transformations per month, with Free-plan excess returning `9422` rather than charging, and Paid-plan excess at US$0.50/1000. [Images binding calls are billed per unique transformation](https://developers.cloudflare.com/images/optimization/binding/) and are not automatically cached. Persisting verified R2 output avoids repeated decoding and future-month re-encoding. No plan upgrade or paid purchase is part of this implementation.
+The production ceiling of 1000 reserved transformations has a gross Images transformation price of at most **US$0.50/month** at US$0.50/1000, before any account-wide free allowance; this excludes existing Worker/R2 usage. Do not assume another project's account usage leaves a free balance. [Current Cloudflare pricing](https://developers.cloudflare.com/images/pricing/) lists 5000 free unique transformations per month, with Free-plan excess returning `9422` rather than charging, and Paid-plan excess at US$0.50/1000. [Images binding calls are billed per unique transformation](https://developers.cloudflare.com/images/optimization/binding/) and are not automatically cached. Persisting verified R2 output avoids repeated decoding and future-month re-encoding. No plan upgrade or paid purchase is part of this implementation.
 
 ### Static display assets and boundaries
 
@@ -90,23 +85,40 @@ The 3,159,963-byte original Tower reference PNG remains exact, including its bas
 
 ### Release acceptance
 
-Local tests include real SQLite state/authority/quota races and a synthetic native workerd path through protected Pages APIs, the Manager SQLite Durable Object, R2 and D1. The native codec itself is an explicit local stub: those tests prove the deployed routing/state boundaries, not the real Images service's visual output or billable account behavior. Before completion, apply 0043 and deploy matching Pages/Workers/bindings to both environments; read back deployed schema/code/bindings, then use a bounded real Images smoke test and inspect its actual output. Verify public WebP bytes, PNG fallback/original hashes, active-appearance expiry/epoch checks, metadata stripping/alpha, one reservation/audit per job and no duplicate transform after replay. Empty dev resident data must remain an explicitly empty acceptance scope rather than a claim of real-home validation.
+Local tests include real SQLite state/authority/quota races and a synthetic native workerd path through protected Pages APIs, the Manager SQLite Durable Object, R2 and D1. The native codec itself is an explicit local stub: those tests prove the deployed routing/state boundaries, not the real Images service's visual output or billable account behavior. The v1.75 release applied 0043/0044 and read back matching deployed Pages/Worker/schema/bindings in production and the one necessary R&D target. Its actual once-only real Images smoke passed; dev remains inactive afterward. Current public backfill acceptance checks WebP bytes, PNG fallback/original hashes, metadata/alpha, one reservation/audit per job and replay without another transform. Active-appearance expiry/epoch is tested synthetically; no active production appearance existed in the inventory, so no real appearance conversion is claimed. Empty dev resident data must remain an explicitly empty acceptance scope rather than a claim of real-home validation.
 
 
 ### Dev-only real-codec smoke
 
 After dev code, 0043/0044 and Worker binding readback, an authenticated operator can POST `{}` to `/api/v1/operator/images/smoke`. Pages forwards the request through `MANAGER_RUNTIME`, adding its deployment-held trigger credential; the local operator never reads or supplies that trigger or any provider secret. Both Pages and the Worker inspect their configured environment origin, not a caller `Origin` header. Production returns exact 404.
 
-The existing Manager DO namespace uses one isolated `image-codec-smoke-v1` actor. It permanently claims one fixed transparent 3 × 3 synthetic PNG/profile before dispatch, records the one-off **500 micro-USD gross** reservation, then saves output SHA/size/dimensions/alpha/metadata result and tiny output bytes in the durable receipt. It creates no resident, D1 source row, R2 object, service or cron. Concurrent/replayed calls only read the receipt; an ambiguous dispatch cannot retry. This one-off dev diagnostic is separate from the ordinary 1100/month job cap and adds at most US$0.0005 gross. Missing binding fails before claiming. A completed receipt is historical evidence; replay does not claim another fresh transformation.
+The existing Manager DO namespace uses one isolated `image-codec-smoke-v1` actor. It permanently claims one fixed transparent 3 × 3 synthetic PNG/profile before dispatch, records the one-off **500 micro-USD gross** reservation, then saves output SHA/size/dimensions/alpha/metadata result and tiny output bytes in the durable receipt. It creates no resident, D1 source row, R2 object, service or cron. Concurrent/replayed calls only read the receipt; an ambiguous dispatch cannot retry. This one-off dev diagnostic is separate from the ordinary production 1000/month job cap and adds at most US$0.0005 gross. Missing binding fails before claiming. A completed receipt is historical evidence; replay does not claim another fresh transformation.
 
 Scene projections and shared wall/weekly markup now use the stable `?display=webp-v1` contract to bypass historical immutable PNG cache entries. Both new PNG and WebP responses include `Vary: Accept`, representation-specific ETags and mandatory private revalidation. Original `.png` URLs and explicit PNG responses remain available with unchanged source bytes. No timestamps or global cache purge are used.
 
 ## Static brand display copy
 
-Prepared locally on 2026-11-03; deployment and public readback remain pending. The shared live header, demo header and embedded lobby preview use a transparent 630 × 210 WebP copy of the NeoBabylon brand. The largest maintained CSS width is 210 px (the live header uses 135 px), so the copy covers a 3× display without changing proportions. The unchanged 2172 × 724 PNG remains the original master. The display copy is 52,002 bytes; it preserves the resized RGBA pixels losslessly and strips metadata. Both original and display images were visually inspected, including on the site's background.
+Deployed in v1.75 source `7f7932529413702736108a6c556bd20d6c36d2b2` and verified by production homepage/HTTP byte-for-byte readback on 2026-11-03 (00:18 UTC on November 4). The shared live header, demo header and embedded lobby preview use a transparent 630 × 210 WebP copy of the NeoBabylon brand. The largest maintained CSS width is 210 px (the live header uses 135 px), so the copy covers a 3× display without changing proportions. The unchanged 2172 × 724 PNG remains the original master. The display copy is 52,002 bytes; it preserves the resized RGBA pixels losslessly and strips metadata. Both original and display images were visually inspected, including on the site's background.
 
 Embedded preview bytes and the renderer build digest now use this exact display copy, retaining the existing separate brand rights. Pages and the Manager preview renderer must ship from the same source so their renderer build identity agrees. No source artwork, download sample, reference baseline, resident consent or image-generation flow changes.
 
 ## Maintained deployment scope
 
 Production/main is primary. Dev has no routine CI, automatic preview build, daily cron, resident mirror or image backfill. The one necessary R&D exception is a fixed synthetic 3×3 real-codec test through the deployed protected Worker with a permanent once-only receipt; automatic optimization stays disabled there. Production enables the event-driven service only after code/schema/binding/codec readiness. Quotas use UTC billing windows; the gross production reservation ceiling is 1000/month (US$0.50 before any free allowance), plus one 500-micro-USD dev smoke. No plan purchase or free-allowance availability is assumed. Original PNGs remain reference/download/fallback assets; this is display optimization, not removal of every PNG file.
+
+## Production backfill accepted — 2026-11-03
+
+Eight existing public images (three home/dream and five scenes) accepted in bounded batches of six and two: all ready, exact official private R2/public WebP bytes, original PNG SHA unchanged, 304/HEAD/Vary/representation validators and replay without new reservation/audit. Each output was visually inspected. Reduction 86.62–89.76%; combined 26,437,492→3,190,736 bytes. No private seed06–10, new artwork or active appearance was converted.
+
+The permanent ledger records eight reserved transformations (4,000 micro-USD gross reservation, not a provider invoice), within 64/day and 1000/month. The separate once-only synthetic dev receipt reserves 500 micro-USD. No unknown outcome was retried, no Meta image generation was invoked, and the public scene inventory remains five. The normal first-read/publish conversion pipeline remains enabled only in production; PNG fallback remains necessary for unsupported browsers, quota/unavailability and retained original downloads.
+
+| Source | PNG bytes | WebP bytes | Reduction |
+| --- | ---: | ---: | ---: |
+| home `da854b41f3bf3504:home` | 3,818,981 | 390,894 | 89.76% |
+| home `d0e4167aba9b3e75:home` | 2,303,463 | 262,098 | 88.62% |
+| scene `seed-v1-04` | 3,677,707 | 447,222 | 87.84% |
+| scene `seed-v1-03-r1` | 3,473,997 | 386,792 | 88.87% |
+| home `d0e4167aba9b3e75:dream` | 1,879,976 | 242,690 | 87.09% |
+| scene `seed-v1-01` | 3,823,168 | 511,468 | 86.62% |
+| scene `seed-v1-05` | 3,551,066 | 432,768 | 87.81% |
+| scene `seed-v1-02` | 3,909,134 | 516,804 | 86.78% |

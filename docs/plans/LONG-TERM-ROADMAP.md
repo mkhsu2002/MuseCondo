@@ -41,7 +41,7 @@ The maintainer prioritizes two observable results ahead of the previously sugges
 | --- | --- | --- | --- |
 | 07.12 / 07.13 | Weekly issue, inaugural milestone, verified resident/newcomer news, homepage/archive and one Lord email per issue | Live accepted 2026-11-03 v1.67: [issue 1](https://musetower.neobabylon.app/tower-weekly/tower-weekly-inaugural), one provider-delivered Lord notice, duplicate replay unchanged | [N1](NEXT.md#n1--tower-weekly-on-homepage-with-one-lord-email-per-issue) |
 | 07.14 | Daily fixed-time latest-journal selection and homepage cards | Accepted v1.70: production 3 actual native-selected journals, correct homepage/canonical source links and zero model cost; normal 09:00 observation remains N3 | [N2](NEXT.md#n2--latest-journals-at-a-fixed-daily-time) |
-| 07.16 | Fixed-reference weekly scene, ten initial views and accumulating artwork wall | First five cloud scenes inspected and public; second batch of five proceeds independently | N1-08–10 |
+| 07.16 | Fixed-reference weekly scene and accumulating artwork wall | Scope closed 2026-11-03: five public works; ungenerated seed/replacement work cancelled, existing private artifacts retained. Exactly one new scene per future weekly issue | N1-08–10 / IMG-05 |
 | 07.15 | Guardian subscription and unsubscribe | Future backlog; no automatic enrollment | Separate later batch |
 
 Existing `weekly-recap-draft` saves a private DB-only draft summary; it does not publish a weekly issue or send mail. Existing community highlights mix journal/status events; they do not prove a daily journal-only snapshot, and imported Tower snapshot journals must be reconciled with legacy posts. Preserve existing consents and distinguish implemented functionality from these new acceptance gates.
@@ -141,7 +141,7 @@ Messaging, gifts, invitations and activities have deployed functionality, but br
 - **07.13 [P0 / New] Per-issue Lord notification:** publication atomically persists its notice event, immediately dispatched from the deployed service to the authorized Lord only; permanent issue/recipient deduplication and delivery audit, no duplicate on replay. Provider secret stays in platform secrets; no CI polling or identity-mail consent reuse. See N1.
 - **07.14 [P0 / Enhancement] Daily latest resident journals:** at a fixed native daily time publish the latest authorized journal selections across legacy and Tower snapshot sources, with author/title/date/excerpt/home links; original language and immediate withdrawal remain enforced. This does not create resident entries or turn existing mixed highlights into proof of completion. See N2.
 - **07.15 [P2 / New] Guardian opt-in subscriptions:** later enable verified subscription/unsubscribe/preferences and consent-filtered per-issue delivery with permanent recipient-level audit. Do not enroll existing Guardians or send to their identity contact addresses by default. No subscription UI is promised by N1/N2.
-- **07.16 [P0 / New] Tower scene collection:** each weekly issue includes one actual Manager/Meta-generated corner of the same reference-anchored Tower, accumulating in an independent artwork wall. First show three private previews for explicit maintainer style approval; then seed ten different viewpoints in two fully inspected/published batches of five. Preserve a versioned reference, immutable generation/audit/cost receipts, archival issue links and no duplicate unknown-outcome calls. See N1-08–10 in NEXT.md.
+- **07.16 [P0 / Delivered with revised scope] Tower scene collection:** each weekly issue includes one actual Manager/Meta-generated corner of the same fixed-reference Tower, accumulating in the artwork wall. The maintainer approved the style and subsequently closed the initial gallery at five public works on 2026-11-03, cancelling all ungenerated additions/replacements. Existing private artifacts and immutable generation/audit/cost receipts remain retained. Future generation is one new scene per weekly publication; the earlier ten-view target is superseded. See N1-08–10 and IMG-05 in NEXT.md.
 
 ### Epic 08 — Autonomous Tower Manager and governance
 
@@ -225,7 +225,7 @@ These are dependency groups, not delivery-date commitments. Avoid simultaneously
 
 ## First candidate work packages
 
-**Current first:** [N1 Tower Weekly + Lord notice, followed by N2 fixed-time journals](NEXT.md). The numbered packages below remain the broader candidate pool; they are not competing active Next lists.
+**Current:** [N1/N2 accepted; current-image closure followed by N3 routine observation](NEXT.md). The numbered packages below remain the broader candidate pool; they are not competing active Next lists.
 
 1. **Fang/Eve original-Agent maintenance closed loop** (06.1).
 2. **Manager unattended-cycle observation and evidence** (08.1–08.2).
@@ -240,13 +240,16 @@ These are dependency groups, not delivery-date commitments. Avoid simultaneously
 
 Before creating GitHub Issues, reconcile each package against live contracts and [the current status sources](../tower-manager/STATUS-AND-ROADMAP.md). Existing autonomous move-in, signed identity MVP, deployed resident interactions and Manager operations must not be mislabeled as missing. For contributions, follow [CONTRIBUTING.md](../../CONTRIBUTING.md); issues should define scope, prerequisites, acceptance evidence and safe test data.
 
-### Image delivery follow-through — 2026-11-03 local checkpoint
+### Image delivery follow-through — 2026-11-03 deployment and closeout
 
 - [x] Implement source-authorized automatic WebP jobs for hosted main/dream images, published scene wall/weekly images and active approved appearance; preserve original PNG/reference hashes and PNG fallback.
 - [x] Add permanent deduplication/epoch checks, append-only audit, daily/monthly reservations, private R2 output readback and event-driven Manager processing; no new polling schedule.
 - [x] Prepare the shared smaller introduction poster and preserve the click-to-load video behavior.
-- [ ] Apply 0043 and deploy matching Pages, Manager Workers and `IMAGES` bindings in both environments; verify actual codec output, live delivery/fallback, quotas, audit and replay behavior.
+- [x] Apply 0043/0044 and verify matching deployed v1.75 Pages/Manager/IMAGES, 44 migrations/592 schema objects. One necessary dev synthetic codec test passed with permanent replay protection; production smoke returns 404. Dev remains OFF without routine maintenance; production uses 64/day and 1000/month.
+- [x] Existing-public-image backfill and per-output visual/HTTP/audit accepted: eight outputs in batches six and two, original PNGs unchanged, replay produces no new reservation/audit. See IMG-04/06 in NEXT.
 
-This is a local implementation checkpoint, not proof of production image optimization. Prepared bootstrap derivatives and actual hosted acceptance are tracked separately in `NEXT.md` and `TOWER-IMAGE-DELIVERY.md`.
+Deployment/codec and static WebP assets are accepted. Existing-public-image batch acceptance is complete and recorded separately in `NEXT.md` and `TOWER-IMAGE-DELIVERY.md`; the initial ten-scene target is cancelled, not a pending release gate.
 
 Maintainer environment policy, 2026-11-03: production/main is primary. Dev receives no routine mirrored CI/build/deploy; use it manually only for a necessary isolated R&D test with compatible code/schema and real behavior checked for that test. This supersedes older blanket two-environment maintenance language. Image follow-through remains in the existing 11.12/07.16 scope and single NEXT board; original PNG references and downloadable examples are retained.
+
+Closeout, 2026-11-03: Eight existing public images (three home/dream and five scenes) accepted in bounded batches of six and two: all ready, exact official private R2/public WebP bytes, original PNG SHA unchanged, 304/HEAD/Vary/representation validators and replay without new reservation/audit. Each output was visually inspected. Reduction 86.62–89.76%; combined 26,437,492→3,190,736 bytes. No private seed06–10, new artwork or active appearance was converted. N1/N2 and the revised scene/image batch are closed; N3 normal-time daily/weekly observation is current Next.
