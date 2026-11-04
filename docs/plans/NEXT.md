@@ -178,3 +178,10 @@ Maintainer directs implementation of real change-scoped checks, not a verbal pro
 
 - [ ] **N3-04a — proportional artwork checks and duplicate gates.** Real PP2 evidence exposed static artwork/ASSET-LICENSE changes being forced full on both GitHub and Cloudflare. Preserve script/link/permission/contract protections while allowing validated local cover/social assets and accompanying rights text to take necessary presentation checks. Remove duplicate full runs through a concrete exact-source/artifact gate design; do not claim this is already solved.
 - [ ] **N3-04b — prototype output inventory.** Audit the approximately79MiB public/prototype-assets and its public consumers before reducing the approximately95MiB output. No deletion or route removal is authorized by this diagnostic note alone. Clone5.267s was secondary to queue531.529s/build382.100s, so prioritize the gate correction first.
+
+## Current OPS1 — release cost and obsolete delivery files (2026-11-03)
+
+- [x] **OPS1-01 — delivery cleanup.**35 runtime images converted in six batches, preserved dimensions/alpha, superseded public PNGs removed,35 exact301 aliases; necessary sources retained nonpublic and duplicate species-master removed. Current dist about25MiB versus95MiB; working-tree binary reduction67,308,293B. Git history is preserved, not rewritten.
+- [x] **OPS1-02 — proportionate presentation checks.** Actual five-cover batch now presentation; local raster magic/dimension/size and reference-existence gate added. Backend/permission/contract/script/CSP protections retained.
+- [x] **OPS1-03 — single-build workflow.** Quality verifies/builds once and can upload its same result with dedicated Pages-only credential; coordinated backend/schema/renderer changes cannot silently publish Pages alone. Existing CF project/domains/bindings retained.
+- [ ] **OPS1-04 — actual release.** Confirm CF Git auto off, one actual full infrastructure run, same-run upload, live exact source/compatible schema/renderer and35 historical asset redirects, then backfill roadmap and accepted baseline. Do not run another local/Cloudflare full build.

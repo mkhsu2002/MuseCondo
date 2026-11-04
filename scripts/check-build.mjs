@@ -1,4 +1,5 @@
 import {parse} from 'parse5';
+import {checkImageAssets} from './check-image-assets.mjs';
 /** File-only deployment guard; this does not deploy or configure a hosting account. */
 import { readFile, stat, access, readdir, realpath } from 'node:fs/promises';
 import { resolve, relative, dirname, sep } from 'node:path';
@@ -25,6 +26,12 @@ export async function checkBuild(directory='dist',base=process.env.MUSE_BASE_PAT
         const attrs=Object.fromEntries((node.attrs||[]).map(attr=>[attr.name,attr.value]));
         const asset=node.tagName==='script'?attrs.src:node.tagName==='link'&&(attrs.rel||'').toLowerCase().split(/\s+/).includes('stylesheet')?attrs.href:undefined;
         if(asset){references.push({file,asset});}
+        if(node.tagName==='img'&&attrs.src)references.push({file,asset:attrs.src});
+        if(node.tagName==='img'&&attrs.srcset)for(const candidate of attrs.srcset.split(','))references.push({file,asset:candidate.trim().split(/\s+/)[0]});
+        if(node.tagName==='meta'&&['og:image','twitter:image'].includes(attrs.property??attrs.name)){
+          const value=attrs.content?.replace(/^https:\/\/musetower\.neobabylon\.app(?=\/)/,'');
+          if(value)references.push({file,asset:value});
+        }
         for(const child of node.childNodes||[])inspect(child);
         if(node.content)inspect(node.content);
       }
@@ -35,6 +42,7 @@ export async function checkBuild(directory='dist',base=process.env.MUSE_BASE_PAT
   const canonicalRoot=await realpath(root);
   for(const {file,asset} of references){
     if(/^(?:https?:)?\/\//i.test(asset))continue; // No network access during verification.
+    if(asset.startsWith('data:')&&asset.startsWith('data:image/'))continue;
     if(/^[a-z][a-z0-9+.-]*:/i.test(asset))throw Error('Unsupported local build asset: '+asset);
     let decoded;try{decoded=decodeURIComponent(asset.split(/[?#]/)[0]);}catch{throw Error('Invalid build asset encoding: '+asset);}
     if(decoded.includes('\\')||decoded.split('/').includes('..')||decoded.includes('\0'))throw Error('Build asset path traversal: '+asset);
@@ -45,7 +53,8 @@ export async function checkBuild(directory='dist',base=process.env.MUSE_BASE_PAT
     try{if(!(await stat(path)).isFile()||!(await realpath(path)).startsWith(canonicalRoot+sep))throw Error('not a local file');}
     catch{throw Error('Missing built asset: '+asset+' referenced by '+relative(root,file));}
   }
-  return {directory,base,javaScript:scripts.length,stylesheets:styles.length};
+  const images=await checkImageAssets(directory);
+  return {directory,base,javaScript:scripts.length,stylesheets:styles.length,images:images.length};
 }
 export async function checkIdentityCardBuild(directory='dist') {
   const root=resolve(directory), html=await readFile(resolve(root,'identity/verify/index.html'),'utf8');

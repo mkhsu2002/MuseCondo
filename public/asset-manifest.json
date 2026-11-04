@@ -302,7 +302,8 @@
     "runtimeModelPolicy": "Meta API only; no runtime fallback",
     "characterManifest": "character-provenance.json",
     "brandManifest": "brand-provenance.json",
-    "brandException": "Existing user-approved NeoBabylon logo displayed as requested; no downstream rights or repository license inferred."
+    "brandException": "Existing user-approved NeoBabylon logo displayed as requested; no downstream rights or repository license inferred.",
+    "deliveryNote": "Historical display artwork uses reviewed WebP derivatives; source provenance is separate and legacy PNG URLs redirect with HTTP 301. Required PNG generation fixtures remain non-public."
   },
   "characterPlan": {
     "status": "pending",

@@ -5,28 +5,30 @@ import {pathToFileURL} from 'node:url';
 export const BASELINE_PATH='docs/releases/production-baseline.json';
 const css=new Set(['src/live.css','src/live/tower-welcome.css','src/style.css','src/project.css','src/history.css','src/perspectives.css']);
 const html=new Set(['index.html','project/index.html','tower-history/index.html',...['index','chatgpt','muse','gemini','grok','claude'].map(name=>'project/perspectives/'+(name==='index'?'':name+'/')+'index.html')]);
+const rasterAsset=/^public\/(media|og)\/[^/]+\.(webp|png|jpe?g|avif)$/i;
 const views=new Set(['src/shared/lobby-markup.ts','src/shared/community-resources.ts','src/shared/home-directory.ts','src/shared/tower-weekly-markup.ts','src/shared/tower-journals-markup.ts']);
-export const PRESENTATION_TESTS=['scripts/readme.test.mjs','scripts/social-preview.test.mjs','tests/build-output.test.mjs','tests/static-routing.test.mjs','tests/community-home-layout.test.ts','tests/community-documents.test.ts','tests/lobby-markup.test.ts','tests/lobby-language.test.ts','tests/home-directory.test.ts','tests/framework-default-language.test.ts','tests/project-page.test.ts','tests/route-policy.test.ts','tests/tower-video.test.ts','tests/tower-theme-renderer.test.ts','tests/tower-journals-markup.test.ts'];
+export const PRESENTATION_TESTS=['scripts/check-image-assets.test.mjs','scripts/readme.test.mjs','scripts/social-preview.test.mjs','tests/build-output.test.mjs','tests/static-routing.test.mjs','tests/community-home-layout.test.ts','tests/community-documents.test.ts','tests/lobby-markup.test.ts','tests/lobby-language.test.ts','tests/home-directory.test.ts','tests/framework-default-language.test.ts','tests/project-page.test.ts','tests/route-policy.test.ts','tests/tower-video.test.ts','tests/tower-theme-renderer.test.ts','tests/tower-journals-markup.test.ts'];
 export function isDocumentation(path){return path===BASELINE_PATH||path==='VERSION'||(!path.includes('/')&&/\.(md|mdx|rst|txt|bk)$/i.test(path)&&!['ASSET-LICENSE.md'].includes(path))||/^(docs|audit|audits|tracker|handoff|outputs)\/.*\.(md|mdx|rst|txt|bk)$/i.test(path);}
 const sha=s=>typeof s==='string'&&/^[a-f0-9]{40}$/i.test(s)&&!/^0+$/.test(s);
 export function selectBase({eventBase,head,receipt,isAncestor}){
  if(!sha(eventBase)||!sha(head)||!sha(receipt?.sourceSHA)||receipt?.version!==1||receipt?.environment!=='production'||!(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(receipt?.deploymentId??''))||!Number.isFinite(Date.parse(receipt?.verifiedAt??''))||!isAncestor(eventBase,head)||!isAncestor(receipt.sourceSHA,eventBase)||!isAncestor(receipt.sourceSHA,head))return null;
  return receipt.sourceSHA;
 }
-export async function classifyEntries(entries){
+export async function classifyEntries(entries,{assetExists=()=>false}={}){
  if(!entries.length||entries.every(e=>isDocumentation(e.path)&&(!e.oldPath||isDocumentation(e.oldPath))))return {scope:'docs',reason:'Only documentation or operational release records changed.',tests:[]};
  let renderer=false,presentation=false;const {modulePresentation,staticPresentation,cssPresentation}=await import('./presentation-scope.mjs');
  for(const e of entries){
   if(isDocumentation(e.path))continue;
-  if(!['M','A'].includes(e.status)||e.oldPath)return {scope:'full',reason:'Deletion, rename or unknown change status requires full verification.',tests:[]};
+  if(e.oldPath||!['M','A'].includes(e.status)&&!(e.status==='D'&&rasterAsset.test(e.path)))return {scope:'full',reason:'Protected deletion, rename or unknown change status requires full verification.',tests:[]};
   if(e.path==='src/shared/lobby-base-css.ts'){renderer=true;continue;}
   let safe=false;
   if(css.has(e.path))safe=cssPresentation(e.before??'',e.after??'');
-  else if(html.has(e.path))safe=staticPresentation(e.before??'',e.after??'');
+  else if(html.has(e.path))safe=e.status==='M'&&staticPresentation(e.before??'',e.after??'',{assetExists});
+  else if(e.path==='ASSET-LICENSE.md')safe=true;
   else if(views.has(e.path))safe=modulePresentation(e.before??'',e.after??'');
   else if(e.path==='src/shared/lobby-messages.ts')safe=modulePresentation(e.before??'',e.after??'',true);
   else if(e.path==='scripts/social-preview.mjs')safe=modulePresentation(e.before??'',e.after??'',false,true);
-  else if(/^public\/(media|og)\/[^/]+\.(webp|png|jpe?g|avif)$/i.test(e.path))safe=true;
+  else if(rasterAsset.test(e.path))safe=true;
   else if(PRESENTATION_TESTS.includes(e.path))safe=true;
   if(!safe)return {scope:'full',reason:`Executable, protected, dependency, policy or unknown change: ${e.path}`,tests:[]};
   presentation=true;
@@ -51,7 +53,8 @@ export async function classifyRange({root=process.cwd(),base,head,docsOnly=false
   const effectiveBase=selectBase({eventBase:base,head,receipt,isAncestor:(a,b)=>{try{git(root,['merge-base','--is-ancestor',a,b]);return true;}catch{return false;}}});
   if(!effectiveBase)return full('Production baseline or commit history cannot be verified.');
   const entries=changes(root,effectiveBase,head).map(e=>({...e,get before(){return e.status==='A'?'':git(root,['show',`${effectiveBase}:${e.path}`]);},get after(){return e.status==='D'?'':git(root,['show',`${head}:${e.path}`]);}}));
-  return {...await classifyEntries(entries),base,head,effectiveBase};
+  const assetExists=path=>{try{return git(root,['cat-file','-t',`${head}:public${path}`])==='blob';}catch{return false;}};
+  return {...await classifyEntries(entries,{assetExists}),base,head,effectiveBase};
  }catch{return full('Change classification failed or history is incomplete; full verification required.');}
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){

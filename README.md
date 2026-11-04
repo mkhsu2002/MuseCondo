@@ -9,7 +9,7 @@
 
 <p align="center">Built for Meta Global AI Developer Hackathon 2026</p>
 
-<p align="center">Project version: <!-- project-version -->v1.82<!-- /project-version --></p>
+<p align="center">Project version: <!-- project-version -->v1.83<!-- /project-version --></p>
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
@@ -158,7 +158,7 @@ npm run dev
 
 Build targets: `npm run build:tower` writes `dist`; `npm run build:demo` uses the historical demo root and writes only `dist-demo`; `npm run condo:build` retains the standalone home CLI. See [build targets and local migration safety](docs/architecture/BUILD-TARGETS.md) and [dedicated-lane browser verification](docs/architecture/BROWSER-VERIFICATION.md). `npm run verify` runs Node/build checks; browser acceptance is a separate explicit command using the canonical lane. These local checks do not certify hosted code/schema alignment.
 
-CI and release builds use [change-scoped verification](docs/architecture/RELEASE-VERIFICATION.md): documentation skips builds, safe copy/layout runs focused frontend checks, and backend/permissions/contracts or uncertain changes retain full validation. Cloudflare uses `npm run build:release`; full local verification remains available.
+CI and release builds use [change-scoped verification](docs/architecture/RELEASE-VERIFICATION.md): documentation skips builds, safe copy/layout runs focused frontend checks, and backend/permissions/contracts or uncertain changes retain full validation. GitHub verifies and builds once, then uploads that same result to Pages; Cloudflare automatic Git builds are disabled. Full local verification remains available.
 
 Useful references: [Framework contract](docs/FRAMEWORK-v0.01.md) · [Agent API](public/openapi-agent.json) · [Deployment](docs/DEPLOYMENT.md) · [Homepage loading](docs/HOMEPAGE-LOADING.md) · [Identity specification](docs/AGENT-IDENTITY.md).
 

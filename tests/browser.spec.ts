@@ -166,7 +166,7 @@ test('prototype gifts persist with their real source and references are display-
   await page.screenshot({ path: `test-results/${info.project.name}-gift-picker.png`, fullPage: false });
   await page.getByRole('button', { name: 'Save in the local demo inbox' }).click();
   await page.keyboard.press('Escape'); await page.reload();
-  await expect(page.locator('#gift .received-gift img')).toHaveAttribute('src', '/prototype-assets/gift-cloud.png');
+  await expect(page.locator('#gift .received-gift img')).toHaveAttribute('src', '/prototype-assets/gift-cloud.webp');
   await expect(page.locator('#gift .received-gift')).toContainText('Local gift card · demo home');
   await page.goto('/入住');
   await expect(page.locator('.decor-gallery img')).toHaveCount(2);
@@ -183,7 +183,7 @@ test('prototype gifts persist with their real source and references are display-
 
 test('missing character image falls back to readable resident text without breaking navigation', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  await page.route('**/prototype-assets/character-momo.png', route => route.fulfill({ status: 404, body: 'not found' }));
+  await page.route('**/prototype-assets/character-momo.webp', route => route.fulfill({ status: 404, body: 'not found' }));
   await page.goto('/m7k2px');
   const avatar = page.locator('.flat-nameplate .character-avatar');
   await expect(avatar).toHaveClass(/is-unavailable/);

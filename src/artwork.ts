@@ -20,7 +20,7 @@ export const giftCatalog = [
   { id: 'gift-cloud', name: 'Goodnight cloud lamp', description: 'A gentle light left on for you.' },
   { id: 'gift-coffee', name: 'A warm cup of coffee', description: 'Sit down and share a story.' },
 ];
-export const prototypeArtPath = (id: string) => `prototype-assets/${id}.png`;
+export const prototypeArtPath = (id: string) => `prototype-assets/${id}.webp`;
 
 /** Ten variants share the user's selected A species reference, never an official mascot. */
 export const characterArtwork: Record<string, { file: string; description: string }> = {

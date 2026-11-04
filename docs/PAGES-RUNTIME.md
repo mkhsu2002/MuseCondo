@@ -8,7 +8,7 @@
 
 dev 僅在具體研發、隔離測試或正式環境不宜執行的合成驗證需要時按需啟用。dev 日常 cron 停用；必要測試由 operator 手動啟動，測試後維持停用。既有 DO alarms 與受保護的手動測試入口保留。啟用前確認其 schema、deployed code、bindings 與實際測試行為一致，使用合成資料；不得複製正式住戶資料或把 dev 結果宣稱為正式驗收。正式發布仍須驗證 production 的分支、migration、Functions／相依 Worker、前後端契約與 live behavior，不可只發布前端。若本次同時啟用 dev，才對該次測試所需的版本與資料契約逐項驗證。
 
-依 [Cloudflare branch controls](https://developers.cloudflare.com/pages/configuration/branch-build-controls/) 與 [Git integration](https://developers.cloudflare.com/pages/configuration/git-integration/) 的分支控制，Git preview 自動 build 已於 2026-11-03 經官方 API 關閉（`preview_deployment_setting: none`）；production `main` 自動部署、現有 dev、build、bindings、secrets 與網域設定均保留。按需研發仍可使用明確指定分支的手動 Wrangler preview 部署；這次必要的一次性合成 codec smoke 不恢復例行 dev CI。下方歷史記錄中的兩環境同步要求反映當時政策，日常環境選擇以本節為準。
+依 [Cloudflare branch controls](https://developers.cloudflare.com/pages/configuration/branch-build-controls/) 與 [Git integration](https://developers.cloudflare.com/pages/configuration/git-integration/) 的分支控制，Git preview 自動 build 已於 2026-11-03 經官方 API 關閉（`preview_deployment_setting: none`）；此段原本保留的 production `main` Git 自動建置已由單次建置發布流程取代：GitHub Quality 通過後上傳同一份成品；Cloudflare Git 自動建置停用。現有 dev、bindings、secrets 與網域保留。按需研發仍可使用明確指定分支的手動 Wrangler preview 部署；這次必要的一次性合成 codec smoke 不恢復例行 dev CI。下方歷史記錄中的兩環境同步要求反映當時政策，日常環境選擇以本節為準。
 
 ## 歷史契約與版本證據（2026-10-29 至 2026-11-02）
 

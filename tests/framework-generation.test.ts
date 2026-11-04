@@ -5,8 +5,8 @@ import {createFrameworkHomeGenerator, scenePrompt} from '../server/framework/gen
 import type {RequestJournal} from '../server/live/meta-home.ts';
 import {workerdFetch} from './helpers/workerd-fetch.ts';
 const seed=JSON.parse(readFileSync(new URL('../fixtures/framework/safe-seed.json',import.meta.url),'utf8'));
-const desktop=readFileSync(new URL('../public/prototype-assets/momo-desktop.png',import.meta.url));
-const mobile=readFileSync(new URL('../public/prototype-assets/momo-mobile.png',import.meta.url));
+const desktop=readFileSync(new URL('../fixtures/prototype-art/momo-desktop.png',import.meta.url));
+const mobile=readFileSync(new URL('../fixtures/prototype-art/momo-mobile.png',import.meta.url));
 function journal(){const claims=new Set<string>();return {async begin(_key:string,stage:string){if(claims.has(stage))throw Error('already claimed');claims.add(stage);return stage;},async finish(){}} as RequestJournal;}
 const json=(x:unknown)=>new Response(JSON.stringify(x),{headers:{'content-type':'application/json'}});
 test('framework generation preserves the agent scene instead of a closed palette and excludes private evidence',async()=>{

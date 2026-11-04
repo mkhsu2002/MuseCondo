@@ -206,3 +206,38 @@ jobs:
       - name: Verify native image jobs, private Images bridge, quotas, durable deduplication and fallback
         if: steps.scope.outputs.scope == 'full'
         run: npm run test:native:images -- "$RUNNER_TEMP/muse-native/node_modules"
+
+      # Preserve the already verified build; this never runs another application build.
+      - name: Plan Pages publication against accepted production
+        id: pages
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.docs.outputs.scope != 'docs'
+        env:
+          PAGES_EVENT_BASE: ${{ steps.comparison.outputs.base }}
+          PAGES_VERIFIED_SCOPE: ${{ steps.scope.outputs.scope }}
+        run: node scripts/pages-release.mjs plan
+      - name: Preserve same-run Pages build for coordinated or automatic publication
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.docs.outputs.scope != 'docs'
+        run: |
+          mkdir -p "$RUNNER_TEMP/muse-pages-release"
+          tar --exclude='*/.env*' --exclude='.env*' --exclude='*/.dev.vars*' --exclude='.dev.vars*' -czf "$RUNNER_TEMP/muse-pages-release/pages-release.tgz" dist functions server src workers scripts migrations .release/manifest.json package.json package-lock.json tsconfig.json tsconfig.functions.json .node-version
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.docs.outputs.scope != 'docs'
+        with:
+          name: muse-pages-${{ github.sha }}
+          path: ${{ runner.temp }}/muse-pages-release/pages-release.tgz
+          retention-days: 7
+          if-no-files-found: error
+      - name: Prepare pinned Pages uploader when presentation verification skipped native tools
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.pages.outputs.auto_allowed == 'true'
+        run: |
+          if [ ! -f "$RUNNER_TEMP/muse-native/node_modules/wrangler/bin/wrangler.js" ]; then
+            npm install --prefix "$RUNNER_TEMP/muse-native" --no-audit --no-fund wrangler@4.156.0
+          fi
+      - name: Deploy the verified same-run Pages build
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.pages.outputs.auto_allowed == 'true'
+        env:
+          PAGES_EVENT_BASE: ${{ steps.comparison.outputs.base }}
+          PAGES_VERIFIED_SCOPE: ${{ steps.scope.outputs.scope }}
+          CLOUDFLARE_ACCOUNT_ID: '82af99e90d342a30d2386efaa8ef4966'
+          CLOUDFLARE_API_TOKEN: ${{ secrets.MUSE_PAGES_DEPLOY_TOKEN }}
+        run: node scripts/pages-release.mjs deploy

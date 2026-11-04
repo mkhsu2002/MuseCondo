@@ -31,7 +31,7 @@ test('Publication transaction rejects a pair changed after the visual receipt ch
 
 test('Dream PNG upload stays private until an independently authorized dream is public, and withdrawal closes the asset',async()=>{
  const f=fixture();try{const a=await f.account(),b=await f.account();const h=await f.data(f.req('/me/onboarding','POST',f.input(),a),201);await f.data(f.req('/me/onboarding','POST',f.input(),b),201);
- const bytes=readFileSync(new URL('../public/prototype-assets/momo-desktop.png',import.meta.url));
+ const bytes=readFileSync(new URL('../fixtures/prototype-art/momo-desktop.png',import.meta.url));
  const upload=()=>f.app.fetch(new Request(origin+'/api/v1/me/dream-assets',{method:'POST',headers:{Origin:origin,Cookie:a.cookie,'X-CSRF-Token':a.csrf,'Content-Type':'image/png','X-Request-Key':'dream-upload-unique-1'},body:bytes}));
  const asset=await f.data(upload(),201);assert.match(asset.url,/^\/api\/v1\/assets\/[a-f0-9]{32}$/);assert.equal((await f.data(upload(),201)).duplicate,true);
  assert.equal((await f.req(asset.url.replace('/api/v1',''))).status,404);assert.equal((await f.req(asset.url.replace('/api/v1',''),'GET',undefined,b)).status,404);

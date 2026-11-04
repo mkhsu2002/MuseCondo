@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {classifyEntries,selectBase,isDocumentation} from './change-scope.mjs';
+import {classifyEntries,selectBase,isDocumentation,PRESENTATION_TESTS} from './change-scope.mjs';
 const entry=(path,before,after,status='M')=>({path,before,after,status});
 test('documentation is a genuine no-build scope; executable files under docs are not',async()=>{
  assert.equal(isDocumentation('docs/plan.md'),true);assert.equal(isDocumentation('docs/run.js'),false);
@@ -79,4 +79,49 @@ test('known perspective documents permit copy edits but retain link and script g
 test('perspective stylesheet layout remains light while external dependencies are full',async()=>{
  assert.equal((await classifyEntries([entry('src/perspectives.css','main{gap:2rem}','main{gap:3rem}')])).scope,'presentation');
  assert.equal((await classifyEntries([entry('src/perspectives.css','main{gap:2rem}','@import url(https://external.example/style.css);main{gap:3rem}')])).scope,'full');
+});
+
+const imageAssets=new Set(['/media/cover.webp','/og/share.jpg']);
+const imageOptions={assetExists:path=>imageAssets.has(path)};
+test('static covers, raster social metadata and asset-license output use presentation checks',async()=>{
+ const before='<html><head><meta property="og:image" content="https://musetower.neobabylon.app/og/share.jpg"></head><body><main id="main"><h1>Article</h1></main></body></html>';
+ const cover='<figure><img src="/media/cover.webp" srcset="/media/cover.webp 1x, https://musetower.neobabylon.app/media/cover.webp 2x" width="1280" height="720" alt="A home" loading="eager" fetchpriority="high" decoding="async"><figcaption>An imagined home.</figcaption></figure>';
+ const after=before.replace('</head>','<meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="720"><meta property="og:image:alt" content="A home"><meta name="twitter:image" content="https://musetower.neobabylon.app/og/share.jpg"></head>').replace('</main>',cover+'</main>');
+ assert.equal((await classifyEntries([entry('project/perspectives/muse/index.html',before,after)],imageOptions)).scope,'presentation');
+ assert.equal((await classifyEntries([entry('ASSET-LICENSE.md','Old rights','New artwork rights')])).scope,'presentation');
+ assert.equal(isDocumentation('ASSET-LICENSE.md'),false);
+});
+test('static image display never permits missing, external, dynamic, query or executable resource changes',async()=>{
+ const before='<html><body><main id="main"><h1>Article</h1></main></body></html>';
+ for(const cover of [
+  '<img src="https://external.example/media/cover.webp">','<img src="//musetower.neobabylon.app/media/cover.webp">','<img src="/api/v1/assets/cover.webp">','<img src="/media/missing.webp">','<img src="/media/../secret.webp">','<img src="/media/%2e%2e/secret.webp">','<img src="/media/cover.webp?tracking=1">','<img src="data:image/png;base64,AAAA">',
+  '<img src="/media/cover.webp" onerror="run()">','<img src="/media/cover.webp" data-route="/identity">','<img src="/media/cover.webp" id="control">','<img src="/media/cover.webp" srcset="/media/cover.webp 1x, https://external.example/x.webp 2x">','<img src="/media/cover.webp" width="invalid">',
+  '<template><script src="/unapproved.js"></script></template>','<noscript><img src="https://external.example/fallback.jpg"></noscript>',
+  '<meta property="og:image" content="https://external.example/og/share.jpg">','<script src="/media/cover.webp"></script>','<iframe src="/media/cover.webp"></iframe>','<link rel="stylesheet" href="/media/cover.webp">','<form action="/media/cover.webp"><button>Send</button></form>'
+ ])assert.equal((await classifyEntries([entry('project/perspectives/muse/index.html',before,before.replace('</main>',cover+'</main>'))],imageOptions)).scope,'full',cover);
+ assert.equal((await classifyEntries([entry('project/perspectives/muse/index.html','',before,'A')],imageOptions)).scope,'full','a newly added HTML document is a route change');
+ const logo='<html><body><img src="/brand-logo.webp" alt="Brand"></body></html>';assert.equal((await classifyEntries([entry('project/index.html',logo,logo.replace('alt=','usemap="#controls" alt='))],imageOptions)).scope,'full','unrecognized image behavior attributes remain protected');
+});
+test('new plain article sections allow self-contained accessible headings while existing control identities stay protected',async()=>{
+ const before='<html><body><main id="main"><h1>Article</h1><section id="existing" aria-labelledby="existing-title"><h2 id="existing-title">Existing</h2></section><button id="control" aria-controls="existing">Open</button></main></body></html>';
+ const section='<section id="new-question" aria-labelledby="question-heading"><h2 id="question-heading">The question</h2><blockquote><p>Public words.</p></blockquote></section>';
+ assert.equal((await classifyEntries([entry('project/perspectives/index.html',before,before.replace('</main>',section+'</main>'))],imageOptions)).scope,'presentation');
+ for(const after of [before.replace('id="control"','id="renamed"'),before.replace('aria-controls="existing"','aria-controls="new-question"'),before.replace('aria-labelledby="existing-title"','aria-labelledby="main"'),before.replace('</main>','<section aria-labelledby="control"><h2>Words</h2></section></main>'),before.replace('</main>',section.replace('<p>','<p data-action="publish">')+'</main>')])assert.equal((await classifyEntries([entry('project/perspectives/index.html',before,after)],imageOptions)).scope,'full');
+});
+test('actual five-perspective cover and licensed artwork batch replays as presentation',async()=>{
+ const {execFileSync}=await import('node:child_process');const base='15283fe4116fa169f05c87b28be219625f9e588b',head='fc55e88';
+ try{execFileSync('git',['cat-file','-e',head+'^{commit}'],{stdio:'ignore'});}catch{return;}
+ const rows=execFileSync('git',['diff','--name-status','--no-renames',base,head],{encoding:'utf8'}).trim().split('\n');
+ const entries=rows.map(row=>{const [status,path]=row.split('\t');return {status,path,get before(){return status==='A'?'':execFileSync('git',['show',base+':'+path],{encoding:'utf8',maxBuffer:2e6});},get after(){return execFileSync('git',['show',head+':'+path],{encoding:'utf8',maxBuffer:2e6});}};});
+ const assetExists=path=>{try{execFileSync('git',['cat-file','-e',head+':public'+path],{stdio:'ignore'});return true;}catch{return false;}};
+ assert.equal((await classifyEntries(entries,{assetExists})).scope,'presentation');
+});
+
+
+test('only exact public raster deletions stay presentation; protected deletion and explicit renames stay full',async()=>{
+ for(const path of ['public/media/unused.webp','public/og/old.jpg','public/media/unused.png','public/og/unused.jpeg','public/media/unused.avif'])assert.equal((await classifyEntries([entry(path,'old bytes','','D')])).scope,'presentation',path);
+ for(const path of ['ASSET-LICENSE.md','project/index.html','server/live/app.ts','public/media/worker.js','public/media/icon.svg','public/private/unused.webp','public/media/nested/unused.webp'])assert.equal((await classifyEntries([entry(path,'old','','D')])).scope,'full',path);
+ assert.equal((await classifyEntries([{...entry('public/media/new.webp','old','new','M'),oldPath:'public/media/old.webp'}])).scope,'full');
+ assert.equal((await classifyEntries([entry('public/media/old.webp','old','','R100')])).scope,'full');
+ assert.equal(PRESENTATION_TESTS[0],'scripts/check-image-assets.test.mjs','presentation must retain the build asset guard tests');assert.equal(PRESENTATION_TESTS.length,16);
 });

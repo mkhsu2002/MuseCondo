@@ -9,7 +9,8 @@ import { publicProjection, publicManagerInput, type PrivateResident } from '../s
 import { FileJobStore, OnboardingService, type OnboardingInput } from '../server/onboarding.ts';
 import { disconnectedMeta, type MetaGateway, type MetaGenerationResult } from '../server/meta.ts';
 import { residents } from '../src/residents.ts';
-import { homeArtwork, characterArtwork } from '../src/artwork.ts';
+import { homeArtwork, characterArtwork, prototypeArtPath } from '../src/artwork.ts';
+import { cleanTowerWebP } from '../server/live/tower-image-webp.ts';
 function memoryStore(): StorageLike {
   const store = new Map<string, string>();
   return { getItem: key => store.get(key) ?? null, setItem: (key, value) => { store.set(key, value); }, removeItem: key => { store.delete(key); } };
@@ -122,10 +123,14 @@ test('every prototype asset has truthful Codex provenance and matches the delive
     assert.equal(asset.provider, 'codex-built-in-imagegen'); assert.equal(asset.status, 'prototype-generated');
     assert.equal(asset.productionReplacement, 'meta-api'); assert.equal(asset.model, null); assert.equal(asset.generatedAt, null);
     assert.ok(asset.prompt); assert.ok(asset.promptVersion); assert.ok(asset.observedAt);
-    const file = await readFile(new URL(`../public/${asset.file}`, import.meta.url));
+    const file = await readFile(new URL(`../${asset.fileRoot==='repository'?'':'public/'}${asset.file}`, import.meta.url));
     assert.equal(createHash('sha256').update(file).digest('hex'), asset.sha256);
-    assert.equal(file.readUInt32BE(16), asset.width); assert.equal(file.readUInt32BE(20), asset.height);
-    if (asset.purpose === 'gift') assert.equal(file[25], 6); // PNG retains alpha channel.
+    const decoded=cleanTowerWebP(new Uint8Array(file));
+    assert.equal(decoded.width, asset.width); assert.equal(decoded.height, asset.height);
+    assert.equal(asset.deliveryConversion.alphaUnchanged,true);
+    if (asset.purpose === 'gift') assert.equal(decoded.alpha,true);
+    assert.match(asset.sourceSha256,/^[a-f0-9]{64}$/);
+    assert.ok(file.length<asset.sourceByteLength);
   }
 });
 
@@ -143,9 +148,10 @@ test('ten Star Sprout portraits map to residents and derive from the selected A 
     assert.ok(record); assert.equal(record.referenceAssetId, master.id); assert.equal(record.purpose, 'character'); assert.ok(record.prompt);
   }
   for (const asset of manifest.assets) {
-    const file = await readFile(new URL(`../public/${asset.file}`, import.meta.url));
+    const file = await readFile(new URL(`../${asset.fileRoot==='repository'?'':'public/'}${asset.file}`, import.meta.url));
     assert.equal(createHash('sha256').update(file).digest('hex'), asset.sha256);
-    assert.equal(file.readUInt32BE(16), 1254); assert.equal(file.readUInt32BE(20), 1254);
+    if(asset.contentType==='image/webp'){const decoded=cleanTowerWebP(new Uint8Array(file));assert.equal(decoded.width,1254);assert.equal(decoded.height,1254);assert.equal(asset.deliveryConversion.alphaUnchanged,true);}
+    else {assert.equal(file.readUInt32BE(16),1254);assert.equal(file.readUInt32BE(20),1254);}
     assert.equal(asset.provider, 'codex-built-in-imagegen'); assert.equal(asset.model, null); assert.equal(asset.generatedAt, null);
   }
 });
@@ -174,4 +180,18 @@ test('approved NeoBabylon logo matches its recorded provenance without granting 
   assert.equal(asset.status, 'user-approved-existing-brand-asset');
   assert.equal(asset.model, null); assert.equal(asset.prompt, null);
   assert.match(asset.usageScope, /does not grant downstream rights/);
+});
+
+
+test('all 35 historical display assets use WebP with exact permanent legacy URL redirects',async()=>{
+ const manifests=await Promise.all(['prototype-provenance','character-provenance'].map(async name=>JSON.parse(await readFile(new URL(`../public/${name}.json`,import.meta.url),'utf8'))));
+ const display=manifests.flatMap(manifest=>manifest.assets).filter(asset=>asset.contentType==='image/webp');assert.equal(display.length,35);
+ const redirects=(await readFile(new URL('../public/_redirects',import.meta.url),'utf8')).split('\n').filter(line=>line&&!line.startsWith('#'));assert.equal(redirects.length,35);
+ for(const asset of display){
+  assert.equal(prototypeArtPath(asset.id),asset.file);
+  assert.ok(redirects.includes(`/prototype-assets/${asset.id}.png /${asset.file} 301`));
+  await assert.rejects(readFile(new URL(`../public/prototype-assets/${asset.id}.png`,import.meta.url)),{code:'ENOENT'});
+  if(asset.sourceFixture){const bytes=await readFile(new URL(`../${asset.sourceFixture}`,import.meta.url));assert.equal(createHash('sha256').update(bytes).digest('hex'),asset.sourceSha256);assert.equal(bytes.length,asset.sourceByteLength);}
+ }
+ for(const name of ['character-reference-a','character-species-master'])await assert.rejects(readFile(new URL(`../public/prototype-assets/${name}.png`,import.meta.url)),{code:'ENOENT'});
 });

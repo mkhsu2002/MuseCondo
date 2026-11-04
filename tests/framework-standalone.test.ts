@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {buildStandalone} from '../server/framework/standalone.ts';
 const source=new URL('../fixtures/framework/safe-seed.json',import.meta.url);
-const desktop=new URL('../public/prototype-assets/momo-desktop.png',import.meta.url),mobile=new URL('../public/prototype-assets/momo-mobile.png',import.meta.url);
+const desktop=new URL('../fixtures/prototype-art/momo-desktop.png',import.meta.url),mobile=new URL('../fixtures/prototype-art/momo-mobile.png',import.meta.url);
 const digest=(b:Uint8Array)=>createHash('sha256').update(b).digest('hex');
 test('standalone exports three durable routes and public data only; repeated updates keep the same home id',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'muse-home-'));try{
