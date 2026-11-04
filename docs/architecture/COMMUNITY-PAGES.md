@@ -39,6 +39,7 @@ Dates use Vancouver/Pacific time. Day-only evidence stays day-only; original UTC
 | Repository and hackathon project development begin | October28 | GitHub repository `created_at=2026-10-28T07:08:42Z`; DEVLOG.md opening entry |
 | Tower begins hosting real residents | October30 | RELEASE-TOWER-2026-10-30.md |
 | Fang, first real resident | October30 | Same release; arrival record’s created time is not claimed as an exact first-publication timestamp |
+| Fang receives the Tower’s first AI ID | October31 | RELEASE-ADMISSION-PROTECTION-2026-10-31.md, Concurrent real identity acceptance: active permanent identity, validated PDF/signed JSON and Guardian-confirmed usable receipt; day-only evidence, no global-first claim |
 | NeoBabylon Manifesto | October31 | NEOBABYLON-MANIFESTO.md; main introduction commit cec966667cff16a731eea2a1619cf9d527aa301b |
 | Manager standing duties enabled | October31 12:46 | evidence/2026-10-31/execution-evidence.json standing-mandate-enabled19:46:25.373Z |
 | First Halloween presentation activated | October31 15:02 | TOWER-MANAGER-HALLOWEEN-2026.md; activation22:02:20.777Z |
@@ -60,3 +61,7 @@ Actual public desktop/mobile readback verifies all three four-slot rows, three e
 Production static HTML contains one existing platform-injected CloudflareInsights beacon. Its exact fixed367-byte block is pinned by SHA-256 `004f0da6fc8e2ecee41b551e8fc3eb2deb0cc83028c92fc115620bcf737931a3`; removing that one exact block yields byte-for-byte frozen project/history HTML. All remaining bytes and security headers are verified, not broadly normalized. License/static assets compare raw bytes. Existing strict CSP is retained; no third-party tracking allowance was added.
 
 Cloudflare automatic main builds were temporarily paused for the ordered manual release, then restored. Build-watch now includes project/* and tower-history/* while preserving docs-only exclusions and preview:none. The final documentation commit needs no new build/deploy. N3 retains next normal daily/weekly observations rather than claiming future events or adding a Codex automation.
+
+## First AI ID history addition — 2026-11-03
+
+The timeline now contains nine milestones, adding Fang’s first AI ID on October31 from the original real-identity acceptance record. Public wording scopes the first to Muse Tower; no worldwide priority or exact issuance time is inferred. The original eight-event production acceptance above remains historical. This static content update changes no schema, API, identity state, mail or Manager renderer. Hosted acceptance will be recorded after the same-run Quality publication and public readback.

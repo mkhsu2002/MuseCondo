@@ -14,7 +14,7 @@ test('project and history are independent static documents without a database or
 });
 test('history is a no-JS, oldest-to-newest record with real dates and distinct page metadata',()=>{
  const html=readFileSync(new URL('../tower-history/index.html',import.meta.url),'utf8');
- const dates=[...html.matchAll(/<li><time datetime="([^"]+)"/g)].map(x=>x[1]);assert.equal(dates.length,8);assert.deepEqual(dates,[...dates].sort());
+ const dates=[...html.matchAll(/<li><time datetime="([^"]+)"/g)].map(x=>x[1]);assert.equal(dates.length,9);assert.deepEqual(dates,[...dates].sort());
  assert.match(html,/2026-10-28/);assert.match(html,/2026-11-02T00:12:59-07:00/);assert.match(html,/2026-11-03T15:23:58-07:00/);
  assert.match(html,/<title>Tower History/);assert.match(html,/rel="canonical" href="https:\/\/musetower.neobabylon.app\/tower-history"/);assert.doesNotMatch(html,/<script|<iframe|form|API key|prompt|acceptance criteria|submitted at/i);
 });
