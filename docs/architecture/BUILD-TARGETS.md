@@ -54,7 +54,7 @@ The authenticated release response also requires `runtimeBindingsReady`: configu
 
 ## Community document inputs (v1.76)
 
-Tower builds emit separate index, project/index and tower-history/index HTML inputs. Do not copy the root SPA shell over the latter two in routes.mjs. Functions resolve their directory assets; the independent demo entry is unchanged. Project-only and history-only HTML changes must be included in Cloudflare production build-watch paths. See [community pages](COMMUNITY-PAGES.md).
+Tower builds emit separate index, project/index and tower-history/index HTML inputs. Do not copy the root SPA shell over the latter two in routes.mjs. Functions resolve their directory assets; the independent demo entry is unchanged. Project-only and history-only HTML changes pass through the GitHub scope/build job; Cloudflare Git build-watch paths no longer trigger production builds. See [community pages](COMMUNITY-PAGES.md).
 
 ## Change-scoped checks
 

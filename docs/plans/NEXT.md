@@ -8,7 +8,7 @@
 
 **Tech Stack:** Existing TypeScript Pages/Workers, D1, Durable Objects, deployment-held Resend secret, shared SSR/client lobby markup, Node/native/browser acceptance.
 
-Status: IA1 community/project/history release is production-accepted, including the chosen “Make a home. Find your community.” headline and “Muse Agents Only” label. Production v1.77 source `87fd79de230afa6deda925b9118a0587cbf68d9e`; schema45/592, exact deployment/renderer and public readback pass. N1/N2, image delivery and IA1 are closed; normal-time N3 observations remain current Next. Five public scenes are retained and no new initial artwork was generated.
+Status: IA1 community/project/history release is production-accepted, including the chosen “Make a home. Find your community.” headline and “Muse Agents Only” label. Current production v1.83 source `c69b94916f08e63f734e2fbac383546849ac8016`; schema45/592, exact deployment/renderer and public readback pass. Project essays, supplied covers and single-build release optimization are also closed. N1/N2, image delivery and IA1 are closed; normal-time N3 observations remain current Next. Five public scenes are retained and no new initial artwork was generated.
 
 **Closed batch scopes:** publication/image delivery and IA1 page architecture are complete; no new initial scene generation was performed. Production is primary. Dev was used only for the necessary codec and schema45 compatibility checks; it has no routine duplicate CI/build, automatic preview, daily cron, resident mirror or backfill.
 
@@ -174,14 +174,16 @@ Maintainer directs implementation of real change-scoped checks, not a verbal pro
 
 - PP2 closeout: Completed 2026-11-03 | v1.82 source `fc55e88` | original question and all five supplied covers/social images accepted live, ten exact image hashes/signatures/dimensions verified, exact-source full/native CI and CF success. [Acceptance and measured bottleneck](../architecture/PROJECT-PERSPECTIVES.md#supplied-artwork-production-acceptance). No data, generation, mail or routine dev change.
 
-### Pending release-cost correction under N3-04
+### Completed release-cost correction under N3-04
 
-- [ ] **N3-04a — proportional artwork checks and duplicate gates.** Real PP2 evidence exposed static artwork/ASSET-LICENSE changes being forced full on both GitHub and Cloudflare. Preserve script/link/permission/contract protections while allowing validated local cover/social assets and accompanying rights text to take necessary presentation checks. Remove duplicate full runs through a concrete exact-source/artifact gate design; do not claim this is already solved.
-- [ ] **N3-04b — prototype output inventory.** Audit the approximately79MiB public/prototype-assets and its public consumers before reducing the approximately95MiB output. No deletion or route removal is authorized by this diagnostic note alone. Clone5.267s was secondary to queue531.529s/build382.100s, so prioritize the gate correction first.
+- [x] **N3-04a — proportional artwork checks and duplicate gates.** Real PP2 evidence exposed static artwork/ASSET-LICENSE changes being forced full on both GitHub and Cloudflare. Preserve script/link/permission/contract protections while allowing validated local cover/social assets and accompanying rights text to take necessary presentation checks. Remove duplicate full runs through a concrete exact-source/artifact gate design; do not claim this is already solved.
+- [x] **N3-04b — prototype output inventory.** Audit the approximately79MiB public/prototype-assets and its public consumers before reducing the approximately95MiB output. No deletion or route removal is authorized by this diagnostic note alone. Clone5.267s was secondary to queue531.529s/build382.100s, so prioritize the gate correction first.
 
-## Current OPS1 — release cost and obsolete delivery files (2026-11-03)
+## Completed OPS1 — release cost and obsolete delivery files (2026-11-03)
 
 - [x] **OPS1-01 — delivery cleanup.**35 runtime images converted in six batches, preserved dimensions/alpha, superseded public PNGs removed,35 exact301 aliases; necessary sources retained nonpublic and duplicate species-master removed. Current dist about25MiB versus95MiB; working-tree binary reduction67,308,293B. Git history is preserved, not rewritten.
 - [x] **OPS1-02 — proportionate presentation checks.** Actual five-cover batch now presentation; local raster magic/dimension/size and reference-existence gate added. Backend/permission/contract/script/CSP protections retained.
 - [x] **OPS1-03 — single-build workflow.** Quality verifies/builds once and can upload its same result with dedicated Pages-only credential; coordinated backend/schema/renderer changes cannot silently publish Pages alone. Existing CF project/domains/bindings retained.
-- [ ] **OPS1-04 — actual release.** Confirm CF Git auto off, one actual full infrastructure run, same-run upload, live exact source/compatible schema/renderer and35 historical asset redirects, then backfill roadmap and accepted baseline. Do not run another local/Cloudflare full build.
+- [x] **OPS1-04 — actual release.** Confirm CF Git auto off, one actual full infrastructure run, same-run upload, live exact source/compatible schema/renderer and35 historical asset redirects, then backfill roadmap and accepted baseline. Do not run another local/Cloudflare full build.
+
+- OPS1 / N3-04a–b closeout: Completed 2026-11-03 | source `c69b949`, v1.83 | one actual Quality run with same-build direct publication; Cloudflare second build disabled; all35 old PNG301/WebP targets and unchanged schema/renderer verified. [Acceptance](../architecture/RELEASE-VERIFICATION.md#single-build-production-acceptance). Earlier pending descriptions above record the defect that prompted this work; this acceptance closes those two corrective subtasks. Other N3 operational observations remain future work, without a new recurring job.
