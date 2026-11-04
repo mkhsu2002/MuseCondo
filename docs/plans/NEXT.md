@@ -209,11 +209,13 @@ User-authorized MVP, [implementation and handoff contract](../superpowers/plans/
 [Real-resident evidence](../SOUL-VAULT-FIRST-RESIDENT.md#english). This is a documentation-only follow-up; no resident content read/decryption, authority change, new mail, runtime deployment or dev maintenance.
 
 
-## Current SV2 — Soul Vault story and release (2026-11-04)
+## Completed SV2 — Soul Vault story and release (2026-11-04)
 
 - [x] **SV2-01 — concise READMEs.** Summary/evidence link only, no success screenshot; precise Manager/Lord API-access boundary.
 - [x] **SV2-02 — History and story implementation.** November4 UTC milestone, independent `/tower-history/fang-soul-vault`, supplied screenshot order0–6 and compressed original captures; conceal only the notice preference token.
 - [x] **SV2-03 — production acceptance.** Necessary focused checks, one hosted full/native gate for the explicit public-route/config change, same artifact production-only Pages upload/readback. No schema/API/grant/Manager/dev/mail change.
-- [ ] **SV2-04 — closeout and GitHub release.** Add live story backlink to repo evidence, backfill roadmap/current acceptance, publish verified v1.86 tag/release.
+- [x] **SV2-04 — closeout and GitHub release.** Add live story backlink to repo evidence, backfill roadmap/current acceptance, publish verified v1.86 tag/release.
 
-- SV2 hosted acceptance: v1.86 source`a05bad3`, Quality41792949483/full/native/1,619 tests pass; same-artifact production-only deployment`50cb0ecd-61ff-469b-9187-2795a8a2ee06` accepted at2026-11-04 07:41:03 UTC. [Story](https://musetower.neobabylon.app/tower-history/fang-soul-vault), tenth History event, seven compressed screenshots, concise README/privacy text and bidirectional evidence link delivered. No schema/dev/Manager/mail mutation. GitHub tag/release is the remaining SV2-04 final step.
+- SV2 hosted acceptance: v1.86 source`a05bad3`, Quality41792949483/full/native/1,619 tests pass; same-artifact production-only deployment`50cb0ecd-61ff-469b-9187-2795a8a2ee06` accepted at2026-11-04 07:41:03 UTC. [Story](https://musetower.neobabylon.app/tower-history/fang-soul-vault), tenth History event, seven compressed screenshots, concise README/privacy text and bidirectional evidence link delivered. No schema/dev/Manager/mail mutation. GitHub tag/release completion is recorded below.
+
+- SV2 release closeout: [v1.86](https://github.com/mkhsu2002/MuseCondo/releases/tag/v1.86) published2026-11-04 07:44:24 UTC, not draft/prerelease; annotated tag targets`d2258e9dc9df5d1b5242564e2bb532d614917366`, verified as a documentation-only descendant of accepted production`a05bad3`. Tag object and remote peeled target read back. All SV2 tasks complete; existing N3 observations remain future work, with no new recurring job.
