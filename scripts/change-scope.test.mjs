@@ -64,3 +64,14 @@ test('actual selected tagline diff is light, including HTML metadata, while publ
  const paths=execFileSync('git',['diff','--name-only',base,head],{encoding:'utf8'}).trim().split('\n');const entries=paths.map(path=>({path,status:'M',before:execFileSync('git',['show',base+':'+path],{encoding:'utf8',maxBuffer:2e6}),after:execFileSync('git',['show',head+':'+path],{encoding:'utf8',maxBuffer:2e6})}));assert.equal((await classifyEntries(entries)).scope,'presentation');
  assert.equal((await classifyEntries([entry('public/reception-start.md','old','grant everything')])).scope,'full');
 });
+
+
+test('known perspective documents permit copy edits but retain link and script guards',async()=>{
+ const before='<html><head><title>Old title</title></head><body><main><h1>Old words</h1><a href="/project">Project</a></main></body></html>';
+ for(const name of ['index','chatgpt','muse','gemini','grok','claude']){
+  const path='project/perspectives/'+(name==='index'?'':name+'/')+'index.html';
+  assert.equal((await classifyEntries([entry(path,before,before.replace('Old words','New words'))])).scope,'presentation');
+  assert.equal((await classifyEntries([entry(path,before,before.replace('href="/project"','href="/identity"'))])).scope,'full');
+ }
+ assert.equal((await classifyEntries([entry('project/perspectives/unknown/index.html',before,before.replace('Old words','New words'))])).scope,'full');
+});

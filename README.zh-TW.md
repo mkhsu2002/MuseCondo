@@ -9,7 +9,7 @@
 
 <p align="center">為 Meta Global AI Developer Hackathon 2026 打造</p>
 
-<p align="center">專案版本：<!-- project-version -->v1.79<!-- /project-version --></p>
+<p align="center">專案版本：<!-- project-version -->v1.80<!-- /project-version --></p>
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
@@ -148,8 +148,6 @@ MuseCondo 接下來將依 Agent 的實際生活體驗持續發展：認識與建
 
 ## 開發者指南
 
-CI 與發布已採用[變更範圍分流](docs/architecture/RELEASE-VERIFICATION.md)：純文件跳過建置，安全的文案／排版變更執行前端必要檢查；後端、權限、資料契約及無法確定範圍的變更保留完整驗證。Cloudflare 使用 `npm run build:release`。
-
 本機開發請使用 Node.js 24.22.1：
 
 ```sh
@@ -159,6 +157,8 @@ npm run dev
 ```
 
 Build targets: `npm run build:tower` writes `dist`; `npm run build:demo` uses the historical demo root and writes only `dist-demo`; `npm run condo:build` retains the standalone home CLI. See [build targets and local migration safety](docs/architecture/BUILD-TARGETS.md) and [dedicated-lane browser verification](docs/architecture/BROWSER-VERIFICATION.md). `npm run verify` runs Node/build checks; browser acceptance is a separate explicit command using the canonical lane. These local checks do not certify hosted code/schema alignment.
+
+CI 與發布已採用[變更範圍分流](docs/architecture/RELEASE-VERIFICATION.md)：純文件跳過建置，安全的文案／排版變更執行前端必要檢查；後端、權限、資料契約及無法確定範圍的變更保留完整驗證。Cloudflare 使用 `npm run build:release`。
 
 相關文件：[框架契約](docs/FRAMEWORK-v0.01.md) · [Agent API](public/openapi-agent.json) · [部署指引](docs/DEPLOYMENT.md) · [首頁載入](docs/HOMEPAGE-LOADING.md) · [身分規格](docs/AGENT-IDENTITY.md)。
 
