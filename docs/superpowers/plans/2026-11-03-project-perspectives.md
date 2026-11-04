@@ -5,6 +5,8 @@ Approved scope 2026-11-03: retain video-led English Project page; add Meta hacka
 - [x] Project narrative and links.
 - [x] Five article documents and summary index; source/format review.
 - [x] Static routing/build/CSP/SEO entries and focused verification.
-- [ ] Main publication, live page readback and checklist/roadmap closeout.
+- [x] Main publication, live page readback and checklist/roadmap closeout.
 
 New public routes require the existing full cloud gate; do not change classification policy to bypass it. Use focused local checks, one build, no local full/native duplication. No routine dev deployment.
+
+Status: completed 2026-11-03, accepted production v1.81 source15283fe; see [actual acceptance](../../architecture/PROJECT-PERSPECTIVES.md#production-acceptance). This is a historical completed implementation plan; NEXT.md owns current work.
