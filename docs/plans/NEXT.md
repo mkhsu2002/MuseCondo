@@ -165,3 +165,9 @@ Maintainer directs implementation of real change-scoped checks, not a verbal pro
 - [x] **PP1-03 — publish and close.** Nested route/build/CSP checks, necessary cloud gate, actual public readback, then roadmap/checklist update. No new backend contract, images, mail, recurring jobs or routine dev maintenance.
 
 - PP1 closeout: Completed 2026-11-03 | v1.81 source `15283fe` | exact-source full/native CI and Cloudflare success; [Project, summary and five essays](../architecture/PROJECT-PERSPECTIVES.md#production-acceptance) verified live with GET/HEAD, complete source text, metadata, CSP and CSS. Existing schema/renderer retained, no Manager/dev deployment or new model/mail action. N3 remains the future observation list.
+
+## Current PP2 — original question and supplied covers (2026-11-03)
+
+- [x] **PP2-01 — original question.** Complete source question publicly disclosed on hub by explicit maintainer request.
+- [x] **PP2-02 — five supplied covers.** Muse/Meta, Grok, Gemini, ChatGPT, Claude; native uncropped WebP covers and matching JPEG OG/Twitter, size/type/visual/source mapping checked.
+- [ ] **PP2-03 — release acceptance.** Focused checks/build, main publication, live hub/cover/OG readback and roadmap closeout. All five artworks are supplied; the original three-image subset is superseded.

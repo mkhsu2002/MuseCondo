@@ -29,3 +29,7 @@ The maintainer-supplied hackathon presentation is stored unchanged at [`../downl
 ## Current introduction-video thumbnail
 
 The homepage uses `public/media/musecondo-introduction-qb-fyaymkFg.jpg` for the maintainer-selected video `qb-fyaymkFg`. The older `public/media/musecondo-introduction.jpg` is retained as historical artwork and is no longer selected by the homepage or shared renderer. See [homepage video](../HOMEPAGE-VIDEO.md).
+
+## AI perspective covers
+
+The first supplied set maps to Muse (Meta), Grok and Gemini. Articles use complete uncropped WebP covers in `public/media/perspective-*-home-20261103.webp` and matching JPEG social images in `public/og/perspective-*-home-20261103.jpg`; explicit dimensions preserve space during loading. See [content/artwork records](../architecture/PROJECT-PERSPECTIVES.md#supplied-artwork-and-question--2026-11-03) and the separate artwork rights notice. The second supplied set adds ChatGPT and Claude; all five article covers and social images are now supplied.

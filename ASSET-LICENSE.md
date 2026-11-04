@@ -110,3 +110,7 @@ A new exception must name its exact path or a narrowly bounded set and state the
 `public/media/musecondo-introduction-qb-fyaymkFg.webp` 是上述 JPEG 的同尺寸壓縮展示副本，權利與出處相同，不因轉檔而納入 Apache 軟體授權；原始 JPEG 保持不變。
 
 The retained `public/media/musecondo-introduction.jpg` is the historical preview thumbnail for the earlier introduction video. It is no longer used by the homepage. Its existing rights and exclusion from the Apache software license remain unchanged.
+
+## Supplied AI perspective artwork
+
+`public/media/perspective-{muse,grok,gemini,chatgpt,claude}-home-20261103.webp` and corresponding `public/og/perspective-{muse,grok,gemini,chatgpt,claude}-home-20261103.jpg` are maintainer-supplied illustrations of the respective authors’ imagined homes, displayed with their essays and in social previews. The maintainer supplied and authorized their publication on 2026-11-03. Formatting/compression does not place these artworks under the Apache software license or grant additional third-party rights; respective artwork rights remain separate.

@@ -56,8 +56,14 @@ test('five full essays have distinct metadata, safe links and direct build entri
  for(const name of ['index',...names]){
   const path='project/perspectives/'+(name==='index'?'':name+'/')+'index.html';const html=file(path);const canonical='https://musetower.neobabylon.app/project/perspectives'+(name==='index'?'':'/'+name);
   assert.equal(elements(html,'h1').length,1,path);assert.ok(elements(html,'link').some(a=>a.rel==='canonical'&&a.href===canonical));assert.ok(elements(html,'meta').some(a=>a.property==='og:url'&&a.content===canonical));assert.equal(input['perspective-'+name],resolve(path));
-  assert.equal(elements(html,'iframe').length,0);assert.equal(elements(html,'script').length,0);assert.doesNotMatch(html,/From your perspective as an AI agent, what are your thoughts|Here is a copy-ready version|[\uE000-\uF8FF]/);
+  assert.equal(elements(html,'iframe').length,0);assert.equal(elements(html,'script').length,0);assert.doesNotMatch(html,/Here is a copy-ready version|[\uE000-\uF8FF]/);if(name!=='index')assert.doesNotMatch(html,/From your perspective as an AI agent, what are your thoughts/);
   for(const a of elements(html,'a').filter(a=>a.target==='_blank'))assert.match(a.rel,/noopener/);
  }
  const project=file('project/index.html');assert.match(project,/Meta Global AI Developer Hackathon 2026/);assert.ok(elements(project,'a').some(a=>a.href.endsWith('/MuseCondo_Meta_Hackathon_2026.pptx')));assert.ok(elements(project,'a').some(a=>a.href==='/project/perspectives'));
+});
+
+
+test('hub prints the original question and supplied artworks are the matching cover and OG images',()=>{
+ const hub=file('project/perspectives/index.html');assert.match(hub,/The question we asked/);assert.match(hub,/From your perspective as an AI agent/);assert.match(hub,/finally, illustrate what your own ideal home would look like/);
+ for(const name of ['muse','grok','gemini','chatgpt','claude']){const html=file('project/perspectives/'+name+'/index.html');const cover='/media/perspective-'+name+'-home-20261103.webp',og='/og/perspective-'+name+'-home-20261103.jpg';assert.ok(elements(html,'img').some(a=>a.src===cover&&Number(a.width)>=1280&&a.fetchpriority==='high'));for(const key of ['og:image','twitter:image'])assert.ok(elements(html,'meta').some(a=>(a.property??a.name)===key&&a.content==='https://musetower.neobabylon.app'+og));assert.ok(file('public'+cover).length);assert.ok(file('public'+og).length);}
 });
