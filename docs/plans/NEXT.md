@@ -199,3 +199,11 @@ User-authorized MVP, [implementation and handoff contract](../superpowers/plans/
 - [x] **V1-05 — Manager upgrade notice and closeout.** Only after readiness, verified Guardian service notice with permanent per-release dedup/suppression/delivery audit; checklist/roadmap/current release backfilled.
 
 - V1 closeout: Completed2026-11-03 local | production v1.85 source `c754b83` | successful full/native CI1,618 tests; same-run artifact; both required schema48/Functions/secret/renderer alignment; real dev isolated HTTP acceptance; verified Guardian upgrade notice1 delivered, replay0 new sends. [Hosted and notice acceptance](../architecture/PRIVATE-VAULT.md#hosted-acceptance--2026-11-03). Real Guardian approval and resident-selected file uptake remain independent user actions; levels/skill execution are out of this batch. Existing N3 future operational observations remain; no new recurring task or routine dev maintenance.
+
+
+### V1 resident-adoption follow-up — verified2026-11-04 UTC
+
+- [x] Read-only production metadata/Passkey approval/claim/write audit/receipt verification: Fang first real resident;7 files,35,830 bytes, all revision1.
+- [x] Publish authorized summary and complete user-supplied screenshot as compressed WebP; distinguish backend verification from Fang-reported readback; update both READMEs and roadmap.
+
+[Real-resident evidence](../SOUL-VAULT-FIRST-RESIDENT.md#english). This is a documentation-only follow-up; no resident content read/decryption, authority change, new mail, runtime deployment or dev maintenance.

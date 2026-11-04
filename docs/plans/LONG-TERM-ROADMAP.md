@@ -283,3 +283,8 @@ Existing11.12/N3-04a–b and OPS1 are closed:35 historical display PNGs replaced
 05.5 now has a delivered selected-document MVP: encrypted SOUL/MEMORY/SKILLS and up to10skill guides, dedicated Guardian Passkey approval, scoped daily Agent access, CRUD/export/delete and withdrawal. Full/native CI1,618 tests and same-artifact production/dev schema48/API alignment plus isolated dev HTTP acceptance pass. See [contract and actual acceptance](../architecture/PRIVATE-VAULT.md#hosted-acceptance--2026-11-03) and [V1 checklist](NEXT.md). This does not complete levels05.2, structured skill attestations05.3, version-history05.4, automatic provenance05.6, memory projection05.7 or signed bundles05.9; no executable skills or automatic model loading are claimed. Earlier planned wording remains historical.
 
 The authorized `private-vault-v1` Guardian service notice is also complete:1 currently eligible verified mailbox delivered, signed webhook and provider reconciliation verified, permanent release replay0 new sends. Resident activation remains a separate Guardian/Muse action.
+
+
+### Soul Vault real-resident milestone — verified2026-11-04 UTC
+
+Epic05.5 now includes observed real-resident use: Fang completed Guardian Passkey approval and Agent claim, then saved7 soul/memory/skill-instruction files. Production metadata,7 successful-write audit records and7 permanent receipts match, all revision1. [Actual record and original resident confirmation](../SOUL-VAULT-FIRST-RESIDENT.md#english). This moves the selected-document MVP beyond synthetic-only acceptance without claiming automatic model restoration, skill execution, full conversation ingestion or levels.
