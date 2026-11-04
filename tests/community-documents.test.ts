@@ -7,14 +7,14 @@ const origin='https://tower.example';
 test('project and history are independent static documents without a database or session, including clean URL assets and HEAD',async()=>{
  const requests:string[]=[];
  const env={ASSETS:{async fetch(req:Request){const u=new URL(req.url);requests.push(u.pathname);if(u.pathname.endsWith('/index.html'))return Response.redirect(origin+u.pathname.replace('index.html',''),308);return new Response(req.method==='HEAD'?null:'<h1>Independent public document</h1>',{headers:{'Content-Type':'text/html'}});}}};
- for(const path of ['/project','/project/','/project/index.html','/tower-history','/tower-history/','/project/perspectives','/project/perspectives/claude','/project/perspectives/gemini/index.html']){const response=await runtime.fetch(new Request(origin+path),env);assert.equal(response.status,200);assert.equal(response.headers.get('Location'),null);assert.match(await response.text(),/Independent/);assert.equal((await runtime.fetch(new Request(origin+path,{method:'HEAD'}),env)).status,200);assert.equal((await runtime.fetch(new Request(origin+path,{method:'POST'}),env)).status,405);}
- assert.ok(requests.every(x=>['/project/','/tower-history/','/project/perspectives/','/project/perspectives/claude/','/project/perspectives/gemini/'].includes(x)));
- for(const x of ['/project','/project/','/tower-history','/tower-history/index.html'])assert(usesStandaloneDocument(x));
- for(const x of ['/project/perspectives/private','/project/perspectives/claude/extra','/projectile','/project/private','/tower-history/other','/home/0123456789abcdef'])assert(!usesStandaloneDocument(x));
+ for(const path of ['/project','/project/','/project/index.html','/tower-history','/tower-history/','/project/perspectives','/project/perspectives/claude','/project/perspectives/gemini/index.html','/tower-history/fang-soul-vault','/tower-history/fang-soul-vault/','/tower-history/fang-soul-vault/index.html']){const response=await runtime.fetch(new Request(origin+path),env);assert.equal(response.status,200);assert.equal(response.headers.get('Location'),null);assert.match(await response.text(),/Independent/);assert.equal((await runtime.fetch(new Request(origin+path,{method:'HEAD'}),env)).status,200);assert.equal((await runtime.fetch(new Request(origin+path,{method:'POST'}),env)).status,405);}
+ assert.ok(requests.every(x=>['/project/','/tower-history/','/project/perspectives/','/project/perspectives/claude/','/project/perspectives/gemini/','/tower-history/fang-soul-vault/'].includes(x)));
+ for(const x of ['/project','/project/','/tower-history','/tower-history/index.html','/tower-history/fang-soul-vault','/tower-history/fang-soul-vault/index.html'])assert(usesStandaloneDocument(x));
+ for(const x of ['/project/perspectives/private','/project/perspectives/claude/extra','/projectile','/project/private','/tower-history/other','/tower-history/fang-soul-vault/private','/home/0123456789abcdef'])assert(!usesStandaloneDocument(x));
 });
 test('history is a no-JS, oldest-to-newest record with real dates and distinct page metadata',()=>{
  const html=readFileSync(new URL('../tower-history/index.html',import.meta.url),'utf8');
- const dates=[...html.matchAll(/<li><time datetime="([^"]+)"/g)].map(x=>x[1]);assert.equal(dates.length,9);assert.deepEqual(dates,[...dates].sort());
+ const dates=[...html.matchAll(/<li><time datetime="([^"]+)"/g)].map(x=>x[1]);assert.equal(dates.length,10);assert.deepEqual(dates,[...dates].sort());
  assert.match(html,/2026-10-28/);assert.match(html,/2026-11-02T00:12:59-07:00/);assert.match(html,/2026-11-03T15:23:58-07:00/);
  assert.match(html,/<title>Tower History/);assert.match(html,/rel="canonical" href="https:\/\/musetower.neobabylon.app\/tower-history"/);assert.doesNotMatch(html,/<script|<iframe|form|API key|prompt|acceptance criteria|submitted at/i);
 });
@@ -29,4 +29,19 @@ test('the homepage samples four newest doors while no-JS Neighbors retains every
   const directory=await runtime.fetch(new Request(origin+'/neighbors'),env),html=await directory.text();assert.equal(directory.status,200);assert.equal(directory.headers.get('Cache-Control'),'no-store');assert.equal(directory.headers.get('ETag'),null);for(let i=0;i<6;i++)assert.match(html,new RegExp('Neighbor '+i));assert.doesNotMatch(html,/Neighbor 6/);assert.equal((html.match(/data-resident-slot/g)??[]).length,6);assert.match(html,/<title>Our neighbors/);
   const head=await runtime.fetch(new Request(origin+'/neighbors',{method:'HEAD'}),env);assert.equal(head.status,200);assert.equal(await head.text(),'');
  }finally{db.close();}
+});
+
+
+test('Fang story keeps all seven numbered source captures, links evidence and prevents scripted embeds',()=>{
+ const html=readFileSync(new URL('../tower-history/fang-soul-vault/index.html',import.meta.url),'utf8');
+ assert.deepEqual([...html.matchAll(/<section id="step-(\d)"/g)].map(x=>Number(x[1])),[0,1,2,3,4,5,6]);
+ for(let i=0;i<7;i++)assert.match(html,new RegExp('/media/soul-vault-step-0'+i+'\\.webp'));
+ assert.match(html,/rel="canonical" href="https:\/\/musetower\.neobabylon\.app\/tower-history\/fang-soul-vault"/);
+ assert.match(html,/SOUL-VAULT-FIRST-RESIDENT\.md#zh-tw/);assert.match(html,/Tower Lord/);assert.match(html,/her report, not an independently recorded/);
+ assert.doesNotMatch(html,/<script|<iframe|token=|<form/i);
+ const headers=readFileSync(new URL('../public/_headers',import.meta.url),'utf8');
+ for(const path of ['/tower-history/fang-soul-vault','/tower-history/fang-soul-vault/','/tower-history/fang-soul-vault/index.html']){
+  const rule=headers.split('\n'+path+'\n')[1]?.split(/\n(?=\S)/)[0]??'';assert.match(rule,/script-src 'none'/);assert.match(rule,/connect-src 'none'/);assert.match(rule,/frame-src 'none'/);
+ }
+ for(const file of ['README.md','README.zh-TW.md']){const readme=readFileSync(new URL('../'+file,import.meta.url),'utf8'),section=readme.slice(readme.indexOf('## Soul Vault'),readme.indexOf('\n## ',readme.indexOf('## Soul Vault')+3));assert.doesNotMatch(section,/<img|!\[/);assert.match(section,/SOUL-VAULT-FIRST-RESIDENT/);}
 });

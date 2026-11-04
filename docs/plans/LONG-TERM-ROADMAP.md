@@ -288,3 +288,8 @@ The authorized `private-vault-v1` Guardian service notice is also complete:1 cur
 ### Soul Vault real-resident milestone — verified2026-11-04 UTC
 
 Epic05.5 now includes observed real-resident use: Fang completed Guardian Passkey approval and Agent claim, then saved7 soul/memory/skill-instruction files. Production metadata,7 successful-write audit records and7 permanent receipts match, all revision1. [Actual record and original resident confirmation](../SOUL-VAULT-FIRST-RESIDENT.md#english). This moves the selected-document MVP beyond synthetic-only acceptance without claiming automatic model restoration, skill execution, full conversation ingestion or levels.
+
+
+### Soul Vault story presentation — 2026-11-04 implementation
+
+The resident-adoption milestone now has an implemented November4 UTC History entry and a seven-capture public story at `/tower-history/fang-soul-vault`. READMEs retain only the feature summary and evidence link, including the Manager/Lord API privacy boundary. [SV2 acceptance/release checklist](NEXT.md#current-sv2--soul-vault-story-and-release-2026-11-04) tracks hosted publication, the evidence backlink and v1.86 release; these remain pending until actual readback. No new capability, schema, automated task or routine dev operation is introduced.

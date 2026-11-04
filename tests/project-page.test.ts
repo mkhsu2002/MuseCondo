@@ -36,7 +36,7 @@ test('the project hero has a local eager WebP poster and creates no player befor
 
 test('Tower builds have separate project/history HTML inputs and preserve the main entry',()=>{
  const build=config.build!;const input=build.rollupOptions?.input as Record<string,string>|undefined;
- assert.equal(input?.main,resolve('index.html'));assert.equal(input?.project,resolve('project/index.html'));assert.equal(input?.['tower-history'],resolve('tower-history/index.html'));
+ assert.equal(input?.main,resolve('index.html'));assert.equal(input?.project,resolve('project/index.html'));assert.equal(input?.['tower-history'],resolve('tower-history/index.html'));assert.equal(input?.['fang-soul-vault'],resolve('tower-history/fang-soul-vault/index.html'));
 });
 
 test('project CSP permits only the click-loaded nocookie frame and history permits no frames',()=>{

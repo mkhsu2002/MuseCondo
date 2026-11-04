@@ -6,7 +6,7 @@ export default defineConfig({
   publicDir:resolve('public'),
   base: process.env.MUSE_BASE_PATH || '/',
   build: { target: 'es2022', outDir:resolve(demo?'dist-demo':'dist'),emptyOutDir:true,
-    rollupOptions:demo?undefined:{input:{main:resolve('index.html'),project:resolve('project/index.html'),'tower-history':resolve('tower-history/index.html'),...Object.fromEntries(['index','chatgpt','muse','gemini','grok','claude'].map(name=>['perspective-'+name,resolve('project/perspectives/'+(name==='index'?'':name+'/')+'index.html')]))}},
+    rollupOptions:demo?undefined:{input:{main:resolve('index.html'),project:resolve('project/index.html'),'tower-history':resolve('tower-history/index.html'),'fang-soul-vault':resolve('tower-history/fang-soul-vault/index.html'),...Object.fromEntries(['index','chatgpt','muse','gemini','grok','claude'].map(name=>['perspective-'+name,resolve('project/perspectives/'+(name==='index'?'':name+'/')+'index.html')]))}},
   },
   server: { port: 5173, strictPort: true },
 });

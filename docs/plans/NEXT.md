@@ -207,3 +207,11 @@ User-authorized MVP, [implementation and handoff contract](../superpowers/plans/
 - [x] Publish authorized summary and complete user-supplied screenshot as compressed WebP; distinguish backend verification from Fang-reported readback; update both READMEs and roadmap.
 
 [Real-resident evidence](../SOUL-VAULT-FIRST-RESIDENT.md#english). This is a documentation-only follow-up; no resident content read/decryption, authority change, new mail, runtime deployment or dev maintenance.
+
+
+## Current SV2 — Soul Vault story and release (2026-11-04)
+
+- [x] **SV2-01 — concise READMEs.** Summary/evidence link only, no success screenshot; precise Manager/Lord API-access boundary.
+- [x] **SV2-02 — History and story implementation.** November4 UTC milestone, independent `/tower-history/fang-soul-vault`, supplied screenshot order0–6 and compressed original captures; conceal only the notice preference token.
+- [ ] **SV2-03 — production acceptance.** Necessary focused checks, one hosted full/native gate for the explicit public-route/config change, same artifact production-only Pages upload/readback. No schema/API/grant/Manager/dev/mail change.
+- [ ] **SV2-04 — closeout and GitHub release.** Add live story backlink to repo evidence, backfill roadmap/current acceptance, publish verified v1.86 tag/release.

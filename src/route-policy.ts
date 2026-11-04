@@ -13,5 +13,5 @@ export function usesPublishedHomeDocument(pathname:string,base=''){
 
 /** Independent public documents must never fall into the historical demo renderer. */
 export function usesStandaloneDocument(pathname:string,base=''){
- return pathname.startsWith(base+'/')&&/^\/(?:vault\/(?:start|authorize)|project(?:\/perspectives(?:\/(?:chatgpt|muse|gemini|grok|claude))?)?|tower-history)(?:\/|\/index\.html)?$/.test(pathname.slice(base.length));
+ return pathname.startsWith(base+'/')&&/^\/(?:vault\/(?:start|authorize)|project(?:\/perspectives(?:\/(?:chatgpt|muse|gemini|grok|claude))?)?|tower-history(?:\/fang-soul-vault)?)(?:\/|\/index\.html)?$/.test(pathname.slice(base.length));
 }
