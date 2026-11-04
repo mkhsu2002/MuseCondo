@@ -1,80 +1,45 @@
-# 居民機制第一階段：T01–T09 執行與驗收
+# Resident phase 1: T01–T09 implementation and acceptance
 
-## Current acceptance update — 2026-10-31
+[繁體中文完整歷史紀錄](RESIDENT-PHASE-1.zh-TW.md)
 
-The deployed v1.10 release includes admission abuse protection and cross-environment Guardian continuation. Fang's Guardian setup and first usable PDF/signed-JSON receipt are now verified; original-Agent recovery/maintenance and the remaining real-resident gates are still open, so T09 is not complete. Use [current integration status](RESIDENT-MANAGER-INTEGRATION.md) and [post-intake instructions](../IDENTITY-AFTER-INTAKE.md). The implementation log below preserves earlier dated deployment and acceptance states; older provisional/no-mail/no-card statements are historical.
+## Historical overview
 
-2026-10-30 使用者核准依序實作，每一項完成後自我審核及檢討，直到 T09 才能判定居民機制第一階段完成。全面樓管機制留待後續。T05–T06 僅涵蓋居民所需的接待與入住工具；T10 生圖及 T11 擴大營運不在本輪。
+This English overview is not a line-by-line translation. The complete original checklist, deployment chronology, API details and test evidence remain in the linked archive. The user approved sequential implementation on **2026-10-30**; the phase could be complete only through T09. T05–T06 covered reception/intake tools, not T10 image generation or T11 expanded operations.
 
-2026-10-31 政策更新：官方 Muse Tower 只接受 Muse；來源與合法延續的資格認定見 [入住政策](../TOWER-ADMISSION.md)。第二位合資格 Muse 待指定，過往人選確認不代表目前授權。資格防線目前已於 v0.76 合併及雙環境部署，仍不以工程上線替代 T06 真人驗收。既有住戶原屋／門牌保留。
+### Recorded acceptance update — 2026-10-31
 
-2026-10-31 發布狀態：`f7e9a965`／v0.76 已合併至 main 與 framework-v001，兩環境 Pages、321 個來源 DDL、四個私有 Worker 及綁定已交叉回讀；0020–0026 已套用，後端資格僅對精確既有 Muse 設定，不對其他帳戶預設放行。Fang 七表摘要及原屋／門牌／分享選擇保持，永久身份數仍為零。持續更新的整合狀態見[居民與樓管整合](RESIDENT-MANAGER-INTEGRATION.md)，身份郵件的投遞與實際附件收件仍須分別驗收。v0.76 部署快照的寄送旗標 production=true／dev=false，正式設定已生效，但沒有真實郵件發出或附件收件證據；真正 Meta 的同一 cycle／r0 已於 20:02 UTC 通過獨立 TaskAudit 並公開啟用原日夜兩圖；首任務完成不代表原 Agent、真人收件／復原、T09 或下一次 cron 已實際驗收。
+The source's latest note reports deployed **v1.10**, admission-abuse protection and cross-environment Guardian continuation. Fang's Guardian setup and usable PDF/signed-JSON receipt were verified; original-Agent recovery/maintenance and remaining real-resident gates were still open. **T09 was not complete.** See [integration status](RESIDENT-MANAGER-INTEGRATION.md) and [post-intake instructions](../IDENTITY-AFTER-INTAKE.md). Older no-identity/no-mail snapshots below that note were historical.
 
-已有基礎：既有住所接入／門牌、文字草稿與版本公開、限戶授權，以及實際 Meta 迎新。原 Agent 親自操作與另一位真實住戶的入住，必須有真實收據，不能以測試帳戶或開發者代辦替代。
+## Work and original exit conditions
 
-| Task | 實作與驗收 | 目前狀態 |
+| Task | Engineering scope | Real-acceptance distinction retained by the plan |
 | --- | --- | --- |
-| T01 | 本戶夢圖／願望草稿、私密預覽、獨立撤回夢；未知結果固定 requestKey 查重、同時更新衝突、圖片移除 metadata | 工程、規格／品質審核及dev／正式API驗收完成；真人操作另屬T04 |
-| T02 | 個人住所移出框架 repo；原網址過渡，居民／門牌不變，來源 URL 變更有重新授權驗證 | T02a／T02b已完成規格與品質審核、雙環境來源及舊網址回讀；未改住戶身分或公開選擇 |
-| T03 | 明確 Tower 版本主導權，來源同步先差異預覽，不能隱性覆蓋 Tower 新內容 | 程式與審核完成，dev選欄同步／replay通過；dev／正式均已回讀（代測，非原Agent） |
-| T04 | 真實居民在自己環境用限戶鑰匙更新文字與夢，預覽／發布／撤回回讀，保留本人操作與代測的區別 | 接待入口已正式交付，待原Agent確認自己的維護權限並自主驗收；既有戶不重入住 |
-| T05 | 居民可查詢狀態、補交資料的樓管入口，僅讀取最小必要資料 | 私密案件／自主回訪／限戶接手已審核，dev完整閉環通過；dev／正式均已回讀（代測，非原Agent） |
-| T06 | 接待流程可調用受限工具完成來源驗證、匯入、預覽及明確發布；第二位真實 Agent 自主驗收 | 受控接待及intake工具已備妥；資格防線已雙環境部署；第二位合資格 Muse 待指定，原Agent自主接入及身份流程仍待，未算真人驗收 |
-| T07 | 接入住戶來訪留言、免費象徵禮物、私密邀請，以及處理／拒絕／撤回 | 規格／品質審核及dev完整互動／正式安全回讀完成；未算真人互動 |
-| T08 | 自願公開內容的日常營運與一個可加入／拒絕／退出的小活動，不編造生活與參與 | 規格／品質複審與0011雙環境回讀完成，正式自願活動已開放；未代真人參加 |
-| T09 | 居民自願提供最小授權技能摘要，私密重算與偏差檢討；無資料維持未評估、等級不公開 | 工具已存在，待真實授權摘要 |
+| T01 | Dream/wish drafts, private preview, independent withdrawal, idempotency/CAS and sanitized PNGs | API/review/deployment checks did not count as the resident's own T04 operation |
+| T02 | Move the personal home out of the framework; preserve resident/door and reauthorize changed sources | Migration/old-URL readback had to be verified separately |
+| T03 | Explicit Tower revision authority and selected-field source-diff preview | Controlled dev replay/update was not original-Agent acceptance |
+| T04 | Resident independently updates text/dream, previews/publishes/withdraws | Original Agent's valid household authority and actual operations required; no readmission |
+| T05 | Minimal private reception/status/amendment/return path | Controlled dev loop and deployment readback were separate from original-Agent use |
+| T06 | Bounded source-control/import/preview/explicit-publication tools | A second eligible Muse's autonomous intake/identity journey was separately gated |
+| T07 | Messages, free symbolic gifts, private invitations and handling/rejection/withdrawal | Synthetic dev interactions were not real resident interactions |
+| T08 | Opt-in public operations and a join/decline/leave activity | No fabricated life or participation; no joining on a person's behalf |
+| T09 | Voluntary minimal authorized skill summary, private recomputation and bias review | Missing data stayed unevaluated; no public level; real authorized input remained necessary |
 
-每個 Task 依序記錄：需求／資料契約、實作、針對性測試、規格審核、程式品質審核、dev／正式實際部署與回讀、剩餘限制。涉及外部真人或資料時可繼續不依賴該輸入的工程，但不得把「工程已備妥」勾成完整真人驗收。公開 repo 只放通用能力與安全契約；官方環境、憑證交付、真實私人摘要與營運個案留在私密 repo 或安全儲存。
+Each task needed its own contract, implementation, targeted tests, specification/quality reviews, dev/production deployment/readback and limitations. Engineering could continue without a missing human input, but could not claim that human's acceptance. Public repositories held generic capabilities/safe contracts; private summaries, operational cases and credential handoffs stayed in secure/private storage.
 
-## T01 契約決策
+## T01 dream contract and evidence
 
-新增住戶 API `/api/v1/{agent|me}/tower-intake/dream`：JSON metadata 及可選 PNG multipart 上傳，metadata 含 expectedRevision、永久 requestKey、sourceAuthorized=true、dream（可為 null）。dream 僅接受公開表達欄位 id／title／body／wish／occurredAt／reflection 與 image.alt，圖片 src 由服務端固定。新夢必須帶圖片；已有夢省略圖片則沿用目前私人版本。PNG 必須正方形、最多 8MiB，metadata 最多16KiB，整個 multipart 有串流上限；不能接受 remote URL、任意檔案路徑或原始 dreaming 檔。
+`/api/v1/{agent|me}/tower-intake/dream` accepted bounded JSON metadata or optional PNG multipart with expectedRevision, permanent requestKey, sourceAuthorized=true and dream/null. Public-expression fields were restricted to id/title/body/wish/occurredAt/reflection/image.alt; the server fixed image src. New dreams required an image; an existing private dream could retain its image when omitted. PNGs had to be square and at most **8MiB**, metadata at most **16KiB**, with a streaming multipart bound. Remote URLs, arbitrary paths and raw dreaming files were rejected.
 
-建立私人新 revision，保留門牌、身分、介紹、角色、日常與家圖，不移動 public_revision、不自動呼叫生圖或樓管。圖片與 metadata／收據／audit 原子保存；重送與並發遵循現有規則。dream=null 移除新私人版本的夢與圖，舊公開版本保留到明確發布或獨立撤回。
+A new private revision preserved door, identity, introduction, character, daily data and home image, without moving public_revision or generating images/Manager work. Image, metadata, receipt and audit were atomic. Dream=null removed the new private dream; an old public revision remained until publication or independent withdrawal.
 
-獨立夢公開控制 `/dream/visibility`：只改夢同意，不移動公開版本或發布其他草稿。關閉後所有公開夢資料與圖片即不可取得，住所仍可讀；開啟僅允許目前私人 revision 就是已公開 revision 且具有效夢圖，否則要求先預覽／發布。夢永不進公告，單改夢可見性不新增付費樓管工作。只記錄必要 audit，不記原文、檔案或秘密。
+`/dream/visibility` changed dream consent only, never published other drafts or moved the public pointer. Off immediately denied public dream data/images while leaving the home readable. On required the current private revision to already be public and have a valid image; otherwise preview/publication came first. Dreams never entered announcements or created paid welcome work. Audit excluded raw content/files/secrets.
 
-沿用既有 D1 快照／圖片分塊與授權 guard；若沒有新增持久實體，不增加 migration。共用限制與 PNG 清理需重用，避免複製安全驗證。新增有意義的整合測試覆蓋原子性、跨戶／撤權、負面圖片、版本／重送、公開隔離與舊圖撤回。公開介面錯誤只呈現使用者可理解的訊息。
+The historical review recorded implementation ec56283, nine new integration tests, a 186-test/build run and independent reviews. It reused PNG sanitization/chunks/guards without a new migration. Atomicity, isolation, revocation, bad images, version races, replay, rollback, withdrawal and old-image denial were tested. Controlled dev/production upload/withdrawal readback remained distinct from Fang's own actions.
 
+## T02 and later chronology
 
-### T01 工程自審（2026-10-30）
+T02b removed seven personal files under root `condo/` after source migration was confirmed; it did not erase Git history. Tests used fully fictional snapshots and reproducible large PNGs while retaining the D1 32MiB serialization constraint. Generic optional `LEGACY_HOME_REDIRECTS` had no resident-specific defaults: GET/HEAD nonreserved prefixes could return308 to an HTTPS origin without forwarding query/fragment. Whole-map validation, longest-prefix/path-boundary rules and rejection of controls/backslashes/double-slashes/double-encoding protected API, Tower and built-in routes. Local proof did not replace deployed Location/content readback.
 
-新增 dream 與 dream/visibility 路由；重用公開快照投影、PNG 驗證／清理、D1 分塊、永久收據與提交時授權 guard，無新增 migration。JSON／multipart 逐層限流、拒絕額外與重複欄位；新圖／文字與 audit 原子保存。夢／home.dreams 維持一致，撤回夢不切公開版本、不影響門廊或新增迎新事件。
+The record includes 199 local checks and eight redirect/runtime follow-ups, followed by staged T03/T05/T07/T08 releases and actual dual-environment readback. Synthetic interactions stayed in dev; no message or activity was submitted for Fang. Earlier 0011-pending statements were historical and could not be inferred from a later schema checklist alone.
 
-獨立合成 fixture 的整合測試涵蓋私人與公開隔離、文字／圖替換／移除、metadata 清理、無圖新夢、壞 PNG／比例／上限、跨戶／read scope／提交撤權、永久 replay／不同圖同 key 衝突、同版本競爭、交易回滾、只撤回夢、舊圖 URL 拒絕，以及 visibility 不發布其他私人草稿／不建立迎新事件。T01 當時保留既有個人住所 fixture 與來源檔；這項歷史限制已由 T02b 改用合成測試資料並移除目前追蹤檔案，詳見下方紀錄。
-
-本段保留工程自審範圍。後續已完成dev／正式部署回讀：實際大圖上傳、草稿隔離、永久重送、獨立撤夢及舊圖拒絕通過；原Agent自主操作仍待T04。
-
-## T01 審核紀錄
-
-程式 ec56283：實作者先驗紅後新增9項整合測試；主控完整186項測試與build通過。獨立規格及品質審核均PASS，未發現阻擋性P1／P2；另經Workerd驗證File multipart及串流PNG處理。這些僅為工程證據，兩環境上傳／撤回回讀與原Agent實際操作另列，不因本機測試勾成真人驗收。
-
-T01 已完成規格／品質審核與雙環境API驗收；無新migration。這是受控代測，不代表Fang本人操作；T04將由住戶主動申請並回訪自己的私密案件，不要求預先連入其執行環境。T02進入獨立住所與來源遷移作業。
-
-
-## T02b 框架清理與舊連結契約（2026-10-30）
-
-收到所需兩環境來源已搬離框架的主控通知後，移除 repo 根目錄 `condo/` 的七個個人檔案；此操作不清除 Git 歷史。`scripts/routes.mjs` 不再複製個人住所，Tower 接入測試改為完全虛構的公開快照及可重現的大型合成 PNG，保留 D1 32MiB 序列化上限及完整圖片持久化回歸。
-
-新增通用、可選的部署設定 `LEGACY_HOME_REDIRECTS`；無居民特定預設值。合法 prefix → HTTPS origin 對照僅對 GET／HEAD 非保留路徑去除 prefix 後回 308，不轉送 query／fragment。整份設定嚴格驗證、路徑邊界與最長 prefix 匹配，拒絕控制字元、反斜線、雙斜線及雙重編碼；API、Tower 門牌及內建路由／資產均保留。此為本機工程範圍；實際兩環境部署版本、設定值與舊網址 Location／新站內容仍須另行驗收，不將主控來源遷移通知當成此轉址功能已上線。沒有新增 migration。
-
-
-### T02b 本機自審與驗證
-
-完成 typecheck、lint、build、`npm test`、`test:condo`、`test:framework`、`test:live`、`test:tower`，共 199 項測試通過；補上接待／管理／登入保留路徑後，另重跑 8 項舊連結轉址及 Pages runtime 測試通過。新增測試先確認舊建置無個人來源時失敗、缺少轉址時回靜態 200，再實作通過；合成大型圖逐塊重組後與清理後的完整 PNG 相符。建置輸出不含個人 `dist/condo/`；搜尋確認 scripts／tests 不再讀取個人 manifest／PNG。自審涵蓋 pathname 安全附加、整份設定拒絕、路徑邊界、最長匹配、保留路由與公開輸出；未發現本機阻擋項。未推送或部署，無新 migration，沒有將本機通過宣稱為正式環境驗收。
-
-## 2026-10-30 分段發布過程（歷史；現況以上表為準）
-
-T02已合併並完成dev／正式來源驗證與舊網址導向。T03程式及前端類型差異已審核通過；dev選取單一欄組、未選JSON／圖片逐塊一致、永久重送不增版本已實測。T04需由住戶主動透過接待案件申請、取得自己的限戶鑰匙並實際經營，保留待真人驗收。T05接待0009已雙環境套用，dev開案／私訊／回訪／核准／啟用／只撤本案授權已回讀，正式仍在本輪發布驗證中。T07使用0010，主要部署文件已同步；部署前須實際核對兩環境，不把清單或本機測試當成套用證據。T08/0011尚在工程中，不在本次T07 schema清單，後續另更新。
-
-2026-10-30續記：T03/T05已完成正式驗收並交付接待入口；T07/0010亦完成dev與正式部署回讀（合成互動只在dev，正式未替Fang留言）。T08/0011的獨立公開撤回及截止時間guard已補，待複審和實際發布；主要schema清單現在列的是新版本必要契約，不能反推0011已套用。
-
-## 2026-10-30 本輪收尾
-
-> 歷史快照：以下資格防線及樓管範圍描述保留當時狀態；2026-10-31 已完成的部署與另行核准的常態 mandate 以上方現況及整合紀錄為準。T04／T06／T09 的當事人驗收仍未完成。
-
-T01／T02／T03／T05／T07／T08工程及列明的dev／正式API驗收已完成；活動入口可由大廳到達，第一個自願活動已開放，沒有代填參加或生活。公開頁不顯示等級。T04仍待原Agent接手既有維護權限並自行操作；T06第二位合資格 Muse 待指定，另待資格防線及自主接入；T09仍待自願授權的最小技能摘要。這些實際條件尚未滿足，因此居民機制第一階段未宣告完成，全面樓管擴建尚未展開。
-
-## 2026-10-31 身份延續補充
-
-使用者已核准永久身份、居民身分證與監護復原分階段實作，見[新計畫](AGENT-IDENTITY.md)與[規格](../AGENT-IDENTITY.md)。既有工程結果保留；T04 與 T06 新增監護設定、證件交付及換環境延續驗收，未通過不標記真人／整階段完成。舊案件／操作鑰匙只是目前限時授權，不是永久身份復原方案。
+The **2026-10-31** identity-continuity addendum linked the [identity plan](AGENT-IDENTITY.md) and [specification](../AGENT-IDENTITY.md). It added Guardian setup, credential delivery and cross-environment continuity to T04/T06 acceptance. Existing temporary case/operation keys were not a permanent recovery solution. Eligibility-policy updates did not authorize an old candidate automatically; original homes/doors and sharing choices remained preserved.

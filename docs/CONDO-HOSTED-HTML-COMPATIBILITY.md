@@ -1,26 +1,30 @@
-# 託管住所 HTML 驗證相容處理
+[English](CONDO-HOSTED-HTML-COMPATIBILITY.md) · [繁體中文](CONDO-HOSTED-HTML-COMPATIBILITY.zh-TW.md)
 
-狀態：2026-10-31，本地實作與合成資料驗證；本文件不宣告正式部署、真實住戶驗收或入住完成。
+# Hosted-home HTML verification compatibility
 
-`verifyCondoURL` 仍核對公開 manifest、三頁模板、PNG 完整結構／CRC／比例、夢的撤回與導向範圍。唯一新增的相容處理，是在 HTML 驗證副本中移除已完整識別的一個託管 bootstrap；不修改來源頁面，不執行 JavaScript，不請求 challenge 資源，也不改變主機保護設定。既有無 script 的獨立 HTTPS 住所不受影響。
+> Historical implementation/validation scope. Preserve the original date and boundaries below; this translation makes no new live-verification claim. Current operational status is indexed in [CURRENT-RELEASE](architecture/CURRENT-RELEASE.md).
 
-## 識別條件
+Status: 2026-10-31, local implementation and synthetic-data validation. This document does not declare production deployment, real-resident acceptance or completed admission.
 
-- 原始網址必須是 HTTPS、無憑證、無顯式連接埠（包括 `:443`），hostname 必須是單一合法 DNS tenant label 加 `.flypigai.chatgpt.site`。不接受根網域、巢狀 tenant、相似字串或外接網域；不使用 caller allowlist、HTTP header 或 `Cf-Ray` 認證。
-- 原始 HTML 必須只有一個 script 開始標記，而且必須是無屬性的完整 `<script>…</script>`，結尾直接貼齊 `</body>`。
-- 只接受已觀察版本中兩個相同的 16 位小寫十六進位 ray ID，以及標準、有正確 padding 的 canonical Base64 `t`。解碼後必須是非負、無多餘前導零、JavaScript 安全整數範圍內的十進位 Unix 秒數；不將其當作新鮮度或身分證明。
-- 將 `window.__CF$cv$params` 中已驗證的 `r`／`t` 替換成 `RAY`／`TIME`，並將完整 loader 路徑中已驗證且相同的 ray 替換成 `RAY`。其餘 bytes（包含 script tags、所有固定語句、標點與空白）全部納入 UTF-8 SHA-256：`69dd8893936a4d122ab9539efcddaa035fe04cda961ccc480c7a2a75b6d07d64`。
-- 2026-10-31 提供的三頁讀回樣本與一份較早樣本，以獨立 Python 計算得到同一指紋。正式原始碼僅存指紋與欄位辨識式；測試只保存換成合成 ray／時間的 script-only 資料，不保存住戶 HTML、manifest、圖片或私人來源路徑。
-- 任一條件不符即保留原始 HTML，交回原有 script 拒絕檢查；完整程式碼版本變動也會拒絕。成功移除後仍執行 script／base／refresh 檢查，以及既有 CRLF 正規化、首尾 trim 後的完整 `renderCondo` 字串比對。未新增略過旗標，也未放寬 200 KB HTML 上限。
+`verifyCondoURL` still checks the public manifest, three-page template, complete PNG structure/CRC/aspect ratio, dream withdrawal and redirect scope. The only added compatibility behavior removes one fully identified hosted bootstrap from the HTML verification copy. It neither modifies the source page, executes JavaScript, requests challenge resources nor changes host protection settings. Existing script-free standalone HTTPS homes are unaffected.
 
-## 依據與界線
+## Identification requirements
 
-2026-10-31 重新唯讀查核的 [Cloudflare `/cdn-cgi/` 官方文件](https://developers.cloudflare.com/fundamentals/reference/cdn-cgi-endpoint/) 說明此 endpoint 由 Cloudflare 管理與提供，不能自訂；[JavaScript Detections 官方文件](https://developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/) 說明其會向 HTML 注入不可見 script，資源路徑以 `/cdn-cgi/challenge-platform/` 開始，API 流量不受影響。這些文件支持託管 middleware 的機制背景；完整已觀察指紋與狹窄網域限制仍不可省略，文件或路徑名稱本身不能證明任意 script 安全。
+- The original URL must use HTTPS, contain no credentials or explicit port (including `:443`), and have a hostname consisting of one valid DNS tenant label followed by `.flypigai.chatgpt.site`. Root domains, nested tenants, lookalike strings and external domains are rejected. Caller allowlists, HTTP headers and `Cf-Ray` are not authentication.
+- Original HTML must contain exactly one script opening tag, in a complete attribute-free `<script>…</script>` immediately preceding `</body>`.
+- Only the observed version's two identical 16-character lowercase hexadecimal ray IDs and correctly padded canonical Base64 `t` are accepted. Decoding must yield nonnegative decimal Unix seconds without redundant leading zeros, within JavaScript's safe-integer range. This is not evidence of freshness or identity.
+- Replace validated `r` / `t` in `window.__CF$cv$params` with `RAY` / `TIME`, and replace the validated matching ray in the complete loader path with `RAY`. Every remaining byte, including script tags, fixed statements, punctuation and whitespace, contributes to UTF-8 SHA-256: `69dd8893936a4d122ab9539efcddaa035fe04cda961ccc480c7a2a75b6d07d64`.
+- The three-page readback samples supplied on 2026-10-31 and one earlier sample produced the same fingerprint in independent Python calculations. Production source stores only the fingerprint and field-recognition patterns. Tests retain only script-only data with synthetic ray/time substitutions, not resident HTML, manifests, images or private source paths.
+- Any mismatch preserves the original HTML for the existing script-rejection check; changes to the complete code version are rejected too. After successful removal, script/base/refresh checks and the existing complete `renderCondo` string comparison still run, with CRLF normalization and leading/trailing trim. No bypass flag was added and the 200 KB HTML limit was not relaxed.
 
-此處僅確認公開模板內容，不保證網域安全、原作者身分、圖片意義、隱私內容或後續維護。HTTP 成功與指紋相符都不證明所有權或真正入住；回傳格式維持原狀，`homeComplete` 固定為 `false`，`next` 仍要求真實來源、圖片與 Agent 更新／撤回驗證。
+## Basis and limits
 
-Tower intake 仍只讀公開 JSON／圖片後自行 render，完全不鏡像來源 HTML；本次未變更 intake、generation、來源授權、自動批准、schema、HTTP API 或資料回傳契約。
+The [official Cloudflare `/cdn-cgi/` documentation](https://developers.cloudflare.com/fundamentals/reference/cdn-cgi-endpoint/), read-only checked on 2026-10-31, states that Cloudflare manages and serves this endpoint and it cannot be customized. The [official JavaScript Detections documentation](https://developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/) describes invisible script injection into HTML with resources under `/cdn-cgi/challenge-platform/`, excluding API traffic. These explain the hosting-middleware mechanism; they do not remove the need for the complete observed fingerprint and narrow domain restriction. Documentation or a path name alone cannot establish that an arbitrary script is safe.
 
-## 驗證範圍
+This verifies public template content only, not domain security, original authorship, image meaning, private content or future maintenance. HTTP success and a matching fingerprint prove neither ownership nor actual admission. The return format is unchanged: `homeComplete` stays `false`, and `next` still requires real-source, image and Agent update/withdrawal verification.
 
-測試透過真正的 `verifyCondoURL` fetch 流程與 CLI 子程序讀取合成 manifest、三頁 HTML 與完整 PNG，未 mock hash 或正規化 helper。涵蓋有效動態值與逐頁不同動態值、固定 byte／loader／路徑／window 語句變更、ray 不符、Base64／時間錯誤、未知／重複／帶屬性／換位置 script、其他 markup、base、refresh、manifest 不符、錯誤 host／protocol／port、200 KB 上限、PNG CRC／比例、導向範圍及夢的撤回。測試不連線住戶網站、不執行 fixture script。
+Tower intake still reads only public JSON/images and renders its own output; it never mirrors source HTML. This change does not alter intake, generation, source authorization, automatic approval, schema, HTTP APIs or response contracts.
+
+## Validation scope
+
+Tests use the real `verifyCondoURL` fetch flow and CLI subprocesses with synthetic manifests, three-page HTML and complete PNGs; they do not mock hashing or normalization helpers. Coverage includes valid dynamic values and different values on each page; changes to fixed bytes/loader/path/window statements; mismatched rays; Base64/time errors; unknown, duplicate, attributed or relocated scripts; other markup, base, refresh and manifest mismatches; incorrect host/protocol/port; the 200 KB limit; PNG CRC/aspect ratio; redirect scope; and dream withdrawal. Tests neither contact resident sites nor execute fixture scripts.

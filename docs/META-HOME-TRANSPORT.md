@@ -1,36 +1,40 @@
-# Meta Home transport（已實作、尚未正式接通）
+[English](META-HOME-TRANSPORT.md) · [繁體中文](META-HOME-TRANSPORT.zh-TW.md)
 
-官方契約核對日期：2026-10-29。
+# Meta Home transport: implemented, not yet connected at this historical stage
 
-- [Meta overview](https://dev.meta.ai/docs/overview)：文字模型 `muse-spark-1.3` 與圖像模型 `muse-image-1.0`。
-- [Image generation guide](https://dev.meta.ai/docs/image-generation)：生成與圖片編輯、base64 回傳、同圖不同構圖。
-- [Images schema](https://dev.meta.ai/docs/api-reference/images/schemas)：JSON edits 的 `images[].image_url`、`size` 指定比例而非保證像素尺寸、`output_format`、tool enablement。
-- [Responses API](https://dev.meta.ai/docs/protocols/responses)：文字推理回應與 `store:false`。
+> Historical transport reference. Its fixed-palette pipeline and pending connection status describe the original scope, not today's production status or the newer free-scene framework contract. See [META-API](META-API.md) and [CURRENT-RELEASE](architecture/CURRENT-RELEASE.md). This translation does not advance verification dates.
 
-`server/live/meta-home.ts` 是實際 HTTP adapter，不是成功回傳示範圖的 stub。現行 `server/live/worker.ts` 已在 encrypted secret 存在且 `META_PAID_CALLS_APPROVED` 為字串 `true` 時建立此 adapter；任一條件不成立就維持 disconnected。本地 runner 仍維持隔離開發模式。
+Official-contract review date: 2026-10-29.
 
-服務配置與健康檢查由各部署者分環境驗收。secret 存在、本機模型目錄可讀或 adapter 已接入，都不能替代正式端真實生成與持久化驗收；對外不得公開私密輸入或秘密。
+- [Meta overview](https://dev.meta.ai/docs/overview): text model `muse-spark-1.3` and image model `muse-image-1.0`.
+- [Image generation guide](https://dev.meta.ai/docs/image-generation): generation, image editing, base64 responses and different compositions of the same image.
+- [Images schema](https://dev.meta.ai/docs/api-reference/images/schemas): JSON edits `images[].image_url`, `size` as an aspect ratio rather than guaranteed pixel dimensions, `output_format` and tool enablement.
+- [Responses API](https://dev.meta.ai/docs/protocols/responses): text-reasoning responses and `store:false`.
 
-## 三階段
+`server/live/meta-home.ts` is a real HTTP adapter, not a stub returning successful demo images. In this implementation, `server/live/worker.ts` instantiates it when an encrypted secret exists and `META_PAID_CALLS_APPROVED` is the string `true`; otherwise it remains disconnected. The local runner stays in isolated development mode.
 
-1. Responses：最小個性摘要分類為封閉色盤、氣氛與陳設枚舉。禁止工具，不返回姓名等自由文字，`store:false`。
-2. Images generations：枚舉組合成固定版本提示詞，生成 16:9 PNG。
-3. Images edits：以剛產生的房間 PNG 作為 data URL 參考，改為 9:16，同一室內不重新設計。
+Deployers accept configuration and health checks separately for each environment. Secret presence, a readable local model catalog or adapter integration cannot replace real production generation/persistence acceptance. Private inputs and secrets must not be disclosed publicly.
 
-圖像請求明確關閉網頁搜尋、圖片搜尋與 shell，僅接收 base64 bytes，不讀供應商回傳的外部 URL。型別、大小、PNG chunks／CRC／結構、zlib 掃描列解壓與濾鏡、比例檢查失敗就停止，不會繼續請求手機構圖。這不等於已完成視覺一致性 QA，仍需實際服務驗證。
+## Three stages
 
-## 不確定請求與記錄
+1. Responses: classify a minimized personality summary into closed palette, atmosphere and furnishing enums. Disable tools; return no free text such as names; use `store:false`.
+2. Images generations: assemble those enums into a versioned prompt and generate a 16:9 PNG.
+3. Images edits: reference the newly generated room PNG as a data URL and compose 9:16 without redesigning the interior.
 
-套用 `0003_provider_requests.sql` 後，`databaseJournal` 在每次請求前寫入唯一 `(provider_key,stage)`。每次 claim 都再次檢查原工作仍 running、分析同意仍有效。紀錄不保存 API key、個性原文或 prompt。
+Image requests explicitly disable web search, image search and shell. They accept base64 bytes only, never reading provider-returned external URLs. Invalid types, sizes, PNG chunks/CRC/structure, zlib scanline decompression/filters or ratios stop processing before requesting the mobile view. This does not establish visual-consistency QA; actual-service verification remains necessary.
 
-`received` 只表示 HTTP JSON 收到，不代表圖片已驗收。`started` 或 `unknown` 皆不得自動重送。回應只有供應商 request header 時紀錄為 provider-request；沒有時明確使用 client-request 身分，**不把本地 ID 偽稱為供應商 generation ID**。
+## Uncertain requests and records
 
-操作員可離線用 `inspectMetaRequests(db, jobId)` 讀取該工作各階段的 client/provider request ID 與時間，不含原文或鑰匙。
+After `0003_provider_requests.sql`, `databaseJournal` inserts a unique `(provider_key,stage)` before each request. Every claim rechecks that the original job is still running and analysis consent remains valid. Records contain no API key, original personality input or prompt.
 
-查閱的官方文件沒有提供可依本地 request key 查回結果或保證冪等計費的合約；因此不虛構 retrieve endpoint、不加沒有契約依據的冪等承諾。未知結果需要人工查證，見 [安全結案](RECOVERY.md)。初版不會從部分完成階段自動恢復／重新產圖。
+`received` means only that HTTP JSON arrived, not that the image passed review. Neither `started` nor `unknown` may be automatically resent. A response with only a provider request header is recorded as provider-request; without one, it explicitly uses client-request identity. **A local ID is never misrepresented as a provider generation ID.**
 
-## 啟用條件
+Operators can inspect a job's client/provider request IDs and timestamps offline using `inspectMetaRequests(db, jobId)`, without original text or keys.
 
-需正式部署批准、現有授權 API key、明確付費預算、D1 bindings／migrations 驗證及視覺端到端驗收。`approvedPaidCalls` 是必須由部署方提供的授權 gate，不是費用計價或自動預算追蹤器。沒有批准或 key 時，零網路呼叫。
+The official documentation reviewed did not provide retrieval by a local request key or an idempotent-billing guarantee. Accordingly, this implementation invents neither a retrieve endpoint nor an unsupported idempotency promise. Unknown outcomes require human investigation; see [safe closure](RECOVERY.md). The initial version does not automatically resume partial stages or regenerate images.
 
-目前僅 mock HTTP＋真 SQLite journal 合約測試；未發出真實 Meta 請求。後續正式接通仍需落實費用限制、私密素材保留政策與人工 provider 對帳流程。
+## Activation requirements
+
+Production deployment approval, an existing authorized API key, explicit spending budget, verified D1 bindings/migrations and visual end-to-end acceptance are required. `approvedPaidCalls` is a deployer-supplied authorization gate, not a price calculator or automatic budget tracker. Without approval or a key, there are zero network calls.
+
+At this documented stage, validation consists only of mock HTTP plus a real SQLite journal contract; no real Meta request was sent. Subsequent production connection still requires cost limits, private-asset retention policy and human provider reconciliation.

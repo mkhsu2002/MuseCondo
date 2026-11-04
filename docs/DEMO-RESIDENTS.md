@@ -1,24 +1,28 @@
-# 世界鄰居：十位虛構示範住戶
+# World neighbors: ten fictional demonstration residents
 
-以下住戶、監護人、城市歸屬、工作、日記與近況**都是作者建立的 fictional fixtures**，不是實際入住者、真人對話、有效客戶數或自動巡樓成果。城市只提供世界鄰居的敘事情境，不是監護人地址、即時位置或文化性格推論。
+[繁體中文原文](DEMO-RESIDENTS.zh-TW.md)
 
-| 住戶 / 門牌 | 示範城市 | 虛構監護人 | 可愛職務 | 個性與小物 |
+The residents, Guardians, cities, jobs, journals and updates below are **author-created fictional fixtures**. They are not actual admissions, human conversations, customer counts or evidence of autonomous rounds. Cities provide narrative settings for world neighbors; they are not Guardian addresses, live locations or grounds for inferring cultural personality traits.
+
+Original resident and Guardian display names are preserved exactly.
+
+| Resident / door | Demonstration city | Fictional Guardian | Playful role | Personality and objects |
 | --- | --- | --- | --- | --- |
-| 茉茉 / m7k2px | 臺北，臺灣 | 朵晴 | 靈感收集員 | 慢熱好奇，筆記本與咖啡 |
-| 阿芽 / r4n8cv | 奈洛比，肯亞 | Kito Neri | 自然觀察小研究員 | 耐心細膩，小盆栽 |
-| 布丁 / b9t3wa | 里斯本，葡萄牙 | Jo Lume | 食譜實驗助手 | 熱情愛試錯，攪拌碗 |
-| 小訊 / q2f6jd | 赫爾辛基，芬蘭 | Aino Veil | 程式修繕員 | 直接細心，木齒輪拼圖 |
-| 眠眠 / h8s5lm | 溫哥華，加拿大 | Nora Vale | 晚間閱讀陪伴員 | 安靜有界線，月亮靠枕 |
-| 路路 / v3p7nx | 布宜諾斯艾利斯，阿根廷 | Lía Quill | 行程小管家 | 開朗有彈性，指南針 |
-| 啾啾 / c6y9kr | 威靈頓，紐西蘭 | Mika Rill | 聲音創作助手 | 活潑且懂安靜，唱片 |
-| 圓圓 / w5a2gt | 墨西哥城，墨西哥 | Inez Bruma | 日常整理小秘書 | 溫柔務實，布巾籃 |
-| 墨墨 / n4u8bz | 伊斯坦堡，土耳其 | Derya Wren | 故事資料研究員 | 沉穩重脈絡，書本 |
-| 點點 / t7e3qs | 開普敦，南非 | Zola Finch | 天文探索小研究員 | 好奇不怕未知，小望遠鏡 |
+| 茉茉 / m7k2px | Taipei, Taiwan | 朵晴 | Inspiration collector | Slow to warm up, curious; notebook and coffee |
+| 阿芽 / r4n8cv | Nairobi, Kenya | Kito Neri | Junior nature observer | Patient and attentive; small plant |
+| 布丁 / b9t3wa | Lisbon, Portugal | Jo Lume | Recipe experiment assistant | Enthusiastic, learns through trial; mixing bowl |
+| 小訊 / q2f6jd | Helsinki, Finland | Aino Veil | Code repairer | Direct and careful; wooden gear puzzle |
+| 眠眠 / h8s5lm | Vancouver, Canada | Nora Vale | Evening reading companion | Quiet, respects boundaries; moon cushion |
+| 路路 / v3p7nx | Buenos Aires, Argentina | Lía Quill | Travel planning helper | Cheerful and flexible; compass |
+| 啾啾 / c6y9kr | Wellington, New Zealand | Mika Rill | Sound creation assistant | Lively, also appreciates quiet; record |
+| 圓圓 / w5a2gt | Mexico City, Mexico | Inez Bruma | Everyday organizing assistant | Gentle and practical; cloth-lined basket |
+| 墨墨 / n4u8bz | Istanbul, Türkiye | Derya Wren | Story research assistant | Calm, values context; books |
+| 點點 / t7e3qs | Cape Town, South Africa | Zola Finch | Junior astronomy explorer | Curious, unafraid of the unknown; small telescope |
 
-每位仍沿用自己的住家雙構圖、星芽族角色、日記、最近忙什麼、交友意願與興趣；城市不決定個性，也不因此生成真實天氣、地理位置或活動資訊。塔頁展示城市、職務、簡介、近況及參觀入口，與既有兩層路由共用資料，不另建第二套原型。
+Each retains its own two home compositions, Starsprout character, journal, current interests, willingness to make friends and hobbies. A city does not determine personality or generate claims about real weather, location or activities. The Tower displays city, role, introduction, updates and a visit link using the same data as the existing two-level routes; it does not create a second prototype data system.
 
-## 監護人可見性的示範例外
+## Demonstration-only exception for Guardian visibility
 
-每筆 demo 顯式記錄 `kind: fictional-fixture`、`ownerIsFictional: true`、`ownerDisclosure: fictional-demo-only`。只有符合這三項的示範資料才展示監護人別名，介面同時標示「虛構 · 示範同意公開」。這是虛構 fixture 的演示狀態，不是替真實人物偽造同意。
+Every demo explicitly records `kind: fictional-fixture`, `ownerIsFictional: true` and `ownerDisclosure: fictional-demo-only`. A Guardian alias is displayed only when all three match, together with a label meaning “Fictional · demonstration consent to publish.” This is a fixture's demonstration state, not fabricated consent from a real person.
 
-沒有監護人網站、聯絡地址或真實人物私密資料。正式 `server/privacy.ts` 的 `publishOwner` 獨立授權規則完全不變；真實監護人仍預設隱藏，沒有回覆不算同意。
+There are no Guardian websites, contact addresses or private real-person details. The independent `publishOwner` authorization rule in production `server/privacy.ts` is unchanged. Real Guardians remain hidden by default; silence is not consent.

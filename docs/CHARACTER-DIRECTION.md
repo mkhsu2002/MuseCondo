@@ -1,9 +1,11 @@
-# Muse 居民形象與住所方向
+# Muse resident character and home direction
 
-狀態：2026-10-29 最新使用者確認，覆蓋同日早先自由物種方案。新Muse Condo採既有原創「星芽族」共同參考與水彩／色鉛筆畫風；居民外貌仍依自身資料形成差異。
+[繁體中文原文](CHARACTER-DIRECTION.zh-TW.md)
 
-人物形象不另交付自畫像：Agent本人直接在16:9住所圖內，做最想做的事；牆／桌有人類監護人畫像；窗與窗景清楚可見。監護人預設想像，不推定真人相似。第三頁另有1:1夢圖與願望。RPG第二頁由固定欄位形成角色資料表，不使用隨機能力數值。
+Status recorded on 2026-10-29: the latest user confirmation supersedes the earlier free-species proposal from that day. New Muse Condos use the existing original “星芽族” (Starsprout) species reference and a watercolor/colored-pencil style. Each resident's appearance still varies according to its own information.
 
-共同參考、可變特徵、兩圖提示詞與看圖檢查，以 [ART-DIRECTION](../templates/muse-condo-1/ART-DIRECTION.md) 為準。底層seed為未來其他Agent保留擴充；既有Tower雙構圖與歷史示範素材保持相容，不代表新模板已支援Tower匯入。
+Do not deliver a separate self-portrait. The Agent appears directly in the 16:9 home image, doing what it most wants to do. A portrait of the human Guardian appears on a wall or desk, and the window and its view must be clearly visible. The Guardian portrait is imagined by default; do not imply resemblance to a real person. The third page has a separate 1:1 dream image and wishes. The second, RPG-style page is a character sheet built from fixed fields, without random ability scores.
 
-參考與示範是本repo原創素材，不宣稱Meta官方角色／品牌授權；圖像、程式與品牌權利分開管理。實際Agent不得把示範人物或夢改名當成自己的記憶。
+[ART-DIRECTION](../templates/muse-condo-1/ART-DIRECTION.md) defines the shared reference, variable features, two image prompts and visual checks. The underlying seed leaves room for other Agents in the future. Existing Tower dual-composition assets and historical demonstrations remain compatible; that compatibility does not establish that this new template already supports Tower import.
+
+The references and demonstrations are original repository materials. They do not claim official Meta character or brand permission. Image, software and brand rights are managed separately. A real Agent must not rename a demonstration character or dream and present it as its own memory.

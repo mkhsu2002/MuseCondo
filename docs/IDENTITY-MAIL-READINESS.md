@@ -1,56 +1,59 @@
-# I05a 寄件網域診斷
+# I05a sender-domain readiness diagnostics
 
-## Current delivery boundary
+English · [繁體中文](IDENTITY-MAIL-READINESS.zh-TW.md)
 
-The historical implementation slices below are not the current release status. In the v0.94–v0.96 production sequence, sender/handler readiness was verified before Fang’s first Guardian invitation. The accepted invitation was delivered once through the deployed transactional path. This is invitation delivery, not identity-card delivery: human Guardian passkey/backup setup, active identity, usable PDF plus signed-JSON card attachment receipt and actual recovery remain pending. The provider secret stays on the deployment side. Readiness is time-bounded and must be checked before a later send; no automatic readiness-refresh capability is claimed. See [current integration](plans/RESIDENT-MANAGER-INTEGRATION.md) and [post-intake identity steps](IDENTITY-AFTER-INTAKE.md).
+> This is the English technical translation of the dated record. Translation does not refresh deployment evidence or historical pending states. For the current accepted release, use [CURRENT-RELEASE](architecture/CURRENT-RELEASE.md).
 
-## Historical I05a implementation slice
+## Historical integration context
 
+The original I05a slice is not current release status. The v0.94–v0.96 production sequence verified sender/handler readiness before Fang’s first Guardian invitation and delivered that accepted invitation once through the deployed transactional path. At that checkpoint, delivery of an invitation did not establish human Passkey/backup completion, active identity, usable PDF/signed-JSON attachment receipt or recovery. See [integration](plans/RESIDENT-MANAGER-INTEGRATION.md), [post-intake steps](IDENTITY-AFTER-INTAKE.md) and the current release index rather than treating these historical pending statements as current facts. Provider credentials remain deployed; readiness expires and must be checked for a later send. No unattended readiness refresh was claimed.
 
-2026-10-31 本地後續：b2a 私有 dispatch／Pages 串流核心見 [技術契約](IDENTITY-MAIL-DISPATCH.md)。尚未部署、未啟用投遞；下文原切片狀態為歷史範圍，不可據此沿用舊直寄路徑。
+## Original implementation scope: 2026-10-31
 
-這個切片只提供部署端、operator 專用的 Resend 寄件網域 metadata 查核，不寄信、不建 webhook、不改 DNS。它不代表 I05 附件郵寄或收件驗收完成。`identity-card` 與 `security-notice` 事件仍沿原契約保持 pending；guardian 的既有寄送行為不變。無新增前台或排程，排程新增觸發數與空跑數皆為零。
+The subsequent local b2a dispatch/Pages streaming work is documented in [dispatch](IDENTITY-MAIL-DISPATCH.md). Its then-unpublished state and the earlier slice below are historical, not permission to restore the old direct-send path.
 
-## 私有入口
+This slice offered only operator-only deployed Resend domain-metadata checks: no email, webhook creation or DNS change. It did not complete I05 attachment delivery/receipt. `identity-card` and `security-notice` events remained pending under their contracts; existing Guardian behavior was unchanged. No new UI or scheduler: new scheduled invocations and empty runs both0.
 
-exact `POST /api/v1/operator/identity/mail-readiness`，同環境 `X-Tower-Operator-Key` 對應部署端 `TOWER_OPERATOR_KEY`。body 僅有 `{ "requestKey": "operator-chosen-key" }`，值必須是 8–96 字元 printable ASCII；UTF-8 JSON body 最多 1024 bytes，拒絕重複 key、額外欄位、query（含空 query）、錯 host／Origin、cross-site、Cookie 與非 POST。未授權或無效輸入不寫入、不呼叫 provider。此端點不接受 from、domain、收件人、key、URL 或內容。
+## Private endpoint
 
-`IDENTITY_MAIL_API_KEY` 僅由部署端 Pages Function 暫時使用，不取回本機／runner。`IDENTITY_MAIL_FROM` 直接來自該部署環境；解析限定單一 ASCII dot-atom mailbox，可帶無 RFC 特殊符號的文字顯示名稱，拒絕控制字元、地址清單、註解、未配對括號、無效 domain／IP。不符合支援格式時回 unknown，不能自行猜寄件人。只從該 FROM 提取精確的正規化 domain（DNS 大小寫不敏感），不嘗試父 domain。原 FROM 及地址不出現在回應或 audit。
+Exact `POST /api/v1/operator/identity/mail-readiness` authenticates the same-environment `X-Tower-Operator-Key` against deployed `TOWER_OPERATOR_KEY`. Body is only `{"requestKey":"operator-chosen-key"}`:8–96 printable ASCII characters, maximum1024 UTF-8 JSON bytes. Reject duplicate keys, extra fields, queries (including an empty query), wrong host/Origin, cross-site requests, Cookie and non-POST methods. Unauthorized/invalid input causes no write or provider access. Callers cannot supply FROM, domain, recipients, keys, URLs or content.
 
-## 固定 provider 讀取
+Only the deployed Pages Function temporarily uses `IDENTITY_MAIL_API_KEY`; it is never retrieved into local/runner processes. `IDENTITY_MAIL_FROM` comes from deployment configuration. Its parser permits one ASCII dot-atom mailbox and an optional plain display name without RFC-special characters. Reject controls, address lists, comments, unmatched brackets and invalid domains/IPs. Unsupported syntax is unknown, not a guessed sender. Extract only its exact normalized case-insensitive DNS domain, never a parent domain. Raw FROM/address is absent from responses and audit.
 
-Function 固定 GET `https://api.resend.com/domains?limit=100`；`has_more=true` 時用該頁最後一個 ID 作 `after`，最多 10 頁。找到精確 domain 後固定 GET `/domains/:id`，獨立檢查單域回應的 `status` 與 `capabilities.sending`。整次 provider 操作共用 15 秒 deadline（包含讀 body），成功 body 每次最多 128 KiB、錯誤 body 最多 4 KiB；使用 workerd 支援的 `redirect: manual`，在解析 body 前拒絕所有 3xx；不追蹤 Location、不轉送 Authorization。缺任一配置時不進行任何網路讀取。
+## Fixed provider reads
 
-只在完整、合法清單 traversal 結束時認定 domain missing。空但有後頁、重複 ID／循環、超過頁數、錯誤／過大／畸形／重複欄位 body、未知 status／capability 與 timeout 一律 unknown。匹配後的單域回應必須保持相同 ID／domain。其他 domain、ID、DNS records、原 provider body／message 及 secret 不輸出或保存。
+The Function GETs `https://api.resend.com/domains?limit=100`, following `has_more=true` with the page’s last ID as `after`, at most10 pages. After an exact match it GETs `/domains/:id` and independently checks status and capabilities.sending. A shared15second deadline includes body reads; each successful body is at most128KiB, each error body4KiB. workerd-compatible `redirect: manual` rejects3xx before body parsing; never follow Location or forward Authorization. Missing configuration means no network access.
 
-provider 拒絕會保留原始 HTTP status，`providerErrorName` 只允許官方錯誤識別碼清單，例如 `restricted_api_key`。metadata 權限不足表示本次診斷 unknown，不代表 key 無效，也不據此要求重設或輪換。不得依 key prefix／長度猜測有效性。
+Domain missing is established only by a complete valid traversal. Empty pages with continuation, repeated/cyclic IDs, excess pages, invalid/duplicate/oversized JSON, unknown status/capability and timeout are unknown. Detail ID/domain must match the selected entry. Other domains/IDs/DNS records and raw provider bodies/messages/secrets are neither stored nor returned.
 
-## 回應與永久狀態
+Provider refusals preserve original HTTP status and only allowlisted official `providerErrorName` values, for example `restricted_api_key`. Insufficient metadata permission makes this diagnostic unknown; it does not establish an invalid key or justify rotation. Prefix/length guesses cannot establish credential validity.
 
-- `200 ready`：只有 domain verified 且 sending enabled 才有 `senderReady=true`；這僅證明當次 sender metadata。
-- `200 not_ready`：完整合法清單查無該 domain，或域名未 verified／sending disabled；`senderReady=false`。
-- `503 unknown`：新產生的 provider 拒絕、無法完成或資料不可信結果；`senderReady=null`。保留 `providerHttpStatus` 與允許的 `providerErrorName`，不能視為健康；配置缺失同為 `503 unknown`。
-- `202 checking`：永久意圖已保留，操作尚未完成；重放不重查，不宣稱健康。
-- `409 request_key_conflict`：同 key 的原 FROM 或 origin 已改變，包括只改顯示名稱／字母大小寫。
-- `429 mail_readiness_rate_limited`：同環境不同 logical checks 已達 10／小時。
-- `503 mail_readiness_unavailable` 或 `audit_unavailable`：診斷 schema／持久化不可用，不能視為通過。
+## Responses and permanent state
 
-新結果使用 503 表示診斷依賴不可用，避免 502 經 edge 錯誤頁處理後遺失應用層 JSON。Cloudflare [Custom Errors 官方文件](https://developers.cloudflare.com/rules/custom-errors/)說明 Error Pages 不適用 503；實際部署回應仍須另行回讀驗證，不能只靠本地通過。此變更不將錯誤改成 200、不修改 zone 設定，也不重寫歷史收據：已保存 `response_status=502` 的結果仍在應用層逐字重播原 JSON 與原 502；永久 audit、quota 與 checkedAt 均不變。0019 已允許 503，不需修改 migration。
+| Result | Meaning |
+| --- | --- |
+| `200 ready` | Exact domain verified and sending enabled; senderReady=true proves only this sender observation. |
+| `200 not_ready` | A complete valid list has no exact domain, or the domain is unverified/sending disabled; senderReady=false. |
+| `503 unknown` | New refusal, incomplete/untrusted data or missing configuration; senderReady=null. Preserve providerHttpStatus and allowlisted providerErrorName. |
+| `202 checking` | Permanent intent exists, work is unfinished; replay does not recheck or establish health. |
+| `409 request_key_conflict` | Original FROM/origin changed, including display-name/case-only changes. |
+| `429 mail_readiness_rate_limited` | Same environment reached10 distinct logical checks/hour. |
+| `503 mail_readiness_unavailable` or `audit_unavailable` | Diagnostic schema/persistence unavailable; not a pass. |
 
-所有診斷結果都保持 `deliveryVerified=false`。PDF＋JSON attachment、permanent frozen envelope、事件 exact dispatch、簽署 webhook 的 delivery／suppression 與 unknown reconcile 均屬後續 I05 切片；不得把 `senderReady=true` 改寫成可寄送或投遞驗收完成。
+New diagnostic dependency failures use503 instead of502 so edge error pages do not replace application JSON. The [Custom Errors documentation](https://developers.cloudflare.com/rules/custom-errors/) read for the implementation excludes503 from Error Pages; actual deployed behavior still requires readback. This neither turns errors into200 nor changes zone settings. Existing receipts with response_status=502 replay their original JSON/status byte-for-byte, without changing audit/quota/checkedAt.0019 already allowed503; no new migration was needed.
 
-`0019_identity_mail_provider_checks.sql` 新增 `identity_mail_provider_checks`、`identity_mail_provider_audit` 及四個永久／不可變 triggers，不借用需要 account 的 `tower_audit`、不冒造 global account。requestKey 與原 FROM／origin 只保存用途分離 SHA-256 hash；domain 可保存，無 raw FROM、收件地址、secret 或 raw provider body。
+All results retain deliveryVerified=false. PDF/JSON attachments, frozen envelopes, exact dispatch, signed delivery/suppression webhook and unknown reconciliation were later slices; senderReady must not be represented as completed delivery acceptance.
 
-reservation、`rate_limits` 的 `identity-mail-provider:global` 10／小時 counter 及 intent audit 同一 D1 batch 提交，之後才讀 provider；去敏結果與 completed audit 再同批提交。同 key／同 input 永久重放相同結果及原 HTTP status，不扣額度、不呼叫 provider。並發同 key 僅一個 logical check；unknown 不自動重查。中斷的 checking 保留，不透過重放搶回。完成 audit 寫入失敗時回 unknown；若 commit acknowledgement 遺失，之後只讀永久收據，仍不重查。
+`0019_identity_mail_provider_checks.sql` adds `identity_mail_provider_checks`, `identity_mail_provider_audit` and four permanent/immutable triggers. It does not borrow account-bound tower_audit or invent a global account. Purpose-separated SHA-256 hashes retain requestKey and FROM/origin binding; domain may be stored, but not raw FROM, recipient, secret or provider body.
 
-同 requestKey 回傳的是當時 `checkedAt` 的歷史 snapshot，不代表 provider 的目前狀態。要重新查核（包括權限／DNS／provider 配置修正後）必須使用新 requestKey，並重新計入每小時配額；相同 key 不能充當 refresh。checking 與 unknown 都表示尚未證實健康。
+Reservation, the `identity-mail-provider:global`10/hour rate counter and intent audit commit in one D1 batch before provider reads. Sanitized outcome/completed audit commit together afterward. Same key/input permanently replays the original response/status without quota/network work; concurrent identical keys produce one logical check. Unknown is not automatically retried. Interrupted checking is retained, not reclaimed by replay. Failed completion audit returns unknown; lost commit acknowledgement is resolved by reading the permanent receipt, not repeating the provider request.
 
-## 發布界線
+A requestKey returns the historical checkedAt snapshot. Refresh—including after DNS/permissions/provider configuration changes—requires a new requestKey and new hourly quota. Checking/unknown are not healthy.
 
-新增診斷 schema 缺失時僅此端點 fail closed；不把它加入全平台 `requiredTables`，不阻塞無關 API。發布仍必須在 dev／正式各自實際套用 0019、比對兩表四 triggers、外鍵與 deployed Pages code／bindings，再用同環境 operator key 驗證未授權、配置缺失、查核／重放、去敏 audit 與 quota。dev 刻意無 mail provider 配置時應保持 unknown/no network。此文件不是已套 migration／已部署／已完成 live readback 的聲明。
+## Release boundary and historical readback
 
-官方契約已於本切片實作時重新查閱：[List Domains](https://resend.com/docs/api-reference/domains/list-domains)、[Retrieve Domain](https://resend.com/docs/api-reference/domains/get-domain)、[Resend OpenAPI](https://github.com/resend/resend-openapi/blob/main/resend.yaml)。安全架構沿用全域 `newsletter-worker-standard`，沒有另造寄送機制。
+Missing diagnostic schema fails only this endpoint closed; it is not added to platform-wide requiredTables. The recorded release required actual0019 application and checks of two tables/four triggers/FKs, deployed Pages code/bindings and same-environment authorization, missing-configuration, replay/audit/quota behavior. Intentionally unconfigured dev remains unknown/no-network. The contract alone is not migration/deployment/live evidence.
 
-## 官方實踐回讀
+Primary provider contracts were read during that original implementation: [List Domains](https://resend.com/docs/api-reference/domains/list-domains), [Retrieve Domain](https://resend.com/docs/api-reference/domains/get-domain), [Resend OpenAPI](https://github.com/resend/resend-openapi/blob/main/resend.yaml). The architecture follows global newsletter-worker-standard.
 
-2026-10-31 v0.64已兩環境部署、0019／146來源DDL比對與實際診斷驗收。正式sender的provider metadata已回verified＋sending enabled；dev保留無配置／unknown。永久snapshot重放、quota與intent/completed audit通過；未寄信，deliveryVerified=false。這是官方本次已查證結果，其他部署者仍需自行執行上述gate，不能沿用此結果宣告自己的寄件能力。歷史v0.62的502與後續修復範圍見[階段紀錄](plans/AGENT-IDENTITY.md)。
+On2026-10-31, v0.64 was deployed to both environments,0019/146 source-DDL objects matched and diagnostics were exercised. Production sender metadata was verified/sending-enabled; dev stayed unconfigured/unknown. Permanent snapshots, quota and intent/completed audit passed. No email was sent; deliveryVerified=false. Other deployments cannot inherit this observation as proof of their own readiness. Historical v0.62/502 details are in the [stage record](plans/AGENT-IDENTITY.md).

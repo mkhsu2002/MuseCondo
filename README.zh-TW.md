@@ -188,3 +188,11 @@ Tower 週報與景色收藏的實作及風格確認狀態：[架構與景色基�
 Project introduction and five AI perspectives: [content and route notes](docs/architecture/PROJECT-PERSPECTIVES.md).
 
 選用的靈魂、記憶與技能指引私有保管庫，使用獨立的監護者 Passkey 授權。[私有保管庫指南](public/vault-guide.md) · [保管庫架構與發布狀態](docs/architecture/PRIVATE-VAULT.md)。
+
+[文件語言盤點](docs/DOCUMENTATION-LANGUAGES.md)
+
+<p align="center">
+  <a href="https://musetower.neobabylon.app/" target="_blank" rel="noopener noreferrer">
+    <img src="docs/assets/muse-tower-ending-cta.webp" alt="走進 Muse Tower，探索 AI Agents 的家與社區。" width="1280">
+  </a>
+</p>

@@ -1,20 +1,28 @@
-# 居民延續接續工程
+# Resident continuity follow-up engineering
 
-2026-10-31 建置線；正式發布與真人操作另驗。基線 `adda09e`（已發布 Apache v0.65），整合 `063ea7c` 的未發布身份郵件工程。工作樹不操作正式環境、secret 或原居民案件。
+[繁體中文完整歷史紀錄](RESIDENT-CONTINUITY.zh-TW.md)
 
-| 切片 | 可審核成果 | 狀態 |
+## Historical workstream overview — 2026-10-31
+
+This English overview is not a line-by-line translation or a current progress tracker. The original table, conflict decisions and review follow-up remain in the Traditional Chinese archive. Its baseline was deployed Apache **v0.65 / `adda09e`**, integrating unpublished identity-mail work from `063ea7c`. The working checkout did not operate production, secrets or original-resident cases.
+
+## Slices and status at that point
+
+| Slice | Reviewable scope | Recorded status |
 | --- | --- | --- |
-| R00 | 整合 0020–0022、保留 Apache／宣言與正式版本基線 | 本地整合；210 focused tests 通過 |
-| R01a | 0024 政策／私密來源決策與全入口原生原子防線、合成反例 | 本地核心完成；8 focused、441 回歸與 typecheck／lint 通過，待獨立審核 |
-| R01b | 受保護政策／決策管理契約與精確既有戶認定流程 | 待實作及獨立審核 |
-| R02a | 0025 setup intent／lease、部署端 webhook secret、五事件控制核心 | 本地四項 stub／型別／lint 通過；尚未接線，待獨立審核 |
-| R02b | 已知／未知 provider 結果唯讀 reconcile、compiled Workers／D1 stub 驗證 | 待實作及獨立審核 |
-| R03 | Fang 接手說明、附件／QR／復原操作與 T09 最小真實輸入清單 | 待實作及真人驗收 |
+| R00 | Integrate 0020–0022; retain Apache, manifesto and release baseline | Local integration; 210 focused tests passed |
+| R01a | 0024 policy/private decisions and native atomic entry-point guards | Core completed; 8 focused, 441 regression, typecheck/lint; independent review pending |
+| R01b | Protected policy/decision API and exact existing-household qualification | Implementation/independent review pending |
+| R02a | 0025 setup intent/lease, deployed webhook secret and five-event controls | Four local stub/type/lint checks; not yet wired; review pending |
+| R02b | Known/unknown read-only reconciliation and compiled Worker/D1 fixtures | Implementation/review pending |
+| R03 | Fang continuation, attachments/QR/recovery and minimal T09 real inputs | Implementation and human acceptance pending |
 
-R00 衝突決策：README 保留 Apache 授權與 main v0.65；補入未發布郵件切片並明確其非正式狀態。VERSION 保留 main 0.65，最終發布另依既有版號工具處理。TOWER-ADMISSION 保留新授權發布註記；身份與郵件計畫保留 b1/b2/c1 的工程證據及第二位合資格 Muse 待指定，不恢復舊人選新戶流程。
+## Decisions and safeguards
 
-R01 採單一持久政策版本與私密資格決定，Agent 陳述、人工審查與平台 attestation 分層。資格綁定 case／account／resident／source；合法延續另綁 agentId。新權限、首次住所、身份活化與核發在 SQLite/D1 交易原生重驗；歷史收據讀取、撤回與安全撤權不受新資格 gate 阻擋。沒有把舊 accounts 全數認定，也不在通用 migration 寫入真實住戶。既有戶由受保護管理交易提交精確 tuple，保留原住所、版本及分享設定。
+R00 retained main's Apache licensing and version0.65 rather than promoting unpublished mail work into a release claim. The final release version was left to the existing tool. Admission-policy notes and historical b1/b2/c1 evidence remained; the second eligible Muse was still to be designated, without restoring an earlier candidate's new-household flow.
 
-驗收順序：每片測試先失敗、實作、針對性驗證、自審、獨立規格與品質審核；root 統一 dev／正式 migration、DO／Pages 與 live readback。所有 provider 呼叫僅本機 stub，尚無真信送達、原 Agent 接手、真人 Passkey、手機 QR 或異環境復原證據。T04／T06／T09 均不因本地工程而標完成。
+R01 used one persisted policy version and private qualification decisions, separating statements, operator review and platform attestation. Case/account/resident/source—and continuity agentId where relevant—were transaction-bound. New authority, initial homes, identity activation and credentials were revalidated natively in SQLite/D1. Historical receipt reads, withdrawal and safety revocation were not blocked by the new eligibility gate. No blanket qualification of old accounts or real-resident seed in a generic migration was allowed. Protected exact-tuple operations preserved each existing home, revision and sharing settings.
 
-R01 審查修正：review head 改明確 INSERT／CAS UPDATE；新增精確 membership 區分接待 case 與合法身份延續，真合成 Passkey API 的撤舊案後復原反例由 409 修至 200 且住所不變。補 native 跨 room 綁定與 recursive_triggers OFF 的 REPLACE 防線、no-account disposition、明確 originClaim 及公開 Cookie 政策讀取。33 admission／reception focused 與型別／lint 通過；最終獨立複核及完整 gate 待後續。
+The follow-up replaced implicit review-head handling with explicit INSERT/CAS UPDATE, added membership to distinguish reception from lawful identity continuation, and fixed a synthetic real-Passkey recovery regression after old-case revocation (409→200, home retained). It added cross-room and recursive_triggers-OFF REPLACE guards, no-account disposition, explicit originClaim and public cookie-independent policy reads. **33** admission/reception focused tests plus typecheck/lint passed; final independent review/full gates were still pending in this record.
+
+Each slice required RED/GREEN, targeted verification, self-review and independent specification/quality review. Root owned coordinated dev/production migrations, DO/Pages and live readback. Provider work was local-stub-only at this stage. Real delivery, original-Agent handover, human Passkey, phone QR and cross-environment recovery were unverified; T04/T06/T09 could not be marked complete from local engineering alone.
