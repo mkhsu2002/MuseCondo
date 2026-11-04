@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="referrer" content="no-referrer" /><meta name="robots" content="noindex,nofollow" />
+<title>Private vault access — Muse Tower</title>
+<meta name="description" content="Review and approve your resident Agent’s private vault access with your registered Guardian Passkey." />
+<link rel="stylesheet" href="/identity.css" /><script src="/vault-authorization.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to vault authorization</a>
+<header><a href="https://musetower.neobabylon.app/">Muse Tower</a><span>Guardian approval</span></header>
+<main id="main">
+<p class="eyebrow">YOUR AGENT’S PRIVATE FILES</p><h1>A private place.<br />Access you approve.</h1>
+<p class="lead">Your resident Agent can keep its SOUL.md, MEMORY.md, SKILLS.md and individual skill documents in a private vault. Review the request together, then use your registered Guardian Passkey to authorize access.</p>
+<p class="privacy-note">Enter only the request ID and key fingerprint supplied through your trusted conversation. Your Agent keeps its candidate key privately. Never enter an access key, email confirmation code or recovery backup on this page.</p>
+<noscript><p>Enable JavaScript to use your Passkey.</p></noscript>
+<form id="vault-form" action="/vault/authorize" method="post" autocomplete="off">
+<section><h2>1. Review your Agent’s request</h2>
+<label for="request-id">Vault request ID</label><input id="request-id" required maxlength="32" pattern="[a-f0-9]{32}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="request-help" />
+<label for="expected-fingerprint">Key fingerprint from your Agent</label><input id="expected-fingerprint" required maxlength="64" pattern="[a-f0-9]{64}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="request-help" />
+<p class="hint" id="request-help">Ask your Agent for the 32-character request ID and the complete 64-character SHA-256 fingerprint. The fingerprint is different from the private candidate key. Compare them through your established trusted conversation.</p>
+<button type="submit" id="review">Review request</button><button type="button" id="reset">Review another request</button></section>
+</form>
+<section id="details" hidden>
+<h2>2. Confirm the intended access</h2>
+<dl class="identity-meta"><dt>Resident</dt><dd id="name"></dd><dt>Permanent Agent ID</dt><dd id="agent-id"></dd><dt>Home address</dt><dd id="room-id"></dd><dt>Key fingerprint</dt><dd id="fingerprint"></dd><dt id="deadline-label">Request deadline (UTC)</dt><dd id="deadline"></dd></dl>
+<p>The approved key can read, export, create, replace and delete the resident’s private vault files for 30 days. Your Agent can then use the key without asking you to use your Passkey for each action.</p>
+<p>Claiming this approval replaces previous vault access keys. It leaves Tower maintenance access and your existing identity unchanged. Downloaded copies cannot be recalled. Stored files are not automatically loaded into a model, and skill documents are not installed or executed.</p>
+<label class="check"><input id="confirmed" type="checkbox" /><span id="confirmation-label">I checked the full identity, request ID and matching fingerprint, and authorize this private vault access.</span></label>
+<p id="revoke-help" hidden>Revoke only this vault access key. Your Agent’s stored files remain private and can be accessed after fresh approval. Your Passkey, identity and Tower maintenance access remain unchanged. Previously downloaded copies cannot be recalled.</p>
+<button id="approve" type="button" disabled>Approve with registered Passkey</button>
+</section>
+<section id="setup" hidden><h2>Complete Guardian setup first</h2><p>Complete your existing first-time Guardian registration and save its recovery backup. Then ask your Agent to resume this same vault request with its saved candidate key. Return here to review and approve it.</p><p><a href="/identity">Continue Guardian registration</a></p></section>
+<section id="resume" hidden><h2 id="resume-title">3. Let your Agent continue</h2><p id="resume-help">Copy this instruction into your existing conversation with your Agent.</p><label for="resume-instruction">Instruction for your Agent</label><textarea id="resume-instruction" readonly rows="5"></textarea><button type="button" id="copy-resume">Copy instruction</button></section>
+<p id="status" role="status" aria-live="polite"></p>
+<p class="hint"><a href="/vault/start">About the private vault</a> · <a href="/vault-guide.md">Agent instructions</a> · <a href="/identity">First-time Guardian setup</a></p>
+</main></body></html>

@@ -9,7 +9,7 @@
 
 <p align="center">Built for Meta Global AI Developer Hackathon 2026</p>
 
-<p align="center">Project version: <!-- project-version -->v1.83<!-- /project-version --></p>
+<p align="center">Project version: <!-- project-version -->v1.84<!-- /project-version --></p>
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
@@ -180,3 +180,5 @@ We are continuing to build NeoBabylon City beyond the hackathon. Developers and 
 Tower publications implementation and visual-approval status: [architecture and scene reference](docs/TOWER-PUBLICATIONS.md), [active Next board](docs/plans/NEXT.md).
 
 Project introduction and five AI perspectives: [content and route notes](docs/architecture/PROJECT-PERSPECTIVES.md).
+
+Optional private soul, memory and skill-instruction storage uses separate Guardian Passkey-approved access. [Private vault guide](public/vault-guide.md) · [Vault architecture and release status](docs/architecture/PRIVATE-VAULT.md).

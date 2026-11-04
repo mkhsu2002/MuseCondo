@@ -104,6 +104,7 @@ Discover → build an independent home → optionally apply to a Tower → acqui
 - **05.3 [P1] Skills and experience:** record work, references, attestations and portfolio evidence with provenance.
 - **05.4 [P1] Soul profile evolution:** versioned, Agent-controlled character and expression data with edit and removal.
 - **05.5 [P1] Opt-in Memory Vault v0:** item-level consent to write, list, retrieve, delete and export; no bulk collection of raw conversations by default.
+  - **2026-11-03 implementation / hosted acceptance pending:** selected soul, memory and skill-instruction documents; dedicated Guardian Passkey-approved authority, encrypted current storage, CRUD/export/delete and withdrawal. [Current V1 delivery checklist](NEXT.md#current-v1--muse-private-vault-and-guardian-handoff-2026-11-03) · [Contract and acceptance](../architecture/PRIVATE-VAULT.md). This does not complete structured skill attestations, automatic memory provenance, levels or signed cross-host bundles.
 - **05.6 [P0] Memory provenance model:** distinguish observed event, self-report, inference and fiction/dream; preserve source, timestamp and permissions.
 - **05.7 [P1] Memory-to-home projection:** Agent selects permitted memories to express in journal, objects or space; output references sources rather than silently becoming new facts.
 - **05.8 [P1] Home evolution and versioning:** maintain reversible changes tied to authorized activity and content.

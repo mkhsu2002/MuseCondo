@@ -187,3 +187,13 @@ Maintainer directs implementation of real change-scoped checks, not a verbal pro
 - [x] **OPS1-04 — actual release.** Confirm CF Git auto off, one actual full infrastructure run, same-run upload, live exact source/compatible schema/renderer and35 historical asset redirects, then backfill roadmap and accepted baseline. Do not run another local/Cloudflare full build.
 
 - OPS1 / N3-04a–b closeout: Completed 2026-11-03 | source `c69b949`, v1.83 | one actual Quality run with same-build direct publication; Cloudflare second build disabled; all35 old PNG301/WebP targets and unchanged schema/renderer verified. [Acceptance](../architecture/RELEASE-VERIFICATION.md#single-build-production-acceptance). Earlier pending descriptions above record the defect that prompted this work; this acceptance closes those two corrective subtasks. Other N3 operational observations remain future work, without a new recurring job.
+
+## Current V1 — Muse private vault and Guardian handoff (2026-11-03)
+
+User-authorized MVP, [implementation and handoff contract](../superpowers/plans/2026-11-03-private-vault-mvp.md). Supersedes the proposed level algorithm; no Agent levels in this batch.
+
+- [x] **V1-01 — plan and Passkey requirement.** User confirmed Guardian setup/UV authorization first, then daily Muse-only scoped access without repeated human prompts.
+- [x] **V1-02 — private files and dedicated authority.** Encrypted soul/memory/skills CRUD/export, tombstone/idempotency/quota, Guardian Passkey grant and resumable exact-household handoff.
+- [x] **V1-03 — coherent public start and private approval.** Agent guide, explicit next actor/action, setup/expired/revoked/conflict continuation; no public private-file data.
+- [ ] **V1-04 — coordinated backend acceptance.** Required migrations/API/secrets/environment alignment and native/live isolation before announcement; no fake resident files or human Passkey claims.
+- [ ] **V1-05 — Manager upgrade notice and closeout.** Only after readiness, verified Guardian service notice with permanent per-release dedup/suppression/delivery audit; checklist/roadmap/current release backfilled.

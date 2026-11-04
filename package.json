@@ -52,7 +52,11 @@
     "test:native:images": "node scripts/test-tower-images-native.mjs",
     "pretest:native:images": "node scripts/release-manifest.mjs --ensure",
     "verify:change": "node scripts/verify-change.mjs",
-    "build:release": "node scripts/build-release.mjs"
+    "build:release": "node scripts/build-release.mjs",
+    "test:native:vault": "node scripts/test-vault-native.mjs",
+    "pretest:native:vault": "node scripts/release-manifest.mjs --ensure",
+    "test:native:vault-notice": "node scripts/test-vault-notice-native.mjs",
+    "pretest:native:vault-notice": "node scripts/release-manifest.mjs --ensure"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

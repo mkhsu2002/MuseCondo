@@ -208,6 +208,11 @@ jobs:
         run: npm run test:native:images -- "$RUNNER_TEMP/muse-native/node_modules"
 
       # Preserve the already verified build; this never runs another application build.
+      - name: Verify native private vault Passkey grants, encrypted files and upgrade notice
+        if: steps.scope.outputs.scope == 'full'
+        run: |
+          npm run test:native:vault -- "$RUNNER_TEMP/muse-native/node_modules"
+          npm run test:native:vault-notice -- "$RUNNER_TEMP/muse-native/node_modules"
       - name: Plan Pages publication against accepted production
         id: pages
         if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.docs.outputs.scope != 'docs'

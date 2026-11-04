@@ -1,3 +1,9 @@
+import {createVaultAuthorization} from './vault-auth.ts';
+import {createPrivateVaultStore} from './vault-store.ts';
+import {createVaultRoutes,vaultFailure} from './vault-routes.ts';
+import {assertVaultKey} from './vault-crypto.ts';
+import {VAULT_LIMITS} from './vault-contract.ts';
+import {createVaultUpgradeNotice} from './vault-upgrade-notice.ts';
 import {usesStandaloneDocument} from '../../src/route-policy.ts';
 import {createTowerImageOptimization} from './tower-image-optimization.ts';
 import {createTowerImageRoutes} from './tower-image-routes.ts';
@@ -50,7 +56,7 @@ export interface PagesBindings extends TowerLordBindings,TowerPublicationBinding
  TOWER_IMAGE_OPTIMIZATION_ENABLED?:string;TOWER_IMAGE_DAILY_LIMIT?:string;TOWER_IMAGE_MONTHLY_LIMIT?:string;
  DB?:Database;ASSETS?:{fetch(request:Request):Promise<Response>};PUBLIC_ORIGIN?:string;
  REGISTRATION_ENABLED?:string;META_PAID_CALLS_APPROVED?:string;meta_muse_api?:string;
- IDENTITY_MAIL_DELIVERY_ENABLED?:string; IDENTITY_CONTACT_KEY?:string;IDENTITY_MAIL_API_KEY?:string;IDENTITY_MAIL_FROM?:string;
+ VAULT_DATA_KEY?:string;IDENTITY_MAIL_DELIVERY_ENABLED?:string; IDENTITY_CONTACT_KEY?:string;IDENTITY_MAIL_API_KEY?:string;IDENTITY_MAIL_FROM?:string;
  TOWER_SOURCE_ORIGINS?:string;TOWER_OPERATOR_KEY?:string;MANAGER_SCHEDULE_TRIGGER_KEY?:string;LEGACY_HOME_REDIRECTS?:string;
  META_MANAGER_APPROVED?:string;META_MANAGER_BUDGET_MICRO?:string;META_MANAGER_DAILY_MICRO?:string;META_MANAGER_MONTHLY_MICRO?:string;
 }
@@ -63,9 +69,18 @@ function imageServices(env:PagesBindings){return createTowerImageOptimization({d
 function publicationServices(env:PagesBindings,context?:RuntimeContext){return createTowerWeeklyServices({imageOptimization:imageServices(env),db:env.DB!,origin:env.PUBLIC_ORIGIN!,...env,apiKey:env.meta_muse_api,mailKey:env.IDENTITY_MAIL_API_KEY,from:env.IDENTITY_MAIL_FROM,contactKey:env.IDENTITY_CONTACT_KEY,approved:env.META_MANAGER_APPROVED==='true',budgetMicro:amount(env.META_MANAGER_BUDGET_MICRO),dailyBudgetMicro:amount(env.META_MANAGER_DAILY_MICRO),monthlyBudgetMicro:amount(env.META_MANAGER_MONTHLY_MICRO),bucket:env.MANAGER_ASSETS,assets:env.ASSETS,runtime:env.MANAGER_RUNTIME,trigger:env.MANAGER_SCHEDULE_TRIGGER_KEY,waitUntil:context?p=>context.waitUntil(p):undefined});}
 const htmlEscape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 /** Same-origin Pages runtime. Secrets remain in deployment storage; status only reports gates. */
+async function vaultAvailable(env:PagesBindings){
+ try{assertVaultKey(env.VAULT_DATA_KEY);return !!env.DB&&!!env.IDENTITY_CONTACT_KEY&&await routeSchemaReady(env.DB,'POST','/api/v1/agent/vault/files');}catch{return false;}
+}
+function vaultNotice(env:PagesBindings,context?:RuntimeContext){return createVaultUpgradeNotice({db:env.DB!,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY,apiKey:env.IDENTITY_MAIL_API_KEY,from:env.IDENTITY_MAIL_FROM,
+ operator:async request=>!request.headers.has('Cookie')&&request.headers.get('Sec-Fetch-Site')!=='cross-site'&&(!request.headers.has('Origin')||request.headers.get('Origin')===env.PUBLIC_ORIGIN)&&!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY),
+ ready:async()=>await vaultAvailable(env)&&(await releaseReadiness(env.DB,RELEASE_MANIFEST,env.ASSETS,env.PUBLIC_ORIGIN)).ready&&runtimeBindingsReady(env),
+ waitUntil:context?p=>context.waitUntil(p):undefined,
+});}
 export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeContext):Promise<Response>{
  const lord=await towerLordRoute(request,env);if(lord)return lord;
  const url=new URL(request.url),api=url.pathname==='/api'||url.pathname.startsWith('/api/'),home=/^\/home\/[a-f0-9]{16}(\/(inside|dreams))?\/?$/.test(url.pathname);
+ if(url.pathname==='/vault/notifications'){if(!env.DB||!validOrigin(env.PUBLIC_ORIGIN)||url.origin!==env.PUBLIC_ORIGIN)return json({error:'notification_preferences_unavailable'},503);return await vaultNotice(env,context).fetch(request)??json({error:'not_found'},404);}
  if(url.pathname.startsWith(IDENTITY_MAIL_INTERNAL_PREFIX))return json({error:'not_found'},404);
  if(url.pathname==='/api/v1/operator/images/smoke'&&env.PUBLIC_ORIGIN!=='https://framework-v001.musecondo.pages.dev')return json({error:'not_found'},404);
  if(api||(home&&env.DB)){
@@ -95,6 +110,17 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    if(!await routeSchemaReady(db,request.method,url.pathname))return json({available:false,error:'database_schema_not_ready',admission:{status:'unavailable',applyURL:env.PUBLIC_ORIGIN!+'/reception'},runtime:safe},503);
   }catch{return json({available:false,error:'database_unavailable',admission:{status:'unavailable',applyURL:env.PUBLIC_ORIGIN!+'/reception'},runtime:safe},503);}
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
+  const upgrade=vaultNotice(env,context);
+  if(url.pathname==='/api/v1/identity/mail/webhook'){const hook=await upgrade.handleWebhook(request.clone());if(hook)return hook;}
+  const upgradeResponse=await upgrade.fetch(request);if(upgradeResponse)return upgradeResponse;
+  if(url.pathname==='/api/v1/vault/capabilities'){
+   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
+   const available=await vaultAvailable(env),response=json({available,version:'musecondo-private-vault-v1',passkeyRequired:true,guardianAuthorizationRequired:true,startURL:env.PUBLIC_ORIGIN!+'/vault/start',guideURL:env.PUBLIC_ORIGIN!+'/vault-guide.md',limits:VAULT_LIMITS},available?200:503);
+   return request.method==='HEAD'?new Response(null,{status:response.status,headers:response.headers}):response;
+  }
+  const vaultAuth=createVaultAuthorization({db,origin:env.PUBLIC_ORIGIN!,contactKey:env.IDENTITY_CONTACT_KEY});
+  try{const authorization=await vaultAuth.fetch(request);if(authorization)return authorization;}catch(error){return vaultFailure(error,env.PUBLIC_ORIGIN!);}
+  const vaultResponse=await createVaultRoutes({origin:env.PUBLIC_ORIGIN!,authorization:vaultAuth,store:createPrivateVaultStore({db,key:env.VAULT_DATA_KEY??''})})(request);if(vaultResponse)return vaultResponse;
   const completion=createMoveInCompletion({db,origin:env.PUBLIC_ORIGIN!});
   const preflight=await createHomePreflightRoute({db,origin:env.PUBLIC_ORIGIN!})(request);if(preflight)return preflight;
   const verifiedCompletion=await completion.fetch(request);if(verifiedCompletion)return verifiedCompletion;
@@ -192,6 +218,16 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const response=url.pathname==='/identity-recovery.html'?new Response(null,{status:308,headers:{Location:new URL('/identity/recover',url).href}}):await env.ASSETS.fetch(new Request(new URL('/identity/recover/',url),request));
   const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   return new Response(response.body,{status:response.status,headers});
+ }
+ if(['/vault-start.html','/vault-authorization.html'].includes(url.pathname)){if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);return new Response(null,{status:308,headers:{Location:new URL(url.pathname.includes('authorization')?'/vault/authorize':'/vault/start',url).href,'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});}
+ if(/^\/vault\/(start|authorize)(?:\/|\/index\.html)?$/.test(url.pathname)){
+  if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
+  if(!env.ASSETS)return json({error:'assets_not_bound'},503);
+  const section=url.pathname.split('/')[2],response=await env.ASSETS.fetch(new Request(new URL('/vault/'+section+'/',url),request)),headers=new Headers(response.headers);
+  headers.set('Cache-Control',section==='authorize'?'no-store':'no-cache');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');
+  headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'");
+  if(section==='authorize')headers.set('X-Robots-Tag','noindex, nofollow');
+  return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
  }
  if(usesStandaloneDocument(url.pathname)){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);

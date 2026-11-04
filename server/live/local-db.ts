@@ -7,7 +7,15 @@ class LocalStatement implements Statement {
   parameters() { return this.values.map(v=>v instanceof ArrayBuffer?new Uint8Array(v):v) as SQLInputValue[]; }
   async first<T>() { return (this.db.prepare(this.sql).get(...this.parameters()) ?? null) as T | null; }
   async all<T>(): Promise<QueryResult<T>> { return {results:this.db.prepare(this.sql).all(...this.parameters()) as T[],meta:{}}; }
-  execute(): QueryResult {const r=this.db.prepare(this.sql).run(...this.parameters());return {results:[],meta:{changes:Number(r.changes)}};}
+  execute(): QueryResult {
+    const statement=this.db.prepare(this.sql);
+    if(statement.columns().length){
+      const results=statement.all(...this.parameters());
+      const changes=/^\s*(?:SELECT|PRAGMA|EXPLAIN)\b/i.test(this.sql)?0:Number(this.db.prepare('SELECT changes() AS count').get()?.count??0);
+      return {results,meta:{changes}};
+    }
+    const r=statement.run(...this.parameters());return {results:[],meta:{changes:Number(r.changes)}};
+  }
   async run(): Promise<QueryResult> { return this.execute(); }
 }
 export class LocalDatabase implements Database {

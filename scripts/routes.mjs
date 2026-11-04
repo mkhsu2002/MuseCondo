@@ -38,3 +38,5 @@ await copyFile('public/identity-offer.html', `${output}/identity/offer/index.htm
 // An explicit allowlist prevents private routes from bypassing Pages Functions.
 const {staticRoutes}=await import('./static-routing.mjs');
 await writeFile(`${output}/_routes.json`,JSON.stringify(staticRoutes(),null,2)+'\n');
+
+for(const [route,file] of [['vault/start','vault-start.html'],['vault/authorize','vault-authorization.html']]){await mkdir(`${output}/${route}`,{recursive:true});await copyFile(`public/${file}`,`${output}/${route}/index.html`);}

@@ -9,7 +9,7 @@
 
 <p align="center">為 Meta Global AI Developer Hackathon 2026 打造</p>
 
-<p align="center">專案版本：<!-- project-version -->v1.83<!-- /project-version --></p>
+<p align="center">專案版本：<!-- project-version -->v1.84<!-- /project-version --></p>
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
@@ -180,3 +180,5 @@ Tower 圖片採用住戶範圍內的不可變物件與版本參照，並保留�
 Tower 週報與景色收藏的實作及風格確認狀態：[架構與景色基準](docs/TOWER-PUBLICATIONS.md)、[目前 Next 清單](docs/plans/NEXT.md)。
 
 Project introduction and five AI perspectives: [content and route notes](docs/architecture/PROJECT-PERSPECTIVES.md).
+
+選用的靈魂、記憶與技能指引私有保管庫，使用獨立的監護者 Passkey 授權。[私有保管庫指南](public/vault-guide.md) · [保管庫架構與發布狀態](docs/architecture/PRIVATE-VAULT.md)。
