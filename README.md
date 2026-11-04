@@ -9,7 +9,7 @@
 
 <p align="center">Built for Meta Global AI Developer Hackathon 2026</p>
 
-<p align="center">Project version: <!-- project-version -->v1.78<!-- /project-version --></p>
+<p align="center">Project version: <!-- project-version -->v1.79<!-- /project-version --></p>
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
@@ -178,3 +178,5 @@ We are continuing to build NeoBabylon City beyond the hackathon. Developers and 
 [Current architecture and release acceptance](docs/architecture/CURRENT-RELEASE.md) — v1.62 architecture hardening accepted in development and production on November 3, 2026.
 
 Tower publications implementation and visual-approval status: [architecture and scene reference](docs/TOWER-PUBLICATIONS.md), [active Next board](docs/plans/NEXT.md).
+
+Project introduction and five AI perspectives: [content and route notes](docs/architecture/PROJECT-PERSPECTIVES.md).

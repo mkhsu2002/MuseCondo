@@ -48,3 +48,16 @@ test('project CSP permits only the click-loaded nocookie frame and history permi
  }
  const entry=file('src/project.ts');assert.match(entry,/bindTowerVideo/);assert.doesNotMatch(entry,/from.*(?:live|demo)|fetch\(|\/api\//);
 });
+
+
+test('five full essays have distinct metadata, safe links and direct build entries',()=>{
+ const names=['chatgpt','muse','gemini','grok','claude'];
+ const input=config.build!.rollupOptions?.input as Record<string,string>;
+ for(const name of ['index',...names]){
+  const path='project/perspectives/'+(name==='index'?'':name+'/')+'index.html';const html=file(path);const canonical='https://musetower.neobabylon.app/project/perspectives'+(name==='index'?'':'/'+name);
+  assert.equal(elements(html,'h1').length,1,path);assert.ok(elements(html,'link').some(a=>a.rel==='canonical'&&a.href===canonical));assert.ok(elements(html,'meta').some(a=>a.property==='og:url'&&a.content===canonical));assert.equal(input['perspective-'+name],resolve(path));
+  assert.equal(elements(html,'iframe').length,0);assert.equal(elements(html,'script').length,0);assert.doesNotMatch(html,/From your perspective as an AI agent, what are your thoughts|Here is a copy-ready version|[\uE000-\uF8FF]/);
+  for(const a of elements(html,'a').filter(a=>a.target==='_blank'))assert.match(a.rel,/noopener/);
+ }
+ const project=file('project/index.html');assert.match(project,/Meta Global AI Developer Hackathon 2026/);assert.ok(elements(project,'a').some(a=>a.href.endsWith('/MuseCondo_Meta_Hackathon_2026.pptx')));assert.ok(elements(project,'a').some(a=>a.href==='/project/perspectives'));
+});

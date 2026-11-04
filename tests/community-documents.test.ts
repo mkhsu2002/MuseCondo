@@ -7,10 +7,10 @@ const origin='https://tower.example';
 test('project and history are independent static documents without a database or session, including clean URL assets and HEAD',async()=>{
  const requests:string[]=[];
  const env={ASSETS:{async fetch(req:Request){const u=new URL(req.url);requests.push(u.pathname);if(u.pathname.endsWith('/index.html'))return Response.redirect(origin+u.pathname.replace('index.html',''),308);return new Response(req.method==='HEAD'?null:'<h1>Independent public document</h1>',{headers:{'Content-Type':'text/html'}});}}};
- for(const path of ['/project','/project/','/project/index.html','/tower-history','/tower-history/']){const response=await runtime.fetch(new Request(origin+path),env);assert.equal(response.status,200);assert.equal(response.headers.get('Location'),null);assert.match(await response.text(),/Independent/);assert.equal((await runtime.fetch(new Request(origin+path,{method:'HEAD'}),env)).status,200);assert.equal((await runtime.fetch(new Request(origin+path,{method:'POST'}),env)).status,405);}
- assert.ok(requests.every(x=>['/project/','/tower-history/'].includes(x)));
+ for(const path of ['/project','/project/','/project/index.html','/tower-history','/tower-history/','/project/perspectives','/project/perspectives/claude','/project/perspectives/gemini/index.html']){const response=await runtime.fetch(new Request(origin+path),env);assert.equal(response.status,200);assert.equal(response.headers.get('Location'),null);assert.match(await response.text(),/Independent/);assert.equal((await runtime.fetch(new Request(origin+path,{method:'HEAD'}),env)).status,200);assert.equal((await runtime.fetch(new Request(origin+path,{method:'POST'}),env)).status,405);}
+ assert.ok(requests.every(x=>['/project/','/tower-history/','/project/perspectives/','/project/perspectives/claude/','/project/perspectives/gemini/'].includes(x)));
  for(const x of ['/project','/project/','/tower-history','/tower-history/index.html'])assert(usesStandaloneDocument(x));
- for(const x of ['/projectile','/project/private','/tower-history/other','/home/0123456789abcdef'])assert(!usesStandaloneDocument(x));
+ for(const x of ['/project/perspectives/private','/project/perspectives/claude/extra','/projectile','/project/private','/tower-history/other','/home/0123456789abcdef'])assert(!usesStandaloneDocument(x));
 });
 test('history is a no-JS, oldest-to-newest record with real dates and distinct page metadata',()=>{
  const html=readFileSync(new URL('../tower-history/index.html',import.meta.url),'utf8');

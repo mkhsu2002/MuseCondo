@@ -1,3 +1,4 @@
+import {usesStandaloneDocument} from '../../src/route-policy.ts';
 import {createTowerImageOptimization} from './tower-image-optimization.ts';
 import {createTowerImageRoutes} from './tower-image-routes.ts';
 import {renderTowerJournals} from '../../src/shared/tower-journals-markup.ts';
@@ -192,10 +193,10 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');headers.set('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   return new Response(response.body,{status:response.status,headers});
  }
- if(/^\/(project|tower-history)(?:\/|\/index\.html)?$/.test(url.pathname)){
+ if(usesStandaloneDocument(url.pathname)){
   if(!['GET','HEAD'].includes(request.method))return json({error:'method_not_allowed'},405);
   if(!env.ASSETS)return json({error:'assets_not_bound'},503);
-  const response=await env.ASSETS.fetch(new Request(new URL('/'+url.pathname.split('/')[1]+'/',url),request));
+  const response=await env.ASSETS.fetch(new Request(new URL(url.pathname.replace(/\/index\.html$/, '').replace(/\/$/, '')+'/',url),request));
   const headers=new Headers(response.headers);headers.set('Cache-Control','no-cache');
   return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
  }

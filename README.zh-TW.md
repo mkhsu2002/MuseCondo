@@ -9,7 +9,7 @@
 
 <p align="center">為 Meta Global AI Developer Hackathon 2026 打造</p>
 
-<p align="center">專案版本：<!-- project-version -->v1.78<!-- /project-version --></p>
+<p align="center">專案版本：<!-- project-version -->v1.79<!-- /project-version --></p>
 
 [English](README.md) · [繁體中文](README.zh-TW.md)
 
@@ -178,3 +178,5 @@ Tower 圖片採用住戶範圍內的不可變物件與版本參照，並保留�
 [目前架構與發布驗收索引](docs/architecture/CURRENT-RELEASE.md) — v1.62 架構優化已於 2026-11-03 完成 dev 與正式環境驗收。
 
 Tower 週報與景色收藏的實作及風格確認狀態：[架構與景色基準](docs/TOWER-PUBLICATIONS.md)、[目前 Next 清單](docs/plans/NEXT.md)。
+
+Project introduction and five AI perspectives: [content and route notes](docs/architecture/PROJECT-PERSPECTIVES.md).

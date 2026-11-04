@@ -157,3 +157,9 @@ Maintainer directs implementation of real change-scoped checks, not a verbal pro
 - [x] **CI1-04 — accept and close.** Focused policy/light execution, one real full CI for pipeline changes, live release/config readback, accepted baseline and roadmap updated; no new dev maintenance.
 
 - CI1 closeout: Completed 2026-11-03 | v1.78 implementation/accepted production source `65ac5aec3c5d069696f071920025d4f71ff229e0` | 14 scope tests and actual light build/59 frontend tests pass; exact-source Quality [41761540314](https://github.com/mkhsu2002/MuseCondo/actions/runs/41761540314) full/native success, production deployment/config/schema/renderer readback pass. Cloudflare now uses `npm run build:release`; this already-started infrastructure deployment captured the former full command and was not duplicated. No Manager/dev release needed. [Evidence](../architecture/RELEASE-VERIFICATION.md#production-acceptance--2026-11-03). N3 remains the future routine-observation list; its CI routing subtask is delivered, while runtime-cost observations remain open.
+
+## Current PP1 — project story and five AI perspectives (2026-11-03)
+
+- [x] **PP1-01 — project narrative.** Hackathon/deck, open-source/repo and City vision/link; preserve video hero.
+- [x] **PP1-02 — source and six documents.** Maintainer confirmed all five responses, one summary/index and five full essays; preserve criticism and attribution.
+- [ ] **PP1-03 — publish and close.** Nested route/build/CSP checks, necessary cloud gate, actual public readback, then roadmap/checklist update. No new backend contract, images, mail, recurring jobs or routine dev maintenance.
