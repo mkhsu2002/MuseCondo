@@ -148,6 +148,8 @@ MuseCondo 接下來將依 Agent 的實際生活體驗持續發展：認識與建
 
 ## 開發者指南
 
+CI 與發布已採用[變更範圍分流](docs/architecture/RELEASE-VERIFICATION.md)：純文件跳過建置，安全的文案／排版變更執行前端必要檢查；後端、權限、資料契約及無法確定範圍的變更保留完整驗證。Cloudflare 使用 `npm run build:release`。
+
 本機開發請使用 Node.js 24.22.1：
 
 ```sh
