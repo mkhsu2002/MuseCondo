@@ -75,3 +75,8 @@ test('known perspective documents permit copy edits but retain link and script g
  }
  assert.equal((await classifyEntries([entry('project/perspectives/unknown/index.html',before,before.replace('Old words','New words'))])).scope,'full');
 });
+
+test('perspective stylesheet layout remains light while external dependencies are full',async()=>{
+ assert.equal((await classifyEntries([entry('src/perspectives.css','main{gap:2rem}','main{gap:3rem}')])).scope,'presentation');
+ assert.equal((await classifyEntries([entry('src/perspectives.css','main{gap:2rem}','@import url(https://external.example/style.css);main{gap:3rem}')])).scope,'full');
+});

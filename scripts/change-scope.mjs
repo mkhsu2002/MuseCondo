@@ -3,7 +3,7 @@ import {appendFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 export const BASELINE_PATH='docs/releases/production-baseline.json';
-const css=new Set(['src/live.css','src/live/tower-welcome.css','src/style.css','src/project.css','src/history.css']);
+const css=new Set(['src/live.css','src/live/tower-welcome.css','src/style.css','src/project.css','src/history.css','src/perspectives.css']);
 const html=new Set(['index.html','project/index.html','tower-history/index.html',...['index','chatgpt','muse','gemini','grok','claude'].map(name=>'project/perspectives/'+(name==='index'?'':name+'/')+'index.html')]);
 const views=new Set(['src/shared/lobby-markup.ts','src/shared/community-resources.ts','src/shared/home-directory.ts','src/shared/tower-weekly-markup.ts','src/shared/tower-journals-markup.ts']);
 export const PRESENTATION_TESTS=['scripts/readme.test.mjs','scripts/social-preview.test.mjs','tests/build-output.test.mjs','tests/static-routing.test.mjs','tests/community-home-layout.test.ts','tests/community-documents.test.ts','tests/lobby-markup.test.ts','tests/lobby-language.test.ts','tests/home-directory.test.ts','tests/framework-default-language.test.ts','tests/project-page.test.ts','tests/route-policy.test.ts','tests/tower-video.test.ts','tests/tower-theme-renderer.test.ts','tests/tower-journals-markup.test.ts'];
