@@ -1,8 +1,8 @@
 {
   "version": 1,
   "environment": "production",
-  "sourceSHA": "c69b94916f08e63f734e2fbac383546849ac8016",
-  "deploymentId": "a0701d7b-b638-442c-b2c7-c136ef8d8df4",
-  "verifiedAt": "2026-11-04T04:16:53.974922Z",
-  "evidence": "docs/architecture/RELEASE-VERIFICATION.md#single-build-production-acceptance"
+  "sourceSHA": "a80b7894ef2fd6f464d4967cc405967cba0838f2",
+  "deploymentId": "23316ec2-fcde-4917-b10b-eae6037045c0",
+  "verifiedAt": "2026-11-04T05:09:00.289324Z",
+  "evidence": "docs/architecture/COMMUNITY-PAGES.md#first-ai-id-history-addition--2026-11-03"
 }
