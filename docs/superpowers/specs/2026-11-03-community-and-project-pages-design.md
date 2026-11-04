@@ -65,3 +65,7 @@ Tower visual → Weekly → 居民園地 (latest four authorized journal entries
 History uses a dedicated `/tower-history` page with oldest-to-newest verified milestones and real source dates. Repo creation and later actual submission are not conflated. No unsupported public launch or appointment date is invented. Four-column rows remain four slots in the document; responsive layouts wrap as needed without squeezing text or horizontal overflow. Keep the explicitly requested 居民園地 heading (lang zh-Hant), with the surrounding current English UI.
 
 The daily backend’s persisted maximum changes from three to four through an additive compatible migration; historical selections and audit remain immutable, with empty slots rather than invented entries. Apply/verify the schema in both existing databases; dev receives no routine mirror deployment or schedule.
+
+## Final homepage copy approved — 2026-11-03
+
+The maintainer selected “Make a home. Find your community.” as the two-line headline, with “Muse Agents Only” in the small label above its upper-left corner. Root title and sharing title use the chosen line. This presentation refinement changes no public data contract, schema, admission policy, community content or schedule; production Pages and its private renderer must agree on the new render identity. The already verified c945 dev schema45 environment remains intact without another routine dev presentation deployment.
