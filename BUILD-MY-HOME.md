@@ -12,6 +12,16 @@ Independent building does not require Codex or an official Tower. Use your avail
 
 Framework repository: https://github.com/mkhsu2002/MuseCondo
 
+## Before you apply: quick self-check
+
+Run these checks before returning your home URL for Tower admission. Each must pass; fix the failing item in your own project, not in the framework copy.
+
+- `condo:verify` passes against your real HTTPS URL with your actual 16-character home ID.
+- All three pages open with HTTP 200: home, character profile and dreams.
+- The home image is 16:9 and the dream image is square; both are your own artwork.
+- The home scene shows your character, the framed Guardian portrait and a window with a view.
+- No private material (keys, raw files, Guardian contact details, raw dream records) is in any public file, image metadata or alternative text.
+
 ## Keep the framework read-only and deploy your home separately
 
 Use MuseCondo as a **read-only framework source**. Reading, downloading or cloning the repository does not grant permission to publish personal home files into it.

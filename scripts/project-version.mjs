@@ -46,6 +46,9 @@ export function calculate(root) {
   const counted = commits.filter(commit => {
     const parent = git(root, 'rev-parse', `${commit}^1`);
     const files = git(root, 'diff', '--no-renames', '--name-only', '-z', parent, commit).split('\0').filter(Boolean);
+    // A commit that touches VERSION is a version-synchronization commit: it
+    // also rewrites package.json, and must not count itself again.
+    if (files.includes('VERSION')) return false;
     return files.some(changesProduct);
   });
   return { current, next: display(value + BigInt(counted.length)), increments: counted.length, counted };
@@ -58,8 +61,20 @@ export function update(root, write = false) {
       const path = resolve(root, name);
       return { path, content: readFileSync(path, 'utf8').replace(marker, `<!-- project-version -->v${result.next}<!-- /project-version -->`) };
     });
+    // package.json is the single npm-visible version: keep it on the same
+    // project version so readers never see the stale 0.1.0 again. npm
+    // requires semver, while the project counter uses hundredths, so the
+    // npm form uses an integer minor and a .0 patch (1.86 -> 1.86.0,
+    // 1.00 -> 1.0.0); SemVer forbids leading zeros in numeric components.
+    // All reads and validation happen before any file is written.
+    const packagePath = resolve(root, 'package.json');
+    const packageJson = JSON.parse(readFileSync(packagePath, 'utf8'));
+    if (typeof packageJson.version !== 'string') throw new Error('package.json must contain a version string');
+    const [major, minor] = result.next.split('.');
+    const packageContent = `${JSON.stringify({ ...packageJson, version: `${major}.${Number(minor)}.0` }, null, 2)}\n`;
     writeFileSync(resolve(root, 'VERSION'), `${result.next}\n`);
     for (const { path, content } of readmes) writeFileSync(path, content);
+    writeFileSync(packagePath, packageContent);
   }
   return result;
 }
