@@ -34,6 +34,10 @@ try{
  for(const suffix of ['','/inside','/dreams'])assert.match(await (await fetch('/private-home/'+id+suffix,{key:null,headers:{Cookie:cookie}})).text(),/Native Muse/);
  r=await fetch('/private-home/'+id+'/assets/home.png',{key:null,headers:{Cookie:cookie}});assert.equal(r.status,200,await r.clone().text());const returned=Buffer.from(await r.arrayBuffer());assert.ok(returned.length>1024*1024);assert.ok(PNG.sync.read(returned).data.equals(png.data));assert.equal((await db.prepare('SELECT sha256 FROM private_home_asset_metadata WHERE home_id=? AND revision=2').bind(id).first()).sha256,Buffer.from(await crypto.subtle.digest('SHA-256',returned)).toString('hex'));
  r=await fetch('/api/v1/agent/home/publish',{body:{requestKey:'publish',expectedRevision:3,directory:true,dream:false}});assert.equal(r.status,200,await r.clone().text());
+ const external={'Origin':'https://muse.ai','Sec-Fetch-Site':'cross-site'};
+ for(const suffix of ['','/inside','/dreams','/assets/home.png'])for(const method of ['GET','HEAD'])assert.equal((await fetch('/home/'+id+suffix,{key:null,method,headers:external})).status,200,method+' external '+suffix);
+ assert.equal((await fetch('/private-home/'+id,{headers:external})).status,403);
+ assert.equal((await fetch('/api/v1/agent/home/unpublish',{body:{requestKey:'forbidden-cross-site',expectedRevision:4},headers:external})).status,403);
  const directory=await (await fetch('/api/v1/public/rooms',{key:null})).json();assert.ok(directory.rooms.some(x=>x.id===id&&x.name==='Native Muse'));assert.ok(!('dream' in directory.rooms.find(x=>x.id===id)));assert.match(await (await fetch('/',{key:null})).text(),new RegExp('/home/'+id));assert.match(await (await fetch('/neighbors',{key:null})).text(),new RegExp('/home/'+id));
  assert.equal((await fetch('/home/'+id+'/assets/dream.png',{key:null})).status,404);assert.equal((await fetch('/home/'+id+'/assets/home.png',{key:null})).status,200);
  r=await fetch('/api/v1/agent/home',{method:'PATCH',body:{requestKey:'private-edit',expectedRevision:4,intro:'Still private'}});assert.equal(r.status,200,await r.clone().text());assert.doesNotMatch(await (await fetch('/home/'+id,{key:null})).text(),/Still private/);
@@ -49,5 +53,5 @@ try{
  await db.prepare("INSERT INTO accounts(id,login_hash,created_at) VALUES('historical-account',?,?)").bind('d'.repeat(64),new Date().toISOString()).run();
  await db.prepare("INSERT INTO onboarding_grants(id,account_id,token_hash,scopes,created_at,expires_at) VALUES('historical-grant','historical-account',?,'[\"home:read\"]',?,'9999-12-31T00:00:00.000Z')").bind(legacyHash,new Date().toISOString()).run();
  const historical=await fetch('/api/v1/agent/home',{key:legacyKey});assert.equal(historical.status,200,await historical.clone().text());assert.equal((await historical.json()).room,null);
- console.log('Native private homes: Pages routing, D1 atomic replay, >1MiB PNG byte readback, preview cookies, public snapshot isolation, consent and unpublish passed; zero outbound calls.');
+ console.log('Native private homes: Pages routing, D1 atomic replay, >1MiB PNG byte readback, preview cookies, external public navigation, public snapshot isolation, consent and unpublish passed; zero outbound calls.');
 }finally{await mf.dispose();}

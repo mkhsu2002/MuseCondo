@@ -33,7 +33,9 @@ export function createPrivateHomeRoutes({db,origin,now=()=>new Date()}:{db:Datab
  async function route(request:Request):Promise<Response|null>{
   const path=new URL(request.url).pathname,app=path==='/api/v1/reception/homes',recovery=path==='/api/v1/reception/homes/keys',maint=path.match(/^\/api\/v1\/agent\/home(?:\/(publish|unpublish|keys|preview-access|images))?$/),page=path.match(/^\/(private-home|home)\/([a-f0-9]{16})(?:\/(inside|dreams|access|assets\/(home|dream)\.png))?\/?$/);
   if(!app&&!recovery&&!maint&&!page){if(path.startsWith('/private-home/'))return json({error:'not_found'},404);return null;}
-  if(request.headers.get('Sec-Fetch-Site')==='cross-site'||request.headers.has('Origin')&&request.headers.get('Origin')!==origin)fail(403,'origin_rejected');
+  // Public snapshot reads accept external navigation; private authority and writes do not.
+  const publicRead=page?.[1]==='home'&&page[3]!=='access'&&(request.method==='GET'||request.method==='HEAD');
+  if(!publicRead&&(request.headers.get('Sec-Fetch-Site')==='cross-site'||request.headers.has('Origin')&&request.headers.get('Origin')!==origin))fail(403,'origin_rejected');
   if((app||recovery||maint)&&request.headers.has('Cookie'))fail(403,'cookie_authority_rejected');
   if(app){
    if(request.method!=='POST')fail(405,'method_not_allowed');const v=await body(request);fields(v,['requestKey','name','intro','isMuseAgent','authorization']);const caseHash=await digest(token(request)),rawOwner=request.headers.get('X-Home-Key');if(!rawOwner||!keyPattern.test(rawOwner))fail(400,'home_key_required');const ownerHash=await digest(rawOwner!);if(caseHash===ownerHash)fail(400,'separate_home_key_required');

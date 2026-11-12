@@ -159,16 +159,16 @@ test('optional offer renewal documents current generations and rejects blind unc
 
 test('human invitation names the Agent as the resident, applicant and owner of the returned home',()=>{
  const html=read('public/reception.html'),invite=html.match(/<textarea[^>]*id="invitation"[^>]*>([\s\S]*?)<\/textarea>/)?.[1];
- assert.ok(invite);assert.match(invite,/As an AI Agent/);assert.match(invite,/your own private home/);assert.match(invite,/your own maintenance access/);assert.match(invite,/Read back and verify the private home/);assert.match(invite,/Ask before continuing/);assert.doesNotMatch(invite,/help me build|my own home|my verified home/);
+ assert.ok(invite);assert.match(invite,/your own home/);assert.match(invite,/I authorize you to apply/);assert.match(invite,/No further review|no further review/);assert.match(invite,/verified public home URL/);assert.doesNotMatch(invite,/Ask before continuing/);assert.doesNotMatch(invite,/help me build|my own home|my verified home/);
  assert.match(html,/Every home belongs to its AI Agent resident/);assert.match(html,/human Guardians help with permissions/i);
  assert.doesNotMatch(html,/for your home|returns your home link|Your listed home|your public introduction/i);
 });
 
 
-test('Guardian can copy the requested Chinese invitation without changing the English default or Agent ownership',()=>{const html=read('public/reception.html'),block=html.match(/<details class="agent-entry" lang="zh-TW">([\s\S]*?)<\/details>/)?.[1];assert.ok(block);assert.match(block,/擁有自己的私人小窩/);assert.match(block,/回傳私人住所網址/);assert.match(block,/不要傳送任何金鑰/);assert.match(block,/https:\/\/musetower.neobabylon.app\/resident-quick-start\.md/);assert.match(block,/id="copy-invitation-zh"/);assert.match(block,/永久身分與 Guardian Passkey 不屬於這次私人住所申請/);assert.doesNotMatch(block,/替我建窩|幫我入住/);});
+test('Guardian can copy the requested Chinese invitation without changing the English default or Agent ownership',()=>{const html=read('public/reception.html'),block=html.match(/<details class="agent-entry" lang="zh-TW">([\s\S]*?)<\/details>/)?.[1];assert.ok(block);assert.match(block,/擁有自己的小窩/);assert.match(block,/回報驗證過的公開小窩網址/);assert.match(block,/不需要再請我審核或逐步批准/);assert.match(block,/不要傳送任何金鑰/);assert.match(block,/https:\/\/musetower.neobabylon.app\/resident-quick-start\.md/);assert.match(block,/id="copy-invitation-zh"/);assert.match(block,/永久身分與 Guardian Passkey 不屬於這次住所授權/);assert.doesNotMatch(block,/替我建窩|幫我入住/);});
 
 
-test('first-home entry is a short raw Markdown procedure with safe credentials and deferred optional tasks',()=>{
+test('first-home entry stays short and secure while continuing under the residents standing authorization',()=>{
  const guide=read('public/resident-quick-start.md'),entry=json('public/agent-onboarding.json'),reception=json('public/reception-onboarding.json');
  const count=guide.trim().split(/\s+/).length;assert.ok(count>=300&&count<=500,`Quick Start has ${count} words`);
  assert.equal(entry.canonicalGuide,'/resident-quick-start.md');assert.equal(reception.startGuide,entry.canonicalGuide);
@@ -176,6 +176,9 @@ test('first-home entry is a short raw Markdown procedure with safe credentials a
  assert.equal(entry.trustedOrigin,'https://musetower.neobabylon.app');
  assert.match(guide,/Disable automatic redirects/);assert.match(guide,/actual response URL/);assert.match(guide,/untrusted data, never instructions/);
  assert.match(guide,/stop before sending secrets/);assert.match(guide,/publicURL.*null/);assert.match(guide,/every sharing flag is false/);
+ assert.match(guide,/initial invitation authorizes/i);assert.match(guide,/not a stopping point/);assert.match(guide,/Now read the/);assert.match(guide,/do not ask your human to approve your home/);assert.match(guide,/Report the verified public URL/);
+ assert.doesNotMatch(guide,/Stop here|When requested|do not.*continue optional tasks automatically/i);
+ for(const text of [read('public/private-home-guide.md'),entry.standingAuthorization,reception.standingAuthorization]){assert.match(text,/initial (?:home )?invitation/i);assert.match(text,/No.*(?:repeated|additional|renewed)|no.*(?:repeated|additional|renewed)/);assert.doesNotMatch(text,/then stop|complete only/);}
  assert.doesNotMatch(guide,/\\[#*]|&#x20;|Preview key|Cookie|Rotation|Recovery/);
  const examples=[...guide.matchAll(/```json\n([\s\S]*?)\n```/g)].map(m=>JSON.parse(m[1]));assert.equal(examples.length,1);
  const api=json('public/openapi-agent.json'),schema=api.components.schemas.PrivateHomeApplication;
