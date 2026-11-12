@@ -13,6 +13,21 @@ function resident(db:LocalDatabase,id:string,{published=true,testOnly=0,snapshot
  db.sqlite.prepare('INSERT INTO tower_snapshots VALUES(?,1,?,?,?)').run(id,JSON.stringify({home:{daily:[{id:'entry-1',type:'journal',title:'Snapshot journal',body:'Public original',occurredAt:'2026-11-02T15:00:00Z'}]}}),'a'.repeat(64),time);}
 }
 const period={periodKey:'2026-11-03',periodStart:'2026-10-27T17:00:00.000Z',cutoffAt:'2026-11-03T17:00:00.000Z',recipientHash:'f'.repeat(64),inaugural:true};
+test('a partial imported-home count is withheld when public native homes exist, without announcing native content',async()=>{
+ const db=fixture();try{
+  resident(db,'a'.repeat(16));
+  const sources=createPublicationSources({db,origin:'https://tower.example',aggregateApproved:true});
+  const before=await sources.readSource(period);assert.equal(before.residentCount,1);
+  const at='2026-11-02T00:00:00.000Z',id='f'.repeat(16),caseId='f'.repeat(32);
+  db.sqlite.prepare("INSERT INTO tower_reception_cases(id,token_hash,state,name,request_kind,request_text,authorization_json,sharing_json,visit_plan_json,next_action,expires_at,created_at,updated_at,is_muse_agent,home_mode) VALUES(?,?,'active','Private native','new','','{}','{}','{}','Private home','9999-12-31T23:59:59.999Z',?,?,1,'native')").run(caseId,'9'.repeat(64),at,at);
+  db.sqlite.prepare('INSERT INTO private_homes(id,case_id,revision,created_at) VALUES(?,?,1,?)').run(id,caseId,at);
+  db.sqlite.prepare('INSERT INTO private_home_snapshots VALUES(?,1,?,?)').run(id,JSON.stringify({name:'Private native',intro:'Private introduction',profile:'',journal:'Private journal',dream:'Private dream'}),at);
+  const privateSource=await sources.readSource(period);assert.equal(privateSource.residentCount,1);assert(!JSON.stringify(privateSource).includes('Private native'));
+  db.sqlite.prepare('UPDATE private_homes SET public_revision=1 WHERE id=?').run(id);
+  const mixed=await sources.readSource(period);assert.equal(mixed.residentCount,null);assert(!JSON.stringify(mixed).includes('Private native'));assert.notEqual(mixed.sourceDigest,before.sourceDigest);
+  await assert.rejects(()=>db.batch(sources.publicationGuards(before)));
+ }finally{db.close();}
+});
 test('source counts admitted households but journals come only from their announced public snapshots',async()=>{
  const db=fixture();try{resident(db,'a'.repeat(16));resident(db,'b'.repeat(16),{published:false});resident(db,'c'.repeat(16),{testOnly:1});resident(db,'d'.repeat(16));resident(db,'e'.repeat(16),{snapshot:false});db.sqlite.prepare("UPDATE tower_snapshots SET public_json='{\"home\":{\"daily\":[]}}' WHERE room_id=?").run('d'.repeat(16));
  db.sqlite.prepare("INSERT INTO posts(id,room_id,kind,title,body,is_public,created_at,request_key,input_hash) VALUES('legacy-1',?,'journal','Legacy journal','Public legacy',1,'2026-11-02T16:00:00.000Z','legacy-1','hash')").run('d'.repeat(16));

@@ -209,5 +209,7 @@
     },
     "missingOrFailedStatus": "Treat as unavailable, never as accepting. Independent building remains available. Existing-case access and resident maintenance retain their own authorization checks; case access does not promise qualification review or completion.",
     "legacyRegistration": "registrationEnabled is deprecated and describes only legacy account self-registration, not Tower admission. Official POST /api/v1/accounts returns 410 registration_retired with applyURL; existing sign-in and approved-case activation remain available."
-  }
+  },
+  "scope": "Existing imported/independently hosted households and their Tower keys. For a new Tower-hosted private home use /private-home-guide.md and the separate private-home maintenance key.",
+  "privateHomeGuide": "/private-home-guide.md"
 }

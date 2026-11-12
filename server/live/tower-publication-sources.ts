@@ -15,6 +15,9 @@ const joins='FROM tower_residencies t JOIN rooms r ON r.id=t.room_id AND r.accou
 const grants='t.public_revision IS NOT NULL AND t.snapshot_consent=1 AND t.announcement_consent=1 AND r.published=1 AND r.test_only=0 AND a.test_only=0';
 const snapshots=`SELECT t.room_id,t.publication_epoch,t.public_revision,t.created_at admitted_at,r.name,s.content_digest,t.published_at,s.created_at snapshot_created_at,json_extract(s.public_json,'$.home.daily') daily_json ${joins} JOIN tower_snapshots s ON s.room_id=t.room_id AND s.revision=t.public_revision WHERE ${grants} ORDER BY t.room_id`;
 const snapshotVector=`SELECT COALESCE(json_group_array(json_array(room_id,publication_epoch,public_revision,admitted_at,name,content_digest,published_at,snapshot_created_at,daily_json)),'[]') value FROM (${snapshots})`;
+// Native homes have no announcement consent in this contract. Never present an
+// imported-only count as the whole Tower once native public homes are in scope.
+const nativePublicCount=`SELECT count(*) n FROM private_homes h JOIN private_home_snapshots s ON s.home_id=h.id AND s.revision=h.public_revision WHERE julianday(s.created_at)<julianday(?)`;
 interface Snapshot {room_id:string;publication_epoch:number;public_revision:number;admitted_at:string;name:string;content_digest:string;published_at:string|null;snapshot_created_at:string|null;daily_json:string|null}
 export interface PublicationJournal {sourceKind:'tower-snapshot';sourceKey:string;roomId:string;entryId:string;author:string;title:string;excerpt:string;body:string;originalAt:string;href:string;publicationEpoch:number;publicRevision:number;publishedAt:string|null;snapshotCreatedAt:string|null}
 interface Environment {db:Database;origin:string;aggregateApproved:boolean}
@@ -39,9 +42,10 @@ export function createPublicationSources(env:Environment){
   const normalized=[...entries.values()].sort((a,b)=>b.originalAt.localeCompare(a.originalAt)||a.sourceKey.localeCompare(b.sourceKey));
   const seen=new Set<string>(),deduped=normalized.filter(e=>{const signature=JSON.stringify([e.roomId,e.originalAt,e.title,e.body]);if(seen.has(signature))return false;seen.add(signature);return true;});
   const events:PublicEvent[]=await Promise.all(deduped.slice(0,50).map(async e=>({id:'journal-'+(await digest('publication:'+e.sourceKey)).slice(0,56),residentId:e.roomId,type:'journal',occurredAt:e.originalAt,publishedAt:e.originalAt,visibility:'public',publicationConsent:true,origin:'resident-authorized',isFixture:false,title:e.title,summary:e.excerpt,body:e.body})));
-  const count=env.aggregateApproved?Number((await db.prepare(`SELECT COUNT(*) n ${joins} WHERE r.test_only=0 AND a.test_only=0 AND julianday(t.created_at)<julianday(?)`).bind(period.cutoffAt).first<{n:number}>())!.n):null;
+  const nativeCount=Number((await db.prepare(nativePublicCount).bind(period.cutoffAt).first<{n:number}>())!.n);
+  const count=env.aggregateApproved&&nativeCount===0?Number((await db.prepare(`SELECT COUNT(*) n ${joins} WHERE r.test_only=0 AND a.test_only=0 AND julianday(t.created_at)<julianday(?)`).bind(period.cutoffAt).first<{n:number}>())!.n):null;
   const source:WeeklySource={sourceDigest:await digest(JSON.stringify({sv,count,cutoff:period.cutoffAt})),residentCount:count,residents,events,asOf:period.cutoffAt};
-  guards.set(source,[db.prepare(`SELECT CASE WHEN (${snapshotVector})=? THEN 1 ELSE json('publication_snapshot_changed') END`).bind(sv)]);journals.set(source,deduped);return source;
+  guards.set(source,[db.prepare(`SELECT CASE WHEN (${snapshotVector})=? THEN 1 ELSE json('publication_snapshot_changed') END`).bind(sv),db.prepare(`SELECT CASE WHEN (${nativePublicCount})=? THEN 1 ELSE json('publication_native_coverage_changed') END`).bind(period.cutoffAt,nativeCount)]);journals.set(source,deduped);return source;
  }
  return {readSource,publicationGuards(source:WeeklySource){const saved=guards.get(source);if(!saved)throw Error('publication_source_guard_missing');return saved;},journals(source:WeeklySource){return journals.get(source)??[];}};
 }
