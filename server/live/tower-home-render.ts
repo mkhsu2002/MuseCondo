@@ -1,3 +1,4 @@
+import {homeSharing,HOME_SHARING_ASSETS} from './home-sharing.ts';
 import { renderCondo, type CondoPage } from '../../src/framework/condo-render.ts';
 import type { PublicCondoSite } from '../../src/framework/condo.ts';
 /** Public metadata accepts only an already consent-filtered, published projection. */
@@ -34,7 +35,8 @@ export function renderTowerHome(site: PublicCondoSite, page: CondoPage, target: 
     return renderCondo({...site, home: {...site.home, towerRootURL}}, page)
         .replace("</head>", metadata(site, page, target) + "</head>")
         .replace("</head>", visitsWidget ? '<link rel="stylesheet" href="/tower-visits.css"><script src="/tower-visits.js" defer></script></head>' : "</head>")
-        .replace("</main>", visitsWidget + "</main>")
+        .replace("</main>", visitsWidget + (target.kind==='public'?homeSharing(new URL(`/home/${target.roomId}`,target.origin).href):'') + "</main>")
+        .replace("</head>", target.kind==='public'?HOME_SHARING_ASSETS+"</head>":"</head>")
         .replaceAll("./index.html", base)
         .replaceAll("./inside.html", privatePrefix ? privatePrefix + "/preview/inside" : base + "/inside")
         .replaceAll("./dreams.html", privatePrefix ? privatePrefix + "/preview/dreams" : base + "/dreams")

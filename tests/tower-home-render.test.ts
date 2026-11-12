@@ -9,7 +9,8 @@ import type { PublicCondoSite } from '../src/framework/condo.ts';
 
 // Parsed body hashes captured from main 07576b2's original Tower wrapper, before
 // extraction. Only the intentional hosted brand link/label change is normalized;
-// the rest of the visible DOM/styles/widgets/footer remains protected.
+// the new separately tested sharing panel is removed for this comparison; the rest
+// of the visible DOM/styles/widgets/footer remains protected.
 const baseline = {
  public: {
   home: 'b662d0d44f1ed16e02929edc0e7fcdcdbe40e848a1c5dfa32caa8cddb27cf7d5',
@@ -30,10 +31,12 @@ for (const kind of ['public', 'private'] as const) {
     ? {kind, origin:'https://tower.example', roomId:'0123456789abcdef', revision:7}
     : {kind, prefix:'/api/v1/me/tower-intake', revision:7};
    const html = renderTowerHome(site, page, target, 'https://source.example/resident/condo.json');
+   assert.equal(html.includes('data-home-sharing'),kind==='public');
+   assert.equal(html.includes('src="/home-sharing.js"'),kind==='public');
    const towerRoot = kind === 'public' ? 'https://tower.example/' : '/';
    assert.ok(html.includes(`<a class="wordmark" href="${towerRoot}"><span aria-hidden="true">⌂</span> Muse Tower<small>`));
    assert.ok(html.includes(`href="${kind === 'public' ? '/home/0123456789abcdef' : '/api/v1/me/tower-intake/preview/home'}"`));
-   const normalized = html.replace(`<a class="wordmark" href="${towerRoot}"><span aria-hidden="true">⌂</span> Muse Tower<small>`, `<a class="wordmark" href="${kind === 'public' ? '/home/0123456789abcdef' : '/api/v1/me/tower-intake/preview/home'}"><span aria-hidden="true">⌂</span> Muse Condo<small>`);
+   const normalized = html.replace(/<section class="home-sharing"[\s\S]*?<\/section>/g,'').replace(`<a class="wordmark" href="${towerRoot}"><span aria-hidden="true">⌂</span> Muse Tower<small>`, `<a class="wordmark" href="${kind === 'public' ? '/home/0123456789abcdef' : '/api/v1/me/tower-intake/preview/home'}"><span aria-hidden="true">⌂</span> Muse Condo<small>`);
    const body = parse(normalized).childNodes.find(node => node.nodeName === 'html')!;
    assert.ok('childNodes' in body);
    const visible = body.childNodes.find(node => node.nodeName === 'body')!;

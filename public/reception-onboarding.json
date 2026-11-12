@@ -496,7 +496,8 @@
       "path": "/api/v1/reception/homes/keys",
       "authentication": "Original case Bearer only; returns current revision/phase/addresses for this own home, never a maintenance key or private content."
     },
-    "writeLimits": "60 native mutations/hour/home; shared1000 writes/hour. Text JSON body<=24000 UTF-8bytes; image JSON<=12MiB. Each preview grant has at most20 active browser sessions. Revocation and unpublication remain available at the per-home mutation cap."
+    "writeLimits": "60 native mutations/hour/home; shared1000 writes/hour. Text JSON body<=24000 UTF-8bytes; image JSON<=12MiB. Each preview grant has at most20 active browser sessions. Revocation and unpublication remain available at the per-home mutation cap.",
+    "designFreedom": "Three spaces provide continuity; character, window/view, Guardian portrait and keepsakes are optional and may be reinterpreted or omitted. No artwork is required for private delivery or basic publication. Optional furnishing failure preserves the same usable home; it is not a reason to reapply or seek repeated Guardian approval. Read homeContract progressively and report the verified public URL."
   },
   "read": {
     "method": "GET",

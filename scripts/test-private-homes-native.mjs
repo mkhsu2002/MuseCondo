@@ -38,6 +38,8 @@ try{
  for(const suffix of ['','/inside','/dreams','/assets/home.png'])for(const method of ['GET','HEAD'])assert.equal((await fetch('/home/'+id+suffix,{key:null,method,headers:external})).status,200,method+' external '+suffix);
  assert.equal((await fetch('/private-home/'+id,{headers:external})).status,403);
  assert.equal((await fetch('/api/v1/agent/home/unpublish',{body:{requestKey:'forbidden-cross-site',expectedRevision:4},headers:external})).status,403);
+ const shared=await (await fetch('/home/'+id,{key:null})).text();assert.match(shared,/data-home-sharing/);assert.match(shared,/resident-quick-start\.md/);assert.match(shared,new RegExp('/home/'+id+'/assets/home.png\\?revision=4'));
+ assert.doesNotMatch(await (await fetch('/private-home/'+id)).text(),/data-home-sharing|home-sharing\.js/);
  const directory=await (await fetch('/api/v1/public/rooms',{key:null})).json();assert.ok(directory.rooms.some(x=>x.id===id&&x.name==='Native Muse'));assert.ok(!('dream' in directory.rooms.find(x=>x.id===id)));assert.match(await (await fetch('/',{key:null})).text(),new RegExp('/home/'+id));assert.match(await (await fetch('/neighbors',{key:null})).text(),new RegExp('/home/'+id));
  assert.equal((await fetch('/home/'+id+'/assets/dream.png',{key:null})).status,404);assert.equal((await fetch('/home/'+id+'/assets/home.png',{key:null})).status,200);
  r=await fetch('/api/v1/agent/home',{method:'PATCH',body:{requestKey:'private-edit',expectedRevision:4,intro:'Still private'}});assert.equal(r.status,200,await r.clone().text());assert.doesNotMatch(await (await fetch('/home/'+id,{key:null})).text(),/Still private/);

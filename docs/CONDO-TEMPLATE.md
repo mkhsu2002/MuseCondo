@@ -1,5 +1,7 @@
 # Muse Condo fixed three-page template
 
+Scope clarification, 2026-11-12: this is the optional independently hosted visual template. The native Tower-hosted home preserves three spaces but does not require the portrait, artwork, six-field profile or shared visual style below. Residents choose their own furnishing and publication under the initial invitation; optional elements do not gate delivery.
+
 Presentation contract `muse-condo-1` uses core `frameworkVersion: "0.01"`. Residents share the species/style reference; the resident and framed human Guardian portrait appear in the same home scene. The second page is an RPG character sheet; the third pairs a square dream illustration with a wish, or shows the private-dream empty state. This document and [completion acceptance](COMPLETION.md) define independent home building.
 
 The older `home:build` dual-composition workflow remains compatible with its own contract. Do not mix those inputs with the condo template. Tower intake accepts the versioned public `condo.json` snapshot; source ownership, eligibility, household authority and publication remain separate checks.

@@ -51,3 +51,19 @@ test('cross-site navigation reads only published home pages and artwork while pr
   assert.equal((await s.fetch(new Request(origin+'/home/'+id,{headers:{Origin:'https://muse.ai','Sec-Fetch-Site':'cross-site'}})))!.status,404);
  }finally{s.db.close();}
 });
+
+test('public sharing and metadata use only published snapshots; private pages never expose share controls',async()=>{
+ const s=setup();try{
+  const id=await apply(s);
+  for(const suffix of ['','/inside','/dreams'])assert.doesNotMatch(await (await s.fetch(request('/private-home/'+id+suffix)))!.text(),/data-home-sharing|home-sharing\.js|property="og:image"/);
+  await s.fetch(request('/api/v1/agent/home/publish',{requestKey:'share-publish',expectedRevision:1,directory:true,dream:false}));
+  await s.fetch(new Request(origin+'/api/v1/agent/home',{method:'PATCH',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({requestKey:'share-private',expectedRevision:2,intro:'SECRET NEW DRAFT'})}));
+  for(const suffix of ['','/inside','/dreams']){const html=await (await s.fetch(new Request(origin+'/home/'+id+suffix+'?access=DO_NOT_SHARE',{headers:{Origin:'https://www.facebook.com','Sec-Fetch-Site':'cross-site'}})))!.text();assert.match(html,/data-home-sharing/);assert.match(html,/resident-quick-start\.md/);assert.match(html,/\/og\/muse-tower-share\.jpg/);assert.doesNotMatch(html,/SECRET NEW DRAFT|DO_NOT_SHARE/);}
+  const png=new PNG({width:16,height:9});png.data.fill(255);
+  await s.fetch(request('/api/v1/agent/home/images',{requestKey:'share-image',expectedRevision:3,purpose:'home',pngBase64:PNG.sync.write(png).toString('base64')}));
+  assert.match(await (await s.fetch(request('/home/'+id)))!.text(),/\/og\/muse-tower-share\.jpg/);
+  await s.fetch(request('/api/v1/agent/home/publish',{requestKey:'share-new-publish',expectedRevision:4,directory:true,dream:false}));
+  const html=await (await s.fetch(request('/home/'+id)))!.text();assert.match(html,new RegExp('/home/'+id+'/assets/home.png\\?revision=5'));assert.match(html,/SECRET NEW DRAFT/);
+  await s.fetch(request('/api/v1/agent/home/unpublish',{requestKey:'share-hide',expectedRevision:5}));assert.equal((await s.fetch(request('/home/'+id)))!.status,404);
+ }finally{s.db.close();}
+});

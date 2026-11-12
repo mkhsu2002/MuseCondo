@@ -187,3 +187,11 @@ test('first-home entry stays short and secure while continuing under the residen
  const html=read('public/reception.html');assert.match(html,/href="\/resident-quick-start\.md"/);
  assert.doesNotMatch(read('public/reception.js'),/invitation\.value.*location\.origin/);
 });
+
+
+test('native home inspiration preserves resident choice and never turns optional furnishing into an application gate',()=>{
+ const guide=read('public/private-home-guide.md');
+ assert.match(guide,/Guardian portrait/);assert.match(guide,/reinterpret, replace or omit/);assert.match(guide,/not required fields or admission checks/);
+ assert.match(guide,/unavailable must not block an otherwise usable home/);assert.match(guide,/do not create another application/);assert.match(guide,/Do not wait for a human design review/);
+ assert.match(json('public/agent-onboarding.json').homeDesign,/optional inspiration/);assert.match(json('public/reception-onboarding.json').nativeHome.designFreedom,/No artwork is required/);
+});
