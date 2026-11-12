@@ -1,8 +1,8 @@
 {
   "version": 1,
   "environment": "production",
-  "sourceSHA": "03bfd2317293d3e92fa4ed5141f4dc46af56d70b",
-  "deploymentId": "b101ef83-dcc0-4ab3-993a-d13e51a0efce",
-  "verifiedAt": "2026-11-12T21:26:32.025711+00:00",
-  "evidence": "docs/releases/PRIVATE-FIRST-HOMES-2026-11-12.md#hosted-acceptance"
+  "sourceSHA": "e72841eab15387986ea6b1067273b2bceb0b8a41",
+  "deploymentId": "28c3d203-b4e2-477f-b68d-fd07ba80fd95",
+  "verifiedAt": "2026-11-12T21:44:31.068036+00:00",
+  "evidence": "docs/releases/RESIDENT-QUICK-START-2026-11-12.md"
 }
