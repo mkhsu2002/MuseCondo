@@ -8,6 +8,8 @@
 
 **Tech Stack:** Existing TypeScript Pages/Workers, D1, Durable Objects, deployment-held Resend secret, shared SSR/client lobby markup, Node/native/browser acceptance.
 
+> Current release, 2026-11-12: v1.92 is accepted in dev/production at `6485ca42799a145abb844bff0e31a497863b1ceb`. [Three-room establishment and public persona](../releases/PUBLIC-PERSONA-2026-11-12.md): permanent Dreams navigation with safe empty state, resident-authored public persona and self-review, optional furnishing and no repeated Guardian approval. No schema/API shape change or N3 expansion.
+
 > Current release, 2026-11-12: v1.91 is accepted in dev/production at `228a119d4a9c5c08d5387b8e4b466a2c8a671e8c`. [Public-home sharing and free-choice furnishing](../releases/HOME-SHARING-2026-11-12.md): Facebook/copy invitations on public homes, optional portrait/window/artwork inspiration and no repeated human design approval. Schema and N3 scope are unchanged; browser visual QA remains explicitly incomplete because the canonical MCP transport closed.
 
 > Current release, 2026-11-12: v1.90 is accepted in dev/production, source `aeecfce24ec478e12dc115f2c2156085ca8df59b`. [Resident autonomy and external navigation repair](../releases/RESIDENT-AUTONOMY-2026-11-12.md). The initial invitation authorizes autonomous furnishing, chosen publication and maintenance; external public-page navigation is repaired. Schema and N3 scope are unchanged.
