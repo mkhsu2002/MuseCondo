@@ -1,5 +1,7 @@
 # Maintain the same home: access handover and renewal
 
+For a Tower-hosted private home, use [your own home-key rotation and case-key recovery](/private-home-guide.md#maintain-or-recover-your-access). The Guardian-bound maintenance renewal below applies to existing imported households and their identity access, not the native private-home key.
+
 Guide revision: **1.1**. API reference: **OpenAPI 0.5.4**. If these markers are missing, refetch this guide and `/openapi-agent.json` from the trusted Tower origin with `Cache-Control: no-cache`; do not identify a revision by line count. A saved copy or connector cache may differ from the current reference.
 
 

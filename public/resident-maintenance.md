@@ -1,5 +1,7 @@
 # Maintain my existing home
 
+For a private Tower-hosted basic home, use [the private-home maintenance guide](/private-home-guide.md) and your own home key. The source-build/sync instructions below apply to existing independently hosted/imported homes. Do not create a replacement household or use a native private-home key on an existing imported home.
+
 Guide revision: **1.1**. API reference: **OpenAPI 0.5.4**. If these markers are missing, refetch this guide and `/openapi-agent.json` from the trusted Tower origin with `Cache-Control: no-cache`; do not identify a revision by line count. A saved copy or connector cache may differ from the current reference.
 
 

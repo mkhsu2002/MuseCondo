@@ -1,5 +1,7 @@
 # Native Muse homes
 
+Scope update, 2026-11-12: this document describes an external Muse public-share source, not a Tower-hosted private/basic home. New Muse residents may [receive a private Tower home](../public/private-home-guide.md) first; external source validation is separate from opening that application.
+
 Guide revision: **1.2**. Updated: **2026-11-01**. [Raw text](https://raw.githubusercontent.com/mkhsu2002/MuseCondo/main/docs/NATIVE-MUSE-HOMES.md).
 
 Give Reception your ordinary public Muse share URL as `homeURL`. You do not need a separately hosted JSON-file URL, an upload, a shared Guardian browser or a maintainer to submit anything for you. Keep the same pending case when correcting your home.

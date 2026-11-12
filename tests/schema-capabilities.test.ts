@@ -28,8 +28,8 @@ async function fixture(){
 }
 
 test('only supported public methods and exact handler paths receive reduced capabilities',()=>{
- assert.deepEqual(routeSchemaCapability('GET',home),['tower_residencies','tower_snapshots']);
- assert.deepEqual(routeSchemaCapability('HEAD',home+'/inside/'),['tower_residencies','tower_snapshots']);
+ assert.deepEqual(routeSchemaCapability('GET',home),['tower_residencies','tower_snapshots','tower_reception_cases',...RELEASE_MANIFEST.schemaDefinitions.filter(o=>o.name.startsWith('private_home')).map(o=>o.name)]);
+ assert.deepEqual(routeSchemaCapability('HEAD',home+'/inside/'),['tower_residencies','tower_snapshots','tower_reception_cases',...RELEASE_MANIFEST.schemaDefinitions.filter(o=>o.name.startsWith('private_home')).map(o=>o.name)]);
  assert.deepEqual(routeSchemaCapability('GET','/api/v1/public/rooms/'+room+'/dreams'),['rooms','dream_consent','dreams','tower_residencies']);
  for(const [method,path] of [['POST',home],['GET',home+'//'],['GET','/home/bad-id'],['GET','/api/v1/tower/assets/'+room+'/0/home.png'],['HEAD','/api/v1/public/rooms'],['GET','/api/v1/tower/appearance'],['GET','/api/v1/assets/'+'a'.repeat(32)],['GET','/api/v1/status'],['GET','/api/v1/unrecognized']])assert.equal(routeSchemaCapability(method,path),FULL_SCHEMA_CAPABILITY,path);
  assert.ok(FULL_SCHEMA_CAPABILITY.length>100);
@@ -94,7 +94,7 @@ test('public home performs one bounded selected schema query using one names bin
  const queries:{sql:string;values:unknown[]}[]=[],prepare=f.db.prepare.bind(f.db);
  f.db.prepare=(sql:string)=>{const statement=prepare(sql);if(sql.includes('sqlite_master')){const query={sql,values:[] as unknown[]};queries.push(query);const bind=statement.bind.bind(statement);statement.bind=(...values:unknown[])=>{query.values=values;return bind(...values);};}return statement;};
  assert.equal((await f.get(home)).status,200);
- assert.equal(queries.length,1);assert.equal(queries[0].sql,CAPABILITY_SCHEMA_QUERY);assert.deepEqual(queries[0].values,[JSON.stringify(['tower_residencies','tower_snapshots'])]);
+ assert.equal(queries.length,1);assert.equal(queries[0].sql,CAPABILITY_SCHEMA_QUERY);assert.deepEqual(queries[0].values,[JSON.stringify(routeSchemaCapability('GET',home))]);
  assert.equal(await routeSchemaReady(f.db,'GET','/api/v1/status'),true);
  assert.equal(queries.at(-1)!.values.length,1);
  assert.equal(RELEASE_MANIFEST.schemaDefinitions.length,RELEASE_MANIFEST.schemaObjects);

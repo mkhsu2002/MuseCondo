@@ -514,5 +514,6 @@
       "503": "Schema/service unavailable; home completion is independent."
     },
     "identityContinuity": "If this household already has a bound identity, identity-present takes priority over offers and preferences, with nextActor:none: keep the existing identity and do not invite reenrollment. New choice requests report that current state; historical exact choice receipts keep their original snapshot."
-  }
+  },
+  "privateHomeBoundary": "A native private-home maintenance or preview key does not authorize identity, Guardian, recovery or Vault operations. This contract requires the existing supported household/identity authority and its separate consents; receiving a basic home does not enroll an identity."
 }

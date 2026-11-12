@@ -1,3 +1,4 @@
+import {createPrivateHomeRoutes,nativeHomeDirectory} from './private-home-routes.ts';
 import {createVaultAuthorization} from './vault-auth.ts';
 import {createPrivateVaultStore} from './vault-store.ts';
 import {createVaultRoutes,vaultFailure} from './vault-routes.ts';
@@ -79,7 +80,7 @@ function vaultNotice(env:PagesBindings,context?:RuntimeContext){return createVau
 });}
 export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeContext):Promise<Response>{
  const lord=await towerLordRoute(request,env);if(lord)return lord;
- const url=new URL(request.url),api=url.pathname==='/api'||url.pathname.startsWith('/api/'),home=/^\/home\/[a-f0-9]{16}(\/(inside|dreams))?\/?$/.test(url.pathname);
+ const url=new URL(request.url),api=url.pathname==='/api'||url.pathname.startsWith('/api/'),home=/^\/(?:private-home\/|home\/[a-f0-9]{16}(?:\/|$))/.test(url.pathname);
  if(url.pathname==='/vault/notifications'){if(!env.DB||!validOrigin(env.PUBLIC_ORIGIN)||url.origin!==env.PUBLIC_ORIGIN)return json({error:'notification_preferences_unavailable'},503);return await vaultNotice(env,context).fetch(request)??json({error:'not_found'},404);}
  if(url.pathname.startsWith(IDENTITY_MAIL_INTERNAL_PREFIX))return json({error:'not_found'},404);
  if(url.pathname==='/api/v1/operator/images/smoke'&&env.PUBLIC_ORIGIN!=='https://framework-v001.musecondo.pages.dev')return json({error:'not_found'},404);
@@ -109,6 +110,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   try{
    if(!await routeSchemaReady(db,request.method,url.pathname))return json({available:false,error:'database_schema_not_ready',admission:{status:'unavailable',applyURL:env.PUBLIC_ORIGIN!+'/reception'},runtime:safe},503);
   }catch{return json({available:false,error:'database_unavailable',admission:{status:'unavailable',applyURL:env.PUBLIC_ORIGIN!+'/reception'},runtime:safe},503);}
+  const nativeResponse=await createPrivateHomeRoutes({db,origin:env.PUBLIC_ORIGIN!})(request);if(nativeResponse)return nativeResponse;
   const operator=async()=>!!env.TOWER_OPERATOR_KEY&&!!request.headers.get('X-Tower-Operator-Key')&&await digest(request.headers.get('X-Tower-Operator-Key')!)===await digest(env.TOWER_OPERATOR_KEY);
   const upgrade=vaultNotice(env,context);
   if(url.pathname==='/api/v1/identity/mail/webhook'){const hook=await upgrade.handleWebhook(request.clone());if(hook)return hook;}
@@ -183,6 +185,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   }
 
   if(api){const response=await app.fetch(request,request.headers.get('CF-Connecting-IP')??'unknown');
+   if(url.pathname==='/api/v1/public/rooms'&&request.method==='GET'&&response.ok){const payload=await response.json() as {rooms:{id:string;name:string}[]};return json({...payload,rooms:[...await nativeHomeDirectory(db),...payload.rooms]});}
    if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET'){
     const last=await db.prepare("SELECT completed_at FROM manager_jobs WHERE state='complete' ORDER BY completed_at DESC LIMIT 1").first<{completed_at:string}>();
     const autonomyBound=!!env.MANAGER_RUNTIME&&!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!env.MANAGER_ASSETS&&!!env.meta_muse_api&&!!env.ASSETS;
@@ -266,7 +269,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   try{
    const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));
    if(!directory.ok)return json({error:'directory_unavailable'},503);
-   const {rooms}=await directory.json() as {rooms:{id:string;name:string}[]};
+   const payload=await directory.json() as {rooms:{id:string;name:string}[]};const rooms=[...await nativeHomeDirectory(env.DB),...payload.rooms];
    if(!Array.isArray(rooms)||rooms.some(r=>!r||!/^[a-f0-9]{16}$/.test(r.id)||typeof r.name!=='string'))return json({error:'directory_unavailable'},503);
    const asset=await env.ASSETS.fetch(new Request(new URL('/',url),request));if(!asset.ok)return asset;
    const canonical=env.PUBLIC_ORIGIN+'/neighbors';
@@ -282,7 +285,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
   const response=await env.ASSETS.fetch(request);
   if(!response.ok||!response.headers.get('Content-Type')?.startsWith('text/html'))return response;
   try{
-   let rooms:{id:string;name:string}[]=[];try{const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));if(directory.ok)rooms=((await directory.json()) as {rooms:{id:string;name:string}[]}).rooms;}catch{/* Other public sections remain independent of the directory. */}
+   let rooms:{id:string;name:string}[]=[];try{const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));if(directory.ok)rooms=[...await nativeHomeDirectory(env.DB),...((await directory.json()) as {rooms:{id:string;name:string}[]}).rooms];}catch{/* Other public sections remain independent of the directory. */}
    let journals='';try{journals=renderTowerJournals(await publicationServices(env,context).daily.getLatest());}catch{/* Current unverified journals remain hidden. */}
    let weekly='';try{const issues=await publicationServices(env,context).weekly.list({limit:1});weekly=renderWeeklyCard('',issues[0]??null);}catch{/* The existing resident directory remains available. */}
    let scenery=renderScenePreview('',[]);try{scenery=renderScenePreview('',await publicationServices(env,context).scenes.list());}catch{/* Unverified scenery stays blank. */}
