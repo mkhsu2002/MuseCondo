@@ -8,6 +8,10 @@ PR #1 updates version synchronization, Vault trust-boundary documentation, READM
 
 The submitted version tests failed three times because their temporary repositories did not contain the newly required package manifest. The fixture now supplies a valid manifest. Assertions cover manifest version synchronization, preserved package fields, hundredths carry and validation before writing any version file. Version/README checks pass 13/13 locally. The PR branch also includes main's `a3179cc` workflow fix, staging `package.json` with VERSION and README files.
 
+Carry verification additionally exposed invalid npm numeric components: project `1.00` must map to package `1.0.0`, and `0.02` to `0.2.0`. Package synchronization now removes the display-only leading zero from the minor component. The new carry assertion failed against the submitted implementation before this repair. Project VERSION/README formatting remains unchanged.
+
+The backend, type, lint and build changes passed local full verification (1620 tests, zero failures), followed by all eight existing native runtime suites. The final version-format repair receives a fresh focused test run and GitHub Quality verification before merge.
+
 ## Deployment requirements
 
 - Run full verification and the existing native runtime checks before merging.

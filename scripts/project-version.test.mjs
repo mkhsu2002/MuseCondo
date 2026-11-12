@@ -22,7 +22,8 @@ function fixture(t, version = '0.01') {
   git(root, 'config', 'user.email', 'version-test@example.invalid');
   git(root, 'config', 'user.name', 'Version test');
   put(root, 'VERSION', `${version}\n`);
-  put(root, 'package.json', JSON.stringify({ name: 'version-fixture', version: `${version}.0`, private: true }, null, 2) + '\n');
+  const [major, minor] = version.split('.');
+  put(root, 'package.json', JSON.stringify({ name: 'version-fixture', version: `${major}.${Number(minor)}.0`, private: true }, null, 2) + '\n');
   put(root, 'README.md', `# Test\n<!-- project-version -->v${version}<!-- /project-version -->\n`);
   put(root, 'src/home.ts', 'export const home = 1;\n');
   commit(root, 'establish baseline');
@@ -46,7 +47,7 @@ test('multiple code files in one commit increment once and synchronize README', 
   assert.equal(update(root, true).next, '0.02');
   assert.equal(readFileSync(join(root, 'VERSION'), 'utf8'), '0.02\n');
   assert.match(readFileSync(join(root, 'README.md'), 'utf8'), />v0\.02</);
-  assert.deepEqual(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')), { name: 'version-fixture', version: '0.02.0', private: true });
+  assert.deepEqual(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')), { name: 'version-fixture', version: '0.2.0', private: true });
   commit(root, 'record automatic version');
   assert.equal(calculate(root).increments, 0);
 });
@@ -106,7 +107,7 @@ test('hundredths carry exactly without floating point', t => {
   put(root, 'src/home.ts', 'changed'); commit(root, 'code');
   assert.equal(calculate(root).next, '1.00');
   update(root, true);
-  assert.equal(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version, '1.00.0');
+  assert.equal(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version, '1.0.0');
 });
 
 test('a merge counts once along main first-parent history', t => {

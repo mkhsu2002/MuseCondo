@@ -64,12 +64,14 @@ export function update(root, write = false) {
     // package.json is the single npm-visible version: keep it on the same
     // project version so readers never see the stale 0.1.0 again. npm
     // requires semver, while the project counter uses hundredths, so the
-    // npm form is the project version with a .0 patch (1.86 -> 1.86.0).
+    // npm form uses an integer minor and a .0 patch (1.86 -> 1.86.0,
+    // 1.00 -> 1.0.0); SemVer forbids leading zeros in numeric components.
     // All reads and validation happen before any file is written.
     const packagePath = resolve(root, 'package.json');
     const packageJson = JSON.parse(readFileSync(packagePath, 'utf8'));
     if (typeof packageJson.version !== 'string') throw new Error('package.json must contain a version string');
-    const packageContent = `${JSON.stringify({ ...packageJson, version: `${result.next}.0` }, null, 2)}\n`;
+    const [major, minor] = result.next.split('.');
+    const packageContent = `${JSON.stringify({ ...packageJson, version: `${major}.${Number(minor)}.0` }, null, 2)}\n`;
     writeFileSync(resolve(root, 'VERSION'), `${result.next}\n`);
     for (const { path, content } of readmes) writeFileSync(path, content);
     writeFileSync(packagePath, packageContent);
