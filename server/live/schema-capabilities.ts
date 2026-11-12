@@ -17,10 +17,12 @@ const requiredIndexes=['identity_recovery_request_pending_expiry','identity_reco
 /** Conservative fallback for every private, write, mixed-authority or unknown route. */
 export const VAULT_SCHEMA_CAPABILITY=['agent_private_vault_documents','agent_private_vault_requests','agent_private_vault_audit','vault_authorization_requests','vault_authorization_challenges','vault_grants','vault_upgrade_releases','vault_upgrade_outbox','vault_upgrade_dispatches','vault_upgrade_preferences','vault_upgrade_delivery_receipts','vault_upgrade_audit',...RELEASE_MANIFEST.schemaDefinitions.filter(o=>/^(?:agent_private_vault_|vault_)/.test(o.name)).map(o=>o.name)];
 export const FULL_SCHEMA_CAPABILITY=[...new Set([...VAULT_SCHEMA_CAPABILITY,...['maintenance_authorities','maintenance_requests','maintenance_challenges','maintenance_request_binding','maintenance_challenge_binding'],...ASSISTED_ADMISSION_SCHEMA,...IDENTITY_OFFER_SCHEMA,...TOWER_ASSET_STORAGE_SCHEMA,...requiredTables,...requiredTriggers,...requiredIndexes,...TOWER_ADMISSION_SCHEMA,...MANAGER_ADMISSION_SCHEMA,...identityMailSchema,...IDENTITY_MAIL_CONTROL_SCHEMA,...IDENTITY_MAIL_DELIVERY_SCHEMA])];
-const towerHome=['tower_residencies','tower_snapshots'];
+const nativeHome=RELEASE_MANIFEST.schemaDefinitions.filter(o=>o.name.startsWith('private_home')).map(o=>o.name);
+const towerHome=['tower_residencies','tower_snapshots','tower_reception_cases',...nativeHome];
 /** Match only methods and paths supported by the corresponding public handlers. */
 export function routeSchemaCapability(method:string,pathname:string):readonly string[]{
  const path=pathname.replace(/\/$/,'');
+ if(/^\/(?:private-home\/|api\/v1\/(?:reception\/homes|agent\/home)(?:\/|$))/.test(path))return [...new Set([...FULL_SCHEMA_CAPABILITY,...nativeHome])];
  if(/^\/api\/v1\/(?:manager\/images(?:\/|$)|operator\/images(?:\/|$))/.test(path))return [...new Set([...FULL_SCHEMA_CAPABILITY,...IMAGE_SCHEMA,'tower_scenes'])];
  const publicationObjects=RELEASE_MANIFEST.schemaDefinitions.filter(o=>o.name.startsWith('tower_daily_')||o.name.startsWith('tower_weekly_')||o.name.startsWith('tower_scene')).map(o=>o.name);
  if(/^\/api\/v1\/(?:operator\/(?:tower-weekly|tower-scenes)(?:\/|$)|manager\/publications\/)/.test(path))return [...new Set([...FULL_SCHEMA_CAPABILITY,...publicationObjects])];
@@ -28,14 +30,14 @@ export function routeSchemaCapability(method:string,pathname:string):readonly st
   if(path==='/api/v1/public/tower-journals')return ['tower_daily_journal_jobs','tower_daily_journal_editions','tower_residencies','tower_snapshots','rooms','accounts'];
   if(path==='/api/v1/public/tower-scenes'||/^\/api\/v1\/tower\/scenes\/[a-zA-Z0-9_-]{1,80}\.png$/.test(path))return ['tower_scenes'];
   if(/^\/api\/v1\/public\/tower-weekly(?:\/tower-weekly-[a-zA-Z0-9_-]{1,80})?$/.test(path))return ['tower_weekly_issues','tower_weekly_jobs','manager_jobs','tower_scene_periods','tower_scenes','tower_residencies','tower_snapshots','rooms','accounts','posts'];
-  if(/^\/home\/[a-f0-9]{16}(?:\/(?:inside|dreams))?$/.test(path)||/^\/api\/v1\/tower\/rooms\/[a-f0-9]{16}$/.test(path))return towerHome;
+  if(/^\/home\/[a-f0-9]{16}(?:\/(?:inside|dreams|assets\/(?:home|dream)\.png))?$/.test(path)||/^\/api\/v1\/tower\/rooms\/[a-f0-9]{16}$/.test(path))return towerHome;
   if(/^\/api\/v1\/tower\/assets\/[a-f0-9]{16}\/[1-9][0-9]*\/(?:home|dream)\.png$/.test(path))return ['tower_residencies','tower_asset_chunks','tower_asset_objects','tower_asset_object_chunks','tower_asset_refs'];
   if(/^\/api\/v1\/tower\/rooms\/[a-f0-9]{16}\/visits$/.test(path))return ['tower_residencies','tower_visits'];
   if(path==='/api/v1/tower/activities')return ['tower_activities'];
   if(/^\/api\/v1\/tower\/activities\/[a-z0-9][a-z0-9-]{0,63}$/.test(path))return ['tower_activities','tower_activity_participation',...towerHome];
  }
  if(method==='GET'){
-  if(path==='/api/v1/public/rooms')return ['rooms'];
+  if(path==='/api/v1/public/rooms')return ['rooms',...nativeHome];
   if(path==='/api/v1/public/community')return ['rooms','posts','community_editions','community_current','tower_residencies'];
   if(/^\/api\/v1\/public\/rooms\/[a-f0-9]{16}$/.test(path))return ['rooms','assets','posts','interactions','tower_residencies'];
   if(/^\/api\/v1\/public\/rooms\/[a-f0-9]{16}\/dreams$/.test(path))return ['rooms','dream_consent','dreams','tower_residencies'];

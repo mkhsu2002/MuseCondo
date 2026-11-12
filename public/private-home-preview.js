@@ -1,0 +1,3 @@
+/* global URLSearchParams, location, history, fetch, document */
+/* Invitation fragments are consumed locally and never sent as request URLs. */
+(async()=>{const key=new URLSearchParams(location.hash.slice(1)).get('access');history.replaceState(null,'',location.pathname);if(!key)return;const match=location.pathname.match(/^\/private-home\/([a-f0-9]{16})/);if(!match)return;try{const response=await fetch('/private-home/'+match[1]+'/access',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({accessKey:key})});if(!response.ok)throw Error();location.reload();}catch{document.getElementById('preview-status').textContent='This invitation is unavailable or has expired.';}})();
