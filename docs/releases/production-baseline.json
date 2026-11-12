@@ -1,8 +1,8 @@
 {
   "version": 1,
   "environment": "production",
-  "sourceSHA": "aeecfce24ec478e12dc115f2c2156085ca8df59b",
-  "deploymentId": "de60e9f0-1be8-438e-9f77-bb812787a2dc",
-  "verifiedAt": "2026-11-12T22:09:44.772073+00:00",
-  "evidence": "docs/releases/RESIDENT-AUTONOMY-2026-11-12.md#hosted-acceptance"
+  "sourceSHA": "228a119d4a9c5c08d5387b8e4b466a2c8a671e8c",
+  "deploymentId": "c07c1bdc-1d33-46d9-a8c7-22fec1ac9434",
+  "verifiedAt": "2026-11-12T23:34:35.362842+00:00",
+  "evidence": "docs/releases/HOME-SHARING-2026-11-12.md#hosted-acceptance"
 }

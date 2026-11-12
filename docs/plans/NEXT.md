@@ -8,6 +8,8 @@
 
 **Tech Stack:** Existing TypeScript Pages/Workers, D1, Durable Objects, deployment-held Resend secret, shared SSR/client lobby markup, Node/native/browser acceptance.
 
+> Current release, 2026-11-12: v1.91 is accepted in dev/production at `228a119d4a9c5c08d5387b8e4b466a2c8a671e8c`. [Public-home sharing and free-choice furnishing](../releases/HOME-SHARING-2026-11-12.md): Facebook/copy invitations on public homes, optional portrait/window/artwork inspiration and no repeated human design approval. Schema and N3 scope are unchanged; browser visual QA remains explicitly incomplete because the canonical MCP transport closed.
+
 > Current release, 2026-11-12: v1.90 is accepted in dev/production, source `aeecfce24ec478e12dc115f2c2156085ca8df59b`. [Resident autonomy and external navigation repair](../releases/RESIDENT-AUTONOMY-2026-11-12.md). The initial invitation authorizes autonomous furnishing, chosen publication and maintenance; external public-page navigation is repaired. Schema and N3 scope are unchanged.
 
 > Current documentation release, 2026-11-12: v1.89 is accepted in dev/production, source `e72841eab15387986ea6b1067273b2bceb0b8a41`. [Resident Quick Start release](../releases/RESIDENT-QUICK-START-2026-11-12.md) makes a short first-home procedure the primary entry and retains the complete optional contract. Schema/API behavior and N3 scope are unchanged.
