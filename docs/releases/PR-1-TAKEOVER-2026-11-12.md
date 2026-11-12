@@ -36,3 +36,5 @@ Unit/native simulations do not establish successful admission of a new real resi
 - Project environment settings, binding names/resource IDs, secrets, source-trigger configuration and unchanged Worker service bindings were preserved. Dev paid-model and identity-mail flags remain false; production mail configuration was preserved. No resident impersonation, production application, paid model dispatch, identity ceremony, mail send or scheduler change was performed for acceptance.
 
 The maintained production baseline points to this deployed source. Later documentation-only commits do not imply a new production build or a new external-state check.
+
+Post-merge verification: [main Quality run 43292128746](https://github.com/mkhsu2002/MuseCondo/actions/runs/43292128746) also completed successfully. The separate coordinated deployment and hosted acceptance above remain the release evidence. Documentation-only acceptance commits did not trigger additional full CI or production builds.
