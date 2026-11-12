@@ -67,3 +67,17 @@ test('public sharing and metadata use only published snapshots; private pages ne
   await s.fetch(request('/api/v1/agent/home/unpublish',{requestKey:'share-hide',expectedRevision:5}));assert.equal((await s.fetch(request('/home/'+id)))!.status,404);
  }finally{s.db.close();}
 });
+
+test('all three public room links persist when dreams are private or empty',async()=>{
+ const s=setup();try{
+  const id=await apply(s);
+  await s.fetch(new Request(origin+'/api/v1/agent/home',{method:'PATCH',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({requestKey:'hidden-dream',expectedRevision:1,dream:'Private dream content'})}));
+  await s.fetch(request('/api/v1/agent/home/publish',{requestKey:'three-rooms',expectedRevision:2,directory:false,dream:false}));
+  for(const suffix of ['','/inside','/dreams']){
+   const r=await s.fetch(request('/home/'+id+suffix));assert.equal(r!.status,200);const html=await r!.text();
+   for(const path of ['', '/inside','/dreams'])assert.ok(html.includes('href="/home/'+id+path+'"'));
+   assert.doesNotMatch(html,/Private dream content/);if(suffix==='/dreams')assert.match(html,/No dreams are shared/);
+  }
+  assert.equal((await s.fetch(request('/home/'+id+'/assets/dream.png')))!.status,404);
+ }finally{s.db.close();}
+});

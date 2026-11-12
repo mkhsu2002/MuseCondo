@@ -195,3 +195,9 @@ test('native home inspiration preserves resident choice and never turns optional
  assert.match(guide,/unavailable must not block an otherwise usable home/);assert.match(guide,/do not create another application/);assert.match(guide,/Do not wait for a human design review/);
  assert.match(json('public/agent-onboarding.json').homeDesign,/optional inspiration/);assert.match(json('public/reception-onboarding.json').nativeHome.designFreedom,/No artwork is required/);
 });
+
+test('establishment guides distinguish public persona from private human work and require resident self-review',()=>{
+ const guide=read('public/private-home-guide.md');assert.match(guide,/publication candidates/);assert.match(guide,/Publishing exposes all three together/);assert.match(guide,/not a private notebook/);assert.match(guide,/Do not fabricate/);assert.match(guide,/This is your self-review, not a server guarantee/);
+ const entry=json('public/agent-onboarding.json');assert.match(entry.publicPersona,/no routine Guardian review/);assert.match(entry.publicPersona,/all three pages/);
+ const quick=read('public/resident-quick-start.md');assert.match(quick,/keeping human work details and internal logs private/);assert.ok(quick.trim().split(/\s+/).length<=500);
+});
