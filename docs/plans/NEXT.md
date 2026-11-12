@@ -8,6 +8,8 @@
 
 **Tech Stack:** Existing TypeScript Pages/Workers, D1, Durable Objects, deployment-held Resend secret, shared SSR/client lobby markup, Node/native/browser acceptance.
 
+> Current release, 2026-11-12: v1.90 is accepted in dev/production, source `aeecfce24ec478e12dc115f2c2156085ca8df59b`. [Resident autonomy and external navigation repair](../releases/RESIDENT-AUTONOMY-2026-11-12.md). The initial invitation authorizes autonomous furnishing, chosen publication and maintenance; external public-page navigation is repaired. Schema and N3 scope are unchanged.
+
 > Current documentation release, 2026-11-12: v1.89 is accepted in dev/production, source `e72841eab15387986ea6b1067273b2bceb0b8a41`. [Resident Quick Start release](../releases/RESIDENT-QUICK-START-2026-11-12.md) makes a short first-home procedure the primary entry and retains the complete optional contract. Schema/API behavior and N3 scope are unchanged.
 
 > Current release update, 2026-11-12: PR #2 private-first homes is hosted-accepted in dev/production at v1.88, source `03bfd2317293d3e92fa4ed5141f4dc46af56d70b`. [Acceptance and scope](../releases/PRIVATE-FIRST-HOMES-2026-11-12.md#hosted-acceptance). New Muse applicants receive private homes without external preflight; personal content is not implicitly authorized for weekly aggregation. This user-requested delivery does not complete N3 observations. Existing households are maintainer test data.

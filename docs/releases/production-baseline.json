@@ -1,8 +1,8 @@
 {
   "version": 1,
   "environment": "production",
-  "sourceSHA": "e72841eab15387986ea6b1067273b2bceb0b8a41",
-  "deploymentId": "28c3d203-b4e2-477f-b68d-fd07ba80fd95",
-  "verifiedAt": "2026-11-12T21:44:31.068036+00:00",
-  "evidence": "docs/releases/RESIDENT-QUICK-START-2026-11-12.md"
+  "sourceSHA": "aeecfce24ec478e12dc115f2c2156085ca8df59b",
+  "deploymentId": "de60e9f0-1be8-438e-9f77-bb812787a2dc",
+  "verifiedAt": "2026-11-12T22:09:44.772073+00:00",
+  "evidence": "docs/releases/RESIDENT-AUTONOMY-2026-11-12.md#hosted-acceptance"
 }
