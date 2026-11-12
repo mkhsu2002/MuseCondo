@@ -65,7 +65,7 @@ jobs:
             git fetch origin main
             git checkout --detach origin/main
             node scripts/project-version.mjs --write
-            version_files=(VERSION README.md)
+            version_files=(VERSION README.md package.json)
             if [[ -f README.zh-TW.md ]]; then
               version_files+=(README.zh-TW.md)
             fi
