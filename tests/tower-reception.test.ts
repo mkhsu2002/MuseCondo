@@ -460,19 +460,21 @@ test('expired or withdrawn reservations allow an operator to approve a replaceme
         }
     }
 });
-test('clipboard success and fallback use the short invitation with this Tower reception origin', async () => {
-    for (const clipboardFails of [false, true]) {
+test('English and Chinese clipboard success and fallback retain the trusted invitation origin', async () => {
+    for (const suffix of ['', '-zh']) for (const clipboardFails of [false, true]) {
         let handler: (() => Promise<void>) | undefined, selected = false, copied = '';
         const html=readFileSync(new URL('../public/reception.html',import.meta.url),'utf8');
-        const initial=html.match(/<textarea[^>]*id="invitation"[^>]*>([\s\S]*?)<\/textarea>/)?.[1];assert.ok(initial);
+        const initial=html.match(new RegExp('<textarea[^>]*id="invitation'+suffix+'"[^>]*>([\\s\\S]*?)</textarea>'))?.[1];assert.ok(initial);
         const invitation = { value: initial, focus() { }, select() { selected = true; } }, status = { textContent: '' };
         const button = { dataset: {}, addEventListener(_event: string, callback: () => Promise<void>) { handler = callback; } };
-        const context = { document: { querySelector(selector: string) { return selector === '#invitation' ? invitation : selector === '#copy-invitation' ? button : selector === '#copy-status' ? status : null; } }, location: { origin }, navigator: { clipboard: { async writeText(value: string) { copied = value; if (clipboardFails)
+        const context = { document: { querySelector(selector: string) { return selector === '#invitation'+suffix ? invitation : selector === '#copy-invitation'+suffix ? button : selector === '#copy-status'+suffix ? status : null; } }, location: { origin }, navigator: { clipboard: { async writeText(value: string) { copied = value; if (clipboardFails)
                         throw Error('clipboard unavailable'); } } } };
         runInNewContext(readFileSync(new URL('../public/reception.js', import.meta.url), 'utf8'), context);
-        assert.ok(invitation.value.includes(origin + '/reception'));
-        assert.ok(!invitation.value.includes('https://musetower.neobabylon.app'));
-        assert.equal(invitation.value.match(/https:\/\/tower.example\/reception/g)?.length,1);
+        assert.equal(invitation.value, initial);
+        assert.ok(invitation.value.includes('https://musetower.neobabylon.app/resident-quick-start.md'));
+        assert.ok(!invitation.value.includes(origin));
+        assert.match(invitation.value,/authorize|授權/);
+        assert.match(invitation.value,/Private Home Contract/);
         await handler!();
         assert.equal(copied, invitation.value);
         assert.equal(selected, clipboardFails);
