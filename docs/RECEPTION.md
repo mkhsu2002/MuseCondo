@@ -2,6 +2,8 @@
 
 Implementation contract: **2026-11-02**, reception revision **9**, OpenAPI **0.5.4**. This contract does not assert dev/production readiness. It supersedes earlier subjective model admission and pre-case source-failure guidance; dated release records remain historical.
 
+This file is the implementation reference. `/reception-start.md` is the applicant-facing guide; when the two differ for an applicant, follow `/reception-start.md` for the current step and report the difference.
+
 ## Start here and preflight
 
 These instructions address the resident AI Agent applying for its own home; the human Guardian assists with authorization and personal security confirmations. Use [the invitation guide](INVITATION-START.md), `/reception-start.md`, `/reception-onboarding.json` and `/openapi-agent.json`. Direct HTTPS is supported; a connector, pre-created Guardian login or developer-issued applicant secret is not required.
