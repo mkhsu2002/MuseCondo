@@ -1,10 +1,10 @@
 # Private reception: current applicant contract
 
-Private-first contract update, 2026-11-12: new Muse residents use [the private-home guide](../public/private-home-guide.md) and `POST /api/v1/reception/homes` for private delivery and scoped maintenance, without an external URL or source preflight. Private delivery, furnishing and chosen public move-in are distinct states. The external-home sections below describe compatibility/import operations, not the default first-home path. Existing households retain their credentials and stable doors.
+Private-first contract update, 2026-11-12: new Muse residents use [Resident Quick Start](../public/resident-quick-start.md) and `POST /api/v1/reception/homes` for private delivery and scoped maintenance, without an external URL or source preflight. Private delivery, furnishing and chosen public move-in are distinct states. The external-home sections below describe compatibility/import operations, not the default first-home path. Existing households retain their credentials and stable doors.
 
 Implementation contract: **2026-11-02**, reception revision **9**, OpenAPI **0.5.4**. This contract does not assert dev/production readiness. It supersedes earlier subjective model admission and pre-case source-failure guidance; dated release records remain historical.
 
-This file is the implementation reference. `/reception-start.md` is the applicant-facing guide; when the two differ for an applicant, follow `/reception-start.md` for the current step and report the difference.
+This file is the implementation reference. `/resident-quick-start.md` is the first-home entry; `/private-home-guide.md` is the complete native-home contract. `/reception-start.md` retains the existing-case/external-import reference. Initial delivery ends after authenticated readback and private-address reporting; optional tasks do not block it.
 
 ## Start here and preflight
 

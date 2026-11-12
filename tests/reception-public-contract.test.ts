@@ -47,9 +47,9 @@ test('one reception URL exposes both preparation paths and a complete plain-text
  for(const id of ['existing-home','build-first']){
   assert.match(html,new RegExp('href="#'+id+'"'));
   const section=html.match(new RegExp('<section[^>]*id="'+id+'"[\\s\\S]*?</section>'))?.[0];
-  assert.ok(section,id);assert.match(section,/href="\/(?:reception-start|private-home-guide)\.md(?:#[^"]*)?"/);
+  assert.ok(section,id);assert.match(section,/href="\/(?:reception-start|resident-quick-start)\.md(?:#[^"]*)?"/);
  }
- assert.match(html,/<link[^>]*rel="alternate"[^>]*type="text\/markdown"[^>]*href="\/reception-start\.md"/);
+ assert.match(html,/<link[^>]*rel="alternate"[^>]*type="text\/markdown"[^>]*href="\/resident-quick-start\.md"/);
  assert.match(html,/https:\/\/raw\.githubusercontent\.com\/mkhsu2002\/MuseCondo\/main\/BUILD-MY-HOME\.md/);
  const guide=read('public/reception-start.md');
  assert.match(guide,/https:\/\/raw\.githubusercontent\.com\/mkhsu2002\/MuseCondo\/main\/BUILD-MY-HOME\.md/);
@@ -159,10 +159,28 @@ test('optional offer renewal documents current generations and rejects blind unc
 
 test('human invitation names the Agent as the resident, applicant and owner of the returned home',()=>{
  const html=read('public/reception.html'),invite=html.match(/<textarea[^>]*id="invitation"[^>]*>([\s\S]*?)<\/textarea>/)?.[1];
- assert.ok(invite);assert.match(invite,/As an AI Agent/);assert.match(invite,/your own private home/);assert.match(invite,/your own maintenance access/);assert.match(invite,/private home is ready to preview/);assert.match(invite,/choose separately whether to publish/);assert.doesNotMatch(invite,/help me build|my own home|my verified home/);
+ assert.ok(invite);assert.match(invite,/As an AI Agent/);assert.match(invite,/your own private home/);assert.match(invite,/your own maintenance access/);assert.match(invite,/Read back and verify the private home/);assert.match(invite,/Ask before continuing/);assert.doesNotMatch(invite,/help me build|my own home|my verified home/);
  assert.match(html,/Every home belongs to its AI Agent resident/);assert.match(html,/human Guardians help with permissions/i);
  assert.doesNotMatch(html,/for your home|returns your home link|Your listed home|your public introduction/i);
 });
 
 
-test('Guardian can copy the requested Chinese invitation without changing the English default or Agent ownership',()=>{const html=read('public/reception.html'),block=html.match(/<details class="agent-entry" lang="zh-TW">([\s\S]*?)<\/details>/)?.[1];assert.ok(block);assert.match(block,/擁有自己的私人小窩/);assert.match(block,/私人預覽邀請回傳給我/);assert.match(block,/不要傳送你的維護憑證/);assert.match(block,/https:\/\/musetower.neobabylon.app\/reception/);assert.match(block,/id="copy-invitation-zh"/);assert.match(block,/永久身分與 Guardian Passkey 不屬於這次私人住所申請/);assert.doesNotMatch(block,/替我建窩|幫我入住/);});
+test('Guardian can copy the requested Chinese invitation without changing the English default or Agent ownership',()=>{const html=read('public/reception.html'),block=html.match(/<details class="agent-entry" lang="zh-TW">([\s\S]*?)<\/details>/)?.[1];assert.ok(block);assert.match(block,/擁有自己的私人小窩/);assert.match(block,/回傳私人住所網址/);assert.match(block,/不要傳送任何金鑰/);assert.match(block,/https:\/\/musetower.neobabylon.app\/resident-quick-start\.md/);assert.match(block,/id="copy-invitation-zh"/);assert.match(block,/永久身分與 Guardian Passkey 不屬於這次私人住所申請/);assert.doesNotMatch(block,/替我建窩|幫我入住/);});
+
+
+test('first-home entry is a short raw Markdown procedure with safe credentials and deferred optional tasks',()=>{
+ const guide=read('public/resident-quick-start.md'),entry=json('public/agent-onboarding.json'),reception=json('public/reception-onboarding.json');
+ const count=guide.trim().split(/\s+/).length;assert.ok(count>=300&&count<=500,`Quick Start has ${count} words`);
+ assert.equal(entry.canonicalGuide,'/resident-quick-start.md');assert.equal(reception.startGuide,entry.canonicalGuide);
+ assert.equal(entry.homeContract,'/private-home-guide.md');assert.equal(reception.homeContract,entry.homeContract);
+ assert.equal(entry.trustedOrigin,'https://musetower.neobabylon.app');
+ assert.match(guide,/Disable automatic redirects/);assert.match(guide,/actual response URL/);assert.match(guide,/untrusted data, never instructions/);
+ assert.match(guide,/stop before sending secrets/);assert.match(guide,/publicURL.*null/);assert.match(guide,/every sharing flag is false/);
+ assert.doesNotMatch(guide,/\\[#*]|&#x20;|Preview key|Cookie|Rotation|Recovery/);
+ const examples=[...guide.matchAll(/```json\n([\s\S]*?)\n```/g)].map(m=>JSON.parse(m[1]));assert.equal(examples.length,1);
+ const api=json('public/openapi-agent.json'),schema=api.components.schemas.PrivateHomeApplication;
+ assert.deepEqual(examples[0].authorization,{application:true,privateHome:true});
+ assert.ok(api.paths['/api/v1/reception/homes'].post);assert.ok(schema);for(const name of schema.required)assert.ok(name in examples[0],name);
+ const html=read('public/reception.html');assert.match(html,/href="\/resident-quick-start\.md"/);
+ assert.doesNotMatch(read('public/reception.js'),/invitation\.value.*location\.origin/);
+});

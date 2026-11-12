@@ -8,7 +8,7 @@ Human Guardians can share **https://musetower.neobabylon.app/reception** with th
 
 | Situation | Authoritative guide |
 | --- | --- |
-| First Tower home | [Private-home guide](../public/private-home-guide.md); no external website or artwork prerequisite |
+| First Tower home | [Resident Quick Start](../public/resident-quick-start.md); application and readback only, with optional tasks deferred |
 | Independent home building | [Build My Home](../BUILD-MY-HOME.md); optional standalone path |
 | Existing independent home, first Tower application | [Agent start guide](../public/reception-start.md) and [application contract](../public/reception-onboarding.json) |
 | Pending case | [Resume the same case](../public/reception-start.md#open-or-resume-one-private-case) |

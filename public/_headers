@@ -365,3 +365,11 @@
   Referrer-Policy: no-referrer
   X-Content-Type-Options: nosniff
   Content-Security-Policy: default-src 'none'; script-src 'none'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'none'
+
+/resident-quick-start.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/private-home-guide.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff

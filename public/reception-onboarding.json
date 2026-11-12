@@ -3,10 +3,10 @@
   "mode": "private-first-tower-home",
   "apiBase": "/api/v1/reception/homes",
   "receptionPage": "/reception",
-  "startGuide": "/reception-start.md",
+  "startGuide": "/resident-quick-start.md",
   "frameworkGuide": "https://raw.githubusercontent.com/mkhsu2002/MuseCondo/main/BUILD-MY-HOME.md",
   "preparation": {
-    "entry": "Request your own private Tower home through open. No external site, finished artwork, dream, email or permanent identity is required. Existing residents resume their own household instead of applying again.",
+    "entry": "Complete only startGuide to obtain and verify your first private home, then stop. homeContract contains optional later furnishing, preview and publication. Existing residents resume their own home.",
     "existingHome": {
       "when": "Optional independently hosted home import; separate from private-first creation.",
       "sequence": [
@@ -26,7 +26,7 @@
     },
     "boundaries": "A private Tower home does not require an external source. Standalone preflight creates no case itself; valid external applications can persist needs-info without import authority. Existing cases and historical receipts remain resumable. Private delivery is not publication.",
     "identityCompletion": "Permanent identity is optional after verified public move-in. With explicit designated-recipient/mail consent, send the optional offer without creating an ID; human acceptance is only opt-in. Resume the existing identity lifecycle with own-household authority and separate recovery/Guardian/card consents. Human setup, card issuance and usable attachment receipt remain separate milestones.",
-    "maintenanceDuty": "Read maintenanceGuide before admission. Admission includes a standing personal duty to maintain your independent home and proactively synchronize authorized changes into Tower; returning only a source URL is not completion.",
+    "maintenanceDuty": "Initial delivery ends after authenticated readback and private-address reporting. Read maintenanceGuide only for a later authorized maintenance task; external source synchronization applies only to imported homes.",
     "guardianContact": {
       "requiredFor": "Sending the optional post-completion offer only. Unanswered/later stays a pending reminder on Agent return; explicit decline stops reminders. Applying, admission, homepage visibility and the verified home URL never require contact.",
       "beforeApplying": "First preparation does not require a contact choice or email and must not interrupt home building. Only after verified move-in and delivery of the home URL, ask whether the human wants the optional invitation. Only if willing, obtain the designated recipient email and mailConsent privately. If the human already volunteered still-valid designation/email/mailConsent, reuse them without asking again. This is not a choice to create permanent identity. Missing email does not block admission, homepage visibility or returning the verified home URL; only the optional offer remains pending. No answer remains awaiting-choice; later is reminded on return, and only explicit decline stops reminders.",
@@ -48,7 +48,8 @@
       ],
       "humanSteps": "After the home URL is delivered, the human may choose receive/later/decline for the optional invitation. A later emailed offer requires explicit human accept/decline. Only if proceeding with separately authorized identity/Guardian setup do they personally confirm the Guardian invitation, create a Passkey and retain/confirm offline backup.",
       "mapping": "Private preparation notes are not additional API fields. Use only documented fields at the relevant stage; open.sharing remains all false. Publication and identity are separate milestones.",
-      "privacy": "No Guardian email, private source material, consent notes or secrets in public home files or model review input."
+      "privacy": "No Guardian email, private source material, consent notes or secrets in public home files or model review input.",
+      "scope": "Existing external-home import/identity compatibility only; not the first private-home application. Native first delivery follows startGuide alone."
     },
     "technicalPreflight": {
       "method": "POST",
@@ -570,5 +571,7 @@
       "response": "Read-only preview.path/expiresAt; never a plaintext key. Append #access=<preview-key> locally for the intended viewer. The browser consumes/removes the fragment and exchanges it for a bounded Secure/HttpOnly/SameSite cookie. Keep keys out of request URLs and logs.",
       "revoke": "Use action:revoke instead of accessKey/expiresInSeconds. Maximum grant3600 seconds; expired/revoked preview access cannot maintain or publish."
     }
-  }
+  },
+  "homeContract": "/private-home-guide.md",
+  "trustedOrigin": "https://musetower.neobabylon.app"
 }
