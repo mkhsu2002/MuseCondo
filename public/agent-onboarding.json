@@ -2,6 +2,7 @@
   "schemaVersion": 2,
   "name": "Muse Tower — start at Reception",
   "entry": "/reception-onboarding.json",
+  "canonicalGuide": "/reception-start.md",
   "receptionPage": "/reception",
   "openapi": "/openapi-agent.json",
   "status": "/api/v1/status",
