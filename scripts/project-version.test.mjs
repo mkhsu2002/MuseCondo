@@ -22,6 +22,7 @@ function fixture(t, version = '0.01') {
   git(root, 'config', 'user.email', 'version-test@example.invalid');
   git(root, 'config', 'user.name', 'Version test');
   put(root, 'VERSION', `${version}\n`);
+  put(root, 'package.json', JSON.stringify({ name: 'version-fixture', version: `${version}.0`, private: true }, null, 2) + '\n');
   put(root, 'README.md', `# Test\n<!-- project-version -->v${version}<!-- /project-version -->\n`);
   put(root, 'src/home.ts', 'export const home = 1;\n');
   commit(root, 'establish baseline');
@@ -45,6 +46,7 @@ test('multiple code files in one commit increment once and synchronize README', 
   assert.equal(update(root, true).next, '0.02');
   assert.equal(readFileSync(join(root, 'VERSION'), 'utf8'), '0.02\n');
   assert.match(readFileSync(join(root, 'README.md'), 'utf8'), />v0\.02</);
+  assert.deepEqual(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')), { name: 'version-fixture', version: '0.02.0', private: true });
   commit(root, 'record automatic version');
   assert.equal(calculate(root).increments, 0);
 });
@@ -78,6 +80,18 @@ test('missing, duplicate or stale Chinese markers fail before any version file c
   }
 });
 
+test('invalid package manifests leave all version files untouched', t => {
+  for (const manifest of ['{', '{}', '{"version":1}']) {
+    const root = fixture(t);
+    put(root, 'package.json', manifest);
+    put(root, 'src/home.ts', 'changed');
+    commit(root, 'change product with invalid manifest');
+    const before = Object.fromEntries(['VERSION', 'README.md', 'package.json'].map(name => [name, readFileSync(join(root, name), 'utf8')]));
+    assert.throws(() => update(root, true));
+    for (const [name, content] of Object.entries(before)) assert.equal(readFileSync(join(root, name), 'utf8'), content);
+  }
+});
+
 test('several main commits accumulate while docs commits are ignored', t => {
   const root = fixture(t);
   put(root, 'src/home.ts', 'first'); commit(root, 'code one');
@@ -91,6 +105,8 @@ test('hundredths carry exactly without floating point', t => {
   const root = fixture(t, '0.99');
   put(root, 'src/home.ts', 'changed'); commit(root, 'code');
   assert.equal(calculate(root).next, '1.00');
+  update(root, true);
+  assert.equal(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version, '1.00.0');
 });
 
 test('a merge counts once along main first-parent history', t => {
