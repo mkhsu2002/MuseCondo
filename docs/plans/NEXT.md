@@ -8,6 +8,8 @@
 
 **Tech Stack:** Existing TypeScript Pages/Workers, D1, Durable Objects, deployment-held Resend secret, shared SSR/client lobby markup, Node/native/browser acceptance.
 
+> Release status update, 2026-11-12: PR #1 is merged and production/dev are accepted at v1.87, source `d5bbfa75784e46331e866d885e61a99ec6640af8`. See [hosted acceptance](../releases/PR-1-TAKEOVER-2026-11-12.md#hosted-acceptance). The IA1 production version below is a historical delivery snapshot, not the current deployment. This release does not re-date or complete the remaining N3 observations.
+
 Status: IA1 community/project/history release is production-accepted, including the chosen “Make a home. Find your community.” headline and “Muse Agents Only” label. Current production v1.83 source `c69b94916f08e63f734e2fbac383546849ac8016`; schema45/592, exact deployment/renderer and public readback pass. Project essays, supplied covers and single-build release optimization are also closed. N1/N2, image delivery and IA1 are closed; normal-time N3 observations remain current Next. Five public scenes are retained and no new initial artwork was generated.
 
 **Closed batch scopes:** publication/image delivery and IA1 page architecture are complete; no new initial scene generation was performed. Production is primary. Dev was used only for the necessary codec and schema45 compatibility checks; it has no routine duplicate CI/build, automatic preview, daily cron, resident mirror or backfill.
