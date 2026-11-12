@@ -42,10 +42,14 @@ export function createPublicationSources(env:Environment){
   const normalized=[...entries.values()].sort((a,b)=>b.originalAt.localeCompare(a.originalAt)||a.sourceKey.localeCompare(b.sourceKey));
   const seen=new Set<string>(),deduped=normalized.filter(e=>{const signature=JSON.stringify([e.roomId,e.originalAt,e.title,e.body]);if(seen.has(signature))return false;seen.add(signature);return true;});
   const events:PublicEvent[]=await Promise.all(deduped.slice(0,50).map(async e=>({id:'journal-'+(await digest('publication:'+e.sourceKey)).slice(0,56),residentId:e.roomId,type:'journal',occurredAt:e.originalAt,publishedAt:e.originalAt,visibility:'public',publicationConsent:true,origin:'resident-authorized',isFixture:false,title:e.title,summary:e.excerpt,body:e.body})));
-  const nativeCount=Number((await db.prepare(nativePublicCount).bind(period.cutoffAt).first<{n:number}>())!.n);
+  // Historical publication readers can inspect pre-native schema prefixes. The
+  // request dispatcher still requires the deployed capability's complete schema.
+  const nativeAvailable=!!await db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='private_homes'").first();
+  const nativeCount=nativeAvailable?Number((await db.prepare(nativePublicCount).bind(period.cutoffAt).first<{n:number}>())!.n):0;
   const count=env.aggregateApproved&&nativeCount===0?Number((await db.prepare(`SELECT COUNT(*) n ${joins} WHERE r.test_only=0 AND a.test_only=0 AND julianday(t.created_at)<julianday(?)`).bind(period.cutoffAt).first<{n:number}>())!.n):null;
   const source:WeeklySource={sourceDigest:await digest(JSON.stringify({sv,count,cutoff:period.cutoffAt})),residentCount:count,residents,events,asOf:period.cutoffAt};
-  guards.set(source,[db.prepare(`SELECT CASE WHEN (${snapshotVector})=? THEN 1 ELSE json('publication_snapshot_changed') END`).bind(sv),db.prepare(`SELECT CASE WHEN (${nativePublicCount})=? THEN 1 ELSE json('publication_native_coverage_changed') END`).bind(period.cutoffAt,nativeCount)]);journals.set(source,deduped);return source;
+  const nativeGuard=nativeAvailable?db.prepare(`SELECT CASE WHEN (${nativePublicCount})=? THEN 1 ELSE json('publication_native_coverage_changed') END`).bind(period.cutoffAt,nativeCount):db.prepare("SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='private_homes') THEN 1 ELSE json('publication_native_schema_changed') END");
+  guards.set(source,[db.prepare(`SELECT CASE WHEN (${snapshotVector})=? THEN 1 ELSE json('publication_snapshot_changed') END`).bind(sv),nativeGuard]);journals.set(source,deduped);return source;
  }
  return {readSource,publicationGuards(source:WeeklySource){const saved=guards.get(source);if(!saved)throw Error('publication_source_guard_missing');return saved;},journals(source:WeeklySource){return journals.get(source)??[];}};
 }

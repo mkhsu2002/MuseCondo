@@ -8,20 +8,23 @@ const contracts = await Promise.all(['reception', 'tower', 'identity'].map(async
 
 // Follow the documents an incoming resident can actually discover, rather than
 // checking only whether an unlinked maintenance file happens to exist.
-test('reception, building and all machine guides discover one resident maintenance guide', async () => {
+test('entry guides distinguish native private maintenance from existing source maintenance', async () => {
   const [start, build, guide] = await Promise.all([read('public/reception-start.md'), read('BUILD-MY-HOME.md'), read('public' + guidePath)]);
   assert.match(start, /\[resident maintenance guide\]\(\/resident-maintenance\.md\) before admission/);
   assert.match(build, /https:\/\/musetower\.neobabylon\.app\/resident-maintenance\.md/);
   assert.ok(guide.trim().length > 300, 'linked guide must contain actual guidance');
-  for (const [name, contract] of contracts) assert.equal(contract.maintenanceGuide, guidePath, name);
-  assert.deepEqual(contracts.map(([, contract]) => contract.schemaVersion), [9, 3, 3]);
+  for (const [name, contract] of contracts) assert.equal(contract.maintenanceGuide, name === 'reception' ? '/private-home-guide.md' : guidePath, name);
+  const reception=contracts.find(([name]) => name === 'reception')[1];
+  assert.equal(reception.externalHome.maintenanceGuide,guidePath);
+  assert.equal(reception.nativeHome.read.path,'/api/v1/agent/home');
+  assert.deepEqual(contracts.map(([, contract]) => contract.schemaVersion), [10, 3, 3]);
 });
 
 test('activation retains a private standing duty without adding an API-body gate', () => {
   const reception = contracts.find(([name]) => name === 'reception')[1];
   const tower = contracts.find(([name]) => name === 'tower')[1];
   const identity = contracts.find(([name]) => name === 'identity')[1];
-  for (const duty of [reception.afterActivation.maintenanceDuty, tower.maintenanceDuty, identity.residentMaintenance]) {
+  for (const duty of [reception.externalHome.afterActivation.maintenanceDuty, tower.maintenanceDuty, identity.residentMaintenance]) {
     const text = JSON.stringify(duty);
     assert.match(text, /durable personal|standing duty/);
     assert.match(text, /secure.*(?:key|Tower-key)|secure Tower-key/);
@@ -29,11 +32,11 @@ test('activation retains a private standing duty without adding an API-body gate
     assert.match(text, /(?:No credentials|No secrets|Never transfer|never.*key|key values.*only)/i);
     assert.match(text, /(?:API bodies|request-body|request bodies)/);
   }
-  assert.deepEqual(Object.keys(reception.open.body).sort(), ['requestKey', 'name', 'requestKind', 'request', 'authorization', 'sharing', 'visitPlan', 'isMuseAgent'].sort());
-  assert.deepEqual(Object.keys(reception.writes.common).sort(), ['expectedVersion', 'requestKey']);
-  assert.equal(reception.writes.activate.path, '/api/v1/reception/cases/:id/activate');
-  assert.deepEqual(Object.keys(reception.writes.activate.additionalHeaders), ['X-Tower-Agent-Key']);
-  assert.doesNotMatch(JSON.stringify(reception.writes.activate), /maintenanceGuide|maintenanceTask|secureKeyReference/);
+  assert.deepEqual(Object.keys(reception.externalHome.open.body).sort(), ['requestKey', 'name', 'requestKind', 'request', 'authorization', 'sharing', 'visitPlan', 'isMuseAgent'].sort());
+  assert.deepEqual(Object.keys(reception.externalHome.writes.common).sort(), ['expectedVersion', 'requestKey']);
+  assert.equal(reception.externalHome.writes.activate.path, '/api/v1/reception/cases/:id/activate');
+  assert.deepEqual(Object.keys(reception.externalHome.writes.activate.additionalHeaders), ['X-Tower-Agent-Key']);
+  assert.doesNotMatch(JSON.stringify(reception.externalHome.writes.activate), /maintenanceGuide|maintenanceTask|secureKeyReference/);
   assert.ok(identity.guardianHandoff, 'maintenance must preserve the separate Guardian handoff');
 });
 

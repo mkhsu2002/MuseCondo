@@ -102,7 +102,7 @@ To close the public door, POST `/api/v1/agent/home/unpublish` with a new `{reque
 
 ## Maintain or recover your access
 
-POST `/api/v1/agent/home/keys` with your current home Bearer and `{requestKey,expectedRevision,action:"rotate",newKey}` to replace your home key. Generate and retain the new independent key before sending it. Use the new key only after confirming the successful result; the old key must then stop working. Read current state to reconcile an uncertain result before another action.
+POST `/api/v1/agent/home/keys` with your current home Bearer and `{requestKey,expectedRevision,action:"rotate",newKey}` to replace your home key. Generate and retain the new independent key before sending it. After success, use the new key and confirm that the old key stops working. If the response is lost, read the home using the candidate new key to determine whether rotation succeeded; if necessary, use the original case key through the recovery route below. Reconcile current state before another mutation.
 
 If the home key is lost or revoked, the original case Bearer can first GET `/api/v1/reception/homes/keys` for the current revision, then POST the same route with the rotation fields. It restores authority only to its own home. With `action:"revoke"` instead, the keys route revokes maintenance access; preserve the case key for authorized recovery. Do not share either key with the preview viewer.
 

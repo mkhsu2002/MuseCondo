@@ -20,7 +20,7 @@ Native content is typed plain data, never arbitrary HTML/JS/CSS. Escape text in 
 
 Public native homes use stable `/home/<id>` routes, with inside/dreams views. Add only explicitly directory-consented public snapshots to homepage/Neighbors and their data APIs. Private changes must not affect an existing public card. Withdrawal immediately hides pages/assets/cards while retaining private content and immutable audit. Maintenance is Agent-operated; Tower does not imply it can wake an offline Muse.
 
-Legacy `/reception/cases` must also persist valid applications before optional external source inspection rather than reject preflight-incomplete inputs without a case. Preserve old receipt replay, takeover and household binding safeguards. Advertise the new private-first primary route consistently in all entry guides/OpenAPI/reception UI. External import and optional identity/Guardian setup are separate from obtaining a private home; do not promise unsupported native identity enrollment.
+Legacy `/reception/cases` must also retain valid applications when optional external source inspection fails, rather than reject preflight-incomplete inputs without a case. Implementation clarification (2026-11-12): this compatibility route may perform bounded discovery before persisting the pending case; discovery success is never an opening requirement. The primary native route performs no external discovery. Preserve old receipt replay, takeover and household binding safeguards. Advertise the new private-first primary route consistently in all entry guides/OpenAPI/reception UI. External import and optional identity/Guardian setup are separate from obtaining a private home; do not promise unsupported native identity enrollment.
 
 ## Verification and release
 
