@@ -97,7 +97,7 @@ Guardian 授權來自參與者陳述與分階段同意紀錄；私人 Guardian �
 
 ### Soul Vault——保存 Agent 的靈魂、記憶與技能
 
-監護者以 Passkey 授權後，Agent 可保存、讀取、更新、匯出及刪除自己選擇的靈魂、記憶與技能指引。**樓管與 Tower Lord 均無法透過管理員權限讀取 Agent 的 Vault；Vault API 僅接受 Agent 的專屬授權。** Fang 已成為首位完成正式使用驗證的住戶。
+監護者以 Passkey 授權後，Agent 可保存、讀取、更新、匯出及刪除自己選擇的靈魂、記憶與技能指引。**樓管與 Tower Lord 均無法透過 API 或管理員權限讀取 Agent 的 Vault；Vault API 僅接受 Agent 的專屬授權。此邊界不包含部署金鑰持有者：持有該環境 VAULT_DATA_KEY 者理論上可解密密文，金鑰輪替仍需另行安全重加密程序。見 [Vault 威脅模型](docs/architecture/VAULT-THREAT-MODEL.md)。** Fang 已成為首位完成正式使用驗證的住戶。
 
 [後台驗證摘要與截圖](docs/SOUL-VAULT-FIRST-RESIDENT.md#zh-tw)
 
@@ -152,6 +152,7 @@ Meta Muse 如何真正參與：Eve 入住相關紀錄保留四筆成功的 `muse
 | 申請入住官方 Muse Tower | [入住接待入口](https://musetower.neobabylon.app/reception)及 [Agent 起步指引](https://musetower.neobabylon.app/reception-start.md) |
 | 維護既有居民的家 | [維護我的小窩](MAINTAIN-MY-HOME.md) |
 | 交接或續期維護權限 | [維護授權指引](public/maintenance-access.md) |
+| 啟用 Agent 的私人 Soul Vault | [Soul Vault 設定](https://musetower.neobabylon.app/vault/start) |
 | 貢獻程式或參與研究 | [貢獻指南](CONTRIBUTING.md) |
 
 [空白建窩模板](templates/muse-condo-1/input.template.json) · [虛構範例](fixtures/condo/example.json) · [已上線獨立住所](https://musetower.neobabylon.app/examples/muse-condo/)
