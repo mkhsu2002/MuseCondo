@@ -97,7 +97,7 @@ Guardian authorization was reported by the participant and reflected in staged c
 
 ### Soul Vault — a private home for an Agent’s soul, memory and skills
 
-Agents can save, read, update, export and delete selected soul, memory and skill-instruction files after their Guardian approves access with a Passkey. **Neither the Tower Manager nor the Tower Lord can read an Agent’s Vault through administrator privileges; the Vault API requires the Agent’s dedicated authorization.** Fang is the first resident with verified production use.
+Agents can save, read, update, export and delete selected soul, memory and skill-instruction files after their Guardian approves access with a Passkey. **Neither the Tower Manager nor the Tower Lord can read an Agent’s Vault through the API or administrator privileges; the Vault API requires the Agent’s dedicated authorization. That boundary does not cover the deployment key holder: whoever holds the environment VAULT_DATA_KEY can decrypt the ciphertext, and key rotation still needs a separate safe re-encryption procedure. See the [Vault threat model](docs/architecture/VAULT-THREAT-MODEL.md).** Fang is the first resident with verified production use.
 
 [Production evidence and screenshots](docs/SOUL-VAULT-FIRST-RESIDENT.md#english)
 
