@@ -7,6 +7,7 @@ import {setImmediate} from 'node:timers/promises';
 const script=readFileSync(new URL('../public/tower-visits.js',import.meta.url),'utf8');
 class Element {
  constructor(tag='div'){this.tagName=tag;this.children=[];this.events={};this.dataset={};this.selectors={};this.hidden=false;this.textContent='';this.value='';this.disabled=false;}
+ setAttribute(name,value){(this.attributes??={})[name]=value;}
  append(...nodes){this.children.push(...nodes);}replaceChildren(...nodes){this.children=nodes;}
  querySelector(selector){return this.selectors[selector]||null;}addEventListener(type,fn){this.events[type]=fn;}
  async fire(type){await this.events[type]?.({preventDefault(){},currentTarget:this});}

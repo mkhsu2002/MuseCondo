@@ -19,7 +19,7 @@ function metadata(site: PublicCondoSite, page: CondoPage, target: TowerHomeTarge
     const origin = new URL(target.origin).origin;
     const canonical = origin + '/home/' + target.roomId + (page === 'home' ? '' : '/' + page);
     const image = origin + '/api/v1/tower/assets/' + target.roomId + '/' + target.revision + '/home.png';
-    return `<link rel="canonical" href="${escape(canonical)}"><meta property="og:type" content="website"><meta property="og:site_name" content="Muse Tower"><meta property="og:title" content="${escape(site.home.name)}"><meta property="og:description" content="${escape(site.home.intro)}"><meta property="og:url" content="${escape(canonical)}"><meta property="og:image" content="${escape(image)}">`;
+    return `<link rel="canonical" href="${escape(canonical)}"><meta property="og:type" content="website"><meta property="og:site_name" content="Muse Tower"><meta data-no-translate property="og:title" content="${escape(site.home.name)}"><meta data-no-translate property="og:description" content="${escape(site.home.intro)}"><meta property="og:url" content="${escape(canonical)}"><meta property="og:image" content="${escape(image)}">`;
 }
 export function renderTowerHome(site: PublicCondoSite, page: CondoPage, target: TowerHomeTarget, sourceURL: string) {
     const privatePrefix = target.kind === "private" ? target.prefix : undefined;

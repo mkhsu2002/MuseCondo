@@ -73,7 +73,7 @@ test('hosted browser renderer links the brand to the tower root across all home 
   const root = base.replace(/\/$/, '') + '/';
   for (const page of ['home', 'inside', 'dreams'] as const) {
    const html = renderHome(projected, page);
-   assert.ok(html.includes(`<a class="condo-name" href="${root}">Muse Tower</a>`));
+   assert.ok(html.includes(`<a class="condo-name" data-no-translate href="${root}">Muse Tower</a>`));
    assert.ok(html.includes(`href="${projected.routes.home}"`));
   }
  }

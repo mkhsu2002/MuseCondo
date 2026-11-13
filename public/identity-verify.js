@@ -48,7 +48,7 @@
       if(value.credentialId === cid && Object.hasOwn(statuses,value.status) && exact(value,['credentialId','status'])) { show('Not currently valid',statuses[value.status]); return; }
       if(!await verified(value)) throw Error('invalid');
       const p = value.signedCredential.payload;
-      fields.forEach((id,i)=> { byId(id).textContent = [p.publicName,p.agentId,p.credentialId,p.issuer,p.issuedAt][i]; });
+      fields.forEach((id,i)=> { byId(id).setAttribute('data-no-translate',''); byId(id).textContent = [p.publicName,p.agentId,p.credentialId,p.issuer,p.issuedAt][i]; });
       details.hidden = false; show('Currently valid','Compare each field with the card. This status reflects the current check.');
     } catch { clear(); show('Verification unavailable','Try again later or check with the card holder.'); }
     finally { button.disabled = false; }

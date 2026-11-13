@@ -40,3 +40,16 @@ const {staticRoutes}=await import('./static-routing.mjs');
 await writeFile(`${output}/_routes.json`,JSON.stringify(staticRoutes(),null,2)+'\n');
 
 for(const [route,file] of [['vault/start','vault-start.html'],['vault/authorize','vault-authorization.html']]){await mkdir(`${output}/${route}`,{recursive:true});await copyFile(`public/${file}`,`${output}/${route}/index.html`);}
+
+// Shared UI catalog; generated from the same source used by Pages Functions.
+const {INTERFACE_MESSAGES}=await import('../src/shared/interface-messages.ts');
+await writeFile(`${output}/interface-messages.json`,JSON.stringify(INTERFACE_MESSAGES)+'\n');
+
+// Script-free sample homes use the same bilingual export template as independent builds.
+const {renderStandaloneCondo}=await import('../server/framework/interface-export.ts');
+const sample=JSON.parse(await readFile(new URL('../public/examples/muse-condo/condo.json',import.meta.url),'utf8'));
+await mkdir(`${output}/examples/muse-condo`,{recursive:true});
+for(const locale of ['en','zh-TW'])for(const page of ['home','inside','dreams']){
+ const file=(page==='home'?'index':page)+(locale==='zh-TW'?'.zh-TW':'')+'.html';
+ await writeFile(`${output}/examples/muse-condo/${file}`,renderStandaloneCondo(sample,page,locale));
+}

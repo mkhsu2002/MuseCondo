@@ -1,3 +1,4 @@
+import {localizeInterfaceResponse,interfaceRuntimeRequest} from './interface-html.ts';
 import {createPrivateHomeRoutes,nativeHomeDirectory} from './private-home-routes.ts';
 import {createVaultAuthorization} from './vault-auth.ts';
 import {createPrivateVaultStore} from './vault-store.ts';
@@ -78,7 +79,7 @@ function vaultNotice(env:PagesBindings,context?:RuntimeContext){return createVau
  ready:async()=>await vaultAvailable(env)&&(await releaseReadiness(env.DB,RELEASE_MANIFEST,env.ASSETS,env.PUBLIC_ORIGIN)).ready&&runtimeBindingsReady(env),
  waitUntil:context?p=>context.waitUntil(p):undefined,
 });}
-export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeContext):Promise<Response>{
+const runtime={async fetch(request:Request,env:PagesBindings,context?:RuntimeContext):Promise<Response>{
  const lord=await towerLordRoute(request,env);if(lord)return lord;
  const url=new URL(request.url),api=url.pathname==='/api'||url.pathname.startsWith('/api/'),home=/^\/(?:private-home\/|home\/[a-f0-9]{16}(?:\/|$))/.test(url.pathname);
  if(url.pathname==='/vault/notifications'){if(!env.DB||!validOrigin(env.PUBLIC_ORIGIN)||url.origin!==env.PUBLIC_ORIGIN)return json({error:'notification_preferences_unavailable'},503);return await vaultNotice(env,context).fetch(request)??json({error:'not_found'},404);}
@@ -259,7 +260,7 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
    const content=scenePage?renderSceneWall('',await services.scenes.list()):issue?renderWeeklyPage('',issue):missing?'<h1>Issue not found</h1><p>This issue is not available.</p><a href="/tower-weekly">Browse Tower Weekly</a>':renderWeeklyArchive('',archive!.issues,archive!.nextBefore);
    const asset=await env.ASSETS.fetch(new Request(new URL('/',url),request));if(!asset.ok)return asset;let html=await asset.text();
    const title=scenePage?'Corners of Muse Tower':issue?.title??'Tower Weekly',canonical=env.PUBLIC_ORIGIN+(scenePage?'/tower-scenes':weeklyPage?.[1]?'/tower-weekly/'+weeklyPage[1]:'/tower-weekly'+(weeklyArchiveBefore(url.searchParams)?'?before='+weeklyArchiveBefore(url.searchParams):''));
-   html=html.replace(/<title>[\s\S]*?<\/title>/i,'<title>'+htmlEscape(title)+' · Muse Tower</title>').replace(/<link\b[^>]*rel=["']canonical["'][^>]*>/gi,'').replace(/<meta\b[^>]*property=["']og:[^>]*>/gi,'').replace('</head>',`<link rel="canonical" href="${htmlEscape(canonical)}"><meta property="og:title" content="${htmlEscape(title)}"><meta property="og:url" content="${htmlEscape(canonical)}">${issue?.scene?`<meta property="og:image" content="${htmlEscape(issue.scene.url)}">`:''}</head>`).replace('<div id="app"></div>',`<div id="app">${renderLiveShell('',content,true)}</div>`);
+   html=html.replace(/<title>[\s\S]*?<\/title>/i,'<title data-no-translate>'+htmlEscape(title)+' · Muse Tower</title>').replace(/<link\b[^>]*rel=["']canonical["'][^>]*>/gi,'').replace(/<meta\b[^>]*property=["']og:[^>]*>/gi,'').replace('</head>',`<link rel="canonical" href="${htmlEscape(canonical)}"><meta property="og:title" data-no-translate content="${htmlEscape(title)}"><meta property="og:url" content="${htmlEscape(canonical)}">${issue?.scene?`<meta property="og:image" content="${htmlEscape(issue.scene.url)}">`:''}</head>`).replace('<div id="app"></div>',`<div id="app">${renderLiveShell('',content,true)}</div>`);
    const headers=new Headers(asset.headers);headers.set('Cache-Control','no-store');for(const key of ['ETag','Content-Length','Content-Encoding','Last-Modified'])headers.delete(key);if(missing)headers.set('X-Robots-Tag','noindex, nofollow');return new Response(request.method==='HEAD'?null:html,{status:missing?404:200,headers});
   }catch(error){return error instanceof TypeError?json({error:'invalid_request'},400):json({error:'publication_unavailable'},503);}
  }
@@ -301,3 +302,5 @@ export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeCo
  }
  return env.ASSETS.fetch(request);
 }};
+
+export default {async fetch(request:Request,env:PagesBindings,context?:RuntimeContext):Promise<Response>{return localizeInterfaceResponse(request,await runtime.fetch(interfaceRuntimeRequest(request),env,context));}};

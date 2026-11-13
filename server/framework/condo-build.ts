@@ -1,3 +1,4 @@
+import {renderStandaloneCondo} from './interface-export.ts';
 import {lstat,mkdir,mkdtemp,readFile,readdir,realpath,rename,rm,writeFile} from 'node:fs/promises';
 import {basename,dirname,join,resolve,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -20,8 +21,8 @@ async function outputSafety(out:string){
 async function priorIdentity(out:string):Promise<string|undefined>{
  const info=await statOrMissing(out);if(!info)return undefined;
  const entries=await readdir(out,{withFileTypes:true});
- const names=new Set(['index.html','inside.html','dreams.html','condo.json','assets']);
- if(entries.length!==names.size||entries.some(entry=>!names.has(entry.name)||entry.isSymbolicLink()||(entry.name==='assets'?!entry.isDirectory():!entry.isFile())))throw Error('condo: output is not a safely rebuildable home export');
+ const names=new Set(['index.html','inside.html','dreams.html','index.zh-TW.html','inside.zh-TW.html','dreams.zh-TW.html','condo.json','assets']);
+ if(![5,8].includes(entries.length)||['index.html','inside.html','dreams.html','condo.json','assets'].some(name=>!entries.some(entry=>entry.name===name))||entries.some(entry=>!names.has(entry.name)||entry.isSymbolicLink()||(entry.name==='assets'?!entry.isDirectory():!entry.isFile())))throw Error('condo: output is not a safely rebuildable home export');
  const files=await readdir(join(out,'assets'),{withFileTypes:true});
  if(!files.some(file=>file.name==='home.png')||!files.some(file=>file.name==='condo.css')||files.some(file=>!['home.png','dream.png','condo.css'].includes(file.name)||!file.isFile()||file.isSymbolicLink()))throw Error('condo: output assets contain unrelated files');
  const previous=JSON.parse(await readFile(join(out,'condo.json'),'utf8'));
@@ -50,8 +51,8 @@ export async function buildCondo(options:{input:string;out:string}){
   artwork[key]=await sanitizePublicPNG(bytes);
  }
  const oldId=await priorIdentity(out),id=oldId??randomBytes(8).toString('hex'),site=publicCondoProjection(input,id);
- const [{renderCondo},css]=await Promise.all([import('../../src/framework/condo-render.ts'),readFile(new URL('../../src/framework/condo.css',import.meta.url))]);
- const pages=(['home','inside','dreams'] as const).map(page=>({name:page==='home'?'index.html':`${page}.html`,html:renderCondo(site,page)}));
+ const css=await readFile(new URL('../../src/framework/condo.css',import.meta.url));
+ const pages=(['en','zh-TW'] as const).flatMap(locale=>(['home','inside','dreams'] as const).map(page=>({name:(page==='home'?'index':page)+(locale==='zh-TW'?'.zh-TW':'')+'.html',html:renderStandaloneCondo(site,page,locale)})));
  const parent=dirname(out);await mkdir(parent,{recursive:true});await outputSafety(out);
  const stage=await mkdtemp(join(parent,`.${basename(out)}-stage-`));let backup:string|undefined;
  try{

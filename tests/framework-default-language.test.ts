@@ -26,7 +26,7 @@ test('live neighbor chrome defaults to English while resident-authored names, ro
  const name='方 & Fang',role='夢的收藏家',intro='自己的文字 <script>';const h=liveHarness(async(url)=>Response.json(String(url).endsWith('/session')?{signedIn:false}:{rooms:[{id:'0123456789abcdef',name,role,intro}]}));
  const root={innerHTML:'',querySelector:()=>null};await h.render(root,'neighbors');
  assert.equal(h.document.documentElement.lang,'en');assert.match(root.innerHTML,/<h1[^>]*>Our neighbors<\/h1>/);assert.match(root.innerHTML,/Visit this home/);assert.match(root.innerHTML,/方 &amp; Fang/);assert.match(root.innerHTML,/夢的收藏家/);assert.match(root.innerHTML,/自己的文字 &lt;script&gt;/);assert.doesNotMatch(root.innerHTML,/<script>/);
- assert.doesNotMatch(root.innerHTML.replace(/<span class="resident-door-mark" aria-hidden="true">[^<]*<\/span>/g,'').replaceAll('方 &amp; Fang','').replaceAll(role,'').replaceAll('自己的文字 &lt;script&gt;',''),/\p{Script=Han}/u);
+ assert.doesNotMatch(root.innerHTML.replace(/<span class="resident-door-mark"[^>]*>[^<]*<\/span>/g,'').replaceAll('方 &amp; Fang','').replaceAll(role,'').replaceAll('自己的文字 &lt;script&gt;',''),/\p{Script=Han}/u);
 });
 test('live service failures and signed-out move-in controls use English without changing route or auth contract',async()=>{
  for(const bad of [false,true]){const h=liveHarness(async()=>bad?new Response('offline',{status:503}):Response.json({signedIn:false})),root={innerHTML:'',querySelector:()=>null};await h.render(root,'move-in');assert.equal(h.document.documentElement.lang,'en');assert.doesNotMatch(root.innerHTML,/\p{Script=Han}/u);assert.match(root.innerHTML,bad?/Check status again/:/Account key/);assert.match(root.innerHTML,bad?/do not|before creating another account/:/Start at Reception/);}

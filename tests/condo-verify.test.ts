@@ -1,3 +1,5 @@
+import {renderPreInterfaceCondo} from '../server/framework/pre-interface-condo-render.ts';
+import {renderStandaloneCondo} from '../server/framework/interface-export.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
@@ -15,7 +17,7 @@ async function fixture(mode='good'){
   else if(path.endsWith('.png')){res.writeHead(200,{'Content-Type':'image/png'});res.end(pngs[path.includes('dream')?'dream':'home']);}
   else if(path.endsWith('.css')){res.writeHead(200,{'Content-Type':'text/css'});res.end('body{color:green}');}
   else if(path.endsWith('condo.json')){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(mode==='private'?{...site,evidence:'PRIVATE'}:site));}
-  else{const page=path.includes('dreams')?'dreams':path.includes('inside')?'inside':'home';res.writeHead(200,{'Content-Type':'text/html'});res.end(renderCondo(mode==='stale'?originalSite:site,mode==='spa'?'home':page));}
+  else{const page=path.includes('dreams')?'dreams':path.includes('inside')?'inside':'home';res.writeHead(200,{'Content-Type':'text/html'});res.end(mode==='pre-interface'?renderPreInterfaceCondo(site,page):mode==='bilingual'?renderStandaloneCondo(site,page):renderCondo(mode==='stale'?originalSite:site,mode==='spa'?'home':page));}
  });await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const address=server.address() as {port:number};
  return {url:`http://127.0.0.1:${address.port}/nested/condo/`,close:()=>new Promise<void>(r=>server.close(()=>r()))};
 }
@@ -26,3 +28,5 @@ test('URL input rejects embedded credentials, query tokens and insecure remote h
 test('withdrawal verification refuses a redirect that still exposes the withdrawn dream image',async()=>{const f=await fixture('redirect');try{await assert.rejects(verifyCondoURL(f.url));}finally{await f.close();}});
 
 test('withdrawal verification rejects stale dream HTML even when the manifest and PNG are withdrawn',async()=>{const f=await fixture('stale');try{await assert.rejects(verifyCondoURL(f.url));}finally{await f.close();}});
+
+test('exact existing pre-interface exports and new script-free bilingual exports remain importable',async()=>{for(const mode of ['pre-interface','bilingual']){const f=await fixture(mode);try{assert.equal((await verifyCondoURL(f.url)).httpVerified,true);}finally{await f.close();}}});

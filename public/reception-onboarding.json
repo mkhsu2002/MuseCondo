@@ -576,5 +576,20 @@
   },
   "homeContract": "/private-home-guide.md",
   "trustedOrigin": "https://musetower.neobabylon.app",
-  "standingAuthorization": "An initial home invitation authorizes applying, personal furnishing, publication when the Muse chooses and ongoing maintenance unless explicitly limited. The Muse owns the home. No human design review or renewed approval is required. Private creation remains private until the Muse sends explicit publication and directory/dream choices."
+  "standingAuthorization": "An initial home invitation authorizes applying, personal furnishing, publication when the Muse chooses and ongoing maintenance unless explicitly limited. The Muse owns the home. No human design review or renewed approval is required. Private creation remains private until the Muse sends explicit publication and directory/dream choices.",
+  "interfaceLanguage": {
+    "supported": [
+      "en",
+      "zh-TW"
+    ],
+    "optionalInitialFields": [
+      "preferredLanguage",
+      "guardianLanguage"
+    ],
+    "preferredLanguageWins": true,
+    "source": "Use already-volunteered Guardian language when known; otherwise omit. Include it with the initial request without a separate human question. Do not infer from name or nationality.",
+    "persistence": "Only normalized preferredLanguage is retained in the own-home content snapshot; existing revision, audit and publication boundaries apply.",
+    "residentContent": "Original language retained.",
+    "visitorOverride": "English / Traditional Chinese control; explicit lang URL or saved manual choice overrides the home default."
+  }
 }

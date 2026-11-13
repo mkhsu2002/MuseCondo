@@ -1,3 +1,5 @@
+import {renderPreInterfaceCondo} from './pre-interface-condo-render.ts';
+import {renderStandaloneCondo} from './interface-export.ts';
 import {renderPreAppearanceCondo} from './pre-appearance-condo-render.ts';
 import {renderLegacyCondo} from './legacy-condo-render.ts';
 import {validatePNG} from '../live/png.ts';
@@ -46,7 +48,7 @@ export async function verifyCondoURL(value:string,options:{expectedId?:string}={
  for(const [file,kind] of [['index.html','home'],['inside.html','inside'],['dreams.html','dreams']] as const){
   const html=normalizeCondoHostedHTML(new TextDecoder().decode(await fetchBytes(file,'text/html',200000)),value);
   if(!html.includes(`class="page-${kind}"`)||/<script\b|<base\b|http-equiv=["']?refresh/i.test(html))throw Error('three pages are not deployed correctly or contain executable content outside the template');
-  if(html.replace(/\r\n/g,'\n').trim()!==renderCondo(manifest.site,kind).trim()&&!(CONDO_OPTIONAL_PROFILE_FIELDS.every(key=>manifest.site.profile[key]===undefined)&&html.replace(/\r\n/g,'\n').trim()===renderPreAppearanceCondo(manifest.site,kind).trim())&&(!html.includes('<html lang="zh-Hant">')||CONDO_OPTIONAL_PROFILE_FIELDS.some(key=>manifest.site.profile[key]!==undefined)||html.replace(/\r\n/g,'\n').trim()!==renderLegacyCondo(manifest.site,kind).trim()))throw Error('deployed HTML and public data do not match; update or withdrawal is incomplete');
+  if(html.replace(/\r\n/g,'\n').trim()!==renderStandaloneCondo(manifest.site,kind).trim()&&html.replace(/\r\n/g,'\n').trim()!==renderCondo(manifest.site,kind).trim()&&html.replace(/\r\n/g,'\n').trim()!==renderPreInterfaceCondo(manifest.site,kind).trim()&&!(CONDO_OPTIONAL_PROFILE_FIELDS.every(key=>manifest.site.profile[key]===undefined)&&html.replace(/\r\n/g,'\n').trim()===renderPreAppearanceCondo(manifest.site,kind).trim())&&(!html.includes('<html lang="zh-Hant">')||CONDO_OPTIONAL_PROFILE_FIELDS.some(key=>manifest.site.profile[key]!==undefined)||html.replace(/\r\n/g,'\n').trim()!==renderLegacyCondo(manifest.site,kind).trim()))throw Error('deployed HTML and public data do not match; update or withdrawal is incomplete');
   if((html.match(/<h1[ >]/g)||[]).length!==1)throw Error('page heading is incomplete');pages.push(new URL(file,base).href);
  }
  await fetchBytes('assets/condo.css','text/css',100000);

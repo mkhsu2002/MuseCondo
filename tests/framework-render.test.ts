@@ -22,6 +22,6 @@ test('Tower assets accept only the exact authenticated asset route, never arbitr
 test('standalone shared renderer keeps the resident name and home destination', () => {
  const home = publicHomeProjection(seed, {id:'a1234567890abcde'});
  for (const page of ['home', 'inside', 'dreams'] as const) {
-  assert.ok(renderHome(home, page).includes(`<a class="condo-name" href="${home.routes.home}">${home.name}</a>`));
+  assert.ok(renderHome(home, page).includes(`<a class="condo-name" data-no-translate href="${home.routes.home}">${home.name}</a>`));
  }
 });

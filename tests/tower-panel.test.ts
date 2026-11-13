@@ -59,7 +59,7 @@ test("type-only source changes visibly distinguish the current daily entry from 
   assert.match(panels[0], /Type: Journal/);
   assert.match(panels[1], /Type: Artwork \(collection\)/);
   for (const panel of panels) for (const text of [entry.title, entry.body, entry.occurredAt]) assert.ok(panel.includes(text));
-  assert.match(html, /Journal: Changed/);
+  assert.match(html.replace(/<[^>]*>/g,''), /Journal: Changed/);
   assert.match(html, /name="apply" value="daily"/);
   assert.doesNotMatch(html, /\bchecked\b|sourceDigest|imageDigest/);
   assert.match(html, /<button type="submit" disabled>/);

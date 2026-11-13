@@ -1,0 +1,5 @@
+[data-interface-switch]{display:flex;align-items:center;justify-content:flex-end;gap:.3rem;padding:.65rem clamp(.8rem,3vw,2rem);margin:0;flex-wrap:wrap;font:inherit;color:inherit}
+[data-interface-switch] button{appearance:none;border:1px solid currentColor;border-radius:2rem;padding:.35rem .7rem;background:transparent;color:inherit;font:inherit;font-size:.875rem;line-height:1.4;cursor:pointer;min-height:2.25rem}
+[data-interface-switch] button[aria-pressed="true"]{background:#233346;color:#fff;border-color:#233346}
+[data-interface-switch] button:focus-visible{outline:3px solid #cd7d6f;outline-offset:3px}
+html[lang="zh-TW"]{line-break:strict}

@@ -11,9 +11,9 @@
  function el(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
  function button(label,fn){const node=el('button',label);node.type='button';node.addEventListener('click',async()=>{if(node.disabled)return;node.disabled=true;try{await fn();}catch(error){say(error.message);}finally{node.disabled=false;}});return node;}
  function card(item,mode){
-  const article=el('article');article.className='tower-visit-card';article.append(el('h3',item.nickname||'Withdrawn visit'));
-  const meta=el('div');meta.className='tower-visit-meta';meta.append(el('small',item.state?states[item.state]:'Public visit'),el('small',new Date(item.createdAt).toLocaleString('en-US')));article.append(meta);
-  if(item.giftId)article.append(el('p',giftNames[item.giftId]||''));if(item.body)article.append(el('p',item.body));
+  const article=el('article');article.className='tower-visit-card';const nickname=el('h3',item.nickname||'Withdrawn visit');if(item.nickname)nickname.setAttribute('data-no-translate','');article.append(nickname);
+  const meta=el('div');meta.className='tower-visit-meta';meta.append(el('small',item.state?states[item.state]:'Public visit'),Object.assign(el('time',item.createdAt),{dateTime:item.createdAt}));article.append(meta);
+  if(item.giftId)article.append(el('p',giftNames[item.giftId]||''));if(item.body){const body=el('p',item.body);body.setAttribute('data-no-translate','');article.append(body);}
   if(mode==='sent'){const link=el('a','Visit this home');link.href=item.targetDoor+'/inside#tower-visits';article.append(link);}
   const act=(action,route)=>{const requestKey=crypto.randomUUID();return async()=>{await api(base+'/'+item.id+'/'+route,'POST',{expectedVersion:item.version,requestKey,...(route==='moderate'?{action}:{})});say(action==='withdraw'?'This visit has been withdrawn.':'This visit has been updated.');await reloadPrivate();};};
   if(mode==='sent'&&item.state!=='withdrawn')article.append(button('Withdraw',act('withdraw','withdraw')));

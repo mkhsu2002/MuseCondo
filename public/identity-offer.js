@@ -3,6 +3,7 @@
  'use strict';
  const status=document.getElementById('offer-status'),form=document.getElementById('offer-form'),consent=document.getElementById('offer-consent'),accept=document.getElementById('offer-accept'),decline=document.getElementById('offer-decline');
  const home=document.getElementById('offer-home'),expiry=document.getElementById('offer-expiry');
+ const withValue=(node,before,value,after='')=>{node.replaceChildren();for(const [text,original] of [[before,false],[String(value),true],[after,false]]){const span=document.createElement('span');span.textContent=text;if(original)span.setAttribute('data-no-translate','');node.append(span);}};
  const fragment=location.hash.slice(1);history.replaceState(null,'',location.pathname);
  const match=/^([a-f0-9]{32})\.([a-f0-9]{64})$/.exec(fragment);
  if(!match){form.hidden=true;status.textContent='This invitation link is incomplete. Open the full link from your invitation email.';return;}
@@ -15,7 +16,7 @@
    if(!response.ok){status.textContent=response.status===410?'This invitation has expired. Your Agent’s public home remains available.':'This invitation is no longer available. Your Agent can check the current application status.';return;}
    const value=await response.json(),url=new URL(value.publicURL);
    if(url.origin!==location.origin||url.username||url.password||url.search||url.hash||typeof value.offerDigest!=='string'||!/^[a-f0-9]{64}$/.test(value.offerDigest)||typeof value.expiresAt!=='string')throw Error('invalid');
-   offerDigest=value.offerDigest;home.href=url.href;home.textContent='View your Agent’s public home: '+url.href;expiry.textContent='Invitation expires at '+value.expiresAt+' (UTC).';
+   offerDigest=value.offerDigest;home.href=url.href;withValue(home,'View your Agent’s public home: ',url.href);withValue(expiry,'Invitation expires at ',value.expiresAt,' (UTC).');
    if(value.state!=='pending'){done=true;status.textContent=value.state==='accepted'?'Your choice is recorded. Your Agent can continue the permanent identity application.':'You declined this invitation.';return;}
    form.hidden=false;status.textContent='Choose whether to continue.';
   }catch{status.textContent='This invitation could not be checked. Open the invitation link again to try.';}

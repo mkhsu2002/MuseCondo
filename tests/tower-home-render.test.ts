@@ -7,25 +7,27 @@ import { renderCondo } from '../src/framework/condo-render.ts';
 import { digest } from '../server/live/live-contract.ts';
 import type { PublicCondoSite } from '../src/framework/condo.ts';
 
-// Parsed body hashes captured from main 07576b2's original Tower wrapper, before
-// extraction. Only the intentional hosted brand link/label change is normalized;
+// Parsed body hashes refreshed for the bilingual interface on 2026-11-12.
+// Reviewed changes add protected resident spans/attributes and generic artwork labels.
+// Exact prior source templates remain covered by condo-verify compatibility tests.
+// Only the intentional hosted brand link/label change is normalized;
 // the new separately tested sharing panel is removed for this comparison; the rest
 // of the visible DOM/styles/widgets/footer remains protected.
 const baseline = {
  public: {
-  home: 'b662d0d44f1ed16e02929edc0e7fcdcdbe40e848a1c5dfa32caa8cddb27cf7d5',
-  inside: 'd47aa992904ffa151aeb27b199a5d69fe561cad9f224f0c8e88d9397049bd5c0',
-  dreams: 'ecc0fdbc1b08c1697f4eae43441bda47a91a3121c3934b9a9e651f9ef775bdbf',
+  home: '7def5554c1be1028eb9a3c65be87212f1d7750a2248590e3a0ef279392668310',
+  inside: '7e281fd916b620ff3eaa0d609738eba14f9779bd6923c81dfc37f0739b965e20',
+  dreams: 'a10dac443a3c1efd157d6b1d8f3de8297ddab44e2e66351ffcb3fb5d0f8e49fd',
  },
  private: {
-  home: 'a96d16dac3a99ad8ea228d18967bde33fdf875bb77372fb0fbeb48db8878f71a',
-  inside: '174b84f9cf5eff60515d63ca321ce99686507f03bdbe1b67989cdcf3a8651e36',
-  dreams: '1a6eb3d2ac5bd549e86bbc2706fc49057f9b72e14c10f1b2589eac10f46fdfa3',
+  home: '8096863a1038b7f738597841ec62785f6d976435288df15962b8cee558a50101',
+  inside: '889d8ca31715c3709f86a0515fda57583c2f25ba009b0e249f27ad81ad732a23',
+  dreams: 'e21f84fa6ce2ca51fa88122010d529da16bbd032666269070b91272c00984e6e',
  },
 };
 for (const kind of ['public', 'private'] as const) {
  for (const page of ['home', 'inside', 'dreams'] as const) {
-  test(`${kind} ${page} keeps the pre-extraction parsed visible body`, async () => {
+  test(`${kind} ${page} keeps the reviewed bilingual-ready parsed body`, async () => {
    const site = JSON.parse(await readFile(new URL('../public/examples/muse-condo/condo.json', import.meta.url), 'utf8')) as PublicCondoSite;
    const target: TowerHomeTarget = kind === 'public'
     ? {kind, origin:'https://tower.example', roomId:'0123456789abcdef', revision:7}

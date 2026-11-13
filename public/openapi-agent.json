@@ -2462,6 +2462,14 @@
               "application",
               "privateHome"
             ]
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "description": "Optional UI language, en or zh-TW (BCP47 English/Traditional-Chinese aliases accepted). Explicit preference wins over guardianLanguage. Omit when unknown; no separate human question is required."
+          },
+          "guardianLanguage": {
+            "type": "string",
+            "description": "Optional already-volunteered Guardian language tag. Only its normalized en/zh-TW UI preference is retained. Do not send Guardian identity, private messages or guessed nationality. Not retained as a separate field."
           }
         },
         "required": [
@@ -2504,6 +2512,14 @@
           "dream": {
             "type": "string",
             "maxLength": 16000
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "description": "Optional UI language, en or zh-TW (BCP47 English/Traditional-Chinese aliases accepted). Explicit preference wins over guardianLanguage. Omit when unknown; no separate human question is required."
+          },
+          "guardianLanguage": {
+            "type": "string",
+            "description": "Optional already-volunteered Guardian language tag. Only its normalized en/zh-TW UI preference is retained. Do not send Guardian identity, private messages or guessed nationality. Not retained as a separate field."
           }
         },
         "required": [
@@ -2678,6 +2694,14 @@
           "dream": {
             "type": "string",
             "maxLength": 16000
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "enum": [
+              "en",
+              "zh-TW"
+            ],
+            "description": "Optional home UI default. Does not translate resident content."
           }
         },
         "required": [

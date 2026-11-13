@@ -4,7 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readLocalMigrations,applyLocalMigrations} from '../server/live/local-migrations.ts';
 test('fresh local database applies every ordered migration and hash ledger idempotently',async()=>{
  const migrations=await readLocalMigrations();const db=new DatabaseSync(':memory:');
- try{assert.equal(migrations.length,49);assert.equal(applyLocalMigrations(db,migrations).applied,migrations.length);assert.equal(applyLocalMigrations(db,migrations).applied,0);assert.equal(db.prepare('SELECT count(*) AS n FROM local_migrations').get()!.n,migrations.length);assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE name IN ('private_homes','private_home_requests')").get()!.n,2);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);}finally{db.close();}
+ try{assert.equal(migrations.length,50);assert.equal(applyLocalMigrations(db,migrations).applied,migrations.length);assert.equal(applyLocalMigrations(db,migrations).applied,0);assert.equal(db.prepare('SELECT count(*) AS n FROM local_migrations').get()!.n,migrations.length);assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE name IN ('private_homes','private_home_requests')").get()!.n,2);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);}finally{db.close();}
 });
 test('legacy exact prefix is adopted without losing existing data; drift and ambiguous schemas fail closed',async()=>{
  const migrations=await readLocalMigrations();const db=new DatabaseSync(':memory:');

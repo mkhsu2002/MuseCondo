@@ -1108,7 +1108,7 @@ test('Tower metadata uses only the published revision; private previews are noin
       assert.match(head, new RegExp('<link rel="canonical" href="https://tower\\.example'+path+suffix+'">'));
       assert.match(head, /property="og:image" content="https:\/\/tower.example\/api\/v1\/tower\/assets\/[a-f0-9]{16}\/1\/home.png"/);
       assert.match(head,/Published &quot;home&quot; &lt;safe&gt; &amp; welcome/);
-      assert.match(head,/<meta name="description" content="Published &lt;intro&gt; &amp; &quot;description&quot;">/);
+      assert.match(head,/<meta name="description"[^>]* content="Published &lt;intro&gt; &amp; &quot;description&quot;">/);
       assert.doesNotMatch(head,/PRIVATE_DRAFT_METADATA|SECRET_QUERY|PRIVATE_SOURCE|合成窗邊夢/);
       const headResponse=(await f.req(path+suffix,'HEAD',undefined,''))!;
       assert.deepEqual([...headResponse.headers],[...response.headers]);
