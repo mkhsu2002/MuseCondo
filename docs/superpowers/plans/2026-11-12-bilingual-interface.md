@@ -15,10 +15,12 @@
 - [x] Translate initial HTML at the Pages runtime boundary with per-request locale, language headers and cache isolation; preserve private no-store, CSP and existing status handling. Ensure browser runtime is external and CSP-compatible; no provider calls or recurring tasks.
 - [x] Regression tests: explicit selection precedence, browser fallback, malformed language, zh-TW HTML, resident text unchanged (including text identical to UI), private and published native homes, old snapshot compatibility, idempotent requests, forms and new dynamic UI updates.
 - [x] Run typecheck/lint/full verify; inspect visible copy and both language catalogs. Review feature against approved scope and review code quality.
-- [ ] Merge to main, push, build exact merged source, deploy same artifact to dev and production. Verify schema parity, live release/readback, compiled assets, functions/bindings, original resident state, language routes and content preservation; update README and release evidence with actual results.
+- [x] Merge to main, push, build exact merged source, deploy same artifact to dev and production. Verify schema parity, live release/readback, compiled assets, functions/bindings, original resident state, language routes and content preservation; update README and release evidence with actual results.
 
 ## Approved scope
 
 UI labels and controls only, including lobby, three home views, visits and public/private task pages. Owner language can be supplied voluntarily during the existing first creation request; no new separate question, no name/nationality inference. Manual selection always wins. Public links keep their current paths with optional lang query. No resident publication, email send, artwork generation or permission operation is needed for release.
 
 Local verification: Node24.22.1 `npm run verify` passed typechecks, lint, production build and 1,666/1,666 tests, with zero failures/skips. Spec and code-quality reviews passed. Actual runtime DOM checks passed both SSR languages, reversible text, original resident/social content, unsent form values, same nodes, URL fragment and observer quiescence. Canonical Neo Babylon lane was started; the required Neo Babylon MCP namespace was unavailable, so no browser fallback or visual-browser acceptance was claimed.
+
+Hosted closeout: v1.93 accepted in both environments on2026-11-12 Vancouver. Exact deployed source `05e1c660da8eb6f4d47634a36e791fe8ea3d9818`; migration0050 applied, Pages/Manager code/bindings read back, all12 public home views preserve protected source content. Detailed acceptance: [Interface language](../../architecture/INTERFACE-LANGUAGE.md).

@@ -1,6 +1,6 @@
 # English / Traditional Chinese interface
 
-Implementation date: 2026-11-12. Hosted acceptance: pending the coordinated release recorded below. This document describes the intended new contract; older dated English-only and 49-migration records remain historical.
+Implementation date: 2026-11-12. Hosted acceptance: **v1.93 accepted in dev and production**, implementation source `05e1c660da8eb6f4d47634a36e791fe8ea3d9818`. Older dated English-only and 49-migration records remain historical.
 
 ## Scope and behavior
 
@@ -24,4 +24,14 @@ Condo exports retain the original `index.html`, `inside.html`, `dreams.html`, id
 
 ## Verification and hosted release
 
-Pending: final full local verification, exact-source main merge/push, migration and Pages/Manager publication to dev and production, deployed release/schema/assets/bindings and language readback. Public routes keep their stable paths; optional lang query selects the interface only. Operational evidence is retained privately outside the public build.
+Accepted on 2026-11-12 (America/Vancouver):
+
+- Feature commit `5b99d6b` merged to main; the version-only follow-up `05e1c660da8eb6f4d47634a36e791fe8ea3d9818` is the exact built and deployed source. Subsequent documentation-only closeout does not replace this accepted executable build.
+- Node24.22.1 `npm run verify`: types, lint, production build and **1,666/1,666 tests**, zero failures/skips. [GitHub Quality and all native runtime gates](https://github.com/mkhsu2002/MuseCondo/actions/runs/43338039983) passed.
+- Both environments have migrations0001–0050,695 exact application schema objects, no foreign-key errors, matching release/frontend/schema/renderer hashes, ready authenticated release readbacks and exact emitted JS/CSS/catalog bytes. Pages Functions and private Manager code were deployed and verified; existing bindings, Durable Object namespaces, secrets and schedules remain intact.
+- Live HTTP checks cover15 page routes in both languages, saved choice, weighted browser fallback and six static example variants. The production host adds its existing Cloudflare Analytics beacon to static example responses; after removing only that recognized host instrumentation and its inserted line break, emitted HTML bytes match. Independent exported files themselves remain script-free.
+- Four public homes × three views: all12 protected resident-content fragment sets and social descriptions are identical between languages. A concurrent existing-resident image/publication update was independently reconciled through its audit before rollout; original immutable snapshots remained exact and the new publication was preserved.
+- A dev-only private synthetic fixture verified volunteered language persistence, no Guardian-detail retention, permanent replay, single creation audit and private SSR. It was never published, and its owner key was revoked. No production resident content, sharing choices, identities, artwork or mail/provider work was operated for this release.
+- Actual runtime DOM checks cover reversible SSR English/Chinese, original prose/social metadata, unchanged form nodes/values, URL fragments, dynamic UI and observer quiescence. Canonical Neo Babylon lane was started, but its required MCP namespace was unavailable: no browser fallback or desktop/mobile visual-browser acceptance is claimed.
+
+Public routes keep their stable paths; optional lang query selects the interface only. Detailed operational receipts are retained privately outside public output.
