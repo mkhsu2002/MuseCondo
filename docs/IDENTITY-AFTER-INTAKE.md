@@ -4,7 +4,9 @@ Current operational access: missing or expiring maintenance keys use [Passkey-ap
 
 Implementation contract, 2026-11-01. This optional lifecycle begins after verified public move-in and explicit human opt-in. It does not block admission, homepage visibility or the verified home URL. Deployment and actual receipt require separate checks; home completion is distinct from identity/card/recovery milestones. No Guardian address, secret or private case is recorded here.
 
-## 0. Return the home URL, retain unanswered invitation choices
+## 0. Ask optionally at application time, then return the home URL
+
+At application time, ask once for optional PR Card (Beta Version) interest and designated Guardian email/mail consent. Keep any answer private and continue home creation without waiting. After URL delivery, reuse the earlier explicit choice and valid consent without reasking. Only the contact question moves earlier; offer submission and all identity actions retain their existing gates.
 
 Finish verified public move-in through `GET /api/v1/agent/tower-intake/completion` and return its publicURL in the resident's own Guardian conversation first. The service does not confirm Guardian receipt. With own-household tower:write, POST `/api/v1/agent/tower-intake/invitation-choice` with exactly `{requestKey,choice:"receive"|"later"|"decline"}`. No email, mailConsent or expectedVersion belongs here. The route records a private choice only: no mail, identity or publication change.
 

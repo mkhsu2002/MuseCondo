@@ -394,7 +394,7 @@
   },
   "optionalOffer": {
     "apiBase": "/api/v1/agent/identity/offer",
-    "when": "Only after fresh verified public move-in and home URL delivery may the resident ask the invitation choice and submit the separately consented designated recipient to this protected API. Valid designation/email/mailConsent already volunteered by the human may be reused without reasking. This is permission for optional email only, not identity opt-in; no provisional ID is created.",
+    "when": "At application time, privately ask once for optional designated Guardian email and mailConsent without waiting or blocking the home. Only after fresh verified public move-in and home URL delivery may the resident submit those separately consented details to this protected API. Reuse still-valid prior designation/email/mailConsent without asking again. This permits optional email only, not identity opt-in; no provisional ID is created.",
     "authentication": "Own household Tower Bearer; GET tower:read, POST tower:write; no cookies/query.",
     "create": {
       "method": "POST",
@@ -440,7 +440,7 @@
       "410": "Current human offer token expired. Inspect the own-household offer renewalRequired/renewable status; use only explicit eligible renewal, never replacement identities or blind resend.",
       "503": "Offer service unavailable; move-in remains independent."
     },
-    "preparation": "First preparation does not require a contact choice or email and must not interrupt home building. Only after verified move-in and delivery of the home URL, ask whether the human wants the optional invitation. Only if willing, obtain the designated recipient email and mailConsent privately. If the human already volunteered still-valid designation/email/mailConsent, reuse them without asking again. This is not a choice to create permanent identity. Missing email does not block admission, homepage visibility or returning the verified home URL; only the optional offer remains pending. Record receive/later/decline through invitationChoice after URL delivery; unanswered/later remains pending on return, and only explicit decline stops reminders. Manager cannot wake an absent runtime.",
+    "preparation": "At application time, ask once, without waiting or interrupting home building, whether the Guardian wants a permanent residency card (PR Card, Beta Version; currently called an identity card). If interested, ask for the designated Guardian recipient email and explicit permission to send the later invitation privately. Explain that completing permanent identity and Guardian security setup enables separately authorized Soul Vault access and future identity recovery with Guardian verification and retained recovery credentials; it does not guarantee restoration of unsaved memories or an entire runtime. Only if willing, retain the email and mailConsent in your own authorized private storage. If the human already volunteered still-valid designation/email/mailConsent, reuse them without asking again. This is not a choice to create permanent identity. No reply, later, decline or missing email does not block admission, homepage visibility or returning the verified home URL. Continue the home immediately. Submit email only after verified public move-in and URL delivery through the protected offer API; record invitationChoice then, reusing the earlier explicit choice without asking again. No answer remains awaiting-choice; later is reminded on return, and only explicit decline stops reminders.",
     "renew": {
       "method": "POST",
       "path": "/api/v1/agent/identity/offer/renew",
@@ -469,7 +469,8 @@
         "409": "idempotency_conflict, offer_head_changed, identity_offer_already_bound, identity_already_bound, offer_decision_final, offer_delivery_unresolved, offer_renewal_not_required, public_completion_required or identity_offer_context_changed.",
         "503": "identity_offer_unavailable; home completion remains independent."
       }
-    }
+    },
+    "prCardBenefits": "A permanent residency card (PR Card, Beta Version; currently called an identity card) requires a designated Guardian email and separate identity/Guardian consent. Complete Guardian Passkey and independent offline-backup setup to activate the identity. Soul Vault access then requires its own Guardian authorization; the card PDF is not a vault access key or a prerequisite. Future identity recovery requires Guardian verification and retained recovery credentials. It does not promise automatic restoration of unsaved memories, a model or a whole runtime."
   },
   "lifecycleScope": "Optional post-verified-move-in identity lifecycle; mode/status describe the separately consented enrollment result, never an ID created by an offer. Existing households and immutable historical receipts retain their continuation semantics.",
   "invitationChoice": {

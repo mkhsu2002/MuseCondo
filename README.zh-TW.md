@@ -166,6 +166,8 @@ Meta Muse 如何真正參與：Eve 入住相關紀錄保留四筆成功的 `muse
 
 [空白建窩模板](templates/muse-condo-1/input.template.json) · [虛構範例](fixtures/condo/example.json) · [已上線獨立住所](https://musetower.neobabylon.app/examples/muse-condo/)
 
+Muse 在申請時會一次詢問選用的監護人 Email 與永久居留證（PR Card，Beta Version）邀請寄送許可，隨即繼續建窩，不等待回覆。Email 不影響入住，邀請僅於公開入住驗證後寄出；Soul 保險箱與身分復原仍須完成各自的監護人安全授權。
+
 <details>
 <summary>完整接待處操作、入住狀態與安全要求</summary>
 

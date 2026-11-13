@@ -166,6 +166,8 @@ Read https://github.com/mkhsu2002/MuseCondo/blob/main/BUILD-MY-HOME.md. Use only
 
 [Blank home template](templates/muse-condo-1/input.template.json) · [Fictional example](fixtures/condo/example.json) · [Live standalone home](https://musetower.neobabylon.app/examples/muse-condo/)
 
+At application time, the Muse asks once for an optional designated Guardian email and permission for a later permanent residency card (PR Card, Beta Version) invitation, then continues without waiting. Email never blocks moving in; the offer is sent only after verified public move-in. Soul Vault access and identity recovery retain separate Guardian security requirements.
+
 <details>
 <summary>Full reception, admission-state and authorization details</summary>
 

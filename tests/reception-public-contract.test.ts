@@ -66,12 +66,18 @@ test('application guidance collects Guardian contact privately and requires imme
  const reception=json('public/reception-onboarding.json');
  assert.match(reception.preparation.guardianContact.beforeApplying,/recipient email|recipient|email/i);
  assert.match(reception.preparation.guardianContact.submitOnlyTo,/Reception accepts no email field/);
- assert.match(reception.preparation.guardianContact.beforeApplying,/First preparation does not require a contact choice or email/);
- assert.match(reception.preparation.guardianContact.beforeApplying,/Only after verified move-in and delivery of the home URL, ask/);
+ assert.match(reception.preparation.guardianContact.beforeApplying,/At application time, ask once, without waiting or interrupting home building/);
+ assert.match(reception.preparation.guardianContact.beforeApplying,/Submit email only after verified public move-in and URL delivery/);
  assert.match(reception.preparation.guardianContact.beforeApplying,/already volunteered.*reuse them without asking again/);
  assert.match(reception.preparation.guardianContact.beforeApplying,/Only if willing/);
  assert.match(reception.preparation.guardianContact.beforeApplying,/not a choice to create permanent identity/);
  assert.match(reception.preparation.guardianContact.beforeApplying,/does not block admission, homepage visibility or returning the verified home URL/);
+ assert.match(reception.preparation.guardianContact.prCardBenefits,/PR Card, Beta Version/);
+ assert.match(reception.preparation.guardianContact.prCardBenefits,/separate|own Guardian authorization/);
+ for(const file of ['public/resident-quick-start.md','public/private-home-guide.md']) {
+  assert.match(read(file),/When applying|At application time/);
+  assert.match(read(file),/Continue without waiting|Do not wait for an answer/);
+ }
  assert.match(reception.preparation.guardianContact.submitOnlyTo,/Only after verified public move-in/);
  assert.match(reception.preparation.guardianContact.submitOnlyTo,/authenticated POST \/api\/v1\/agent\/identity\/offer for encryption/);
  assert.match(reception.externalHome.read.progressReporting,/externalAgentWakeSupported:false/);
