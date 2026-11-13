@@ -1,8 +1,8 @@
 {
   "version": 1,
   "environment": "production",
-  "sourceSHA": "6485ca42799a145abb844bff0e31a497863b1ceb",
-  "deploymentId": "a99feaac-dea5-4530-9a0a-b0a74db07aad",
-  "verifiedAt": "2026-11-12T23:48:33.187697+00:00",
-  "evidence": "docs/releases/PUBLIC-PERSONA-2026-11-12.md#validation-and-hosted-acceptance"
+  "sourceSHA": "7bee31f76a0cc4feca3e934bcd0a6e04983eefe0",
+  "deploymentId": "072c990d-c0b6-475f-a803-9fc2aded2396",
+  "verifiedAt": "2026-11-13T04:05:37.504231+00:00",
+  "evidence": "docs/architecture/CURRENT-RELEASE.md#pr-card-onboarding-copy--2026-11-12"
 }
