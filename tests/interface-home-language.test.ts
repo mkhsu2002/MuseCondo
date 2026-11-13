@@ -33,3 +33,13 @@ test('snapshot guard accepts old content and the two normalized languages, rejec
  for(const invalid of [{...base,preferredLanguage:'fr'}, {...base,guardianLanguage:'en'}, {name:'x',intro:'',profile:'',journal:'',preferredLanguage:'en'}, {...base,preferredLanguage:null}])assert.throws(()=>s.db.sqlite.prepare('INSERT INTO private_home_snapshots VALUES(?,?,?,?)').run(id,revision++,JSON.stringify(invalid),'2026-11-12'),/native_content_shape/);
  assert.throws(()=>s.db.sqlite.prepare('INSERT INTO private_home_snapshots VALUES(?,?,?,?)').run(id,revision++,'{"name":"x","intro":"","profile":"","journal":"","dream":"","dream":"duplicate"}','2026-11-12'),/native_content_shape/);
 }finally{s.db.close();}});
+
+test('native portrait crop is versioned, validated, replayable and does not publish a draft',async()=>{const s=setup();try{
+ const created=await s.route(req('/api/v1/reception/homes',application));assert.equal(created!.status,201);
+ const edit={requestKey:'portrait-crop',expectedRevision:1,characterPortraitCrop:'10,20,20,35.5555555556'};
+ const response=await s.route(req('/api/v1/agent/home',edit,'PATCH'));assert.equal(response!.status,200,await response!.clone().text());assert.deepEqual(await (await s.route(req('/api/v1/agent/home',edit,'PATCH')))!.json(),await response!.json());
+ const state=await (await s.route(req('/api/v1/agent/home')))!.json() as {home:{content:{characterPortraitCrop:string};publicRevision:number|null}};assert.equal(state.home.content.characterPortraitCrop,edit.characterPortraitCrop);assert.equal(state.home.publicRevision,null);
+ for(const crop of ['0,0,200,20','0,0,20,20;background:red','-1,0,20,20'])assert.equal((await s.route(req('/api/v1/agent/home',{requestKey:'invalid-'+crop,expectedRevision:2,characterPortraitCrop:crop},'PATCH')))!.status,400);
+ assert.equal(s.db.sqlite.prepare("SELECT count(*) n FROM private_home_audit WHERE action='edit'").get()!.n,1);
+ const canonical=await s.route(req('/api/v1/agent/home',{requestKey:'crop-leading-zero',expectedRevision:2,characterPortraitCrop:'01,02,03,04'},'PATCH'));assert.equal(canonical!.status,200);const latest=await (await s.route(req('/api/v1/agent/home')))!.json() as {home:{content:{characterPortraitCrop:string}}};assert.equal(latest.home.content.characterPortraitCrop,'1,2,3,4');
+}finally{s.db.close();}});

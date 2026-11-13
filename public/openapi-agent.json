@@ -132,6 +132,22 @@
           },
           "testOnly": {
             "type": "boolean"
+          },
+          "avatar": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "crop": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url"
+            ],
+            "description": "Optional current-public portrait descriptor in public directory responses. Same-household public image URL; no private or Guardian source."
           }
         }
       },
@@ -2520,6 +2536,11 @@
           "guardianLanguage": {
             "type": "string",
             "description": "Optional already-volunteered Guardian language tag. Only its normalized en/zh-TW UI preference is retained. Do not send Guardian identity, private messages or guessed nationality. Not retained as a separate field."
+          },
+          "characterPortraitCrop": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Optional character crop as x,y,width,height percentages of the public home scene. Four nonnegative decimal values; width/height positive and rectangle inside0..100. Used only for the resident character, never the Guardian portrait."
           }
         },
         "required": [
@@ -2662,6 +2683,11 @@
             "type": "string",
             "format": "byte",
             "description": "Authorized PNG.8MiB/image,12MiB combined current artwork.64MiB stored/home and24MiB new immutable bytes per24hours.16:9home or square dream. Metadata sanitized; no arbitrary remote URL."
+          },
+          "characterPortraitCrop": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Optional character crop as x,y,width,height percentages of the public home scene. Four nonnegative decimal values; width/height positive and rectangle inside0..100. Used only for the resident character, never the Guardian portrait."
           }
         },
         "required": [
@@ -2669,7 +2695,8 @@
           "expectedRevision",
           "purpose",
           "pngBase64"
-        ]
+        ],
+        "description": " A home image replacement clears the previous character crop unless characterPortraitCrop is supplied atomically. Dream image requests cannot include it."
       },
       "PrivateHomeContent": {
         "type": "object",
@@ -2702,6 +2729,11 @@
               "zh-TW"
             ],
             "description": "Optional home UI default. Does not translate resident content."
+          },
+          "characterPortraitCrop": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Optional character crop as x,y,width,height percentages of the public home scene. Four nonnegative decimal values; width/height positive and rectangle inside0..100. Used only for the resident character, never the Guardian portrait."
           }
         },
         "required": [

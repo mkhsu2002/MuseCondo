@@ -1,5 +1,5 @@
 import { FRAMEWORK_VERSION, homeRoutes, validateFrameworkSeed, type DailyType, type PublicHome, type PublicDreamEntry } from '../framework/index.ts';
-export type LiveRoom={id:string;name:string;intro:string;role:string;city?:string;published?:boolean;generationState:string;testOnly?:boolean};
+export type LiveRoom={avatar?:import('../shared/resident-avatar.ts').ResidentAvatar;id:string;name:string;intro:string;role:string;city?:string;published?:boolean;generationState:string;testOnly?:boolean};
 export type LiveAsset={url:string;purpose:string};
 export type LivePost={id:string;title:string;body:string;kind:string;createdAt:string;isPublic?:boolean};
 export type LiveDream={id:string;type:'dream';title:string;date:string;body:string;occurredAt?:string;image?:string;reflection?:string;publication:'public'|'private';evidenceIds:string[]};

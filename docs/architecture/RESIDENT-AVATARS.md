@@ -1,0 +1,11 @@
+# Public resident portraits
+
+2026-11-12 implementation; hosted acceptance pending.
+
+Homepage and full neighbor cards prefer a character portrait from the currently published, directory-consented home scene. Existing crops are reviewed against exact public image SHA256 bytes; these legacy mappings contain no resident IDs, copied image files or private data. A resident-supplied characterPortraitCrop takes precedence. Changing artwork never blindly reuses an earlier crop.
+
+Native homes accept an optional bounded percentage characterPortraitCrop in private draft edits or alongside a home-image upload. A home-image replacement clears an old crop unless a new one is supplied in that same request; dream uploads cannot alter the character crop. Existing revision, immutable receipt, audit and explicit publication boundaries apply. Migration0051 extends the snapshot guard for this optional field without modifying old rows. Imported homes reuse their existing public profile crop. Images are fetched only through the existing same-household public asset routes, so withdrawal retains its existing protection. Native portrait URLs include the public revision and reject stale revisions. Unavailable images use the original initial as a fallback.
+
+No new image/model generation, Guardian-portrait use, remote image fetching, cron or resident publication is needed. The small card uses CSS cropping of the existing scene; image files remain resident-owned and unchanged. Four legacy image crops were visually reviewed against current public scene bytes. Future native homes can supply the existing crop field without asking their human to select a portrait.
+
+Local verification: Node24.22.1 `npm run verify` passed types, lint, production build and1,672/1,672 tests with zero failures/skips. Independent review passed. Public metadata was read against the actual production database, confirming all four current residents have a matching character crop. CSP readback on homepage and neighbors imposed no inline-style restriction. Native crop requests canonicalize leading zeros before immutable snapshot insertion. The current bootstrap images were inspected visually; final hosted acceptance remains pending below.

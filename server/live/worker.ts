@@ -1,3 +1,4 @@
+import {withResidentAvatars} from './resident-avatars.ts';
 import {localizeInterfaceResponse,interfaceRuntimeRequest} from './interface-html.ts';
 import {createPrivateHomeRoutes,nativeHomeDirectory} from './private-home-routes.ts';
 import {createVaultAuthorization} from './vault-auth.ts';
@@ -186,7 +187,7 @@ const runtime={async fetch(request:Request,env:PagesBindings,context?:RuntimeCon
   }
 
   if(api){const response=await app.fetch(request,request.headers.get('CF-Connecting-IP')??'unknown');
-   if(url.pathname==='/api/v1/public/rooms'&&request.method==='GET'&&response.ok){const payload=await response.json() as {rooms:{id:string;name:string}[]};return json({...payload,rooms:[...await nativeHomeDirectory(db),...payload.rooms]});}
+   if(url.pathname==='/api/v1/public/rooms'&&request.method==='GET'&&response.ok){const payload=await response.json() as {rooms:{id:string;name:string}[]};return json({...payload,rooms:await withResidentAvatars(db,[...await nativeHomeDirectory(db),...payload.rooms])});}
    if(url.pathname.replace(/\/$/,'')==='/api/v1/status'&&request.method==='GET'){
     const last=await db.prepare("SELECT completed_at FROM manager_jobs WHERE state='complete' ORDER BY completed_at DESC LIMIT 1").first<{completed_at:string}>();
     const autonomyBound=!!env.MANAGER_RUNTIME&&!!env.MANAGER_SCHEDULE_TRIGGER_KEY&&!!env.MANAGER_ASSETS&&!!env.meta_muse_api&&!!env.ASSETS;
@@ -270,7 +271,7 @@ const runtime={async fetch(request:Request,env:PagesBindings,context?:RuntimeCon
   try{
    const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));
    if(!directory.ok)return json({error:'directory_unavailable'},503);
-   const payload=await directory.json() as {rooms:{id:string;name:string}[]};const rooms=[...await nativeHomeDirectory(env.DB),...payload.rooms];
+   const payload=await directory.json() as {rooms:{id:string;name:string}[]};const rooms=await withResidentAvatars(env.DB,[...await nativeHomeDirectory(env.DB),...payload.rooms]);
    if(!Array.isArray(rooms)||rooms.some(r=>!r||!/^[a-f0-9]{16}$/.test(r.id)||typeof r.name!=='string'))return json({error:'directory_unavailable'},503);
    const asset=await env.ASSETS.fetch(new Request(new URL('/',url),request));if(!asset.ok)return asset;
    const canonical=env.PUBLIC_ORIGIN+'/neighbors';
@@ -286,7 +287,7 @@ const runtime={async fetch(request:Request,env:PagesBindings,context?:RuntimeCon
   const response=await env.ASSETS.fetch(request);
   if(!response.ok||!response.headers.get('Content-Type')?.startsWith('text/html'))return response;
   try{
-   let rooms:{id:string;name:string}[]=[];try{const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));if(directory.ok)rooms=[...await nativeHomeDirectory(env.DB),...((await directory.json()) as {rooms:{id:string;name:string}[]}).rooms];}catch{/* Other public sections remain independent of the directory. */}
+   let rooms:{id:string;name:string}[]=[];try{const directory=await createLiveApp({db:env.DB,origin:env.PUBLIC_ORIGIN!,localTest:false,registrationEnabled:false,towerEnabled:true}).fetch(new Request(env.PUBLIC_ORIGIN+'/api/v1/public/rooms'));if(directory.ok)rooms=await withResidentAvatars(env.DB,[...await nativeHomeDirectory(env.DB),...((await directory.json()) as {rooms:{id:string;name:string}[]}).rooms]);}catch{/* Other public sections remain independent of the directory. */}
    let journals='';try{journals=renderTowerJournals(await publicationServices(env,context).daily.getLatest());}catch{/* Current unverified journals remain hidden. */}
    let weekly='';try{const issues=await publicationServices(env,context).weekly.list({limit:1});weekly=renderWeeklyCard('',issues[0]??null);}catch{/* The existing resident directory remains available. */}
    let scenery=renderScenePreview('',[]);try{scenery=renderScenePreview('',await publicationServices(env,context).scenes.list());}catch{/* Unverified scenery stays blank. */}

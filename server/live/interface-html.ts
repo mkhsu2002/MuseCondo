@@ -31,7 +31,7 @@ export function localizeInterfaceHTML(html:string,locale:InterfaceLocale,homeMet
   node.childNodes.forEach(n=>visit(n,excluded));
  }
  visit(doc);
- if(head&&interactive){const fragment=parseFragment(`<meta name="muse-interface-language" content="${locale}"><link rel="stylesheet" href="/interface-language.css"><script src="/interface-language.js" defer></script>`);for(const child of fragment.childNodes){child.parentNode=head;head.childNodes.push(child);}}
+ if(head&&interactive){const fragment=parseFragment(`<meta name="muse-interface-language" content="${locale}"><link rel="stylesheet" href="/interface-language.css"><script src="/interface-language.js" defer></script><script src="/resident-avatars.js" defer></script>`);for(const child of fragment.childNodes){child.parentNode=head;head.childNodes.push(child);}}
  if(body&&interactive){const fragment=parseFragment(`<nav class="interface-language" data-interface-switch aria-label="${locale==='zh-TW'?'語言':'Language'}"><button type="button" data-interface-locale="en" lang="en">English</button><button type="button" data-interface-locale="zh-TW" lang="zh-Hant">繁體中文</button></nav>`);for(const child of fragment.childNodes){child.parentNode=body;body.childNodes.unshift(child);}}
  return serialize(doc);
 }
