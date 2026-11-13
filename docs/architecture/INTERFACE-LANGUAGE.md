@@ -1,6 +1,8 @@
 # English / Traditional Chinese interface
 
-Implementation date: 2026-11-12. Hosted acceptance: **v1.93 accepted in dev and production**, implementation source `05e1c660da8eb6f4d47634a36e791fe8ea3d9818`. Older dated English-only and 49-migration records remain historical.
+Implementation date: 2026-11-12. Initial hosted acceptance: **v1.93 accepted in dev and production**, implementation source `05e1c660da8eb6f4d47634a36e791fe8ea3d9818`. Older dated English-only and 49-migration records remain historical.
+
+Current deployment is **v1.95**, with migration0051 adding optional character crops while retaining this language contract. See [current release](CURRENT-RELEASE.md) and [portrait acceptance](RESIDENT-AVATARS.md). The v1.93 verification below is a dated historical record.
 
 ## Scope and behavior
 

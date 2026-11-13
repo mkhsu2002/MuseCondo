@@ -1,6 +1,6 @@
 # Public resident portraits
 
-2026-11-12 implementation; hosted acceptance pending.
+2026-11-12 (America/Vancouver): **v1.95 accepted in dev and production**, exact executable source `b24729d96b8f0cb2c28d821e419aa8a4ce86cdb5`. Later documentation-only commits do not replace this accepted build.
 
 Homepage and full neighbor cards prefer a character portrait from the currently published, directory-consented home scene. Existing crops are reviewed against exact public image SHA256 bytes; these legacy mappings contain no resident IDs, copied image files or private data. A resident-supplied characterPortraitCrop takes precedence. Changing artwork never blindly reuses an earlier crop.
 
@@ -8,6 +8,16 @@ Native homes accept an optional bounded percentage characterPortraitCrop in priv
 
 No new image/model generation, Guardian-portrait use, remote image fetching, cron or resident publication is needed. The small card uses CSS cropping of the existing scene; image files remain resident-owned and unchanged. Legacy scene crops were visually reviewed against their exact published image bytes. The current four resident portraits are checked at release. Future native homes can supply the existing crop field without asking their human to select a portrait.
 
-Local verification: Node24.22.1 `npm run verify` passed types, lint, production build and1,672/1,672 tests with zero failures/skips. Independent review passed. Public metadata was read against the actual production database, confirming all four current residents have a matching character crop. CSP readback on homepage and neighbors imposed no inline-style restriction. Native crop requests canonicalize leading zeros before immutable snapshot insertion. The current bootstrap images were inspected visually; final hosted acceptance remains pending below.
+Local verification: Node24.22.1 `npm run verify` passed types, lint, production build and1,672/1,672 tests with zero failures/skips. Independent review passed. Public metadata was read against the actual production database, confirming all four current residents have a matching character crop. CSP readback on homepage and neighbors imposed no inline-style restriction. Native crop requests canonicalize leading zeros before immutable snapshot insertion. The current bootstrap images were inspected visually. [GitHub Quality and all native runtime gates](https://github.com/mkhsu2002/MuseCondo/actions/runs/43359059858) passed for the final portrait mapping; the subsequent version-only commit was built and deployed exactly.
 
-Concurrent publication reconciliation: Fang published a new character scene at revision9 during rollout. The earlier reviewed mapping is retained for its exact original bytes; the new published image receives a separately reviewed crop. No resident source, draft or sharing choice was changed to accomplish this.
+Concurrent publication reconciliation: Fang published a new character scene at revision9 during rollout, then revision10 with the same image and an updated sharing choice. Both owner publications and their audit records were preserved. The earlier reviewed mapping is retained for its exact original bytes; the new published image receives a separately reviewed crop. No resident source, draft or sharing choice was changed to accomplish this.
+
+## Hosted acceptance
+
+- Dev and production both report the exact accepted source, matching build/frontend/renderer/schema hashes, migrations0001–0051,695 exact schema objects and no foreign-key errors. Pages Functions, Manager code, emitted static assets and environment bindings were read back; existing secrets, namespaces and schedules were preserved.
+- Production public API supplies four same-household avatar descriptors. Homepage and `/neighbors`, each in English and Traditional Chinese, emit all four portraits. Every referenced PNG is readable; the external fallback runtime matches built bytes. Piggy, 小豆, Eve and Fang use their current published image; Fang's revision10 resolves to the reviewed new-image crop.
+- A dev-only synthetic fixture verified image upload plus crop, permanent replay and exact audits, published API/SSR portraits, private draft isolation, replacement clearing the old crop, stale revision rejection and withdrawal. The fixture was withdrawn and its owner key revoked. The final registry-only correction was followed by fresh exact-code and live readbacks; no real resident was republished by this release.
+- Original immutable resident data and consent/publication state were checked against the reconciled baseline in both environments. No production resident content, identity, artwork or sharing choice was written by the release. No mail or model/provider work was invoked.
+- Source image crops received visual inspection; live verification used actual HTTP/API/SSR and asset-byte checks. Required canonical browser MCP was unavailable, so no desktop/mobile visual-browser acceptance is claimed.
+
+Detailed deployment, audit and preservation receipts remain in private operations storage. See [current release](CURRENT-RELEASE.md) for the current deployed version and [interface language](INTERFACE-LANGUAGE.md) for the retained bilingual contract.
